@@ -745,6 +745,85 @@ about scope — it is "an abstract system... cannot be used to invade an inhabit
 any significant amount of ground-based military power", and ships may not fire from orbit in support
 except transporter artillery.
 
+## Accounts, seats and durable games — ANALYSED 2026-10-15, agreed order A → B → D
+
+Owner's direction: **multiplayer is the base assumption** — N players join a game and units are
+assigned per player where that makes sense — and a game should be **persistable and resumable
+later**. The question asked was the effort and risk of moving to a model where players log in and
+the game instance is separate from any one user token. Analysed against the real code; the
+conclusion is that the engine is already in the right shape and the cost is elsewhere.
+
+### What is already true, and surprised the analysis
+
+- **`Unit.owner` is a core `Player` object** (name, teamName, faction, units) — never a token.
+  `grep` for `playerToken|hostToken` across `amarillo-core` returns **0**. Core already has no
+  idea that web sessions exist, so "the game instance is separate from any one user token" is not
+  a migration; it is the status quo in the engine.
+- The token concept lives in exactly **four server files**: `GameSession`, `GameSessionService`,
+  `GameController`, `LobbyStateDto`.
+- **N players already works.** `GameSessionService.joinSession` applies no cap, assignment is
+  per ship to a player, and `broadcastState` already sends each player their own REDACTED
+  snapshot on a per-token destination. Nothing in the server assumes two.
+
+### The actual problem: the token does double duty
+
+One opaque string is currently both **identity** ("who are you") and **seat** ("which chair in
+this game"). Accounts split it into three: a durable account id, a per-game seat id, and a binding
+of game + account → seat. The nine token-keyed collections in `GameSession` — `players`,
+`readyPlayers`, `coiDoneTokens`, `pendingCoi`, `pendingDeployment`, `deploymentDoneTokens`,
+`pendingAssignments`, `declarationCommits`, `activityCommits` — **do not change shape**; only what
+mints their key changes.
+
+**The real argument for accounts is not security, it is durability.** The seat is a token in
+`localStorage` today. Make games last weeks and clearing a browser orphans a fleet permanently,
+with no way to prove it was yours. A durable game needs a durable way to prove ownership of ships.
+
+### Slices
+
+| | work | size |
+|---|---|---|
+| A | Split seat from identity inside `GameSession` | ~1 session, one file |
+| B | Lightweight durable identity — account id + display name, **no password** | ~1 session |
+| C | Real login via OAuth (Google/Discord) | days, plus permanent upkeep |
+| D | Turn-boundary persistence (see the separate entry under *Unstarted systems*) | the big one |
+| E | N-player assignment UX and the setup step rail | moderate |
+
+**Agreed order: A → B → D. C is optional** and should stay optional. A durable id with a display
+name delivers N players, resumable games and durable ship ownership without storing a single
+password.
+
+### Risks, ranked
+
+1. **Auth is the only genuinely dangerous new thing** — password storage, CSRF, reset flows, rate
+   limiting. There is no attack surface worth naming today. It is **avoidable**: OAuth never stores
+   a password, and slice B buys persistence and N players with no auth surface at all.
+2. **Ship state export is the bulk of slice D, not a side task.** `Ship` has no inverse of
+   `init(Map)`; nothing writes damaged state back out. `ShipDto`'s ~124 fields show where the
+   values live.
+3. **Refit fingerprint drift.** A ship reconstructs from hull + refits + year + loadout, read from
+   ship JSON *at load time*, and this repo edits ship JSON constantly. Store a hash of the resolved
+   `ShipSpec` and compare on load.
+4. **Wrong order.** Accounts without persistence buys little, because sessions are an in-memory
+   `ConcurrentHashMap` and every game dies on restart anyway.
+
+### Two real defects found while reading, worth fixing regardless
+
+- **`GameSessionService.createSession` never checks for a code collision.**
+  `sessions.put(sessionId, session)` would **silently replace a live game**. The code is four hex
+  characters taken from a UUID substring (~65k values), so collisions begin appearing in the low
+  hundreds of concurrent games. Cheap fix; data-loss consequence.
+- **That four-character code is the only access control.** Brute-forceable in seconds. Acceptable
+  while every player is someone you invited; not acceptable on a public site, and it is the reason
+  a public games-in-progress list cannot simply publish join codes.
+
+### Note on the playtest loop
+
+The owner playtests with **two different browsers** (Chrome and Edge) signed in as two different
+people, to get the full experience from both sides. Separate browsers mean separate `localStorage`,
+so the single-seat slot (`SESSION_KEY` in `App.tsx`) never bites — but it **would** bite two tabs
+in one browser. If logins ever arrive, keep a fast path for this loop or every playtest costs two
+OAuth round-trips.
+
 ## Unstarted systems
 
 Roughly largest first. Several have had their rules read and their design settled; those say so.

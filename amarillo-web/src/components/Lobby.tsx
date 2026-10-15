@@ -53,7 +53,16 @@ export default function Lobby({ onJoined, onBuildFleet, savedSession, onResume }
     setBusy(true); setError('');
     try {
       const res = await gameApi.joinGame(gameId.trim().toUpperCase(), name.trim());
-      onJoined({ gameId: gameId.trim().toUpperCase(), playerToken: res.playerToken, isHost: false, playerName: name.trim() });
+      // isHost comes from the SERVER, never assumed false. A join now returns the seat this
+      // browser's account already holds, and that seat may be the host's — someone who left
+      // their own game and came back by code must not return as a guest locked out of the
+      // scenario picker they were using. Strings, because the endpoint returns Map<String,String>.
+      onJoined({
+        gameId: gameId.trim().toUpperCase(),
+        playerToken: res.playerToken,
+        isHost: res.isHost === 'true',
+        playerName: name.trim(),
+      });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not join game.');
     } finally {

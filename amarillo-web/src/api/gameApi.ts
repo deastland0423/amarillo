@@ -4,6 +4,7 @@
  */
 
 import type { ShipObject } from '../types/gameState';
+import { accountId } from '../game/playerIdentity';
 
 export interface GuardTarget {
   code:     string;            // wire code: "WEAPON:name", "TRACTOR:2", "SENSORS", ...
@@ -30,6 +31,13 @@ export interface CreateGameResponse {
 export interface JoinGameResponse {
   playerToken: string;
   message: string;
+  /**
+   * "true" when the server recognised this account and handed back a seat it already held,
+   * rather than seating a new player. Strings because the endpoint returns a Map<String,String>.
+   */
+  resumed?: string;
+  /** "true" when the returned seat is the host's — a resumed host must get the host screen. */
+  isHost?: string;
 }
 
 export interface GameStatus {
@@ -485,14 +493,16 @@ export const gameApi = {
   createGame(hostName: string): Promise<CreateGameResponse> {
     return request('/api/games', {
       method: 'POST',
-      body: JSON.stringify({ name: hostName }),
+      // The durable account id goes up so this browser can later come back to its own seat
+      // rather than being handed a new one. See `game/playerIdentity.ts`.
+      body: JSON.stringify({ name: hostName, accountId: accountId() }),
     });
   },
 
   joinGame(gameId: string, playerName: string): Promise<JoinGameResponse> {
     return request(`/api/games/${gameId}/join`, {
       method: 'POST',
-      body: JSON.stringify({ name: playerName }),
+      body: JSON.stringify({ name: playerName, accountId: accountId() }),
     });
   },
 

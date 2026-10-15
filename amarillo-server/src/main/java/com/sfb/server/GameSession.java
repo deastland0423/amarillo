@@ -90,8 +90,22 @@ public class GameSession {
      */
     private final ReentrantLock lock = new ReentrantLock(true);
 
-    /** token → PlayerInfo */
+    /** seat token → PlayerInfo */
     private final Map<String, PlayerInfo> players = new LinkedHashMap<>();
+
+    /**
+     * Durable account id → the seat token that account holds in THIS game.
+     *
+     * The indirection that lets a player come back. Every other per-player map here is keyed by
+     * seat token, and deliberately stays that way: a seat is where the ships are bound and what
+     * the rules care about, while an account is who is sitting in it. Only this map knows about
+     * both, so identity can change (a login arriving, a guest claiming a name) without touching
+     * any of the game state keyed by seat.
+     *
+     * Empty for a player who never presented an account id, which is why nothing may assume a
+     * seat has an entry here.
+     */
+    private final Map<String, String> seatsByAccount = new LinkedHashMap<>();
 
     /** Tokens of players who have clicked "Ready" for the current phase. */
     private final Set<String> readyPlayers = new HashSet<>();
@@ -178,10 +192,17 @@ public class GameSession {
     private boolean started = false;
 
     public GameSession(String id, String hostToken, String hostName) {
+        this(id, hostToken, hostName, null);
+    }
+
+    /** @param hostAccountId the host's durable identity, or null if unknown. */
+    public GameSession(String id, String hostToken, String hostName, String hostAccountId) {
         this.id = id;
         this.game = new Game();
         this.hostToken = hostToken;
         players.put(hostToken, new PlayerInfo(hostToken, hostName));
+        if (hostAccountId != null)
+            seatsByAccount.put(hostAccountId, hostToken);
     }
 
     // -------------------------------------------------------------------------
@@ -189,9 +210,39 @@ public class GameSession {
     // -------------------------------------------------------------------------
 
     public PlayerInfo addPlayer(String token, String name) {
+        return addPlayer(token, name, null);
+    }
+
+    /**
+     * Seat a player, optionally recording the durable account sitting down.
+     *
+     * @param accountId durable identity, or null for a seat nobody can later prove is theirs
+     */
+    public PlayerInfo addPlayer(String token, String name, String accountId) {
         PlayerInfo info = new PlayerInfo(token, name);
         players.put(token, info);
+        if (accountId != null)
+            seatsByAccount.put(accountId, token);
         return info;
+    }
+
+    /**
+     * The seat this account already holds here, or null if it holds none.
+     *
+     * Asked before a join mints a new one — see {@code GameSessionService.joinSession}. Returns
+     * the host's seat for the host, so somebody who leaves their own game and comes back is
+     * still the host rather than a guest locked out of their own scenario picker.
+     */
+    public String seatFor(String accountId) {
+        return accountId == null ? null : seatsByAccount.get(accountId);
+    }
+
+    /** The durable identity in a seat, or null if that seat was taken anonymously. */
+    public String accountInSeat(String token) {
+        for (Map.Entry<String, String> e : seatsByAccount.entrySet())
+            if (e.getValue().equals(token))
+                return e.getKey();
+        return null;
     }
 
     public boolean hasPlayer(String token) {

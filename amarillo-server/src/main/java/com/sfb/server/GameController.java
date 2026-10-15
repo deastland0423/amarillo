@@ -1270,7 +1270,10 @@ public class GameController {
             @RequestBody Map<String, String> body) {
 
         String hostName = body.getOrDefault("name", "Host");
-        GameSession session = sessionService.createSession(hostName);
+        // Optional: a browser that has minted a durable identity sends it, so the host can later
+        // come back to this game by code and be given their own seat rather than a new one.
+        String accountId = body.get("accountId");
+        GameSession session = sessionService.createSession(hostName, accountId);
 
         return ResponseEntity.ok(Map.of(
                 "gameId", session.getId(),
@@ -1288,20 +1291,29 @@ public class GameController {
             @RequestBody Map<String, String> body) {
 
         String playerName = body.getOrDefault("name", "Player");
+        String accountId  = body.get("accountId");
         GameSession session = sessionService.getSession(id);
         if (session == null)
             return ResponseEntity.notFound().build();
 
         return locked(session, () -> {
-            String token = sessionService.joinSession(id, playerName);
+            // Asked BEFORE the join, because the join is what would create one.
+            boolean resumed = session.seatFor(accountId) != null;
+            String token = sessionService.joinSession(id, playerName, accountId);
             if (token == null)
                 return ResponseEntity.notFound().build();
 
             broadcastLobby(session);
 
+            // `resumed` lets the client tell "you are back in your seat" from "you have joined",
+            // and `isHost` matters because resuming a host seat must restore the host's screen.
             return ResponseEntity.ok(Map.of(
                     "playerToken", token,
-                    "message", "Joined game " + id + " as " + playerName));
+                    "resumed", String.valueOf(resumed),
+                    "isHost", String.valueOf(session.isHost(token)),
+                    "message", resumed
+                            ? "Rejoined game " + id + " — your seat was waiting"
+                            : "Joined game " + id + " as " + playerName));
         });
     }
 
