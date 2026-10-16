@@ -860,6 +860,62 @@ public class GameController {
      * So restoring is its own slice, and SavedGame.restore() already does the engine half of it.
      */
 
+    /**
+     * Open a saved battle as a new game. The caller becomes its host.
+     *
+     * Body: { "name": "host name", "accountId": "optional durable id" }
+     *
+     * <h2>Ships come back unassigned, on purpose</h2>
+     * A save records which TEAM owned each ship, never which person — tokens are per-session and
+     * were never in the file. So the battle is restored complete and every seat starts empty, and
+     * the host hands the ships out exactly as in a new game, with the per-ship control or
+     * "Give side". That is what lets a saved battle be continued by players who were not in it.
+     *
+     * <p>The teams offered are the ones that held each ship WHEN THE SAVE WAS TAKEN, not the
+     * sides the scenario started them on. Ships change hands — D7.50 gives a captured hull to its
+     * captor — and offering the scenario's view would quietly hand every capture back.
+     */
+    @PostMapping("/saves/{saveId}/open")
+    public ResponseEntity<Map<String, Object>> openSave(
+            @PathVariable String saveId,
+            @RequestBody(required = false) Map<String, String> body) {
+
+        if (!SAFE_ID.matcher(saveId).matches())
+            return ResponseEntity.badRequest().body(Map.of("error", "Bad save id"));
+        File f = saveFile(saveId);
+        if (!f.isFile())
+            return ResponseEntity.notFound().build();
+
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        com.sfb.scenario.SavedGame saved;
+        try {
+            saved = com.sfb.scenario.SavedGame.fromJson(f);
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Could not read that save: " + e.getMessage()));
+        }
+
+        Map<String, String> input = body == null ? Map.of() : body;
+        GameSessionService.SessionFromSave opened = sessionService.openSavedGame(
+                input.getOrDefault("name", "Host"), input.get("accountId"), saved);
+        if (opened.session() == null)
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "That save could not be rebuilt", "problems", opened.problems()));
+
+        GameSession session = opened.session();
+        broadcastLobby(session);
+
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("gameId", session.getId());
+        out.put("hostToken", session.getHostToken());
+        out.put("turn", session.getGame().getClock().getTurn());
+        out.put("unassignedShips", session.getUnassignedShipNames());
+        out.put("problems", opened.problems());
+        out.put("message", "Battle restored at turn " + session.getGame().getClock().getTurn()
+                + " — assign the ships to continue");
+        return ResponseEntity.ok(out);
+    }
+
     @DeleteMapping("/saves/{saveId}")
     public ResponseEntity<Map<String, Object>> deleteSave(@PathVariable String saveId) {
         if (!SAFE_ID.matcher(saveId).matches())

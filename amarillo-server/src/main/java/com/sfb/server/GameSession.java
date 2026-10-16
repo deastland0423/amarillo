@@ -197,12 +197,92 @@ public class GameSession {
 
     /** @param hostAccountId the host's durable identity, or null if unknown. */
     public GameSession(String id, String hostToken, String hostName, String hostAccountId) {
+        this(id, hostToken, hostName, hostAccountId, new Game());
+    }
+
+    /**
+     * Seat a session around a game that already exists — a battle restored from a save.
+     *
+     * The game is passed IN rather than built here because a restored battle cannot be poured
+     * into a session that already holds one: {@code setupFromScenario} appends ships rather than
+     * clearing, so running it over a live game would duplicate the fleet. A restored battle gets
+     * a session of its own, which also means a fresh game code and fresh seats — everybody
+     * re-joins, which is the point, because a saved battle may be continued by different people
+     * than fought it.
+     */
+    public GameSession(String id, String hostToken, String hostName, String hostAccountId,
+            Game game) {
         this.id = id;
-        this.game = new Game();
+        this.game = game;
         this.hostToken = hostToken;
         players.put(hostToken, new PlayerInfo(hostToken, hostName));
         if (hostAccountId != null)
             seatsByAccount.put(hostAccountId, hostToken);
+    }
+
+    /**
+     * Adopt a restored battle: take the scenario for its metadata, and work out which team held
+     * each ship WHEN THE SAVE WAS TAKEN.
+     *
+     * <h2>Why the team comes from the owner first and the scenario second</h2>
+     * Ships change hands. D7.50 transfers a captured ship to its captor, so a ship's owner at
+     * save time may not match the side the scenario started it on. Deriving teams from the
+     * scenario alone would hand every captured hull back to the player it was taken FROM, quietly
+     * undoing a capture somebody fought for. So each ship's team is read from its restored owner
+     * where it has one, and only falls back to its scenario side when it does not.
+     *
+     * <h2>Why no seats are attached</h2>
+     * A save records which TEAM owned what, never which person — tokens are per-session and were
+     * never in the file. So every seat starts empty and the host assigns the ships, exactly as
+     * they would in a new game. That is what lets a battle be continued by players who were not
+     * in it.
+     */
+    void adoptRestored(com.sfb.scenario.ScenarioSpec spec) {
+        loadedSpec = spec;
+        loadedScenarioId = "restored";
+        scenarioLoaded = true;
+        started = true;
+
+        shipTeamName.clear();
+        // The scenario's view first, as the fallback.
+        if (spec != null && spec.sides != null)
+            for (int i = 0; i < spec.sides.size(); i++) {
+                com.sfb.scenario.ScenarioSpec.SideSpec side = spec.sides.get(i);
+                String teamName = side.name == null || side.name.isBlank()
+                        ? "Team " + (i + 1) : side.name;
+                if (side.ships != null)
+                    for (com.sfb.scenario.ScenarioSpec.ShipSetup setup : side.ships)
+                        if (setup.shipName != null)
+                            shipTeamName.put(setup.shipName, teamName);
+            }
+        // Then the battle's own view, which wins wherever it differs — see above.
+        for (Ship ship : game.getShips())
+            if (ship.getName() != null && ship.getOwner() != null
+                    && ship.getOwner().getTeamName() != null)
+                shipTeamName.put(ship.getName(), ship.getOwner().getTeamName());
+
+        // Nothing is spoken for until the host says so. The owners the save restored are cleared
+        // HERE, after the loop above has read their teams — that order is the whole trick. The
+        // team is what mattered and it is now safely in shipTeamName, including for a captured
+        // hull; the Player objects themselves are per-session and meaningless without a seat
+        // behind them, so leaving them would make a ship look claimed by somebody who is not in
+        // the room. "No owner" then means exactly what it means in a fresh game: unclaimed.
+        for (Ship ship : game.getShips())
+            ship.setOwner(null);
+        game.getPlayers().clear();
+
+        pendingAssignments.clear();
+        coiDoneTokens.clear();
+        pendingCoi.clear();
+        pendingDeployment.clear();
+        deploymentDoneTokens.clear();
+        for (PlayerInfo info : players.values())
+            info.setCorePlayer(null);
+    }
+
+    /** True for a session holding a battle restored from a save rather than newly set up. */
+    public boolean isRestored() {
+        return "restored".equals(loadedScenarioId);
     }
 
     // -------------------------------------------------------------------------
@@ -314,7 +394,89 @@ public class GameSession {
             return "Ship already assigned to another player";
 
         pendingAssignments.put(shipName, playerToken);
+        // Before the battle starts, recording the intent is enough: start() is what turns every
+        // pending assignment into a core Player and an owner. A RESTORED battle has already been
+        // through that, and start() cannot run again, so the wiring has to happen now.
+        if (started)
+            attachSeatToShip(playerToken, shipName);
         return null;
+    }
+
+    /**
+     * Take a ship back off whoever holds it, so it can be given to somebody else.
+     *
+     * <h2>Why this had to exist</h2>
+     * {@link #assignShip} refuses to take a ship from the player who already has it, which is
+     * right — a Commander's Options loadout is keyed to a token, so moving a ship silently would
+     * strand what its owner chose for it. But that left no way to CORRECT an assignment, and
+     * reassigning a restored battle is exactly where a host misclicks: they are handing out a
+     * fleet they did not set up, possibly to different people than fought it. One shot with no
+     * undo is not a workable way to do that.
+     *
+     * <p>So releasing is explicit and separate. The host says "this ship is nobody's again", and
+     * then assigns it. Nothing is taken implicitly.
+     *
+     * @return an error string, or null on success
+     */
+    public String releaseShip(String shipName) {
+        if (!scenarioLoaded)
+            return "No scenario loaded";
+        if (!getAllShipNames().contains(shipName))
+            return "Ship not found: " + shipName;
+
+        pendingAssignments.remove(shipName);
+
+        // In a battle already under way the chain is live, so it has to be unpicked: the ship's
+        // owner AND that player's unit list, or the ship goes on answering to them.
+        Ship ship = findShip(shipName);
+        if (ship != null && ship.getOwner() != null) {
+            ship.getOwner().getPlayerUnits().remove(ship);
+            ship.setOwner(null);
+        }
+        return null;
+    }
+
+    /**
+     * Give a seat command of a ship in a battle that is already under way.
+     *
+     * <h2>What this is</h2>
+     * The second half of {@link #start()}, split out so it can run on its own. Start builds the
+     * ships from the scenario and then wires {@code token → PlayerInfo → corePlayer →
+     * Ship.owner}; only that second part is wanted here, because a restored battle already has
+     * its ships and they already have owners.
+     *
+     * <p>That chain is the whole reason this method has to exist. Without it, a restored game is
+     * correct in the engine and unplayable through the server: {@code
+     * getEffectiveShipNamesForPlayer} reads the seat's core player and finds none, so every
+     * player is shown no ships of their own, and {@code getTeamNameFor} returns null so everyone
+     * is treated as a spectator and handed a redacted view of a battle they supposedly command.
+     *
+     * <h2>Taking a ship from whoever held it</h2>
+     * The previous owner's unit list is corrected, not just the ship's pointer. Leaving the ship
+     * in two players' lists would make it answer to both, and the loser would go on being shown
+     * a ship they cannot order.
+     */
+    private void attachSeatToShip(String playerToken, String shipName) {
+        PlayerInfo info = players.get(playerToken);
+        Ship ship = findShip(shipName);
+        if (info == null || ship == null)
+            return;
+
+        if (info.getCorePlayer() == null) {
+            Player seated = new Player();
+            seated.setName(info.getName());
+            seated.setTeamName(shipTeamName.getOrDefault(shipName, "Team 1"));
+            game.getPlayers().add(seated);
+            info.setCorePlayer(seated);
+        }
+
+        Player previous = ship.getOwner();
+        if (previous != null && previous != info.getCorePlayer())
+            previous.getPlayerUnits().remove(ship);
+
+        ship.setOwner(info.getCorePlayer());
+        if (!info.getCorePlayer().getPlayerUnits().contains(ship))
+            info.getCorePlayer().getPlayerUnits().add(ship);
     }
 
     /**
@@ -417,8 +579,15 @@ public class GameSession {
 
     /** All ship names across all scenario sides, in order. */
     public List<String> getAllShipNames() {
+        // A RESTORED battle has no loadedSideShips: nothing was built from a spec, the ships came
+        // back from the save already built. Reading the live game is the only source there — and
+        // without this, every assignment in a restored game was refused as "Ship not found",
+        // which made the whole reassignment flow silently impossible.
         if (loadedSideShips == null)
-            return List.of();
+            return game.getShips().stream()
+                    .map(Ship::getName)
+                    .filter(name -> name != null)
+                    .toList();
         return loadedSideShips.stream()
                 .flatMap(List::stream)
                 .map(Ship::getName)

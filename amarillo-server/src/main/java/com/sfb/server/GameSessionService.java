@@ -75,6 +75,43 @@ public class GameSessionService {
                 "could not find a free game code after " + CODE_ATTEMPTS + " attempts");
     }
 
+    /**
+     * Open a saved battle as a new session.
+     *
+     * <h2>Why a NEW session rather than loading into an existing one</h2>
+     * A restored battle cannot be poured into a session that already holds a game:
+     * {@code setupFromScenario} appends ships rather than clearing, so it would duplicate the
+     * fleet, and {@code GameSession.game} is set once at construction. A session of its own also
+     * means a fresh code and fresh seats, which is the right outcome rather than a cost — a saved
+     * battle may be continued by different people than fought it, so everybody joins and the host
+     * hands out the ships.
+     *
+     * @return the new session, or null when the save could not be rebuilt at all
+     */
+    public SessionFromSave openSavedGame(String hostName, String accountId,
+            com.sfb.scenario.SavedGame saved) {
+        com.sfb.scenario.SavedGame.Restored restored = saved.restore();
+        if (restored.game() == null)
+            return new SessionFromSave(null, restored.problems());
+
+        String hostToken = generateToken();
+        for (int attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
+            String sessionId = generateCode();
+            GameSession session = new GameSession(sessionId, hostToken, hostName, accountId,
+                    restored.game());
+            if (sessions.putIfAbsent(sessionId, session) == null) {
+                session.adoptRestored(saved.scenario);
+                return new SessionFromSave(session, restored.problems());
+            }
+        }
+        throw new IllegalStateException(
+                "could not find a free game code after " + CODE_ATTEMPTS + " attempts");
+    }
+
+    /** A session opened from a save, and anything worth telling the player about the load. */
+    public record SessionFromSave(GameSession session, java.util.List<String> problems) {
+    }
+
     /** Join an existing session anonymously — a fresh seat every time. */
     public String joinSession(String sessionId, String playerName) {
         return joinSession(sessionId, playerName, null);
