@@ -824,13 +824,76 @@ so the single-seat slot (`SESSION_KEY` in `App.tsx`) never bites — but it **wo
 in one browser. If logins ever arrive, keep a fast path for this loop or every playtest costs two
 OAuth round-trips.
 
+## Saved games: what is built and what is left — BUILT 2026-10-15/16
+
+A save is **a scenario plus accumulated damage**, taken at a turn boundary. The scenario is
+EMBEDDED in the save, not referenced by id: half the battles here are assembled from saved fleets
+and their `ScenarioSpec` never existed as a file. Once a battle is underway a fleet game and a
+scenario game are the same thing — both reach `GameSession.adopt(spec, id)` and `Game` never
+learns which path it came from — so there is one save format and one restore path, not two.
+
+**Load order is the format**, and it is not optional:
+`setupFromScenario(saved.scenario)` builds the pieces, then `applyState(saved.state)` overlays
+the battle. `SavedGame.restore()` does both.
+
+**`applyState` runs in two passes**, and the ORDER within pass two matters: destroyed ships,
+ownership, then **seekers**, then **lock-ons**. Lock-ons must resolve last because `lockOns` is a
+`Set<Unit>` — a ship can hold a lock on an incoming drone, and a drone that has not been revived
+yet cannot be pointed at. Doing it the other way round silently dropped exactly the lock a
+player's point defence was about to use.
+
+### Built
+
+- Ship scalars, `Shields`, `HullBoxes`, `PowerSystems`, `Crew` (D1).
+- `Weapons`: arming state for Photon, Disruptor, Fusion, Hellbore and PlasmaLauncher, capacitor
+  SIZE and stored ENERGY separately, firing history (D2). Weapons are keyed by
+  **type+designator**, never list position — a positional key is a pointer by another name.
+- Game envelope: clock (one number; turn and local impulse derive from it), map, phase,
+  `seekerSeq`, ownership by team, destroyed hulls by name (D3).
+- Drones and plasma torpedoes in flight, with `BallisticCourse` saving WHICH adjacent hexes were
+  entered rather than a count, because F4.11 counts distinct hexes (D3b).
+- `SavedGame` envelope, `data/saves`, and `GET /saves`, `POST /{id}/save`, `DELETE /saves/{id}`.
+  A save is refused mid-turn and says which moment to use.
+
+### Left
+
+- **Putting a save BACK into a session.** The engine half is done and tested; the session half is
+  not, and it is a design question rather than plumbing: `GameSession.game` is `final`,
+  `setupFromScenario` APPENDS ships rather than clearing, a restored game is already past
+  assignment/COI/deployment, and ships come back owned by a **team, not a seat**. Re-attaching
+  the people is the account-and-seat work (slices A and B of the accounts entry).
+- **`DroneRack` and `ControlSpaces`**, which `GameStateRoundTripTest.KNOWN_GAPS` names by path
+  fragment, plus the other ~23 system groups.
+- **Mines and craft in flight.** `SuicideShuttle` and `ScatterPack` export PARTIALLY on purpose
+  and a load REPORTS them rather than letting them vanish; rebuilding one means rebuilding the
+  bay it came from.
+- **The ship-spec fingerprint.** The embedded spec names hulls, which are read from
+  `data/factions` at load time, and this repo edits ship JSON constantly. Store a hash of each
+  resolved `ShipSpec` and compare on load. The top unaddressed risk.
+
+### Two testing lessons worth not relearning
+
+**A round-trip test only detects omissions in state the fixture actually CHANGES.** An untouched
+system compares equal and proves nothing. This bit three times — shields-only damage made the
+whole gap list look satisfied; zero commandos hid a dropped field; a drone launch failed silently
+until the fixture asserted its own result ("Drones can only be launched during the Activity
+phase"). A fixture that does not verify it created the state is a test that proves nothing.
+
+**The GRANULARITY of a tolerated gap matters more than the list.** Keying gaps by top-level DTO
+field meant `mapObjects`, which holds every ship — a save could have lost every shield on every
+ship and passed. Filter the unconvertible classes out of the compared graph instead, and key what
+remains by path fragment. Switching to fragments immediately surfaced four real losses the coarse
+version had been hiding.
+
 ## Unstarted systems
 
 Roughly largest first. Several have had their rules read and their design settled; those say so.
 
-- **Turn-boundary save and reload.** Analysed, not started. A versioned snapshot taken at a clean
-  energy-allocation boundary, preserving complete mutable state and the resolved ship-spec
-  fingerprints below. The prerequisite for the campaign system.
+- **Turn-boundary save and reload.** LARGELY BUILT 2026-10-15/16, and what is left is listed
+  under its own heading above — see *Saved games: what is built and what is left*. A save can be
+  taken from a live game and written to `data/saves`, and `SavedGame.restore()` rebuilds a
+  playable battle; what is NOT done is putting one back into a running session, the remaining
+  system groups, mines and craft in flight, and the ship-spec fingerprint.
 
   **Seeded dice are NOT a prerequisite for it**, and this file said they were until 2026-10-09.
   A snapshot does not re-derive anything: every roll before the save has already become ordinary
