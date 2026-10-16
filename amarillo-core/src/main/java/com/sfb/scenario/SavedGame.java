@@ -67,6 +67,17 @@ public class SavedGame {
     /** What the battle did, as {@link Game#exportState()} wrote it. */
     public Map<String, Object> state;
 
+    /**
+     * Ship name → a fingerprint of the hull it was built from, as it stood when the save was
+     * taken (see {@code ShipSpec.fingerprint()}).
+     *
+     * The one thing an embedded scenario still cannot make self-contained. The spec names HULLS,
+     * and hulls are read from {@code data/factions} at load time, so editing one between sessions
+     * makes a restored ship quietly become a different ship with the same name. Recording the
+     * fingerprint turns that silent substitution into a sentence the player can read.
+     */
+    public Map<String, String> hullFingerprints = new java.util.LinkedHashMap<>();
+
     // -------------------------------------------------------------------------
     // Taking a save
     // -------------------------------------------------------------------------
@@ -85,6 +96,7 @@ public class SavedGame {
         saved.turn = game.getClock().getTurn();
         saved.scenario = scenario;
         saved.state = game.exportState();
+        saved.hullFingerprints = fingerprintHulls(scenario);
         return saved;
     }
 
@@ -108,10 +120,79 @@ public class SavedGame {
             return new Restored(null, problems);
         }
 
+        // Checked BEFORE the game is built, so the warning names the ship whether or not the
+        // rest of the load goes cleanly.
+        problems.addAll(changedHulls());
+
         Game game = new Game();
         game.setupFromScenario(scenario);
         problems.addAll(game.applyState(state));
         return new Restored(game, problems);
+    }
+
+    // -------------------------------------------------------------------------
+    // Hull fingerprints
+    // -------------------------------------------------------------------------
+
+    /** Fingerprint every hull the scenario names, keyed by the ship's name. */
+    private static Map<String, String> fingerprintHulls(ScenarioSpec scenario) {
+        Map<String, String> out = new java.util.LinkedHashMap<>();
+        if (scenario == null || scenario.sides == null)
+            return out;
+        for (ScenarioSpec.SideSpec side : scenario.sides) {
+            if (side.ships == null)
+                continue;
+            for (ScenarioSpec.ShipSetup setup : side.ships) {
+                if (setup.shipName == null)
+                    continue;
+                com.sfb.objects.ShipSpec spec = hullFor(setup, side);
+                if (spec != null)
+                    out.put(setup.shipName, spec.fingerprint());
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Which hulls have changed since the save was taken.
+     *
+     * <h2>Three things this deliberately does not do</h2>
+     * It does not refuse the load. A changed hull may be a BPV correction that affects nothing in
+     * progress, and a player who has lost an evening's battle is not helped by a refusal — they
+     * are helped by being told which ship to look at.
+     *
+     * <p>It says nothing when either fingerprint is unknown. An older save has none recorded, and
+     * a hull that could not be fingerprinted reports an empty string; warning in those cases
+     * would mean every old save complains about every ship, which trains people to ignore it.
+     *
+     * <p>And it does not try to say WHAT changed. The fingerprint is a hash, so it knows only
+     * that something did — naming the ship is the useful half, and the player has the SSD.
+     */
+    private List<String> changedHulls() {
+        List<String> problems = new ArrayList<>();
+        if (hullFingerprints == null || hullFingerprints.isEmpty())
+            return problems;
+
+        Map<String, String> now = fingerprintHulls(scenario);
+        for (Map.Entry<String, String> saved : hullFingerprints.entrySet()) {
+            String wasSaved = saved.getValue();
+            String isNow = now.get(saved.getKey());
+            if (wasSaved == null || wasSaved.isEmpty() || isNow == null || isNow.isEmpty())
+                continue;
+            if (!wasSaved.equals(isNow))
+                problems.add(saved.getKey() + ": its hull data has changed since this save was"
+                        + " taken, so it may not be the ship it was — check its SSD");
+        }
+        return problems;
+    }
+
+    /** The hull a scenario entry names, preferring its own faction over its side's. */
+    private static com.sfb.objects.ShipSpec hullFor(ScenarioSpec.ShipSetup setup,
+            ScenarioSpec.SideSpec side) {
+        String faction = setup.faction != null ? setup.faction : side.faction;
+        if (faction == null || setup.type == null)
+            return null;
+        return com.sfb.objects.ShipLibrary.get(faction, setup.type);
     }
 
     // -------------------------------------------------------------------------

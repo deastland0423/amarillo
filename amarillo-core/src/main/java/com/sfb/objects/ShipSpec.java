@@ -1041,4 +1041,79 @@ public class ShipSpec {
         return list;
     }
 
+
+    // -------------------------------------------------------------------------
+    // Hull fingerprint (saved games)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Fields that describe a hull without affecting how it fights, and so are left OUT of the
+     * fingerprint.
+     *
+     * Each is already documented in this class as description rather than rule — {@code series}
+     * says outright that it is "not a rule and not read by anything", and {@code tokenArt} is a
+     * path to a picture. Including them would make a save warn because somebody drew new token
+     * art, and a warning that fires for harmless reasons is a warning people learn to ignore.
+     */
+    private static final java.util.Set<String> FINGERPRINT_IGNORES =
+            java.util.Set.of("tokenArt", "note", "typeName", "series", "name");
+
+    /**
+     * A mapper that writes the same bytes for the same meaning: map keys in sorted order and
+     * absent values omitted entirely.
+     *
+     * Both matter. Without sorted keys, two runs could hash differently for no reason; without
+     * omitting nulls, adding a field to this class would change every hull's fingerprint even
+     * though no hull changed.
+     */
+    private static final ObjectMapper CANONICAL = new ObjectMapper()
+            .enable(com.fasterxml.jackson.databind.SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .setSerializationInclusion(
+                    com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL);
+
+    /**
+     * A short, stable hash of everything about this hull that affects how it fights.
+     *
+     * <h2>What it is for</h2>
+     * A saved game is a scenario plus accumulated damage, and the scenario names HULLS which are
+     * read from {@code data/factions} at load time. This repo edits ship JSON constantly — three
+     * new base files landed on one day in October — so without a check, editing a hull between
+     * sessions makes a restored ship quietly become a DIFFERENT SHIP with the same name: same
+     * designation, different weapon, and nothing to say so. A save records this value per ship
+     * and compares it on load, so the player is told which ship changed and can decide.
+     *
+     * <h2>What it is not</h2>
+     * Not security, and not a version. It answers one question — "is this hull still the hull the
+     * save was taken with?" — so a short hash is plenty and a collision costs a missed warning,
+     * not a wrong game.
+     *
+     * <h2>What will make it change when no hull changed</h2>
+     * Adding or renaming a field on this CLASS, because the fingerprint is taken over the spec as
+     * the engine understands it rather than over the file's bytes. That is deliberate: hashing
+     * the file would warn whenever somebody reformatted the JSON, which this repo does whenever
+     * it round-trips one, while leaving a genuine change invisible if it arrived through a
+     * default. A field added here really does mean the engine reads hulls differently, so a
+     * warning is defensible — it is a note beside a restored battle, never a refusal to load it.
+     */
+    public String fingerprint() {
+        try {
+            java.util.Map<String, Object> tree = CANONICAL.convertValue(this,
+                    new com.fasterxml.jackson.core.type.TypeReference<
+                            java.util.Map<String, Object>>() {});
+            tree.keySet().removeAll(FINGERPRINT_IGNORES);
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(CANONICAL.writeValueAsString(tree)
+                            .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (int i = 0; i < 8; i++)
+                hex.append(String.format("%02x", digest[i]));
+            return hex.toString();
+        } catch (java.security.NoSuchAlgorithmException | IllegalArgumentException
+                | com.fasterxml.jackson.core.JsonProcessingException e) {
+            // A hull that cannot be fingerprinted must not stop a save being taken. An empty
+            // string means "unknown", and a comparison against unknown is skipped rather than
+            // reported as a mismatch — a false alarm here would be worse than no alarm.
+            return "";
+        }
+    }
 }
