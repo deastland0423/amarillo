@@ -722,6 +722,157 @@ public class GameController {
     }
 
     // -------------------------------------------------------------------------
+    // Saved games (data/saves)
+    // -------------------------------------------------------------------------
+
+    private static final File SAVE_DIR = new File("data/saves");
+
+    private static File saveFile(String id) {
+        return new File(SAVE_DIR, id + ".json");
+    }
+
+    /**
+     * List the saved battles.
+     *
+     * Deliberately NOT revalidated the way saved fleets are. A fleet's badge is a judgement about
+     * whether it is still legal to field; a save is a record of something that already happened,
+     * and nothing about a later rules or data change makes a battle that was fought invalid. What
+     * a later data change CAN do is make it restore as a different ship, which is the fingerprint
+     * problem noted on {@code SavedGame} and belongs on load, not in a list.
+     */
+    @GetMapping("/saves")
+    public ResponseEntity<List<Map<String, Object>>> listSaves() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        File[] files = SAVE_DIR.listFiles((d, n) -> n.endsWith(".json"));
+        if (files != null) {
+            for (File f : files) {
+                Map<String, Object> row = new java.util.LinkedHashMap<>();
+                String id = f.getName().replaceAll("\\.json$", "");
+                row.put("id", id);
+                try {
+                    com.sfb.scenario.SavedGame saved = com.sfb.scenario.SavedGame.fromJson(f);
+                    row.put("label", saved.label);
+                    row.put("savedAt", saved.savedAt);
+                    row.put("turn", saved.turn);
+                    row.put("scenario", saved.scenario == null ? null : saved.scenario.name);
+                    row.put("readable", true);
+                } catch (IOException e) {
+                    // A save this build cannot parse is still LISTED, with the reason. Hiding it
+                    // would leave a player staring at a file they can see on disk and no
+                    // explanation for why the game denies it exists.
+                    row.put("readable", false);
+                    row.put("error", e.getMessage());
+                }
+                out.add(row);
+            }
+        }
+        out.sort((a, b) -> String.valueOf(b.get("savedAt"))
+                .compareTo(String.valueOf(a.get("savedAt"))));
+        return ResponseEntity.ok(out);
+    }
+
+    /**
+     * Take a save of a game in progress. Host only.
+     *
+     * Body: { "id": "optional-file-id", "label": "optional label" }
+     *
+     * <h2>Only at a turn boundary</h2>
+     * The snapshot is designed for one: almost everything held by object identity rather than by
+     * name — who moved this impulse, pending volleys, pending DAC choices — is empty between
+     * turns and would have to be serialised faithfully otherwise. Refusing mid-turn is therefore
+     * not a limitation to apologise for, it is the thing that makes the format small enough to
+     * be correct. A player saving at the wrong moment gets told which moment to use.
+     */
+    @PostMapping("/{id}/save")
+    public ResponseEntity<Map<String, Object>> saveGame(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token,
+            @RequestBody(required = false) Map<String, String> body) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+        if (!session.isHost(token))
+            return ResponseEntity.status(403).body(Map.of("error", "Only the host can save"));
+
+        return locked(session, () -> {
+            if (!session.isStarted())
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "There is no battle to save yet"));
+            com.sfb.scenario.ScenarioSpec spec = session.getLoadedSpec();
+            if (spec == null)
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "This game has no scenario to save with"));
+
+            com.sfb.Game game = session.getGame();
+            if (!game.isAwaitingAllocation())
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "A game can only be saved between turns, during energy "
+                               + "allocation — finish the turn and save then"));
+
+            Map<String, String> input = body == null ? Map.of() : body;
+            String saveId = input.get("id");
+            String label = input.getOrDefault("label",
+                    spec.name + " — turn " + game.getClock().getTurn());
+            if (saveId == null || saveId.isBlank())
+                saveId = slug(session.getId() + "-turn-" + game.getClock().getTurn());
+            if (!SAFE_ID.matcher(saveId).matches())
+                return ResponseEntity.badRequest().body(Map.of("error",
+                        "A save id must be letters, digits, dashes or underscores"));
+            if (!SAVE_DIR.isDirectory() && !SAVE_DIR.mkdirs())
+                return ResponseEntity.status(500).body(Map.of(
+                        "error", "Could not create data/saves"));
+
+            try {
+                com.sfb.scenario.SavedGame.of(game, spec, label).toJson(saveFile(saveId));
+            } catch (IOException e) {
+                return ResponseEntity.status(500).body(Map.of(
+                        "error", "Could not write the save: " + e.getMessage()));
+            }
+
+            Map<String, Object> out = new java.util.LinkedHashMap<>();
+            out.put("id", saveId);
+            out.put("label", label);
+            out.put("turn", game.getClock().getTurn());
+            out.put("message", "Saved at turn " + game.getClock().getTurn());
+            return ResponseEntity.ok(out);
+        });
+    }
+
+    /*
+     * LOADING A SAVE BACK INTO A SESSION IS NOT HERE, AND THAT IS DELIBERATE.
+     *
+     * Taking a save is a read: it cannot hurt the game it snapshots, and the format is proven by
+     * SavedGameJsonTest in core. Putting one BACK runs into three things that want deciding
+     * rather than plumbing:
+     *
+     *   - GameSession.game is final, and setupFromScenario APPENDS ships rather than clearing,
+     *     so a restored battle cannot simply be poured into a session that already holds one —
+     *     it would duplicate the fleet. A restored game wants a fresh session built around it.
+     *   - a restored game is already STARTED, so the lobby's assignment, COI and deployment
+     *     stages have all been passed. Those stages are what currently give a player their
+     *     ships.
+     *   - and the ships come back owned by a TEAM, not by a seat. Re-attaching the people is the
+     *     account-and-seat question from the front-door work (slices A and B): a durable account
+     *     is exactly what lets somebody prove they are the player who owned that fleet, which is
+     *     the reason that work was put ahead of this.
+     *
+     * So restoring is its own slice, and SavedGame.restore() already does the engine half of it.
+     */
+
+    @DeleteMapping("/saves/{saveId}")
+    public ResponseEntity<Map<String, Object>> deleteSave(@PathVariable String saveId) {
+        if (!SAFE_ID.matcher(saveId).matches())
+            return ResponseEntity.badRequest().body(Map.of("error", "Bad save id"));
+        File f = saveFile(saveId);
+        if (!f.isFile())
+            return ResponseEntity.notFound().build();
+        if (!f.delete())
+            return ResponseEntity.status(500).body(Map.of("error", "Could not delete the save"));
+        return ResponseEntity.ok(Map.of("deleted", saveId));
+    }
+
+    // -------------------------------------------------------------------------
     // Saved fleets (data/fleets)
     // -------------------------------------------------------------------------
 

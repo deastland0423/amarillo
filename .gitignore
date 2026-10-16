@@ -17,6 +17,13 @@ amarillo-web/dist/
 # delete it again (FleetStorageEndpointTest), so nothing here is a fixture.
 data/fleets/
 
+# Saved games are player data, not source — the same reasoning as data/fleets above.
+# SaveGameEndpointTest writes here and deletes what it wrote; anything left behind is
+# a leftover, never a fixture. The server resolves this relative to its working
+# directory, so a test run from amarillo-server/ creates amarillo-server/data/saves.
+data/saves/
+amarillo-server/data/
+
 # Rulebook PDFs. Kept on disk so they can be consulted while working, never
 # committed: they are ADB's copyrighted product, watermarked with the buyer's
 # name and order number, and this repo has a public remote.

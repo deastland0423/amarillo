@@ -8,6 +8,8 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.sfb.dto.GameStateDto;
+
 /**
  * Reflectively compare two DTO graphs and name every field that differs.
  *
@@ -35,6 +37,41 @@ final class DtoDiff {
 		List<String> out = new ArrayList<>();
 		compare("", before, after, out, new IdentityHashMap<>());
 		return out;
+	}
+
+	/**
+	 * A game's DTO graph prepared for comparison: the units this format cannot carry yet removed,
+	 * and the collections with no inherent order normalised.
+	 *
+	 * <h2>The ordering trap, which cost a flaky failure to find</h2>
+	 * {@code Ship.lockOns} is a {@code HashSet<Unit>}, so the order the DTO lists its targets in
+	 * depends on identity hash codes and changes between runs. Comparing those lists positionally
+	 * reported two locks that had both survived as two differences — {@code lockOnTargets[0]} and
+	 * {@code [1]} each holding the other's value. It passed when the class ran alone and failed
+	 * in the full suite, which is the signature of exactly this: a set surfaced as a list must be
+	 * compared as a SET. Sorting is the cheapest way to say so.
+	 *
+	 * <h2>What is filtered, and why filtering rather than tolerating</h2>
+	 * A shuttle, suicide shuttle, scatter-pack and wild weasel all wrap a craft created from a
+	 * bay, and restoring one means restoring the bay; mines are unconverted too. These are
+	 * removed rather than excused by a tolerated field name, because the tolerated name would be
+	 * {@code mapObjects} — which holds every ship as well, so a save could lose every shield on
+	 * every ship and still pass. Drones and plasma torpedoes are NOT filtered: slice D3b saves
+	 * them, so they are compared like anything else.
+	 */
+	static GameStateDto comparable(Game game) {
+		GameStateDto dto = new GameStateDto(game);
+		dto.mapObjects = dto.mapObjects.stream()
+				.filter(object -> !(object instanceof GameStateDto.ShuttleDto
+						|| object instanceof GameStateDto.SuicideShuttleDto
+						|| object instanceof GameStateDto.ScatterPackDto
+						|| object instanceof GameStateDto.WildWeaselDto
+						|| object instanceof GameStateDto.MineDto))
+				.toList();
+		for (GameStateDto.MapObjectDto object : dto.mapObjects)
+			if (object instanceof GameStateDto.ShipDto ship && ship.lockOnTargets != null)
+				ship.lockOnTargets = ship.lockOnTargets.stream().sorted().toList();
+		return dto;
 	}
 
 	/**

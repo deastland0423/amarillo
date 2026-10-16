@@ -54,16 +54,9 @@ public class GameStateRoundTripTest {
      * scatter-pack and a wild weasel all wrap a shuttle created from a bay, and restoring one
      * means restoring the bay too. Mines are still unconverted as well.
      */
+    /** Delegates to the shared helper, which also normalises the unordered collections. */
     private static GameStateDto comparable(Game game) {
-        GameStateDto dto = new GameStateDto(game);
-        dto.mapObjects = dto.mapObjects.stream()
-                .filter(object -> !(object instanceof GameStateDto.ShuttleDto
-                        || object instanceof GameStateDto.SuicideShuttleDto
-                        || object instanceof GameStateDto.ScatterPackDto
-                        || object instanceof GameStateDto.WildWeaselDto
-                        || object instanceof GameStateDto.MineDto))
-                .toList();
-        return dto;
+        return DtoDiff.comparable(game);
     }
 
     // ---------------------------------------------------------------- the round trip
@@ -340,6 +333,33 @@ public class GameStateRoundTripTest {
                 restored.hasLockOn(shipNamed(after, "IKV Blade")));
         assertTrue("and it is still only a beam's",
                 restored.isTractorOnlyLockOn(shipNamed(after, "IKV Blade")));
+    }
+
+    /**
+     * A ship can hold a lock on an incoming DRONE — {@code lockOns} is a Set&lt;Unit&gt;, not a
+     * set of ships — and that is the lock a player most wants back, being the one their point
+     * defence was about to use.
+     *
+     * This is why pass two revives seekers BEFORE resolving lock-ons. The first draft did it the
+     * other way round and silently dropped every lock held on a weapon in flight; a drone that
+     * does not exist yet cannot be pointed at.
+     */
+    @Test
+    public void aLockHeldOnAWeaponInFlightComesBack() {
+        Game before = battleInProgress();
+        Ship hood = shipNamed(before, "USS Hood");
+        Seeker incoming = before.getSeekers().get(0);
+        hood.addLockOn((com.sfb.objects.Unit) incoming);
+        String droneName = ((com.sfb.objects.Unit) incoming).getName();
+
+        Game after = roundTrip(before);
+
+        Ship restoredHood = shipNamed(after, "USS Hood");
+        com.sfb.objects.Unit restoredDrone = (com.sfb.objects.Unit) after.getSeekers().get(0);
+        assertEquals("fixture sanity: the drone should keep its name", droneName,
+                restoredDrone.getName());
+        assertTrue("the lock on the drone must survive, not just the locks on ships",
+                restoredHood.hasLockOn(restoredDrone));
     }
 
     // ---------------------------------------------------------------- ships

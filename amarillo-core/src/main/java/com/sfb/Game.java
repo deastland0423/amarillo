@@ -2296,10 +2296,15 @@ public class Game {
             problems.add(missing + " is in the save but not in the scenario");
 
         // ---- pass two: references between units ----
-        resolveSavedLockOns(state);
+        // ORDER MATTERS HERE. Seekers are revived BEFORE lock-ons are resolved, because a ship
+        // can hold a lock on an incoming drone — lockOns is a Set<Unit>, not a set of ships — and
+        // a drone that does not exist yet cannot be pointed at. Resolving locks first silently
+        // dropped every lock held on a weapon in flight, which is exactly the lock a player most
+        // wants back: the one their point defence was about to use.
         retireSavedDestroyedShips(state, problems);
         restoreSavedOwnership(state, problems);
         problems.addAll(reviveSavedSeekers(state));
+        resolveSavedLockOns(state);
 
         return problems;
     }
@@ -2317,10 +2322,15 @@ public class Game {
         Object rawShips = state.get("ships");
         if (!(rawShips instanceof List<?> list))
             return;
+        // Ships AND seekers: a lock may be held on a weapon in flight, which is why this runs
+        // after the seekers have been revived.
         Map<String, Unit> units = new java.util.HashMap<>();
         for (Ship ship : ships)
             if (ship.getName() != null)
                 units.put(ship.getName(), ship);
+        for (Seeker seeker : seekers)
+            if (seeker instanceof Unit unit && unit.getName() != null)
+                units.put(unit.getName(), unit);
 
         for (Object entry : list) {
             if (!(entry instanceof Map<?, ?> raw))
