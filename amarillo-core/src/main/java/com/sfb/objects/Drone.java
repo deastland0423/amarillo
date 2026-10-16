@@ -222,4 +222,125 @@ public class Drone extends Unit implements Seeker {
 	public void setBallisticCourse(BallisticCourse course) {
 		this.ballisticCourse = course;
 	}
+
+	// -------------------------------------------------------------------------
+	// Saved game (see Seeker.exportState)
+	// -------------------------------------------------------------------------
+
+	/** What {@link #exportState} writes under {@link Seeker#SAVE_KIND}. */
+	public static final String SAVE_KIND_DRONE = "DRONE";
+
+	/**
+	 * A drone in flight, completely enough to rebuild it.
+	 *
+	 * The {@code type} is the DroneType enum, written by NAME, and it is what carries the drone's
+	 * speed, warhead, endurance and rack size — so those are not re-saved. The three that ARE
+	 * saved despite coming from the type are {@code endurance}, {@code warheadDamage} and
+	 * {@code hull}: FD2.44's reloads, a year's upgrades and a COI loadout can all hand a drone
+	 * something other than its type's default, and a drone already in flight keeps what it
+	 * launched with.
+	 *
+	 * <p>{@code launcherName} is a name on purpose and always has been — it is kept so an
+	 * orphaned drone can still say where it came from after the launching ship is gone, which is
+	 * exactly the property a save needs.
+	 */
+	@Override
+	public java.util.Map<String, Object> exportState() {
+		java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+		state.put(Seeker.SAVE_KIND, SAVE_KIND_DRONE);
+		state.put("name", getName());
+		state.put("droneType", type == null ? null : type.name());
+
+		if (getLocation() != null) {
+			state.put("x", getLocation().getX());
+			state.put("y", getLocation().getY());
+		}
+		state.put("facing", getFacing());
+		state.put("speed", getSpeed());
+
+		// References, by name. Resolved in pass two of Game.applyState.
+		state.put("target", getTarget() == null ? null : getTarget().getName());
+		state.put("controller", controller == null ? null : controller.getName());
+		state.put("launcherName", launcherName);
+
+		state.put("selfGuiding", selfGuiding);
+		state.put("warpSeeker", warpSeeker);
+		state.put("endurance", endurance);
+		state.put("launchImpulse", launchImpulse);
+		state.put("warheadDamage", warheadDamage);
+		state.put("rackSize", rackSize);
+		state.put("hull", hull);
+		state.put("identified", identified);
+		state.put("seekerType", seekerType == null ? null : seekerType.name());
+		state.put("ballisticCourse",
+				ballisticCourse == null ? null : ballisticCourse.exportState());
+		return state;
+	}
+
+	/**
+	 * Rebuild a drone from a save, with its references already resolved by the caller.
+	 *
+	 * The type comes first and through the constructor, because it is what gives the drone its
+	 * defaults; the saved values then overwrite them. An unknown type name returns null rather
+	 * than a drone with no behaviour — a save naming a drone this build does not have is worth
+	 * reporting, not worth flying.
+	 */
+	public static Drone fromState(java.util.Map<String, Object> state, Unit target,
+			Unit controller, Unit groundTarget) {
+		if (state == null)
+			return null;
+		String typeName = com.sfb.systemgroups.StateIo.text(state, "droneType");
+		DroneType droneType = null;
+		if (typeName != null) {
+			try {
+				droneType = DroneType.valueOf(typeName);
+			} catch (IllegalArgumentException e) {
+				return null;
+			}
+		}
+		Drone drone = droneType == null ? new Drone() : new Drone(droneType);
+
+		String name = com.sfb.systemgroups.StateIo.text(state, "name");
+		if (name != null)
+			drone.setName(name);
+		if (state.get("x") instanceof Number x && state.get("y") instanceof Number y)
+			drone.setLocation(new com.sfb.properties.Location(x.intValue(), y.intValue()));
+		drone.setFacing(com.sfb.systemgroups.StateIo.integer(state, "facing", drone.getFacing()));
+		drone.setSpeed(com.sfb.systemgroups.StateIo.integer(state, "speed", drone.getSpeed()));
+
+		drone.setTarget(target);
+		drone.setController(controller);
+		String launcher = com.sfb.systemgroups.StateIo.text(state, "launcherName");
+		if (launcher != null)
+			drone.setLauncherName(launcher);
+
+		drone.setSelfGuiding(com.sfb.systemgroups.StateIo.flag(state, "selfGuiding",
+				drone.isSelfGuiding()));
+		drone.setWarpSeeker(com.sfb.systemgroups.StateIo.flag(state, "warpSeeker",
+				drone.isWarpSeeker()));
+		drone.setEndurance(com.sfb.systemgroups.StateIo.integer(state, "endurance",
+				drone.getEndurance()));
+		drone.setLaunchImpulse(com.sfb.systemgroups.StateIo.integer(state, "launchImpulse",
+				drone.getLaunchImpulse()));
+		drone.warheadDamage = com.sfb.systemgroups.StateIo.integer(state, "warheadDamage",
+				drone.warheadDamage);
+		drone.rackSize = com.sfb.systemgroups.StateIo.real(state, "rackSize", drone.rackSize);
+		drone.hull = com.sfb.systemgroups.StateIo.integer(state, "hull", drone.hull);
+		// Exported but not applied in the first draft, which left every restored drone with a
+		// null seeker type — the round-trip test caught it. A Drone built bare does not set it.
+		String kindName = com.sfb.systemgroups.StateIo.text(state, "seekerType");
+		if (kindName != null) {
+			try {
+				drone.setSeekerType(Seeker.SeekerType.valueOf(kindName));
+			} catch (IllegalArgumentException e) {
+				drone.setSeekerType(Seeker.SeekerType.DRONE);
+			}
+		}
+		if (com.sfb.systemgroups.StateIo.flag(state, "identified", false))
+			drone.identify();
+
+		drone.setBallisticCourse(BallisticCourse.fromState(
+				com.sfb.systemgroups.StateIo.child(state, "ballisticCourse"), groundTarget));
+		return drone;
+	}
 }

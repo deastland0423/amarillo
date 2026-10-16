@@ -208,4 +208,45 @@ public class ScatterPack extends Shuttle implements Seeker {
     public void setBallisticCourse(com.sfb.objects.BallisticCourse course) {
         this.ballisticCourse = course;
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game (see Seeker.exportState)
+    // -------------------------------------------------------------------------
+
+    /** What {@link #exportState} writes under {@link Seeker#SAVE_KIND}. */
+    public static final String SAVE_KIND = "SCATTER_PACK";
+
+    /**
+     * PARTIAL, and deliberately so: enough for a load to REPORT this craft, not enough to
+     * rebuild it.
+     *
+     * This class wraps a {@code Shuttle}, and rebuilding that shuttle is the deferred half of
+     * the saved-game work — a shuttle is created in play from a bay, and restoring one means
+     * restoring the bay it came from. So {@code Game.applyState} does not revive this kind; it
+     * names it among the problems it returns, which is the whole reason this method writes
+     * anything at all. A silent default would have let a scatter-pack in flight simply cease to
+     * exist with nothing said.
+     */
+    @Override
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put(Seeker.SAVE_KIND, SAVE_KIND);
+        state.put("name", getName());
+        if (getLocation() != null) {
+            state.put("x", getLocation().getX());
+            state.put("y", getLocation().getY());
+        }
+        state.put("facing", getFacing());
+        state.put("speed", getSpeed());
+        state.put("target", getTarget() == null ? null : getTarget().getName());
+        state.put("controller", controller == null ? null : controller.getName());
+        state.put("launchImpulse", launchImpulse);
+        state.put("released", released);
+        state.put("maxDroneSpaces", maxDroneSpaces);
+        state.put("payloadCount", payload.size());
+        state.put("pendingPayloadCount", pendingPayload.size());
+        state.put("ballisticCourse",
+                ballisticCourse == null ? null : ballisticCourse.exportState());
+        return state;
+    }
 }

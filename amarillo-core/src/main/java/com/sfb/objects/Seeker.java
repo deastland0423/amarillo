@@ -134,4 +134,26 @@ public interface Seeker {
 	public void identify();
 
 	public boolean isIdentified();
+
+	// -------------------------------------------------------------------------
+	// Saved game (see Game.exportState)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * This weapon in flight, for a saved game.
+	 *
+	 * <h2>Why a seeker is harder to save than a ship</h2>
+	 * A ship is rebuilt from the scenario and the save only overlays what the battle did to it. A
+	 * seeker does not exist until somebody launches it, so there is nothing to overlay: the save
+	 * has to describe it completely enough to CREATE it, which is why every implementation writes
+	 * its own kind and the type it was built from.
+	 *
+	 * <p>{@link #SAVE_KIND} tells the loader which class to build. Everything else — target,
+	 * controller, ground target — is written as a NAME and resolved in the second pass of
+	 * {@code Game.applyState}, once every unit it might point at exists.
+	 */
+	java.util.Map<String, Object> exportState();
+
+	/** The key under which {@link #exportState} records which class to rebuild. */
+	String SAVE_KIND = "kind";
 }

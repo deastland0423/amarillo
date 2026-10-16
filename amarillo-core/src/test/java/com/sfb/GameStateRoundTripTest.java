@@ -9,6 +9,7 @@ import java.util.Map;
 import org.junit.Test;
 
 import com.sfb.dto.GameStateDto;
+import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.scenario.ScenarioSpec;
 
@@ -45,16 +46,18 @@ public class GameStateRoundTripTest {
      * have lost every shield on every ship and this test would have passed.
      *
      * <p>Removing just the in-play classes leaves the ships, terrain and objectives inside
-     * {@code mapObjects} fully compared, and the missing seekers are pinned by
-     * {@link #aSeekerInFlightIsNotSavedYet} instead — one explicit test that flips to the
-     * opposite assertion the day D3b lands.
+     * {@code mapObjects} fully compared.
+     *
+     * <p>DRONES AND PLASMA TORPEDOES ARE NO LONGER FILTERED — slice D3b saves them, so they are
+     * compared like everything else and {@link #aDroneInFlightSurvivesASave} pins them by name.
+     * What remains filtered is the craft-based units: a shuttle, a suicide shuttle, a
+     * scatter-pack and a wild weasel all wrap a shuttle created from a bay, and restoring one
+     * means restoring the bay too. Mines are still unconverted as well.
      */
     private static GameStateDto comparable(Game game) {
         GameStateDto dto = new GameStateDto(game);
         dto.mapObjects = dto.mapObjects.stream()
-                .filter(object -> !(object instanceof GameStateDto.DroneDto
-                        || object instanceof GameStateDto.PlasmaTorpedoDto
-                        || object instanceof GameStateDto.ShuttleDto
+                .filter(object -> !(object instanceof GameStateDto.ShuttleDto
                         || object instanceof GameStateDto.SuicideShuttleDto
                         || object instanceof GameStateDto.ScatterPackDto
                         || object instanceof GameStateDto.WildWeaselDto
@@ -109,23 +112,171 @@ public class GameStateRoundTripTest {
                 + String.join("\n  ", stale), stale.isEmpty());
     }
 
+    // ---------------------------------------------------------------- seekers in flight
+
     /**
-     * The one gap left at game level, pinned explicitly so it cannot hide.
+     * A weapon in flight is CREATED by the save rather than overlaid onto something the scenario
+     * rebuilt, which is what makes seekers a different problem from ships.
      *
-     * A drone in flight is lost across a save today: it was created during the battle, so the
-     * scenario cannot rebuild it and nothing yet writes it down. When slice D3b lands, this test
-     * flips to asserting the seeker DOES come back — and that is the point of pinning it as an
-     * assertion rather than as a tolerated field.
+     * This test used to assert the opposite — that a drone was lost — as a deliberate pin on the
+     * gap. Slice D3b flipped it, which is the whole value of pinning a gap as an assertion
+     * instead of as a tolerated field: the day the work lands, the test tells you.
      */
     @Test
-    public void aSeekerInFlightIsNotSavedYet() {
+    public void aDroneInFlightSurvivesASave() {
         Game before = battleInProgress();
-        assertFalse("fixture: there is a drone in flight", before.getSeekers().isEmpty());
+        assertEquals("fixture: one drone in flight", 1, before.getSeekers().size());
+        Seeker launched = before.getSeekers().get(0);
 
         Game after = roundTrip(before);
 
-        assertTrue("seekers are slice D3b; if this now passes, update the slice and this test",
-                after.getSeekers().isEmpty());
+        assertEquals("the drone must still be there", 1, after.getSeekers().size());
+        Seeker restored = after.getSeekers().get(0);
+        assertEquals(launched.getSeekerType(), restored.getSeekerType());
+        assertEquals("and in the same hex",
+                ((com.sfb.objects.Unit) launched).getLocation(),
+                ((com.sfb.objects.Unit) restored).getLocation());
+        assertEquals("with the same endurance left",
+                launched.getEndurance(), restored.getEndurance());
+    }
+
+    /**
+     * Its references must point at the RESTORED units, not dangle or point at the saved ones —
+     * the reason seekers are revived in the second pass.
+     */
+    @Test
+    public void aDronesTargetAndControllerPointAtTheRestoredShips() {
+        Game before = battleInProgress();
+
+        Game after = roundTrip(before);
+        Seeker restored = after.getSeekers().get(0);
+
+        assertSame("the target must be the restored Hood",
+                shipNamed(after, "USS Hood"), restored.getTarget());
+        assertSame("and the controller the restored Blade",
+                shipNamed(after, "IKV Blade"),
+                ((com.sfb.objects.Drone) restored).getController());
+    }
+
+    /** Warhead and flight details come from the type, but a drone keeps what it launched with. */
+    @Test
+    public void aDroneKeepsItsTypeAndWarhead() {
+        Game before = battleInProgress();
+        com.sfb.objects.Drone launched = (com.sfb.objects.Drone) before.getSeekers().get(0);
+        int warhead = launched.impact();
+        int speed = launched.getSpeed();
+
+        com.sfb.objects.Drone restored =
+                (com.sfb.objects.Drone) roundTrip(before).getSeekers().get(0);
+
+        assertEquals(launched.getDroneType(), restored.getDroneType());
+        assertEquals("a restored drone must hit as hard as the one that was saved",
+                warhead, restored.impact());
+        assertEquals(speed, restored.getSpeed());
+    }
+
+    /**
+     * F4.11 counts DISTINCT hexes adjacent to the target, so the hexes are saved rather than a
+     * count. Restoring a bare count of two would let the next re-entry of an already-counted hex
+     * detonate the weapon, which the rule does not allow.
+     */
+    @Test
+    public void aBallisticCourseKeepsWhichHexesItHasEntered() {
+        Game before = battleInProgress();
+        com.sfb.objects.Drone drone = (com.sfb.objects.Drone) before.getSeekers().get(0);
+        com.sfb.properties.Location aim = new com.sfb.properties.Location(20, 20);
+        com.sfb.objects.BallisticCourse course = new com.sfb.objects.BallisticCourse(aim);
+        drone.setTarget(null);
+        drone.setBallisticCourse(course);
+        course.noteHexEntered(com.sfb.utilities.MapUtils.getAdjacentHex(aim, 1, 42, 32));
+        course.noteHexEntered(com.sfb.utilities.MapUtils.getAdjacentHex(aim, 5, 42, 32));
+        assertEquals("fixture: two distinct adjacent hexes", 2,
+                course.getAdjacentHexesEntered());
+
+        com.sfb.objects.Drone restored =
+                (com.sfb.objects.Drone) roundTrip(before).getSeekers().get(0);
+
+        assertNotNull("the course itself must survive", restored.getBallisticCourse());
+        assertEquals(aim, restored.getBallisticCourse().getTargetHex());
+        assertEquals("both hexes, not a count", 2,
+                restored.getBallisticCourse().getAdjacentHexesEntered());
+        assertFalse(restored.getBallisticCourse().isEvading());
+    }
+
+    /** An evading course (F4.11) must not come back still approaching. */
+    @Test
+    public void anEvadingBallisticCourseStaysEvading() {
+        Game before = battleInProgress();
+        com.sfb.objects.Drone drone = (com.sfb.objects.Drone) before.getSeekers().get(0);
+        com.sfb.properties.Location aim = new com.sfb.properties.Location(20, 20);
+        com.sfb.objects.BallisticCourse course = new com.sfb.objects.BallisticCourse(aim);
+        drone.setTarget(null);
+        drone.setBallisticCourse(course);
+        course.noteHexEntered(aim);
+        assertTrue("fixture: entering the target hex starts evasion", course.isEvading());
+
+        com.sfb.objects.Drone restored =
+                (com.sfb.objects.Drone) roundTrip(before).getSeekers().get(0);
+
+        assertTrue(restored.getBallisticCourse().isEvading());
+    }
+
+    /**
+     * An orphaned drone is a REAL state, not a load failure: F4.12 and the drone-control rules
+     * both produce one, and it keeps flying on its last instructions. So an unresolvable
+     * reference is left null rather than reported.
+     */
+    @Test
+    public void anOrphanedDroneLoadsWithoutComplaint() {
+        Game before = battleInProgress();
+        ((com.sfb.objects.Drone) before.getSeekers().get(0)).setController(null);
+        Map<String, Object> saved = before.exportState();
+
+        Game rebuilt = new Game();
+        rebuilt.setupFromScenario(spec());
+        List<String> problems = rebuilt.applyState(saved);
+
+        assertEquals("losing a controller is lawful, not an error", List.of(), problems);
+        assertEquals(1, rebuilt.getSeekers().size());
+        assertNull(((com.sfb.objects.Drone) rebuilt.getSeekers().get(0)).getController());
+    }
+
+    /**
+     * A craft-based seeker cannot be rebuilt yet, and must be REPORTED rather than quietly
+     * ceasing to exist. This is what the partial exportState on those classes is for.
+     */
+    @Test
+    public void aSeekerKindThisBuildCannotRebuildIsReported() {
+        Game before = battleInProgress();
+        Map<String, Object> saved = before.exportState();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> seekers = (List<Map<String, Object>>) saved.get("seekers");
+        seekers.get(0).put(Seeker.SAVE_KIND, "SCATTER_PACK");
+        seekers.get(0).put("name", "Scatter-1");
+
+        Game rebuilt = new Game();
+        rebuilt.setupFromScenario(spec());
+        List<String> problems = rebuilt.applyState(saved);
+
+        assertTrue("the player must be told something was lost: " + problems,
+                problems.stream().anyMatch(p -> p.contains("Scatter-1")));
+        assertTrue(rebuilt.getSeekers().isEmpty());
+    }
+
+    /** A save naming a drone type this build does not have is reported, not flown. */
+    @Test
+    public void anUnknownDroneTypeIsReported() {
+        Game before = battleInProgress();
+        Map<String, Object> saved = before.exportState();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> seekers = (List<Map<String, Object>>) saved.get("seekers");
+        seekers.get(0).put("droneType", "TypeNotAThing");
+
+        Game rebuilt = new Game();
+        rebuilt.setupFromScenario(spec());
+
+        assertFalse(rebuilt.applyState(saved).isEmpty());
+        assertTrue(rebuilt.getSeekers().isEmpty());
     }
 
     // ---------------------------------------------------------------- the clock

@@ -2209,6 +2209,13 @@ public class Game {
             entry.put("units", owned);
             playerStates.add(entry);
         }
+        // Weapons in flight. Created during the battle, so unlike ships the scenario cannot
+        // rebuild them and the save has to describe them outright.
+        List<Map<String, Object>> seekerStates = new ArrayList<>();
+        for (Seeker seeker : seekers)
+            seekerStates.add(seeker.exportState());
+        state.put("seekers", seekerStates);
+
         state.put("players", playerStates);
 
         return state;
@@ -2292,6 +2299,7 @@ public class Game {
         resolveSavedLockOns(state);
         retireSavedDestroyedShips(state, problems);
         restoreSavedOwnership(state, problems);
+        problems.addAll(reviveSavedSeekers(state));
 
         return problems;
     }
@@ -2403,6 +2411,76 @@ public class Game {
                         ship.setOwner(player);
                     }
         }
+    }
+
+
+    /**
+     * Rebuild the weapons that were in flight (slice D3b).
+     *
+     * <h2>Why seekers are created here and not overlaid</h2>
+     * A ship is rebuilt by the scenario and the save only overlays what the battle did to it. A
+     * seeker does not exist until somebody launches it, so there is nothing to overlay — the save
+     * describes it outright and this creates it. That is also why it runs in the SECOND pass: a
+     * drone's target, its controlling ship and a ballistic bombardment's ground target are all
+     * references, and they can only be resolved once every unit exists.
+     *
+     * <p>A drone that has lost its controller is not an error. F4.12 and the drone-control rules
+     * both produce exactly that — a launching ship destroyed, a control channel given up — and an
+     * orphaned drone is a real thing that keeps flying on its last instructions. So a reference
+     * that cannot be resolved is left null rather than reported, EXCEPT for a kind this build
+     * cannot rebuild at all, which is reported.
+     *
+     * @return problems to tell the player about
+     */
+    private List<String> reviveSavedSeekers(Map<String, Object> state) {
+        List<String> problems = new ArrayList<>();
+        Object raw = state.get("seekers");
+        if (!(raw instanceof List<?> list))
+            return problems;
+
+        Map<String, Unit> units = new java.util.HashMap<>();
+        for (Ship ship : ships)
+            if (ship.getName() != null)
+                units.put(ship.getName(), ship);
+
+        seekers.clear();
+        for (Object entry : list) {
+            if (!(entry instanceof Map<?, ?> rawEntry))
+                continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> saved = (Map<String, Object>) rawEntry;
+
+            String kind = com.sfb.systemgroups.StateIo.text(saved, Seeker.SAVE_KIND);
+            Unit target       = units.get(com.sfb.systemgroups.StateIo.text(saved, "target"));
+            Unit controller   = units.get(com.sfb.systemgroups.StateIo.text(saved, "controller"));
+            Map<String, Object> course =
+                    com.sfb.systemgroups.StateIo.child(saved, "ballisticCourse");
+            Unit groundTarget = course == null ? null
+                    : units.get(com.sfb.systemgroups.StateIo.text(course, "groundTarget"));
+
+            Seeker revived = null;
+            if (Drone.SAVE_KIND_DRONE.equals(kind))
+                revived = Drone.fromState(saved, target, controller, groundTarget);
+            else if (PlasmaTorpedo.SAVE_KIND_PLASMA.equals(kind))
+                revived = PlasmaTorpedo.fromState(saved, target, controller, groundTarget);
+            else {
+                // A craft-based seeker — a suicide shuttle or a scatter-pack. Rebuilding one
+                // means rebuilding the shuttle it wraps and the bay it came from, which is not
+                // done yet. Say so rather than letting it quietly cease to exist.
+                problems.add("a " + (kind == null ? "seeker of unknown kind" : kind)
+                        + " was in flight and could not be restored: "
+                        + com.sfb.systemgroups.StateIo.text(saved, "name"));
+                continue;
+            }
+
+            if (revived == null) {
+                problems.add("a saved " + kind + " could not be rebuilt: "
+                        + com.sfb.systemgroups.StateIo.text(saved, "name"));
+                continue;
+            }
+            seekers.add(revived);
+        }
+        return problems;
     }
 
     /** A list of names from a save, tolerating the JSON shapes it may arrive in. */

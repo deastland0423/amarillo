@@ -116,4 +116,63 @@ public class BallisticCourse {
     public int getAdjacentHexesEntered() {
         return adjacentEntered.size();
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game (see Game.exportState)
+    // -------------------------------------------------------------------------
+
+    /**
+     * This course, for a saved game.
+     *
+     * {@code adjacentEntered} is saved as the HEXES and not as a count, because F4.11 counts
+     * DISTINCT hexes: re-entering a hex already visited does not advance the weapon towards
+     * detonation. Restoring a bare count of two would let the next re-entry of an already-counted
+     * hex finish the job, which the rule does not allow.
+     *
+     * <p>The ground target is written as a NAME. It is final on this class, so a restored course
+     * has to be constructed with the unit already resolved — which is why seekers are revived in
+     * the second pass of {@code Game.applyState}, once every unit exists.
+     */
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("targetX", targetHex.getX());
+        state.put("targetY", targetHex.getY());
+        state.put("evading", evading);
+        state.put("groundTarget", groundTarget == null ? null : groundTarget.getName());
+
+        java.util.List<java.util.Map<String, Object>> entered = new java.util.ArrayList<>();
+        for (Location hex : adjacentEntered) {
+            java.util.Map<String, Object> one = new java.util.LinkedHashMap<>();
+            one.put("x", hex.getX());
+            one.put("y", hex.getY());
+            entered.add(one);
+        }
+        state.put("adjacentEntered", entered);
+        return state;
+    }
+
+    /**
+     * Rebuild a course from a save. Returns null when the state does not describe one.
+     *
+     * @param groundTarget the unit named by {@code groundTarget}, already resolved by the caller
+     */
+    public static BallisticCourse fromState(java.util.Map<String, Object> state,
+            Unit groundTarget) {
+        if (state == null)
+            return null;
+        if (!(state.get("targetX") instanceof Number x)
+                || !(state.get("targetY") instanceof Number y))
+            return null;
+
+        BallisticCourse course = new BallisticCourse(
+                new Location(x.intValue(), y.intValue()), groundTarget);
+        course.evading = com.sfb.systemgroups.StateIo.flag(state, "evading", false);
+        if (state.get("adjacentEntered") instanceof java.util.List<?> entered)
+            for (Object item : entered)
+                if (item instanceof java.util.Map<?, ?> raw
+                        && raw.get("x") instanceof Number hx
+                        && raw.get("y") instanceof Number hy)
+                    course.adjacentEntered.add(new Location(hx.intValue(), hy.intValue()));
+        return course;
+    }
 }
