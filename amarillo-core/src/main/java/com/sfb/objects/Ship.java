@@ -2043,6 +2043,7 @@ public class Ship extends Unit implements DroneController {
 		state.put("hullBoxes", hullBoxes.exportState());
 		state.put("powerSystems", powerSystems.exportState());
 		state.put("crew", crew.exportState());
+		state.put("weapons", weapons.exportState());
 
 		return state;
 	}
@@ -2079,6 +2080,7 @@ public class Ship extends Unit implements DroneController {
 		hullBoxes.applyState(StateIo.child(state, "hullBoxes"));
 		powerSystems.applyState(StateIo.child(state, "powerSystems"));
 		crew.applyState(StateIo.child(state, "crew"));
+		weapons.applyState(StateIo.child(state, "weapons"));
 	}
 
 	public Shields getShields() {

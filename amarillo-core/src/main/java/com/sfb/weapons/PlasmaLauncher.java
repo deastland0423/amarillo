@@ -710,4 +710,53 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 		return launch();
 	}
 
+
+	// -------------------------------------------------------------------------
+	// Saved game: arming state (see Weapon.exportState)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Arming state (FP1.0), which for a plasma is a multi-TURN cycle and so the clearest case of
+	 * state that must cross a save.
+	 *
+	 * <p>{@code plasmaType} is what is actually loaded and may be smaller than the launcher's own
+	 * type, so it is saved separately from {@code launcherType} — which is not saved at all, being
+	 * what the hull mounts. {@code rolling} is a torpedo held at three turns of arming without its
+	 * final burst, and {@code pseudoPlasmaReady} is once per GAME (FP2.0), so losing it on a
+	 * reload would hand the player a second free bluff.
+	 *
+	 * <p>Enums are stored by NAME, never ordinal: inserting a constant would otherwise reinterpret
+	 * every saved torpedo as a different type.
+	 */
+	@Override
+	public java.util.Map<String, Object> exportState() {
+		java.util.Map<String, Object> state = super.exportState();
+		state.put("plasmaType", plasmaType == null ? null : plasmaType.name());
+		state.put("armingType", armingType == null ? null : armingType.name());
+		state.put("armingTurn", armingTurn);
+		state.put("armed", armed);
+		state.put("rolling", rolling);
+		state.put("pseudoPlasmaReady", pseudoPlasmaReady);
+		state.put("pseudoLastImpulseFired", pseudoLastImpulseFired);
+		return state;
+	}
+
+	@Override
+	public void applyState(java.util.Map<String, Object> state) {
+		super.applyState(state);
+		if (state == null)
+			return;
+		String loaded = com.sfb.systemgroups.StateIo.text(state, "plasmaType");
+		plasmaType = loaded == null ? null : com.sfb.properties.PlasmaType.valueOf(loaded);
+		String arming = com.sfb.systemgroups.StateIo.text(state, "armingType");
+		armingType = arming == null ? null
+				: com.sfb.properties.WeaponArmingType.valueOf(arming);
+		armingTurn = com.sfb.systemgroups.StateIo.integer(state, "armingTurn", armingTurn);
+		armed      = com.sfb.systemgroups.StateIo.flag(state, "armed", armed);
+		rolling    = com.sfb.systemgroups.StateIo.flag(state, "rolling", rolling);
+		pseudoPlasmaReady = com.sfb.systemgroups.StateIo.flag(state, "pseudoPlasmaReady",
+				pseudoPlasmaReady);
+		pseudoLastImpulseFired = com.sfb.systemgroups.StateIo.integer(state,
+				"pseudoLastImpulseFired", pseudoLastImpulseFired);
+	}
 }

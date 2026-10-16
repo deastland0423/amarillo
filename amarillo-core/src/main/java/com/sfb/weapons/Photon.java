@@ -534,4 +534,42 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 
 	}
 
+
+	// ------------------------------------------------------------------------
+	// Saved game: arming state (see Weapon.exportState)
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Arming state, which is the part that genuinely crosses a turn boundary.
+	 *
+	 * E4.0. A photon can be HELD armed across turns at a cost per turn (E4.4), so `held` and `armingTurn` together are what make a loaded tube a loaded tube.
+	 *
+	 * The arming type is stored by NAME rather than ordinal: an enum's ordinal shifts the
+	 * moment a constant is inserted, which would silently turn every saved overload into
+	 * something else.
+	 */
+	@Override
+	public java.util.Map<String, Object> exportState() {
+		java.util.Map<String, Object> state = super.exportState();
+		state.put("armingType", armingType == null ? null : armingType.name());
+		state.put("armingTurn", armingTurn);
+		state.put("armingEnergy", armingEnergy);
+		state.put("armed", armed);
+		state.put("held", held);
+		return state;
+	}
+
+	@Override
+	public void applyState(java.util.Map<String, Object> state) {
+		super.applyState(state);
+		if (state == null)
+			return;
+		String armingTypeName = com.sfb.systemgroups.StateIo.text(state, "armingType");
+		if (armingTypeName != null)
+			armingType = com.sfb.properties.WeaponArmingType.valueOf(armingTypeName);
+		armingTurn = com.sfb.systemgroups.StateIo.integer(state, "armingTurn", armingTurn);
+		armingEnergy = com.sfb.systemgroups.StateIo.real(state, "armingEnergy", armingEnergy);
+		armed = com.sfb.systemgroups.StateIo.flag(state, "armed", armed);
+		held = com.sfb.systemgroups.StateIo.flag(state, "held", held);
+	}
 }

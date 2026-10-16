@@ -426,4 +426,38 @@ public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWea
 
 	}
 
+
+	// ------------------------------------------------------------------------
+	// Saved game: arming state (see Weapon.exportState)
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Arming state, which is the part that genuinely crosses a turn boundary.
+	 *
+	 * E7.0. No stored arming energy field — a fusion beam arms in one step.
+	 *
+	 * The arming type is stored by NAME rather than ordinal: an enum's ordinal shifts the
+	 * moment a constant is inserted, which would silently turn every saved overload into
+	 * something else.
+	 */
+	@Override
+	public java.util.Map<String, Object> exportState() {
+		java.util.Map<String, Object> state = super.exportState();
+		state.put("armingType", armingType == null ? null : armingType.name());
+		state.put("armingTurn", armingTurn);
+		state.put("armed", armed);
+		return state;
+	}
+
+	@Override
+	public void applyState(java.util.Map<String, Object> state) {
+		super.applyState(state);
+		if (state == null)
+			return;
+		String armingTypeName = com.sfb.systemgroups.StateIo.text(state, "armingType");
+		if (armingTypeName != null)
+			armingType = com.sfb.properties.WeaponArmingType.valueOf(armingTypeName);
+		armingTurn = com.sfb.systemgroups.StateIo.integer(state, "armingTurn", armingTurn);
+		armed = com.sfb.systemgroups.StateIo.flag(state, "armed", armed);
+	}
 }

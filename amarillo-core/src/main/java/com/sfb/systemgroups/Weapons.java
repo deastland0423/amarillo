@@ -262,5 +262,87 @@ public class Weapons implements Systems {
 	}
 
 
+
+	// -------------------------------------------------------------------------
+	// Saved game (see Systems.exportState)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Which weapon boxes are left, what the phaser capacitor holds, and every weapon's own state.
+	 *
+	 * <h2>The capacitor is two different numbers</h2>
+	 * {@code availablePhaserCapacitor} is the capacitor's SIZE, which damage reduces, while
+	 * {@code phaserCapacitorEnergy} is what is currently stored in it. Both are saved and they
+	 * are not interchangeable. The stored energy is the one that was being lost: it is paid for
+	 * during Energy Allocation and carries between turns unspent, so a reload that dropped it
+	 * quietly took back power the player had already bought.
+	 *
+	 * <h2>Weapons are keyed by DESIGNATOR, never by position</h2>
+	 * A list index would be a pointer by another name — it only means anything if the weapons are
+	 * rebuilt in exactly the same order, and the first refit that adds or removes a mount would
+	 * silently shift every armed photon onto a different tube. The designator is the SSD's own
+	 * label for a mount, which is what the save should be speaking in.
+	 */
+	@Override
+	public Map<String, Object> exportState() {
+		Map<String, Object> state = new java.util.LinkedHashMap<>();
+		state.put("availablePhasers", availablePhasers);
+		state.put("availableTorps", availableTorps);
+		state.put("availableDrones", availableDrones);
+		state.put("availablePhaserCapacitor", availablePhaserCapacitor);
+		state.put("phaserCapacitorEnergy", phaserCapacitorEnergy);
+
+		Map<String, Object> perWeapon = new java.util.LinkedHashMap<>();
+		for (Weapon weapon : fetchAllWeapons()) {
+			String key = weaponKey(weapon);
+			if (key != null)
+				perWeapon.put(key, weapon.exportState());
+		}
+		state.put("weapons", perWeapon);
+		return state;
+	}
+
+	@Override
+	public void applyState(Map<String, Object> state) {
+		if (state == null)
+			return;
+		availablePhasers = StateIo.integer(state, "availablePhasers", availablePhasers);
+		availableTorps   = StateIo.integer(state, "availableTorps", availableTorps);
+		availableDrones  = StateIo.integer(state, "availableDrones", availableDrones);
+		availablePhaserCapacitor = StateIo.real(state, "availablePhaserCapacitor",
+				availablePhaserCapacitor);
+		phaserCapacitorEnergy = StateIo.real(state, "phaserCapacitorEnergy",
+				phaserCapacitorEnergy);
+
+		Map<String, Object> perWeapon = StateIo.child(state, "weapons");
+		if (perWeapon == null)
+			return;
+		for (Weapon weapon : fetchAllWeapons()) {
+			String key = weaponKey(weapon);
+			if (key == null)
+				continue;
+			// A mount the save does not mention keeps what the hull gave it, so a save written
+			// before a refit added a weapon still loads.
+			if (perWeapon.get(key) instanceof Map<?, ?> saved) {
+				@SuppressWarnings("unchecked")
+				Map<String, Object> typed = (Map<String, Object>) saved;
+				weapon.applyState(typed);
+			}
+		}
+	}
+
+	/**
+	 * The save key for one mount: its type and designator together.
+	 *
+	 * The designator alone is not unique — a ship may carry phaser "1" and drone rack "1" — so
+	 * the type goes in front of it. Returns null for a mount with no designator at all, which is
+	 * left out rather than being merged with every other anonymous mount under one key.
+	 */
+	private static String weaponKey(Weapon weapon) {
+		String designator = weapon.getDesignator();
+		if (designator == null || designator.isBlank())
+			return null;
+		return weapon.getType() + ":" + designator;
+	}
 }
 

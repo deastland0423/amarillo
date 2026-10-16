@@ -48,8 +48,7 @@ public class ShipStateRoundTripTest {
      * Checked in both directions: an entry that starts surviving is reported as stale, so this
      * list cannot quietly outlive the work it describes.
      */
-    private static final Map<String, String> KNOWN_GAPS = Map.of(
-            "phaserCapacitor", "Weapons");
+    private static final Map<String, String> KNOWN_GAPS = Map.of();
 
     // ---------------------------------------------------------------- the round trip
 
@@ -152,6 +151,82 @@ public class ShipStateRoundTripTest {
         before.setActiveFireControl(false);
 
         assertFalse(roundTrip(before).isActiveFireControl());
+    }
+
+    // ---------------------------------------------------------------- weapons
+
+    /**
+     * The gap this slice closed. Capacitor energy is paid for during Energy Allocation and
+     * carries between turns unspent, so a reload that dropped it took back power the player had
+     * already bought.
+     */
+    @Test
+    public void thePhaserCapacitorKeepsItsStoredEnergy() {
+        Ship before = damagedCruiser();
+        double stored = before.getWeapons().getPhaserCapacitorEnergy();
+        assertTrue("fixture: the capacitor should be holding something", stored > 0);
+
+        assertEquals(stored, roundTrip(before).getWeapons().getPhaserCapacitorEnergy(), 0.001);
+    }
+
+    /**
+     * The biggest risk in the whole format: arming crosses turn boundaries, so losing it either
+     * empties a loaded tube or loads an empty one.
+     */
+    @Test
+    public void anArmedPhotonComesBackArmedTheSameWay() {
+        Ship before = damagedCruiser();
+        com.sfb.weapons.Photon armed = firstPhoton(before);
+        assertTrue("fixture: a CA photon should be armed", armed.isArmed());
+
+        com.sfb.weapons.Photon after = firstPhoton(roundTrip(before));
+
+        assertTrue("an armed tube must not come back empty", after.isArmed());
+        assertEquals("overload must not come back as standard",
+                armed.getArmingType(), after.getArmingType());
+        assertEquals(armed.getArmingTurn(), after.getArmingTurn());
+        assertEquals(armed.getArmingEnergy(), after.getArmingEnergy(), 0.001);
+    }
+
+    @Test
+    public void aDestroyedMountStaysDestroyed() {
+        Ship before = damagedCruiser();
+        assertFalse("fixture: the first mount was shot off",
+                before.getWeapons().fetchAllWeapons().get(0).isFunctional());
+
+        assertFalse("a weapon shot off the SSD must stay off",
+                roundTrip(before).getWeapons().fetchAllWeapons().get(0).isFunctional());
+    }
+
+    /**
+     * Weapons are keyed by designator, not by list position. A positional key would be a pointer
+     * by another name: it only holds while the weapons are rebuilt in exactly the same order, and
+     * the first refit that adds a mount would shift every armed photon onto a different tube.
+     */
+    @Test
+    public void weaponStateIsKeyedByDesignator() {
+        Ship before = damagedCruiser();
+        com.sfb.weapons.Photon armed = firstPhoton(before);
+        String designator = armed.getDesignator();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> perWeapon = (Map<String, Object>)
+                ((Map<String, Object>) before.exportState().get("weapons")).get("weapons");
+
+        assertTrue("the save should name the mount, not its index: " + perWeapon.keySet(),
+                perWeapon.keySet().stream().anyMatch(k -> k.endsWith(":" + designator)));
+
+        // And it lands back on the mount with that same designator.
+        com.sfb.weapons.Photon after = firstPhoton(roundTrip(before));
+        assertEquals(designator, after.getDesignator());
+        assertTrue(after.isArmed());
+    }
+
+    private static com.sfb.weapons.Photon firstPhoton(Ship ship) {
+        for (com.sfb.weapons.Weapon weapon : ship.getWeapons().fetchAllWeapons())
+            if (weapon instanceof com.sfb.weapons.Photon photon)
+                return photon;
+        throw new AssertionError("no photon on " + ship.getName());
     }
 
     // ---------------------------------------------------------------- the format's own promises
@@ -261,6 +336,20 @@ public class ShipStateRoundTripTest {
         } catch (Exception e) {
             throw new AssertionError("fixture: a CA should take two points of capacitor", e);
         }
+
+        // Weapons: a destroyed mount, a photon part-way through arming and held, and a
+        // phaser that has fired. Arming is the state that genuinely crosses a turn boundary, so
+        // a save that lost it would hand the player back an empty tube — or a loaded one.
+        for (com.sfb.weapons.Weapon weapon : ship.getWeapons().fetchAllWeapons()) {
+            if (weapon instanceof com.sfb.weapons.Photon photon) {
+                photon.setOverload();
+                photon.arm(4);
+                photon.setArmingTurn(1);
+                photon.setArmed(true);
+                break;
+            }
+        }
+        ship.getWeapons().fetchAllWeapons().get(0).damage();
 
         ship.setFacing(9);
         ship.setSpeed(16);

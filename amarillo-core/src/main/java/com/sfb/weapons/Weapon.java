@@ -511,4 +511,61 @@ public abstract class Weapon {
 	public void setEcmShift(int shift) {
 		this.ecmShift = shift;
 	}
+
+	// -------------------------------------------------------------------------
+	// Saved game (see Systems.exportState)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * This weapon's MUTABLE state, for a saved game.
+	 *
+	 * <h2>What is here and what is not</h2>
+	 * Nothing describing the weapon — its type, designator, arcs, ranges, rate of fire — is
+	 * written: all of that is rebuilt from the ship's data. {@code functional} is, because a
+	 * weapon shot off the SSD must stay shot off.
+	 *
+	 * <p>The firing history is written too, and it is NOT redundant at a turn boundary even
+	 * though {@code cleanUp()} clears the per-turn counters. {@code lastImpulseFired} is in
+	 * ABSOLUTE impulses and {@code minImpulseGap} is measured against it, so a weapon fired late
+	 * in turn 4 is still cooling down early in turn 5 — drop it and a reload hands the player a
+	 * shot the rules say they have not earned. {@code recentShots} carries the same information
+	 * for the quarter-turn window.
+	 *
+	 * <h2>Subclasses</h2>
+	 * A weapon with arming state overrides this, calls {@code super.exportState()}, and adds its
+	 * own keys. Arming is the state that genuinely crosses turn boundaries — a held photon, a
+	 * plasma three turns into its cycle — and losing it is the difference between a loaded ship
+	 * and an empty one.
+	 */
+	public java.util.Map<String, Object> exportState() {
+		java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+		state.put("functional", functional);
+		state.put("lastImpulseFired", lastImpulseFired);
+		state.put("lastTurnFired", lastTurnFired);
+		state.put("shotsThisTurn", shotsThisTurn);
+		state.put("shotsThisImpulse", shotsThisImpulse);
+		state.put("recentShots", new java.util.ArrayList<>(recentShots));
+		return state;
+	}
+
+	/** Restore what {@link #exportState} captured. Missing keys leave the built value alone. */
+	public void applyState(java.util.Map<String, Object> state) {
+		if (state == null)
+			return;
+		functional       = com.sfb.systemgroups.StateIo.flag(state, "functional", functional);
+		lastImpulseFired = com.sfb.systemgroups.StateIo.integer(state, "lastImpulseFired",
+				lastImpulseFired);
+		lastTurnFired    = com.sfb.systemgroups.StateIo.integer(state, "lastTurnFired",
+				lastTurnFired);
+		shotsThisTurn    = com.sfb.systemgroups.StateIo.integer(state, "shotsThisTurn",
+				shotsThisTurn);
+		shotsThisImpulse = com.sfb.systemgroups.StateIo.integer(state, "shotsThisImpulse",
+				shotsThisImpulse);
+		int[] shots = com.sfb.systemgroups.StateIo.intArray(state.get("recentShots"));
+		if (shots != null) {
+			recentShots.clear();
+			for (int shot : shots)
+				recentShots.add(shot);
+		}
+	}
 }
