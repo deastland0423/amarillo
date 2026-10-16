@@ -353,4 +353,52 @@ public class Shields implements Systems {
 	public Unit fetchOwningUnit() {
 		return this.owningUnit;
 	}
+
+	// -------------------------------------------------------------------------
+	// Saved game (see Systems.exportState)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * What the battle did to the shields.
+	 *
+	 * {@code shieldValues} — the undamaged baseline — is deliberately NOT here: it comes from the
+	 * hull's {@code "shields"} array, and saving it as well would let a save and the ship data
+	 * disagree about what a shield is worth. The same goes for {@code shieldCount}, which the
+	 * array's LENGTH declares.
+	 *
+	 * <p>{@code impulseShieldToggled} is included and is easy to mistake for scratch state: it is
+	 * the impulse each shield was last raised or lowered on, and C13.3's delay is measured from
+	 * it, so dropping it would hand a reloaded ship a free instant raise.
+	 */
+	@Override
+	public Map<String, Object> exportState() {
+		Map<String, Object> state = new java.util.LinkedHashMap<>();
+		state.put("current", currentShieldValues.clone());
+		state.put("specificReinforcement", specificReinforcement.clone());
+		state.put("generalReinforcement", generalReinforcement);
+		state.put("active", shieldActive == null ? null : shieldActive.clone());
+		state.put("impulseToggled", impulseShieldToggled == null
+				? null : impulseShieldToggled.clone());
+		return state;
+	}
+
+	@Override
+	public void applyState(Map<String, Object> state) {
+		if (state == null)
+			return;
+		int[] current = StateIo.intArray(state.get("current"));
+		if (current != null)
+			currentShieldValues = StateIo.sized(current, currentShieldValues.length);
+		int[] specific = StateIo.intArray(state.get("specificReinforcement"));
+		if (specific != null)
+			specificReinforcement = StateIo.sized(specific, specificReinforcement.length);
+		if (state.get("generalReinforcement") instanceof Number n)
+			generalReinforcement = n.intValue();
+		boolean[] active = StateIo.boolArray(state.get("active"));
+		if (active != null)
+			shieldActive = active;
+		int[] toggled = StateIo.intArray(state.get("impulseToggled"));
+		if (toggled != null)
+			impulseShieldToggled = toggled;
+	}
 }

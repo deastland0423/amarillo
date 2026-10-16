@@ -24,6 +24,7 @@ import com.sfb.systemgroups.Labs;
 import com.sfb.systemgroups.PowerSystems;
 import com.sfb.systemgroups.ProbeLaunchers;
 import com.sfb.systemgroups.Shields;
+import com.sfb.systemgroups.StateIo;
 import com.sfb.systemgroups.Shuttles;
 import com.sfb.objects.shuttles.*;
 import com.sfb.systemgroups.Transporters;
@@ -1988,6 +1989,96 @@ public class Ship extends Unit implements DroneController {
 			for (com.sfb.objects.shuttles.Shuttle s : bay.getBalcony())
 				s.attachClock(clock);
 		}
+	}
+
+	// -------------------------------------------------------------------------
+	// Saved game: turn-boundary snapshot
+	// -------------------------------------------------------------------------
+
+	/**
+	 * This ship's MUTABLE state, for a saved game — the inverse of {@link #init}.
+	 *
+	 * <h2>The format, and why it is this small</h2>
+	 * A saved game is a scenario plus accumulated damage. Everything the ship IS — hull, refit
+	 * set, scenario year and its automatic upgrades, Commander's Options choices — is rebuilt by
+	 * {@code ScenarioLoader} from the data files, so none of it is written here. What is written
+	 * is only what the battle changed.
+	 *
+	 * <p>That reconstruction is also the format's one real hazard, and it is worth stating at the
+	 * site: it reads the ship JSON AT LOAD TIME, and this repo edits ship JSON constantly. Edit a
+	 * hull between sessions and a restored ship quietly becomes a different ship. The answer is a
+	 * fingerprint of the resolved {@code ShipSpec} stored beside the reference and compared on
+	 * load — not this method's job, but nothing above it should forget.
+	 *
+	 * <h2>Why a turn boundary</h2>
+	 * Taken between turns, almost all of the identity-laden per-impulse state — who moved this
+	 * impulse, previous locations, pending volleys and DAC choices, which UIMs fired — is empty,
+	 * so the hardest part of the problem simply is not present. Saving mid-impulse would need all
+	 * of it, by object identity rather than by name.
+	 *
+	 * @return a JSON-shaped map of mutable state
+	 */
+	public Map<String, Object> exportState() {
+		Map<String, Object> state = new java.util.LinkedHashMap<>();
+
+		state.put("name", getName());
+		// Where it is and how it is moving. A base has no speed to speak of and will simply
+		// write zero.
+		if (getLocation() != null) {
+			state.put("x", getLocation().getX());
+			state.put("y", getLocation().getY());
+		}
+		state.put("facing", facing);
+		state.put("speed", speed);
+		state.put("sideslipCount", sideslipCount);
+		state.put("turnCount", turnCount);
+		state.put("entryDirection", entryDirection);
+		if (planetFace != null)
+			state.put("planetFace", planetFace);
+
+		state.put("activeFireControl", activeFireControl);
+		state.put("lifeSupportActive", lifeSupportActive);
+
+		state.put("shields", shields.exportState());
+		state.put("hullBoxes", hullBoxes.exportState());
+		state.put("powerSystems", powerSystems.exportState());
+		state.put("crew", crew.exportState());
+
+		return state;
+	}
+
+	/**
+	 * Restore what {@link #exportState} captured, onto a ship already built from its hull data.
+	 *
+	 * Order matters once more groups are converted: the ship must be fully built first, because
+	 * this only overwrites what the battle changed and relies on everything else already being
+	 * right. Missing keys are left alone, so a save written before a field existed still loads.
+	 */
+	public void applyState(Map<String, Object> state) {
+		if (state == null)
+			return;
+
+		String savedName = StateIo.text(state, "name");
+		if (savedName != null)
+			setName(savedName);
+
+		if (state.get("x") instanceof Number x && state.get("y") instanceof Number y)
+			setLocation(new com.sfb.properties.Location(x.intValue(), y.intValue()));
+		facing         = StateIo.integer(state, "facing", facing);
+		speed          = StateIo.integer(state, "speed", speed);
+		sideslipCount  = StateIo.integer(state, "sideslipCount", sideslipCount);
+		turnCount      = StateIo.integer(state, "turnCount", turnCount);
+		entryDirection = StateIo.integer(state, "entryDirection", entryDirection);
+		if (state.get("planetFace") instanceof Number face)
+			planetFace = face.intValue();
+
+		activeFireControl = StateIo.flag(state, "activeFireControl", activeFireControl);
+		lifeSupportActive = StateIo.flag(state, "lifeSupportActive", lifeSupportActive);
+
+		shields.applyState(StateIo.child(state, "shields"));
+		hullBoxes.applyState(StateIo.child(state, "hullBoxes"));
+		powerSystems.applyState(StateIo.child(state, "powerSystems"));
+		crew.applyState(StateIo.child(state, "crew"));
 	}
 
 	public Shields getShields() {

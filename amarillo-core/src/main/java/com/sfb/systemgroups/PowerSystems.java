@@ -510,4 +510,68 @@ public class PowerSystems implements Systems {
 		return this.owningUnit;
 	}
 	
+
+	// -------------------------------------------------------------------------
+	// Saved game (see Systems.exportState)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Which power boxes are left, and what the batteries are holding.
+	 *
+	 * The originals ({@code lwarp} and friends) stay out — they are what the hull HAS. Two things
+	 * here are easy to mistake for scratch state and are not:
+	 *
+	 * <ul>
+	 *   <li>{@code batteryPower} is STORED ENERGY, not a box count. Drop it and a reloaded ship
+	 *       comes back with full batteries, or empty ones, depending on which way the default
+	 *       falls — either way the player is handed or robbed of reserve power (H7.2).</li>
+	 *   <li>the doubling flags are Orion engine doubling (G15.26), declared per turn. A snapshot
+	 *       taken at a turn boundary should see them clear, but they are cheap to carry and a
+	 *       save that is one day taken elsewhere would need them.</li>
+	 * </ul>
+	 */
+	@Override
+	public Map<String, Object> exportState() {
+		Map<String, Object> state = new java.util.LinkedHashMap<>();
+		state.put("lwarp", availableLwarp);
+		state.put("rwarp", availableRwarp);
+		state.put("cwarp", availableCwarp);
+		state.put("impulse", availableImpulse);
+		state.put("apr", availableApr);
+		state.put("awr", availableAwr);
+		state.put("battery", availableBattery);
+		state.put("batteryPower", batteryPower);
+		state.put("reserveWarp", reserveWarp);
+		state.put("reservePower", reservePower);
+		state.put("dblL", dblL);
+		state.put("dblR", dblR);
+		state.put("dblC", dblC);
+		state.put("dblImp", dblImp);
+		state.put("warpDoublingBonus", warpDoublingBonus);
+		state.put("impulseDoublingBonus", impulseDoublingBonus);
+		return state;
+	}
+
+	@Override
+	public void applyState(Map<String, Object> state) {
+		if (state == null)
+			return;
+		availableLwarp   = StateIo.integer(state, "lwarp", availableLwarp);
+		availableRwarp   = StateIo.integer(state, "rwarp", availableRwarp);
+		availableCwarp   = StateIo.integer(state, "cwarp", availableCwarp);
+		availableImpulse = StateIo.integer(state, "impulse", availableImpulse);
+		availableApr     = StateIo.integer(state, "apr", availableApr);
+		availableAwr     = StateIo.integer(state, "awr", availableAwr);
+		availableBattery = StateIo.integer(state, "battery", availableBattery);
+		batteryPower     = StateIo.integer(state, "batteryPower", batteryPower);
+		reserveWarp      = StateIo.integer(state, "reserveWarp", reserveWarp);
+		reservePower     = StateIo.integer(state, "reservePower", reservePower);
+		dblL   = StateIo.flag(state, "dblL", dblL);
+		dblR   = StateIo.flag(state, "dblR", dblR);
+		dblC   = StateIo.flag(state, "dblC", dblC);
+		dblImp = StateIo.flag(state, "dblImp", dblImp);
+		warpDoublingBonus    = StateIo.integer(state, "warpDoublingBonus", warpDoublingBonus);
+		impulseDoublingBonus = StateIo.integer(state, "impulseDoublingBonus",
+				impulseDoublingBonus);
+	}
 }

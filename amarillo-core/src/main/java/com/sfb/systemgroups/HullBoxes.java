@@ -226,4 +226,38 @@ public class HullBoxes implements Systems {
 		return this.owningUnit;
 	}
 
+
+	// -------------------------------------------------------------------------
+	// Saved game (see Systems.exportState)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * How many boxes of each kind are left.
+	 *
+	 * The originals ({@code fhull} and friends) stay out: they are what the hull HAS, rebuilt from
+	 * its JSON. Only the "available" counts are what the battle changed.
+	 */
+	@Override
+	public Map<String, Object> exportState() {
+		Map<String, Object> state = new java.util.LinkedHashMap<>();
+		state.put("fhull", availableFhull);
+		state.put("ahull", availableAhull);
+		state.put("chull", availableChull);
+		state.put("armor", availableArmor);
+		state.put("cargo", availableCargo);
+		state.put("barracks", availableBarracks);
+		return state;
+	}
+
+	@Override
+	public void applyState(Map<String, Object> state) {
+		if (state == null)
+			return;
+		availableFhull    = StateIo.integer(state, "fhull", availableFhull);
+		availableAhull    = StateIo.integer(state, "ahull", availableAhull);
+		availableChull    = StateIo.integer(state, "chull", availableChull);
+		availableArmor    = StateIo.integer(state, "armor", availableArmor);
+		availableCargo    = StateIo.integer(state, "cargo", availableCargo);
+		availableBarracks = StateIo.integer(state, "barracks", availableBarracks);
+	}
 }

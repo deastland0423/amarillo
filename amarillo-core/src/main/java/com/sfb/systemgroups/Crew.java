@@ -159,4 +159,44 @@ public class Crew implements Systems {
 	public Unit fetchOwningUnit() {
 		return this.owningUnit;
 	}
+
+	// -------------------------------------------------------------------------
+	// Saved game (see Systems.exportState)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Who is left aboard.
+	 *
+	 * The troops are stored as their two KINDS rather than as a total, because that is how they
+	 * are held: {@code getAvailableBoardingParties()} is a convenience that sums normal parties
+	 * and commandos, and restoring through the matching setter would quietly convert commandos
+	 * into normal parties — D7.0 and the ground-combat rules care which is which.
+	 *
+	 * <p>{@code crewQuality} is NOT saved: G21.0 declares it in the ship's own data, so it is
+	 * part of what the hull IS and is rebuilt with it. {@code capturedCrew} IS saved, being
+	 * prisoners this ship took during the battle (D7.50).
+	 */
+	@Override
+	public Map<String, Object> exportState() {
+		Map<String, Object> state = new java.util.LinkedHashMap<>();
+		state.put("availableCrewUnits", availableCrewUnits);
+		state.put("availableDeckCrews", availableDeckCrews);
+		state.put("capturedCrew", capturedCrew);
+		state.put("troopsNormal", friendlyTroops.normal);
+		state.put("troopsCommandos", friendlyTroops.commandos);
+		return state;
+	}
+
+	@Override
+	public void applyState(Map<String, Object> state) {
+		if (state == null)
+			return;
+		availableCrewUnits = StateIo.integer(state, "availableCrewUnits", availableCrewUnits);
+		availableDeckCrews = StateIo.integer(state, "availableDeckCrews", availableDeckCrews);
+		capturedCrew       = StateIo.integer(state, "capturedCrew", capturedCrew);
+		friendlyTroops.normal    = StateIo.integer(state, "troopsNormal",
+				friendlyTroops.normal);
+		friendlyTroops.commandos = StateIo.integer(state, "troopsCommandos",
+				friendlyTroops.commandos);
+	}
 }
