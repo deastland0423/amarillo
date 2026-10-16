@@ -2045,6 +2045,32 @@ public class Ship extends Unit implements DroneController {
 		state.put("crew", crew.exportState());
 		state.put("weapons", weapons.exportState());
 
+		// Lock-ons are written as NAMES, and are deliberately not restored by applyState: a lock
+		// is a reference to another unit, and a ship being rebuilt in isolation has nothing to
+		// point at. Game.applyState resolves them in a second pass once every unit exists. They
+		// persist across turns (D6.12), so losing them would hand every ship a free re-acquisition.
+		// EARNED locks only — the beam-only ones go in their own list below. addTractorLockOn
+		// stores a beam-granted lock in BOTH sets, so writing lockOns wholesale and then
+		// replaying it would re-add every beam-only lock as an earned one: addLockOn clears the
+		// beam mark, and addTractorLockOn then declines to restore it because the lock already
+		// exists. The two lists must not overlap.
+		java.util.List<String> locked = new java.util.ArrayList<>();
+		for (Unit target : lockOns)
+			if (target != null && target.getName() != null
+					&& !tractorLockOns.contains(target))
+				locked.add(target.getName());
+		state.put("lockOns", locked);
+
+		// Kept apart from the set above because the DIFFERENCE is a rule: a lock resting on a
+		// tractor beam alone is not one the sensors earned, and D6.627 and G7.97 treat it
+		// differently. Flattening the two into one list would silently promote every beam-granted
+		// lock into a real one on reload.
+		java.util.List<String> beamOnly = new java.util.ArrayList<>();
+		for (Unit target : tractorLockOns)
+			if (target != null && target.getName() != null)
+				beamOnly.add(target.getName());
+		state.put("tractorLockOns", beamOnly);
+
 		return state;
 	}
 

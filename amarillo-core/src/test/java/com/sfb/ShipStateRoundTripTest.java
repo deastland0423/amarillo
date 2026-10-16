@@ -58,14 +58,10 @@ public class ShipStateRoundTripTest {
         Ship before = damagedCruiser();
         Ship after = roundTrip(before);
 
-        List<String> differences = diffDtos(before, after);
         List<String> unexpected = new ArrayList<>();
-        for (String difference : differences) {
-            String top = difference.substring(0, Math.max(0, difference.indexOf(':')));
-            String owner = KNOWN_GAPS.get(top.contains(".") ? top.substring(0, top.indexOf('.')) : top);
-            if (owner == null)
+        for (String difference : diffDtos(before, after))
+            if (!KNOWN_GAPS.containsKey(DtoDiff.topLevel(difference)))
                 unexpected.add(difference);
-        }
 
         assertTrue("these fields did not survive a save and reload, and no group claims them:\n  "
                 + String.join("\n  ", unexpected), unexpected.isEmpty());
@@ -81,10 +77,8 @@ public class ShipStateRoundTripTest {
         Ship after = roundTrip(before);
 
         List<String> tops = new ArrayList<>();
-        for (String difference : diffDtos(before, after)) {
-            String top = difference.substring(0, Math.max(0, difference.indexOf(':')));
-            tops.add(top.contains(".") ? top.substring(0, top.indexOf('.')) : top);
-        }
+        for (String difference : diffDtos(before, after))
+            tops.add(DtoDiff.topLevel(difference));
 
         List<String> stale = new ArrayList<>();
         for (Map.Entry<String, String> gap : KNOWN_GAPS.entrySet())
@@ -378,85 +372,6 @@ public class ShipStateRoundTripTest {
     }
 
     private static List<String> diffDtos(Ship before, Ship after) {
-        List<String> out = new ArrayList<>();
-        compare("", dtoFor(before), dtoFor(after), out, new IdentityHashMap<>());
-        return out;
-    }
-
-    /**
-     * Compare two DTO objects field by field, descending into nested DTOs and lists.
-     *
-     * Reflective because the point is to cover fields nobody listed by hand — a hand-written set
-     * of assertions would miss exactly the field that was also forgotten in the save format.
-     */
-    private static void compare(String path, Object a, Object b, List<String> out,
-            IdentityHashMap<Object, Object> seen) {
-        if (a == null && b == null)
-            return;
-        if (a == null || b == null) {
-            out.add(path + ": " + a + " != " + b);
-            return;
-        }
-        if (seen.put(a, b) != null)
-            return;     // cycles: a DTO graph may point back at something already walked
-
-        if (a.getClass() != b.getClass()) {
-            out.add(path + ": " + a.getClass() + " != " + b.getClass());
-            return;
-        }
-        Class<?> type = a.getClass();
-
-        if (type.isArray() || isLeaf(type)) {
-            if (!java.util.Objects.deepEquals(a, b))
-                out.add(path + ": " + describe(a) + " != " + describe(b));
-            return;
-        }
-        if (a instanceof List<?> listA && b instanceof List<?> listB) {
-            if (listA.size() != listB.size()) {
-                out.add(path + ".size: " + listA.size() + " != " + listB.size());
-                return;
-            }
-            for (int i = 0; i < listA.size(); i++)
-                compare(path + "[" + i + "]", listA.get(i), listB.get(i), out, seen);
-            return;
-        }
-        if (a instanceof Map<?, ?> mapA && b instanceof Map<?, ?> mapB) {
-            if (!mapA.keySet().equals(mapB.keySet())) {
-                out.add(path + ".keys: " + mapA.keySet() + " != " + mapB.keySet());
-                return;
-            }
-            for (Object key : mapA.keySet())
-                compare(path + "[" + key + "]", mapA.get(key), mapB.get(key), out, seen);
-            return;
-        }
-        // A DTO: walk its public fields.
-        for (Field field : type.getFields()) {
-            if (Modifier.isStatic(field.getModifiers()))
-                continue;
-            try {
-                compare(path.isEmpty() ? field.getName() : path + "." + field.getName(),
-                        field.get(a), field.get(b), out, seen);
-            } catch (IllegalAccessException e) {
-                throw new AssertionError(e);
-            }
-        }
-    }
-
-    private static boolean isLeaf(Class<?> type) {
-        return type.isPrimitive() || type.isEnum()
-                || Number.class.isAssignableFrom(type)
-                || type == String.class || type == Boolean.class || type == Character.class;
-    }
-
-    private static String describe(Object value) {
-        if (value instanceof int[] ints)
-            return java.util.Arrays.toString(ints);
-        if (value instanceof double[] doubles)
-            return java.util.Arrays.toString(doubles);
-        if (value instanceof boolean[] booleans)
-            return java.util.Arrays.toString(booleans);
-        if (value instanceof Object[] objects)
-            return java.util.Arrays.deepToString(objects);
-        return String.valueOf(value);
+        return DtoDiff.between(dtoFor(before), dtoFor(after));
     }
 }

@@ -2129,6 +2129,292 @@ public class Game {
      * This game's impulse clock. Exposed for tests and future save/restore;
      * production code must not advance it outside advancePhase()/beginImpulses().
      */
+    // -------------------------------------------------------------------------
+    // Saved game: turn-boundary snapshot (slice D3)
+    // -------------------------------------------------------------------------
+
+    /** Bumped when the format changes in a way a reader has to know about. */
+    public static final int SAVE_FORMAT_VERSION = 1;
+
+    /**
+     * The whole battle as a turn-boundary snapshot.
+     *
+     * <h2>What a save is</h2>
+     * A scenario plus accumulated damage. Nothing the scenario can rebuild is written here: the
+     * hulls, their refits and year upgrades, the Commander's Options choices, the terrain and the
+     * map are all reconstructed by {@code setupFromScenario}, and this overlays what the battle
+     * did on top. So a load is two steps and the order is not optional:
+     *
+     * <pre>
+     *   Game game = new Game();
+     *   game.setupFromScenario(spec);   // build the pieces
+     *   game.applyState(saved);         // overlay the battle
+     * </pre>
+     *
+     * <h2>Why a turn boundary</h2>
+     * Almost everything held by object IDENTITY rather than by name is per-impulse — who moved
+     * this impulse, previous locations, pending volleys and DAC choices, which UIMs have fired —
+     * and all of it is empty between turns. Saving mid-impulse would mean serialising that graph
+     * faithfully; saving between turns means it simply is not there.
+     *
+     * <h2>The hazard this cannot fix by itself</h2>
+     * Rebuilding from the scenario reads the ship JSON AT LOAD TIME, and this repo edits ship
+     * JSON constantly. Edit a hull between sessions and a restored ship quietly becomes a
+     * different ship. The answer is a fingerprint of each resolved {@code ShipSpec} stored beside
+     * the save and compared on load — not yet built, and nothing above this should forget it.
+     */
+    public Map<String, Object> exportState() {
+        Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("formatVersion", SAVE_FORMAT_VERSION);
+
+        // One number is the entire clock: turn and turn-centric impulse are both derived from it.
+        state.put("absoluteImpulse", clock.getImpulse());
+        state.put("inProgress", inProgress);
+        state.put("currentPhase", currentPhase.name());
+
+        state.put("mapCols", mapCols);
+        state.put("mapRows", mapRows);
+        state.put("maxTurns", maxTurns);
+        state.put("victoryConditionsType", victoryConditionsType);
+
+        // Seeker names are minted from this counter, so a reload that restarted it would produce
+        // a second "Drone-3" while the first is still in flight.
+        state.put("seekerSeq", seekerSeq);
+
+        List<Map<String, Object>> shipStates = new ArrayList<>();
+        for (Ship ship : ships)
+            shipStates.add(ship.exportState());
+        state.put("ships", shipStates);
+
+        // Destroyed hulls are named, not described: the scenario still rebuilds them and the load
+        // simply retires them again. Keeping them matters for victory points (S8.0).
+        List<String> destroyed = new ArrayList<>();
+        for (Ship ship : destroyedShips)
+            if (ship.getName() != null)
+                destroyed.add(ship.getName());
+        state.put("destroyedShips", destroyed);
+
+        // Ownership, by name on both sides.
+        List<Map<String, Object>> playerStates = new ArrayList<>();
+        for (Player player : players) {
+            Map<String, Object> entry = new java.util.LinkedHashMap<>();
+            entry.put("name", player.getName());
+            entry.put("teamName", player.getTeamName());
+            entry.put("faction", player.getFaction() == null ? null
+                    : player.getFaction().name());
+            List<String> owned = new ArrayList<>();
+            for (Unit unit : player.getPlayerUnits())
+                if (unit != null && unit.getName() != null)
+                    owned.add(unit.getName());
+            entry.put("units", owned);
+            playerStates.add(entry);
+        }
+        state.put("players", playerStates);
+
+        return state;
+    }
+
+    /**
+     * Overlay a saved battle onto a game already built from its scenario.
+     *
+     * <h2>Two passes, and why</h2>
+     * Pass one restores each ship's self-contained state. Pass two resolves the references
+     * BETWEEN units — lock-ons today, seekers and tractor links as they are converted — because a
+     * reference can only be resolved once every unit it might point at exists. In one pass, the
+     * first ship restored could never hold a lock on the last.
+     *
+     * <p>Matching is by NAME throughout. A name is what a save can carry; an index would hold
+     * only while everything is rebuilt in the same order, and the first scenario edit would move
+     * every ship's damage onto its neighbour.
+     *
+     * @return problems worth telling the player about; empty when the load was clean
+     */
+    public List<String> applyState(Map<String, Object> state) {
+        List<String> problems = new ArrayList<>();
+        if (state == null) {
+            problems.add("no saved state");
+            return problems;
+        }
+
+        int version = com.sfb.systemgroups.StateIo.integer(state, "formatVersion", 0);
+        if (version > SAVE_FORMAT_VERSION)
+            problems.add("this save was written by a newer version of the game (format "
+                    + version + ", this build reads " + SAVE_FORMAT_VERSION + ")");
+
+        mapCols  = com.sfb.systemgroups.StateIo.integer(state, "mapCols", mapCols);
+        mapRows  = com.sfb.systemgroups.StateIo.integer(state, "mapRows", mapRows);
+        maxTurns = com.sfb.systemgroups.StateIo.integer(state, "maxTurns", maxTurns);
+        String victory = com.sfb.systemgroups.StateIo.text(state, "victoryConditionsType");
+        if (victory != null)
+            victoryConditionsType = victory;
+        seekerSeq  = com.sfb.systemgroups.StateIo.integer(state, "seekerSeq", seekerSeq);
+        inProgress = com.sfb.systemgroups.StateIo.flag(state, "inProgress", inProgress);
+        String phase = com.sfb.systemgroups.StateIo.text(state, "currentPhase");
+        if (phase != null) {
+            try {
+                currentPhase = ImpulsePhase.valueOf(phase);
+            } catch (IllegalArgumentException e) {
+                problems.add("unknown phase in save: " + phase);
+            }
+        }
+        clock.restoreImpulse(com.sfb.systemgroups.StateIo.integer(state, "absoluteImpulse",
+                clock.getImpulse()));
+
+        // ---- pass one: each ship's own state ----
+        Map<String, Map<String, Object>> byName = new java.util.LinkedHashMap<>();
+        Object rawShips = state.get("ships");
+        if (rawShips instanceof List<?> list) {
+            for (Object entry : list) {
+                if (!(entry instanceof Map<?, ?> raw))
+                    continue;
+                @SuppressWarnings("unchecked")
+                Map<String, Object> shipState = (Map<String, Object>) raw;
+                String name = com.sfb.systemgroups.StateIo.text(shipState, "name");
+                if (name == null) {
+                    problems.add("a saved ship has no name and was skipped");
+                    continue;
+                }
+                byName.put(name, shipState);
+            }
+        }
+        for (Ship ship : ships) {
+            Map<String, Object> shipState = byName.remove(ship.getName());
+            if (shipState == null) {
+                problems.add(ship.getName() + " is in the scenario but not in the save");
+                continue;
+            }
+            ship.applyState(shipState);
+        }
+        for (String missing : byName.keySet())
+            problems.add(missing + " is in the save but not in the scenario");
+
+        // ---- pass two: references between units ----
+        resolveSavedLockOns(state);
+        retireSavedDestroyedShips(state, problems);
+        restoreSavedOwnership(state, problems);
+
+        return problems;
+    }
+
+    /**
+     * Re-point every lock-on now that all units exist (D6.12 retention).
+     *
+     * The two saved lists DO NOT OVERLAP, and that is what keeps the distinction: a lock the
+     * sensors earned outranks one a tractor granted (D6.627, G7.97), so {@code addLockOn} clears
+     * a beam-only mark and {@code addTractorLockOn} declines to mark a lock that already exists.
+     * Replaying a combined list through both would therefore promote every beam-granted lock
+     * into a real one — Ship.exportState writes the earned set with the beam-only ones removed.
+     */
+    private void resolveSavedLockOns(Map<String, Object> state) {
+        Object rawShips = state.get("ships");
+        if (!(rawShips instanceof List<?> list))
+            return;
+        Map<String, Unit> units = new java.util.HashMap<>();
+        for (Ship ship : ships)
+            if (ship.getName() != null)
+                units.put(ship.getName(), ship);
+
+        for (Object entry : list) {
+            if (!(entry instanceof Map<?, ?> raw))
+                continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> shipState = (Map<String, Object>) raw;
+            String name = com.sfb.systemgroups.StateIo.text(shipState, "name");
+            Unit holder = name == null ? null : units.get(name);
+            if (!(holder instanceof Ship ship))
+                continue;
+            ship.clearLockOns();
+            for (String target : savedNames(shipState.get("lockOns"))) {
+                Unit unit = units.get(target);
+                if (unit != null)
+                    ship.addLockOn(unit);
+            }
+            for (String target : savedNames(shipState.get("tractorLockOns"))) {
+                Unit unit = units.get(target);
+                if (unit != null)
+                    ship.addTractorLockOn(unit);
+            }
+        }
+    }
+
+    /** Ships the battle had already killed go back to the destroyed list, for VP scoring. */
+    private void retireSavedDestroyedShips(Map<String, Object> state, List<String> problems) {
+        for (String name : savedNames(state.get("destroyedShips"))) {
+            Ship found = null;
+            for (Ship ship : ships)
+                if (name.equals(ship.getName()))
+                    found = ship;
+            if (found == null) {
+                problems.add(name + " was destroyed in the save but is not in the scenario");
+                continue;
+            }
+            ships.remove(found);
+            destroyedShips.add(found);
+        }
+    }
+
+    /**
+     * Put each unit back under the player who owned it.
+     *
+     * Matched on TEAM name first and the player's own name second, because a team is what the
+     * scenario and the rules care about while a display name is whatever somebody typed.
+     */
+    private void restoreSavedOwnership(Map<String, Object> state, List<String> problems) {
+        Object raw = state.get("players");
+        if (!(raw instanceof List<?> list))
+            return;
+        for (Object entry : list) {
+            if (!(entry instanceof Map<?, ?> rawEntry))
+                continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> saved = (Map<String, Object>) rawEntry;
+            String team = com.sfb.systemgroups.StateIo.text(saved, "teamName");
+            String name = com.sfb.systemgroups.StateIo.text(saved, "name");
+
+            Player player = null;
+            for (Player candidate : players) {
+                if (team != null && team.equals(candidate.getTeamName())) {
+                    player = candidate;
+                    break;
+                }
+                if (name != null && name.equals(candidate.getName()))
+                    player = candidate;
+            }
+            if (player == null) {
+                player = new Player();
+                player.setName(name);
+                player.setTeamName(team);
+                String faction = com.sfb.systemgroups.StateIo.text(saved, "faction");
+                if (faction != null) {
+                    try {
+                        player.setFaction(com.sfb.properties.Faction.valueOf(faction));
+                    } catch (IllegalArgumentException e) {
+                        problems.add("unknown faction in save: " + faction);
+                    }
+                }
+                players.add(player);
+            }
+
+            player.getPlayerUnits().clear();
+            for (String unitName : savedNames(saved.get("units")))
+                for (Ship ship : ships)
+                    if (unitName.equals(ship.getName())) {
+                        player.getPlayerUnits().add(ship);
+                        ship.setOwner(player);
+                    }
+        }
+    }
+
+    /** A list of names from a save, tolerating the JSON shapes it may arrive in. */
+    private static List<String> savedNames(Object raw) {
+        List<String> out = new ArrayList<>();
+        if (raw instanceof List<?> list)
+            for (Object item : list)
+                if (item instanceof String name)
+                    out.add(name);
+        return out;
+    }
+
     public TurnTracker getClock() {
         return clock;
     }
@@ -2141,6 +2427,17 @@ public class Game {
 
     public List<Ship> getShips() {
         return ships;
+    }
+
+    /**
+     * Hulls removed from play, kept because victory points are scored on them (S8.0).
+     *
+     * The live list, like {@link #getShips()} — a caller that retires a ship moves it between the
+     * two, which is what the saved-game load does when it restores a battle somebody had already
+     * partly won.
+     */
+    public List<Ship> getDestroyedShips() {
+        return destroyedShips;
     }
 
     public List<Player> getPlayers() {

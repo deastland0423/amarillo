@@ -40,6 +40,21 @@ public class TurnTracker {
 	}
 
 	/**
+	 * Put the clock back where a saved game left it.
+	 *
+	 * One value is the whole clock: the turn and the turn-centric impulse are both DERIVED from
+	 * the absolute count below, so there is nothing else to restore and no way for the three to
+	 * disagree. Negative input is clamped to zero rather than producing a game before turn zero.
+	 *
+	 * For loading a save only. Everything in play moves the clock with {@link #nextImpulse()},
+	 * and a system that reads the clock holds this same instance by reference, so restoring here
+	 * reaches all of them at once.
+	 */
+	public void restoreImpulse(int absoluteImpulse) {
+		impulse = Math.max(0, absoluteImpulse);
+	}
+
+	/**
 	 * Get the turn number.
 	 *
 	 * @return The number of turns since the start of the game.
