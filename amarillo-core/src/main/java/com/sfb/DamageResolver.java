@@ -1026,6 +1026,12 @@ class DamageResolver {
             int totalDamage = 0;
             Ship lastAttacker = null;
             final List<Integer> hellboreDamages = new ArrayList<>();
+            /**
+             * Who fired into this group, in order and without repeats — the resolution log names
+             * them instead of replaying their dice, which were already printed when the shot was
+             * taken.
+             */
+            final java.util.Set<String> attackerNames = new java.util.LinkedHashSet<>();
 
             ShieldGroup(Unit target, int shieldNumber) {
                 this.target = target;
@@ -1045,7 +1051,10 @@ class DamageResolver {
 
             // Non-Ship targets (seekers, shuttles) have no shields — apply immediately
             if (!(pv.target instanceof Ship)) {
-                StringBuilder pvLog = new StringBuilder(pv.attackerLog);
+                // Named, not replayed, for the same reason as the shield groups below: the rolls
+                // were printed when the shot was taken.
+                StringBuilder pvLog = new StringBuilder("  " + pv.target.getName()
+                        + (pv.attackerName != null ? "  hit by " + pv.attackerName : "") + "\n");
                 if (pv.fusionSuicideFired && pv.attackerShip != null) {
                     pendingInternalDamage.add(new PendingDamage(pv.attackerShip, 1));
                     pvLog.append("  Fusion suicide overload — 1 internal damage to ")
@@ -1077,8 +1086,17 @@ class DamageResolver {
                 groups.add(g);
             }
 
-            // Per-volley effects accumulated into the group log
-            g.pvLog.append(pv.attackerLog);
+            // Per-volley effects accumulated into the group log.
+            //
+            // The attacker's per-weapon rolls are deliberately NOT reprinted here. Both places
+            // that queue a volley already log those lines when the shot is taken — fireWeapons
+            // returns them, and a seeker impact appends its own "queued for Reinforcement
+            // phase" — so appending pv.attackerLog again printed the same dice a second time,
+            // still carrying the words "queued, resolves in Reinforcement phase" at the very
+            // moment it was resolving. Reported from a playtest. What resolution has to say is
+            // what the damage DID, which is written below.
+            if (pv.attackerName != null)
+                g.attackerNames.add(pv.attackerName);
             if (pv.fusionSuicideFired && pv.attackerShip != null) {
                 pendingInternalDamage.add(new PendingDamage(pv.attackerShip, 1));
                 g.pvLog.append("  Fusion suicide overload — 1 internal damage to ")
@@ -1102,10 +1120,23 @@ class DamageResolver {
         for (ShieldGroup g : groups) {
             Ship target = (Ship) g.target;
             int bleed = target.damageShield(g.shieldNumber, g.totalDamage);
+
+            // A header, because this entry no longer carries the rolls and would otherwise not
+            // say what it is about. It also fixes a second, quieter hole: a volley the shield
+            // absorbed ENTIRELY used to log nothing but the duplicated dice, so the player was
+            // never told the shield had held — which is a real outcome and the one they are
+            // waiting on when they spend reserve power.
+            g.pvLog.insert(0, "  " + target.getName() + "  shield #" + g.shieldNumber
+                    + "  takes " + g.totalDamage
+                    + (g.attackerNames.isEmpty() ? ""
+                            : " from " + String.join(", ", g.attackerNames))
+                    + "\n");
             if (bleed > 0) {
                 g.pvLog.append("  BLEED-THROUGH: ").append(bleed)
                         .append(" (resolves at end of segment)\n");
                 pendingInternalDamage.add(new PendingDamage(target, bleed, g.lastAttacker));
+            } else if (g.totalDamage > 0) {
+                g.pvLog.append("  shield holds — no damage penetrates\n");
             }
             // Enveloping Hellbore: each volley is its own separate bleed chain (E10.43)
             for (int envDmg : g.hellboreDamages) {
@@ -1118,7 +1149,10 @@ class DamageResolver {
 
         // EPT volleys: spread damage across all 6 shields (always separate)
         for (PendingVolley pv : eptVolleys) {
-            StringBuilder pvLog = new StringBuilder(pv.attackerLog);
+            // Named, not replayed — see the shield-group loop above.
+            StringBuilder pvLog = new StringBuilder("  " + pv.target.getName()
+                    + "  enveloping hit" + (pv.attackerName != null
+                            ? " from " + pv.attackerName : "") + "\n");
             if (pv.fusionSuicideFired && pv.attackerShip != null) {
                 pendingInternalDamage.add(new PendingDamage(pv.attackerShip, 1));
                 pvLog.append("  Fusion suicide overload — 1 internal damage to ")
