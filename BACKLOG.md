@@ -792,6 +792,18 @@ with no way to prove it was yours. A durable game needs a durable way to prove o
 name delivers N players, resumable games and durable ship ownership without storing a single
 password.
 
+**A AND B ARE BUILT** (commit a73d1a06) and verified in a browser on 2026-10-17, by the only test
+that proves them: deleting `amarillo_session` while KEEPING `amarillo_account`, so the Resume
+button disappears and the join-by-code path has to do the work. It returned the player to their
+own seat with their ships, and the host back as host.
+
+**Resume and Join are different paths, and testing one does not test the other.** Resume reads the
+saved token straight out of `localStorage` and never calls `joinGame`; it is also the convenience
+the landing page offers first, so it is what a tester naturally uses — and it exercises none of
+the account work. Join-by-code is the path that has to work when the token is GONE, and the path
+that used to be destructive, minting a new seat and stranding the player's ships. Test it by
+clearing the session and keeping the account.
+
 ### Risks, ranked
 
 1. **Auth is the only genuinely dangerous new thing** — password storage, CSRF, reset flows, rate
