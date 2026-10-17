@@ -2458,6 +2458,9 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [committedRound, setCommittedRound] = useState<string | null>(null);
   const [showCommitConfirm, setShowCommitConfirm] = useState(false);
   const [confirmExit, setConfirmExit] = useState<null | 'concede' | 'leave'>(null);
+  // Saving is host-only and only legal between turns, so the button needs somewhere to say so.
+  const [saveNote, setSaveNote] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const roundKey = `${gameState?.turn ?? 0}:${gameState?.impulse ?? 0}`;
   const declarationOpen = gameState?.fireDeclarationOpen ?? false;
   const myCommitted = committedRound === roundKey;
@@ -3462,6 +3465,27 @@ export default function GameBoard({ session, onLeave }: Props) {
     if (res.success) addLog(res.message, 'combat');
     else addLog(`FC activation failed: ${res.message}`, 'error');
   }
+  /**
+   * Take a save of the battle.
+   *
+   * Only offered BETWEEN TURNS, because that is the only moment the format is designed for: the
+   * per-impulse state the engine holds by object identity is empty at a turn boundary, which is
+   * what keeps a save small enough to be correct. The server refuses otherwise, so this is a
+   * courtesy rather than the rule — the button explains instead of failing.
+   */
+  async function handleSaveGame() {
+    setSaving(true);
+    setSaveNote(null);
+    try {
+      const res = await gameApi.saveGame(session.gameId, session.playerToken);
+      setSaveNote(res.message);
+    } catch (e: unknown) {
+      setSaveNote(e instanceof Error ? e.message : 'Could not save the battle.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
 
   async function handleConcede() {
     const res = await gameApi.submitAction(session.gameId, session.playerToken, {
@@ -4308,6 +4332,32 @@ export default function GameBoard({ session, onLeave }: Props) {
             </button>
           )}
           <button className="secondary" onClick={() => setConfirmExit('leave')}>Leave</button>
+          {/* Host only: a save is taken of the whole battle, so it is not a per-player action. */}
+          {session.isHost && (
+            <button
+              className="secondary"
+              onClick={handleSaveGame}
+              disabled={saving || !gameState?.awaitingAllocation}
+              title={gameState?.awaitingAllocation
+                ? 'Save this battle — it can be resumed later, by anybody'
+                : 'A battle can only be saved between turns, during energy allocation'}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          )}
+          {/* The outcome, in the toolbar beside the button that caused it. A save is silent
+              otherwise — the only evidence is a file nobody can see from here — and a refusal
+              ("only between turns") is exactly the case the player needs told. */}
+          {saveNote && (
+            <span
+              className="fb-hint"
+              style={{ maxWidth: 320 }}
+              title={saveNote}
+              onClick={() => setSaveNote(null)}
+            >
+              {saveNote}
+            </span>
+          )}
           <button className="secondary" onClick={() => setShowScore(true)}
                   title="Current victory-point standings (S2.21)">
             Score

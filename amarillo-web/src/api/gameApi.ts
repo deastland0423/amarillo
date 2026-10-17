@@ -43,11 +43,43 @@ export interface JoinGameResponse {
 export interface GameStatus {
   gameId: string;
   started: boolean;
+  /**
+   * True for a battle restored from a save rather than newly set up.
+   *
+   * Needed for ROUTING: a restored battle is already `started`, so a client that only knows
+   * `started` sends the host straight to the map — where there is no way to hand out the ships,
+   * because assignment lives on the pre-game screen.
+   */
+  restored?: boolean;
+  /** How many ships nobody has claimed; with `restored`, this is what decides where to land. */
+  unassignedShips?: number;
   players: Array<{
     name: string;
     role: 'host' | 'player';
     ships: string[];
   }>;
+}
+
+/** One row in the list of saved battles. */
+export interface SavedBattle {
+  id: string;
+  label?: string;
+  savedAt?: string;
+  turn?: number;
+  scenario?: string;
+  /** False when this build could not parse the file; `error` says why. */
+  readable: boolean;
+  error?: string;
+}
+
+export interface OpenedSave {
+  gameId: string;
+  hostToken: string;
+  turn: number;
+  unassignedShips: string[];
+  /** Things the load could not fully restore — a changed hull, a craft in flight. */
+  problems: string[];
+  message: string;
 }
 
 
@@ -685,6 +717,44 @@ export const gameApi = {
       headers: { 'X-Player-Token': hostToken },
       body: JSON.stringify({ playerToken, team }),
     });
+  },
+
+  // ---- Saved battles ----
+
+  listSaves(): Promise<SavedBattle[]> {
+    return request('/api/games/saves');
+  },
+
+  /**
+   * Take a save of a game in progress. Host only, and only between turns — the snapshot is
+   * designed for a turn boundary, where the per-impulse state it deliberately does not carry is
+   * empty. The server refuses otherwise and says which moment to use.
+   */
+  saveGame(gameId: string, hostToken: string, label?: string):
+      Promise<{ id: string; label: string; turn: number; message: string }> {
+    return request(`/api/games/${gameId}/save`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': hostToken },
+      body: JSON.stringify(label ? { label } : {}),
+    });
+  },
+
+  /**
+   * Open a saved battle as a NEW game, with this caller as its host.
+   *
+   * The ships come back unclaimed on purpose: a save records which TEAM held each ship, never
+   * which person, so whoever is in the room gets assigned to them. That is what lets a battle be
+   * continued by different players than fought it.
+   */
+  openSave(saveId: string, hostName: string): Promise<OpenedSave> {
+    return request(`/api/games/saves/${saveId}/open`, {
+      method: 'POST',
+      body: JSON.stringify({ name: hostName, accountId: accountId() }),
+    });
+  },
+
+  deleteSave(saveId: string): Promise<{ deleted: string }> {
+    return request(`/api/games/saves/${saveId}`, { method: 'DELETE' });
   },
 
   getGameState(gameId: string, playerToken: string): Promise<unknown> {

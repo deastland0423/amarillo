@@ -2530,9 +2530,16 @@ public class GameController {
                     })
                     .collect(Collectors.toList());
 
+            // `restored` and `unassignedShips` are here for ROUTING. A restored battle is
+            // already started, so a client that only knows "started" sends the host straight to
+            // the map — where there is no way to hand out the ships, because assignment lives on
+            // the pre-game screen. Together these let the client send them to assign first, and
+            // keep doing so if they reload mid-assignment.
             return ResponseEntity.ok(Map.of(
                     "gameId", session.getId(),
                     "started", session.isStarted(),
+                    "restored", session.isRestored(),
+                    "unassignedShips", session.getUnassignedShipNames().size(),
                     "players", playerList));
         });
     }

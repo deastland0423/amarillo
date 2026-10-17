@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { gameApi } from '../api/gameApi';
+import type { SavedBattle } from '../api/gameApi';
 
 export interface LobbyResult {
   gameId: string;
@@ -23,16 +24,58 @@ interface Props {
    */
   savedSession?: LobbyResult | null;
   onResume?: () => void;
+  /**
+   * A saved BATTLE was opened, which is a different thing from resuming a seat.
+   *
+   * `onResume` above takes this browser's own saved token back. This hands over a battle restored
+   * from a file: a brand-new game with a new code, whose ships belong to nobody yet. The caller
+   * has to land the host on the assignment screen rather than the map, because a restored battle
+   * is already "started" and the map has no way to hand out ships.
+   */
+  onOpenedSave?: (result: LobbyResult) => void;
 }
 
-type Mode = 'choose' | 'create' | 'join';
+type Mode = 'choose' | 'create' | 'join' | 'saves';
 
-export default function Lobby({ onJoined, onBuildFleet, savedSession, onResume }: Props) {
+export default function Lobby({ onJoined, onBuildFleet, savedSession, onResume,
+                               onOpenedSave }: Props) {
   const [mode, setMode] = useState<Mode>('choose');
   const [name, setName] = useState('');
   const [gameId, setGameId] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [saves, setSaves] = useState<SavedBattle[] | null>(null);
+
+  // Fetched when the saves door is opened rather than on mount: most visits never look at it,
+  // and a landing page should not wait on a directory listing to render.
+  useEffect(() => {
+    if (mode !== 'saves' || saves !== null) return;
+    gameApi.listSaves()
+      .then(setSaves)
+      .catch(() => setSaves([]));
+  }, [mode, saves]);
+
+  async function handleOpenSave(saveId: string) {
+    if (!name.trim()) { setError('Enter your name first.'); return; }
+    setBusy(true); setError('');
+    try {
+      const res = await gameApi.openSave(saveId, name.trim());
+      // Problems are not failures: a battle can load usefully while still having lost a craft in
+      // flight, or with a hull that has been edited since. Show them and continue.
+      if (res.problems.length > 0)
+        setError(res.problems.join(' · '));
+      onOpenedSave?.({
+        gameId: res.gameId,
+        playerToken: res.hostToken,
+        isHost: true,
+        playerName: name.trim(),
+      });
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not open that battle.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function handleCreate() {
     if (!name.trim()) { setError('Enter your name first.'); return; }
@@ -107,6 +150,11 @@ export default function Lobby({ onJoined, onBuildFleet, savedSession, onResume }
               setError('');
               onBuildFleet(name.trim());
             }}>Build a fleet</button>
+            {/* A saved BATTLE, not this browser's seat — Resume above takes a seat back, this
+                reopens a game from a file, possibly with different players. */}
+            <button className="secondary" onClick={() => { setError(''); setMode('saves'); }}>
+              Resume a saved battle
+            </button>
           </div>
         </div>
       )}
@@ -120,6 +168,47 @@ export default function Lobby({ onJoined, onBuildFleet, savedSession, onResume }
               {busy ? 'Creating…' : 'Create game'}
             </button>
             <button className="secondary" onClick={() => { setError(''); setMode('choose'); }}>Back</button>
+          </div>
+        </div>
+      )}
+
+      {mode === 'saves' && (
+        <div className="card">
+          <p>Resuming as <strong>{name || '(no name)'}</strong></p>
+          {saves === null && <p className="subtitle">Looking for saved battles…</p>}
+          {saves !== null && saves.length === 0 && (
+            <p className="subtitle">
+              No saved battles yet. A host can save a game between turns.
+            </p>
+          )}
+          {saves !== null && saves.map(save => (
+            <div key={save.id} className="assign-row">
+              <span className="assign-ship">
+                <strong>{save.label || save.id}</strong>
+                <span className="fb-hint" style={{ marginLeft: 6 }}>
+                  {save.readable
+                    ? [save.scenario, save.turn != null ? `turn ${save.turn}` : null]
+                        .filter(Boolean).join(' · ')
+                    /* Listed even when unreadable, with the reason. Hiding it would leave a
+                       player staring at a file on disk and no explanation. */
+                    : `unreadable — ${save.error ?? 'unknown problem'}`}
+                </span>
+              </span>
+              <button
+                onClick={() => handleOpenSave(save.id)}
+                disabled={busy || !save.readable}
+                title={save.readable ? 'Open this battle as a new game'
+                                     : 'This build cannot read that file'}
+              >
+                {busy ? 'Opening…' : 'Resume'}
+              </button>
+            </div>
+          ))}
+          {error && <p className="error">{error}</p>}
+          <div className="button-row">
+            <button className="secondary" onClick={() => { setError(''); setMode('choose'); }}>
+              Back
+            </button>
           </div>
         </div>
       )}

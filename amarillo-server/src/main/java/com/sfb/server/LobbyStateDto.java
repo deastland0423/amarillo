@@ -151,6 +151,14 @@ public class LobbyStateDto {
     public final int             scenarioYear;
     public final List<String>    scenarioSpecialRules;
     public final boolean         started;
+    /**
+     * A battle restored from a save rather than newly set up.
+     *
+     * The pre-game screen needs it because a restored battle is already {@code started} but its
+     * ships belong to nobody, so that screen is showing assignment for a game in progress: the
+     * scenario picker would be meaningless and Start has already happened.
+     */
+    public final boolean         restored;
     public final boolean         allCoiReady;
     /** Whether this battle expects players to set their own ships down, and whether they have. */
     public final boolean         deploymentRequired;
@@ -175,6 +183,7 @@ public class LobbyStateDto {
     public LobbyStateDto(GameSession session) {
         this.gameId          = session.getId();
         this.scenarioLoaded  = session.isScenarioLoaded();
+        this.restored        = session.isRestored();
         this.scenarioId      = session.getLoadedScenarioId();
         com.sfb.scenario.ScenarioSpec spec = session.getLoadedSpec();
         this.scenarioName         = spec != null && spec.name != null ? spec.name : null;

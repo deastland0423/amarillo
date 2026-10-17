@@ -27,6 +27,10 @@ export interface LobbyState {
   scenarioYear: number;
   scenarioSpecialRules: string[];
   started: boolean;
+  // A battle restored from a save rather than newly set up. It is already `started` but its
+  // ships belong to nobody, so the pre-game screen shows assignment for a game in progress:
+  // the scenario picker is meaningless and Start has already happened.
+  restored?: boolean;
   allCoiReady: boolean;
   // Whether this battle expects players to set their own ships down, and whether they have.
   deploymentRequired: boolean;

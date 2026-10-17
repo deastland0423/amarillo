@@ -342,8 +342,19 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
           ));
         })()}
 
-        {/* Host: scenario picker */}
-        {session.isHost && (
+        {/* A restored battle says what it is instead of offering a picker: the scenario was
+            decided when it was first fought, and it is embedded in the save. */}
+        {lobby?.restored && (
+          <p className="subtitle">
+            Restored battle{lobby.scenarioName ? ` — ${lobby.scenarioName}` : ''}.
+            {lobby.unassignedShips.length > 0
+              ? ' Assign the ships to whoever is playing, then enter the battle.'
+              : ' Every ship is assigned — enter the battle.'}
+          </p>
+        )}
+
+        {/* Host: scenario picker — not for a restored battle, which already has its forces. */}
+        {session.isHost && !lobby?.restored && (
           <>
             {/* Two ways to sit down to a battle: a written scenario, or fleets people built. */}
             <div className="fb-faction-chips" style={{ marginBottom: 12 }}>
@@ -515,7 +526,22 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
           Start is what is conditional; Leave never is. Anyone on this screen can always go back.
         */}
         <div className="button-row" style={{ marginTop: 12 }}>
-          {session.isHost && lobby?.scenarioLoaded && (
+          {/* A restored battle is already under way, so there is nothing to start — the host
+              just needs a way through to the map once the ships are handed out. */}
+          {lobby?.restored && (
+            <button
+              onClick={onGameStarted}
+              disabled={lobby.unassignedShips.length > 0}
+              title={lobby.unassignedShips.length > 0
+                ? 'Assign every ship first'
+                : 'Continue the battle'}
+            >
+              {lobby.unassignedShips.length > 0
+                ? `${lobby.unassignedShips.length} ship(s) still unassigned`
+                : 'Enter the battle'}
+            </button>
+          )}
+          {session.isHost && !lobby?.restored && lobby?.scenarioLoaded && (
             <button
               onClick={handleStart}
               disabled={busy || !lobby.allCoiReady}

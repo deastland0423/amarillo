@@ -28,6 +28,25 @@ function loadSession(): LobbyResult | null {
   }
 }
 
+/**
+ * Which screen a game belongs on.
+ *
+ * "Started" is not enough on its own. A battle RESTORED from a save is already started, but
+ * its ships belong to nobody — a save records which team held each ship, never which person —
+ * so the host has to hand them out before anyone can play. Assignment lives on the pre-game
+ * screen, so sending a restored battle straight to the map would strand the host with a fleet
+ * they cannot give to anybody.
+ *
+ * Once every ship is claimed it is an ordinary game and goes to the map, including on a later
+ * reload, which is why this reads the live counts rather than remembering a decision.
+ */
+export function screenFor(status: { started: boolean; restored?: boolean;
+    unassignedShips?: number }): Screen {
+  if (status.restored && (status.unassignedShips ?? 0) > 0)
+    return 'pregame';
+  return status.started ? 'game' : 'pregame';
+}
+
 export default function App() {
   const [screen,  setScreen]  = useState<Screen>('lobby');
   const [session, setSession] = useState<LobbyResult | null>(null);
@@ -57,7 +76,7 @@ export default function App() {
     gameApi.getStatus(saved.gameId)
       .then(status => {
         setSession(saved);
-        setScreen(status.started ? 'game' : 'pregame');
+        setScreen(screenFor(status));
       })
       .catch(() => {
         // Game no longer exists on the server — clear stale session.
@@ -99,6 +118,10 @@ export default function App() {
            session, and a localStorage read is cheaper than a value that could go stale. */
         savedSession={loadSession()}
         onResume={() => { setResuming(true); resumeSaved(); }}
+        /* A restored battle always lands on pre-game: its ships are unclaimed by definition, so
+           the host assigns them before anybody plays. handleJoined would do the same thing
+           today, but saying it here keeps the reason attached to the case. */
+        onOpenedSave={result => { saveSession(result); setSession(result); setScreen('pregame'); }}
       />
     );
   }
