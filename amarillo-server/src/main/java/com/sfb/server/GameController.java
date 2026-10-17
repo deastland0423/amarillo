@@ -812,10 +812,12 @@ public class GameController {
 
             Map<String, String> input = body == null ? Map.of() : body;
             String saveId = input.get("id");
-            String label = input.getOrDefault("label",
-                    spec.name + " — turn " + game.getClock().getTurn());
+            // The turn ABOUT TO BE PLAYED. Both clock accessors are ambiguous at a turn
+            // boundary, which is the only moment a save is taken — see turnAboutToBePlayed().
+            int turn = game.turnAboutToBePlayed();
+            String label = input.getOrDefault("label", spec.name + " — turn " + turn);
             if (saveId == null || saveId.isBlank())
-                saveId = slug(session.getId() + "-turn-" + game.getClock().getTurn());
+                saveId = uniqueSaveId(slug(session.getId() + "-turn-" + turn));
             if (!SAFE_ID.matcher(saveId).matches())
                 return ResponseEntity.badRequest().body(Map.of("error",
                         "A save id must be letters, digits, dashes or underscores"));
@@ -833,8 +835,8 @@ public class GameController {
             Map<String, Object> out = new java.util.LinkedHashMap<>();
             out.put("id", saveId);
             out.put("label", label);
-            out.put("turn", game.getClock().getTurn());
-            out.put("message", "Saved at turn " + game.getClock().getTurn());
+            out.put("turn", turn);
+            out.put("message", "Saved — about to play turn " + turn + " (" + saveId + ")");
             return ResponseEntity.ok(out);
         });
     }
@@ -859,6 +861,27 @@ public class GameController {
      *
      * So restoring is its own slice, and SavedGame.restore() already does the engine half of it.
      */
+
+    /**
+     * A save id nobody is using yet, by adding a counter when the obvious name is taken.
+     *
+     * The generated name is the game code and the turn, which collides the moment somebody saves
+     * the same turn twice — and they will, because saving before and after trying something is
+     * the whole point of having saves. Overwriting silently would destroy the earlier snapshot
+     * with no warning, which is the one thing a save feature must never do. An explicit id passed
+     * by the caller is left alone: naming a file is a decision, and replacing one deliberately is
+     * allowed.
+     */
+    private static String uniqueSaveId(String preferred) {
+        if (!saveFile(preferred).isFile())
+            return preferred;
+        for (int n = 2; n < 1000; n++) {
+            String candidate = preferred + "-" + n;
+            if (!saveFile(candidate).isFile())
+                return candidate;
+        }
+        return preferred + "-" + System.currentTimeMillis();
+    }
 
     /**
      * Open a saved battle as a new game. The caller becomes its host.

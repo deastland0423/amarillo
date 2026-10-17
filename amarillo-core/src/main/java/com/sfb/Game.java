@@ -1924,6 +1924,32 @@ public class Game {
         return clock.getLocalImpulse();
     }
 
+    /**
+     * The turn a player is about to play — the only honest turn number AT A TURN BOUNDARY.
+     *
+     * <h2>Why neither existing accessor will do</h2>
+     * Both are ambiguous at exactly the moment a save is taken. Energy allocation for turn 1
+     * happens at absolute impulse 0; allocation for turn 2 happens at impulse 32. Those are
+     * different turns, and yet:
+     *
+     * <pre>
+     *   impulse 0  → getTurn() 0, getCurrentTurn() 1
+     *   impulse 32 → getTurn() 0, getCurrentTurn() 1
+     * </pre>
+     *
+     * The two accessors answer "which turn have we been playing", which at a boundary is the one
+     * that just ENDED — fine everywhere else, useless for labelling the moment between turns.
+     * Counting whole turns completed and adding one gives 1 and 2, which is what the player
+     * would say out loud.
+     *
+     * <p>Used for naming a save. A save is only ever taken between turns, so this is the number
+     * that belongs on it — a file labelled "turn 0" for a battle about to play its second turn
+     * was the first thing a tester asked about.
+     */
+    public int turnAboutToBePlayed() {
+        return clock.getImpulse() / com.sfb.constants.Constants.IMPULSES_PER_TURN + 1;
+    }
+
     public int getMapCols() {
         return mapCols;
     }

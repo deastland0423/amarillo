@@ -5,9 +5,9 @@ import PreGame from './components/PreGame';
 import FleetBuilder from './components/FleetBuilder';
 import GameBoard from './components/GameBoard';
 import { gameApi } from './api/gameApi';
+import { screenFor } from './game/screens';
+import type { Screen } from './game/screens';
 import './App.css';
-
-type Screen = 'lobby' | 'pregame' | 'game' | 'fleet';
 
 const SESSION_KEY = 'amarillo_session';
 
@@ -26,25 +26,6 @@ function loadSession(): LobbyResult | null {
   } catch {
     return null;
   }
-}
-
-/**
- * Which screen a game belongs on.
- *
- * "Started" is not enough on its own. A battle RESTORED from a save is already started, but
- * its ships belong to nobody — a save records which team held each ship, never which person —
- * so the host has to hand them out before anyone can play. Assignment lives on the pre-game
- * screen, so sending a restored battle straight to the map would strand the host with a fleet
- * they cannot give to anybody.
- *
- * Once every ship is claimed it is an ordinary game and goes to the map, including on a later
- * reload, which is why this reads the live counts rather than remembering a decision.
- */
-export function screenFor(status: { started: boolean; restored?: boolean;
-    unassignedShips?: number }): Screen {
-  if (status.restored && (status.unassignedShips ?? 0) > 0)
-    return 'pregame';
-  return status.started ? 'game' : 'pregame';
 }
 
 export default function App() {

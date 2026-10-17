@@ -58,7 +58,10 @@ public class SavedGame {
     /** Whatever the player called it, or a generated name. */
     public String label;
 
-    /** Turn number when the save was taken — shown in a save list, never trusted on load. */
+    /**
+     * The turn this battle is about to play, for showing in a save list. Never trusted on load —
+     * the clock itself is restored from the state.
+     */
     public int turn;
 
     /** The scenario the battle was fought in, embedded in full. */
@@ -93,7 +96,9 @@ public class SavedGame {
         saved.envelopeVersion = ENVELOPE_VERSION;
         saved.savedAt = java.time.Instant.now().toString();
         saved.label = label;
-        saved.turn = game.getClock().getTurn();
+        // The turn ABOUT TO BE PLAYED, not the one that just ended: both clock accessors are
+        // ambiguous at a turn boundary, which is the only moment a save is ever taken.
+        saved.turn = game.turnAboutToBePlayed();
         saved.scenario = scenario;
         saved.state = game.exportState();
         saved.hullFingerprints = fingerprintHulls(scenario);

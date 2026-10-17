@@ -176,10 +176,52 @@ public class SavedGameJsonTest {
         assertEquals(2, reread.scenario.sides.size());
     }
 
+    /**
+     * The turn number on a save is the turn ABOUT TO BE PLAYED, and at a turn boundary that is
+     * the only honest answer.
+     *
+     * Reported from the first real test of the save button: allocating for turn 2, the note said
+     * "Saved at turn 0". Both clock accessors are ambiguous at exactly this moment — energy
+     * allocation for turn 1 sits at absolute impulse 0 and allocation for turn 2 at impulse 32,
+     * and {@code getCurrentTurn()} answers 1 for BOTH, because it reports the turn that has been
+     * playing rather than the one about to start. Since a save is only ever taken between turns,
+     * counting completed turns and adding one is the number that belongs on it.
+     */
+    @Test
+    public void theTurnOnASaveIsTheOneAboutToBePlayed() {
+        Game game = new Game();
+
+        assertEquals("a fresh game is about to play turn 1", 1, game.turnAboutToBePlayed());
+
+        for (int i = 0; i < 32; i++)
+            game.getClock().nextImpulse();
+        assertEquals("one turn played, so turn 2 is next", 2, game.turnAboutToBePlayed());
+        assertEquals("and the two accessors cannot tell this from impulse 0",
+                1, game.getCurrentTurn());
+
+        for (int i = 0; i < 32; i++)
+            game.getClock().nextImpulse();
+        assertEquals(3, game.turnAboutToBePlayed());
+    }
+
+    @Test
+    public void aSaveIsLabelledWithThatTurn() throws Exception {
+        Game before = battleInProgress();
+        // battleInProgress advances 40 impulses, so it is mid-turn-2 and turn 2 is "current".
+        int expected = before.turnAboutToBePlayed();
+
+        SavedGame reread = SavedGame.fromJsonString(
+                SavedGame.of(before, spec(), "turn check").toJsonString());
+
+        assertEquals(expected, reread.turn);
+        assertTrue("and it should not be the 0-based clock turn",
+                reread.turn > before.getClock().getTurn());
+    }
+
     @Test
     public void theSaveCarriesItsLabelAndTurn() throws Exception {
         Game before = battleInProgress();
-        int turn = before.getClock().getTurn();
+        int turn = before.turnAboutToBePlayed();
 
         SavedGame reread = SavedGame.fromJsonString(
                 SavedGame.of(before, spec(), "Turn " + turn + ", before the pass").toJsonString());

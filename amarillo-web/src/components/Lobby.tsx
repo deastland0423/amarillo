@@ -187,7 +187,12 @@ export default function Lobby({ onJoined, onBuildFleet, savedSession, onResume,
                 <strong>{save.label || save.id}</strong>
                 <span className="fb-hint" style={{ marginLeft: 6 }}>
                   {save.readable
-                    ? [save.scenario, save.turn != null ? `turn ${save.turn}` : null]
+                    /* The TIME is here because the turn is not enough to tell two saves apart:
+                       saving the same turn twice is normal — before and after trying something —
+                       and without it those rows read identically. */
+                    ? [save.scenario,
+                       save.turn != null ? `turn ${save.turn}` : null,
+                       save.savedAt ? new Date(save.savedAt).toLocaleString() : null]
                         .filter(Boolean).join(' · ')
                     /* Listed even when unreadable, with the reason. Hiding it would leave a
                        player staring at a file on disk and no explanation. */
