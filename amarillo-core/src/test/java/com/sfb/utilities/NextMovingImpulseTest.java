@@ -29,6 +29,31 @@ public class NextMovingImpulseTest {
         }
     }
 
+    /**
+     * Whether a ship moves on a GIVEN impulse, which is the other question the chart answers.
+     *
+     * Impulse 16 is a useful edge: speed 14 moves on it and speed 15 does not, which is not
+     * something anyone would guess — the chart is irregular by design (C2.0), so a test that
+     * only checked the fast and stationary extremes would miss a transcription error in the
+     * middle of it.
+     *
+     * <p>Rehomed from {@code ConstantsTest}, which asserted exactly this while appearing to be
+     * about {@code Constants}: it read the deprecated {@code IMPULSE_CHART} only to print it to
+     * stdout and never asserted anything about it. The chart is gone and these assertions, which
+     * were the whole value of that test, belong with the impulse code they exercise.
+     */
+    @Test
+    public void speedFourteenMovesOnImpulseSixteenAndFifteenDoesNot() {
+        com.sfb.objects.Ship ship = new com.sfb.objects.Ship();
+        ship.init(com.sfb.samples.FederationShips.getFedCa());
+
+        ship.setSpeed(14);
+        assertTrue("speed 14 moves on impulse 16", ship.movesThisImpulse(16));
+
+        ship.setSpeed(15);
+        assertFalse("speed 15 does not", ship.movesThisImpulse(16));
+    }
+
     /** A stationary unit never moves, and says so rather than naming an impulse. */
     @Test
     public void speedZeroNeverMoves() {
