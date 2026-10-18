@@ -2060,6 +2060,7 @@ public class Ship extends Unit implements DroneController {
 			uimStates.add(uim.exportState());
 		state.put("uims", uimStates);
 		state.put("tractors", tractors.exportState());
+		state.put("shuttles", shuttles.exportState());
 		state.put("ewCircuits", ewCircuits.exportState());
 		if (derfacs != null)
 			state.put("derfacs", derfacs.exportState());
@@ -2136,6 +2137,7 @@ public class Ship extends Unit implements DroneController {
 		if (cargoDroneStore != null)
 			cargoDroneStore.applyState(StateIo.child(state, "cargoDroneStore"));
 		tractors.applyState(StateIo.child(state, "tractors"));
+		shuttles.applyState(StateIo.child(state, "shuttles"));
 		ewCircuits.applyState(StateIo.child(state, "ewCircuits"));
 		if (derfacs != null)
 			derfacs.applyState(StateIo.child(state, "derfacs"));

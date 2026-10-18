@@ -676,4 +676,92 @@ public class ShuttleSpace {
 
     public int getOccupiedSinceTurn() { return occupiedSinceTurn; }
     public void setOccupiedSinceTurn(int turn) { this.occupiedSinceTurn = turn; }
+
+    // -------------------------------------------------------------------------
+    // Saved game
+    // -------------------------------------------------------------------------
+
+    /**
+     * One bay box: the craft parked in it, the facilities fitted to it, and the deck crew
+     * posted there.
+     *
+     * <h2>Why the craft travels with the box</h2>
+     * A carrier's fighters were the largest thing a save still rebuilt from the hull, which
+     * meant a reload handed back every fighter the battle had destroyed and re-armed the rest.
+     * That is the drone rack mistake at a much larger scale, so the craft is written out here
+     * in full — with its damage, its crippling and its per-turn counters — rather than being
+     * reconstructed from the ship's complement.
+     *
+     * <p>{@code capacitorCharges} is J4.886's fighter capacitor and is REAL AMMUNITION: a
+     * fighter with its charges spent that reloads with them back can fire again for nothing.
+     * The {@code -1} sentinels mean "no fighter has sat here yet", so they are saved as they
+     * are rather than normalised to zero, which would claim an empty capacitor instead of an
+     * absent one.
+     */
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("destroyed", destroyed);
+        state.put("occupiedSinceTurn", occupiedSinceTurn);
+        state.put("shuttle", shuttle == null ? null : shuttle.exportState());
+        state.put("droneRack", droneRack == null ? null : droneRack.exportState());
+        state.put("readyRack", readyRack == null ? null : readyRack.exportState());
+
+        state.put("capacitorCapacity", capacitorCapacity);
+        state.put("capacitorCharges", capacitorCharges);
+        state.put("capacitorKind", capacitorKind == null ? null : capacitorKind.name());
+        state.put("capacitorEnergyBanked", capacitorEnergyBanked);
+
+        java.util.Map<String, Object> crews = new java.util.LinkedHashMap<>();
+        for (java.util.Map.Entry<CrewTask, Integer> entry : crewTasks.entrySet())
+            if (entry.getKey() != null)
+                crews.put(entry.getKey().name(), entry.getValue());
+        state.put("crewTasks", crews);
+        return state;
+    }
+
+    public void applyState(java.util.Map<String, Object> state) {
+        if (state == null)
+            return;
+        destroyed = StateIo.flag(state, "destroyed", destroyed);
+        occupiedSinceTurn = StateIo.integer(state, "occupiedSinceTurn", occupiedSinceTurn);
+
+        // The craft is REBUILT, not overlaid: a bay box may hold a different fighter from the
+        // one the hull's complement would put there — they are swapped, destroyed and replaced
+        // — so what the save says is in this box is what goes in it.
+        java.util.Map<String, Object> craftState = StateIo.child(state, "shuttle");
+        shuttle = craftState == null ? null
+                : com.sfb.objects.shuttles.Shuttle.fromState(craftState);
+
+        if (droneRack != null)
+            droneRack.applyState(StateIo.child(state, "droneRack"));
+        if (readyRack != null)
+            readyRack.applyState(StateIo.child(state, "readyRack"));
+
+        capacitorCapacity = StateIo.integer(state, "capacitorCapacity", capacitorCapacity);
+        capacitorCharges  = StateIo.integer(state, "capacitorCharges", capacitorCharges);
+        capacitorEnergyBanked = StateIo.integer(state, "capacitorEnergyBanked",
+                capacitorEnergyBanked);
+        String kind = StateIo.text(state, "capacitorKind");
+        if (kind != null) {
+            try {
+                capacitorKind = CapacitorKind.valueOf(kind);
+            } catch (IllegalArgumentException e) {
+                capacitorKind = CapacitorKind.NONE;
+            }
+        }
+
+        java.util.Map<String, Object> crews = StateIo.child(state, "crewTasks");
+        if (crews != null) {
+            crewTasks.clear();
+            for (java.util.Map.Entry<String, Object> entry : crews.entrySet()) {
+                if (!(entry.getValue() instanceof Number count))
+                    continue;
+                try {
+                    crewTasks.put(CrewTask.valueOf(entry.getKey()), count.intValue());
+                } catch (IllegalArgumentException e) {
+                    // A task this build no longer has: drop the posting rather than the load.
+                }
+            }
+        }
+    }
 }

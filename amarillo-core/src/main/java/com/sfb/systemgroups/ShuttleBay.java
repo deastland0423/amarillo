@@ -653,4 +653,52 @@ public class ShuttleBay {
                 / FighterArming.HALF_ACTIONS_PER_ACTION;
         return new RearmResult(List.of(load.note()), crewsUsed);
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game
+    // -------------------------------------------------------------------------
+
+    /**
+     * Every box in the bay, plus the hatches' cooldowns.
+     *
+     * The boxes restore POSITIONALLY, which is safe for the same reason the UIMs and EW circuits
+     * are: a bay's boxes are fixed by the hull and have no name to key on. What is IN each box
+     * is a different matter and travels with it.
+     *
+     * <p>The hatch and tube timestamps are J1.58's launch cooldowns. A bay that launched late in
+     * a turn is still waiting early in the next, so dropping them would hand a carrier a free
+     * launch at every turn boundary — the same mistake the drone racks made with their own gap.
+     */
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        java.util.List<Object> spaceStates = new java.util.ArrayList<>();
+        for (ShuttleSpace space : spaces)
+            spaceStates.add(space.exportState());
+        state.put("spaces", spaceStates);
+        state.put("lastHatchImpulse", lastHatchImpulse.clone());
+        state.put("launchTubeCount", launchTubeCount);
+        state.put("lastTubeImpulse", lastTubeImpulse.clone());
+        return state;
+    }
+
+    public void applyState(java.util.Map<String, Object> state) {
+        if (state == null)
+            return;
+        if (state.get("spaces") instanceof java.util.List<?> list)
+            for (int i = 0; i < Math.min(list.size(), spaces.size()); i++)
+                if (list.get(i) instanceof java.util.Map<?, ?> raw) {
+                    @SuppressWarnings("unchecked")
+                    java.util.Map<String, Object> spaceState =
+                            (java.util.Map<String, Object>) raw;
+                    spaces.get(i).applyState(spaceState);
+                }
+
+        int[] hatches = StateIo.intArray(state.get("lastHatchImpulse"));
+        if (hatches != null && hatches.length > 0)
+            lastHatchImpulse = hatches;
+        launchTubeCount = StateIo.integer(state, "launchTubeCount", launchTubeCount);
+        int[] tubes = StateIo.intArray(state.get("lastTubeImpulse"));
+        if (tubes != null)
+            lastTubeImpulse = tubes;
+    }
 }

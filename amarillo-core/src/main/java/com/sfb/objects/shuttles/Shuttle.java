@@ -694,4 +694,104 @@ public abstract class Shuttle extends Unit {
 		return (currentImpulse - getLaunchImpulse()) >= SEEKER_DELAY;
 	}
 
+
+	// -------------------------------------------------------------------------
+	// Saved game
+	// -------------------------------------------------------------------------
+
+	/**
+	 * A craft, completely enough to rebuild it.
+	 *
+	 * <h2>What identifies it</h2>
+	 * {@code catalogType} — "admin", "gas", "hts", "stinger1" — is the key
+	 * {@link com.sfb.systemgroups.ShuttleBay#buildShuttle} builds from, so a save names the type
+	 * and the loader asks the same factory the game uses. A fighter is a CATALOGUE ROW rather
+	 * than a class (J4.4), so this is the only identity it has, and it is the right one: a save
+	 * that stored the Java class would have said "cataloguedfighter" for every fighter alive.
+	 *
+	 * <h2>What is saved</h2>
+	 * Only what the battle changed. The hull total, the maximum speed and the armament all come
+	 * from the catalogue row when the craft is rebuilt. What is written here is the damage, the
+	 * crippling (J1.33), the chaff still carried, whether an enemy has identified it, and where
+	 * it is — which matters for a craft in flight and is simply ignored for one sitting in a bay.
+	 */
+	public java.util.Map<String, Object> exportState() {
+		java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+		state.put("catalogType", getCatalogType());
+		state.put("name", getName());
+		state.put("localName", localName);
+
+		state.put("currentHull", currentHull);
+		state.put("crippled", crippled);
+		state.put("crippledHull", crippledHull);
+		state.put("chaffPacks", chaffPacks);
+		state.put("identified", identified);
+		state.put("chaffLockoutUntilImpulse", chaffLockoutUntilImpulse);
+		state.put("claimedAttractedTo", claimedAttractedTo);
+		state.put("parentShipName", parentShipName);
+
+		state.put("currentSpeed", currentSpeed);
+		state.put("facing", getFacing());
+		if (getLocation() != null) {
+			state.put("x", getLocation().getX());
+			state.put("y", getLocation().getY());
+		}
+		return state;
+	}
+
+	/**
+	 * Put a saved craft's state back onto one already built from its catalogue row.
+	 *
+	 * Subclasses extend this for what they add — a fighter's EW and its per-turn weapon
+	 * counters — and call {@code super.applyState} first, the same shape the weapons use.
+	 */
+	public void applyState(java.util.Map<String, Object> state) {
+		if (state == null)
+			return;
+		String savedName = com.sfb.systemgroups.StateIo.text(state, "name");
+		if (savedName != null)
+			setName(savedName);
+		String local = com.sfb.systemgroups.StateIo.text(state, "localName");
+		if (local != null)
+			localName = local;
+
+		currentHull  = com.sfb.systemgroups.StateIo.integer(state, "currentHull", currentHull);
+		crippled     = com.sfb.systemgroups.StateIo.flag(state, "crippled", crippled);
+		crippledHull = com.sfb.systemgroups.StateIo.integer(state, "crippledHull", crippledHull);
+		chaffPacks   = com.sfb.systemgroups.StateIo.integer(state, "chaffPacks", chaffPacks);
+		identified   = com.sfb.systemgroups.StateIo.flag(state, "identified", identified);
+		chaffLockoutUntilImpulse = com.sfb.systemgroups.StateIo.integer(state,
+				"chaffLockoutUntilImpulse", chaffLockoutUntilImpulse);
+		claimedAttractedTo = com.sfb.systemgroups.StateIo.text(state, "claimedAttractedTo");
+		String parent = com.sfb.systemgroups.StateIo.text(state, "parentShipName");
+		if (parent != null)
+			parentShipName = parent;
+
+		currentSpeed = com.sfb.systemgroups.StateIo.integer(state, "currentSpeed", currentSpeed);
+		setFacing(com.sfb.systemgroups.StateIo.integer(state, "facing", getFacing()));
+		if (state.get("x") instanceof Number x && state.get("y") instanceof Number y)
+			setLocation(new com.sfb.properties.Location(x.intValue(), y.intValue()));
+	}
+
+	/**
+	 * Rebuild a craft from a save, through the same factory the game builds one with.
+	 *
+	 * Returns null when the saved type is not one this build knows — a caller should report that
+	 * rather than substituting something, because a craft that silently became an admin shuttle
+	 * would be worse than one that is missing and said so.
+	 */
+	public static Shuttle fromState(java.util.Map<String, Object> state) {
+		if (state == null)
+			return null;
+		String type = com.sfb.systemgroups.StateIo.text(state, "catalogType");
+		if (type == null)
+			return null;
+		String name = com.sfb.systemgroups.StateIo.text(state, "name");
+		Shuttle craft = com.sfb.systemgroups.ShuttleBay.buildShuttle(type,
+				name == null ? type : name);
+		if (craft == null)
+			return null;
+		craft.applyState(state);
+		return craft;
+	}
 }

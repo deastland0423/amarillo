@@ -912,4 +912,43 @@ public class Shuttles implements Systems {
     private static String displayName(String type) {
         return com.sfb.objects.ShuttleCatalog.displayNameOf(type);
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game (see Systems.exportState)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Every bay, and the drone store they draw reloads from.
+     *
+     * Bays restore positionally — a ship's bays are fixed by its hull — and everything
+     * interesting is inside them. Squadrons are NOT saved: J4.46 squadrons are an organisation
+     * of fighters rather than a thing the battle damages, and they are rebuilt with the
+     * complement.
+     */
+    @Override
+    public Map<String, Object> exportState() {
+        Map<String, Object> state = new java.util.LinkedHashMap<>();
+        java.util.List<Object> bayStates = new java.util.ArrayList<>();
+        for (ShuttleBay bay : bays)
+            bayStates.add(bay.exportState());
+        state.put("bays", bayStates);
+        if (droneStore != null)
+            state.put("droneStore", droneStore.exportState());
+        return state;
+    }
+
+    @Override
+    public void applyState(Map<String, Object> state) {
+        if (state == null)
+            return;
+        if (state.get("bays") instanceof java.util.List<?> list)
+            for (int i = 0; i < Math.min(list.size(), bays.size()); i++)
+                if (list.get(i) instanceof Map<?, ?> raw) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> bayState = (Map<String, Object>) raw;
+                    bays.get(i).applyState(bayState);
+                }
+        if (droneStore != null)
+            droneStore.applyState(StateIo.child(state, "droneStore"));
+    }
 }

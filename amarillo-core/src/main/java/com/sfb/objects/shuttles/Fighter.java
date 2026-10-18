@@ -808,4 +808,62 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
         resetPodEwDeclaration();        // J4.961: declared afresh each turn
         getWeapons().cleanUp();
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game (see Shuttle.exportState)
+    // -------------------------------------------------------------------------
+
+    /**
+     * What a fighter adds to a craft's state: its EW, and the per-turn limits it is under.
+     *
+     * The counters are not scratch. J4.241 allows a fighter two drones a turn and the spacing
+     * between them is measured in impulses, so {@code dronesFiredThisTurn} and
+     * {@code lastPlasmaTorpedoImpulse} are what stand between a reloaded fighter and firing its
+     * whole year's ammunition in one impulse. Game.startTurn's own comment records what happened
+     * when these were never reset: "J4.241's two drones a turn became two a game".
+     *
+     * <p>Its lock-ons and the seekers it controls are NOT here. Those are references to other
+     * units, and like every other saved reference they are resolved by Game.applyState once
+     * everything exists — see unitsByName().
+     */
+    @Override
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = super.exportState();
+        state.put("ecm", ecm);
+        state.put("eccm", eccm);
+        state.put("tacticalManeuverUsed", tacticalManeuverUsed);
+        state.put("dronesFiredThisTurn", dronesFiredThisTurn);
+        state.put("plasmaTorpedoesFiredThisTurn", plasmaTorpedoesFiredThisTurn);
+        state.put("lastPlasmaTorpedoImpulse", lastPlasmaTorpedoImpulse);
+
+        java.util.List<String> locked = new java.util.ArrayList<>();
+        for (com.sfb.objects.Unit target : lockOns)
+            if (target != null && target.getName() != null)
+                locked.add(target.getName());
+        state.put("lockOns", locked);
+
+        java.util.List<String> controlled = new java.util.ArrayList<>();
+        for (com.sfb.objects.Seeker seeker : controlledSeekers)
+            if (seeker instanceof com.sfb.objects.Unit unit && unit.getName() != null)
+                controlled.add(unit.getName());
+        state.put("controlledSeekers", controlled);
+        return state;
+    }
+
+    @Override
+    public void applyState(java.util.Map<String, Object> state) {
+        super.applyState(state);
+        if (state == null)
+            return;
+        ecm  = com.sfb.systemgroups.StateIo.integer(state, "ecm", ecm);
+        eccm = com.sfb.systemgroups.StateIo.integer(state, "eccm", eccm);
+        tacticalManeuverUsed = com.sfb.systemgroups.StateIo.flag(state, "tacticalManeuverUsed",
+                tacticalManeuverUsed);
+        dronesFiredThisTurn = com.sfb.systemgroups.StateIo.integer(state, "dronesFiredThisTurn",
+                dronesFiredThisTurn);
+        plasmaTorpedoesFiredThisTurn = com.sfb.systemgroups.StateIo.integer(state,
+                "plasmaTorpedoesFiredThisTurn", plasmaTorpedoesFiredThisTurn);
+        lastPlasmaTorpedoImpulse = com.sfb.systemgroups.StateIo.integer(state,
+                "lastPlasmaTorpedoImpulse", lastPlasmaTorpedoImpulse);
+    }
 }
