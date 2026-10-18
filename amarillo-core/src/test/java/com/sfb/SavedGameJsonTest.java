@@ -44,7 +44,6 @@ public class SavedGameJsonTest {
      * coarse to be worth anything.
      */
     private static final Map<String, String> KNOWN_GAPS = Map.of(
-            ".droneRacks", "DroneRack contents and settled mode are not saved yet (slice D3c)",
             ".controlUsed", "ControlSpaces is not converted yet (slice D3c)");
 
     // ---------------------------------------------------------------- through JSON

@@ -779,4 +779,131 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 		completePendingReload();
 		reloadingThisTurn = false;
 	}
+
+	// -------------------------------------------------------------------------
+	// Saved game (see Weapon.exportState)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * What the rack is holding, and what it has left to reload with.
+	 *
+	 * <h2>Why this is the gap that mattered</h2>
+	 * None of it used to be saved, so a reloaded battle rebuilt every rack from the hull — FULL,
+	 * with every reload set back. A player who had emptied a rack over a turn got the drones back
+	 * for free, which is the most directly exploitable thing a save could get wrong. Reported from
+	 * a playtest, where the inconsistency showed up as a rack that looked reloaded while still
+	 * being on cooldown: {@code lastImpulseFired} is saved by {@link Weapon}, so half the rack's
+	 * state crossed the save and half did not.
+	 *
+	 * <h2>What is saved and what is rebuilt</h2>
+	 * The rack's TYPE and its number of spaces are what the hull mounts — a type-C rack with four
+	 * spaces is a property of the ship and of the year's refits (R1.7), rebuilt by the scenario.
+	 * What the battle changed is the CONTENTS: the drones in the rack, the reload sets still
+	 * unspent, the anti-drone rounds, and the per-turn flags that decide whether it may fire at
+	 * all.
+	 *
+	 * <p>{@code modeThisTurn} is saved by NAME and is easy to mistake for scratch state. FD3.71
+	 * settles a type-G's mode on its first shot of the turn and it holds for the rest of that
+	 * turn; restoring it as UNDECIDED would hand the player a second free choice they had already
+	 * spent.
+	 *
+	 * <p>Each drone is written through {@link Drone#exportState()}, the same way a drone in
+	 * flight is, because a drone in a rack is the same object with the same loadout — its
+	 * position and heading simply mean nothing until it is launched.
+	 */
+	@Override
+	public java.util.Map<String, Object> exportState() {
+		java.util.Map<String, Object> state = super.exportState();
+
+		state.put("ammo", droneStates(ammoList));
+		java.util.List<Object> reloadSets = new java.util.ArrayList<>();
+		for (java.util.List<Drone> set : reloads)
+			reloadSets.add(droneStates(set));
+		state.put("reloads", reloadSets);
+
+		state.put("reloadingThisTurn", reloadingThisTurn);
+		state.put("pendingReloadSet",
+				pendingReloadSet == null ? null : droneStates(pendingReloadSet));
+		state.put("pendingAntiDroneReload", pendingAntiDroneReload);
+		state.put("addAmmo", addAmmo);
+		state.put("addReloads", addReloads);
+		state.put("modeThisTurn", modeThisTurn == null ? null : modeThisTurn.name());
+		state.put("lastAntiDroneImpulse", lastAntiDroneImpulse);
+		return state;
+	}
+
+	@Override
+	public void applyState(java.util.Map<String, Object> state) {
+		super.applyState(state);
+		if (state == null)
+			return;
+
+		java.util.List<Drone> savedAmmo = dronesFrom(state.get("ammo"));
+		if (savedAmmo != null)
+			ammoList = savedAmmo;
+
+		if (state.get("reloads") instanceof java.util.List<?> sets) {
+			reloads = new java.util.ArrayList<>();
+			for (Object set : sets) {
+				java.util.List<Drone> loaded = dronesFrom(set);
+				if (loaded != null)
+					reloads.add(loaded);
+			}
+			// Kept in step by hand because it mirrors the list rather than owning the count; a
+			// save that disagreed with itself would show reloads the rack cannot actually use.
+			numberOfReloads = reloads.size();
+		}
+
+		reloadingThisTurn = com.sfb.systemgroups.StateIo.flag(state, "reloadingThisTurn",
+				reloadingThisTurn);
+		pendingReloadSet = state.get("pendingReloadSet") == null
+				? null : dronesFrom(state.get("pendingReloadSet"));
+		pendingAntiDroneReload = com.sfb.systemgroups.StateIo.integer(state,
+				"pendingAntiDroneReload", pendingAntiDroneReload);
+		addAmmo = com.sfb.systemgroups.StateIo.integer(state, "addAmmo", addAmmo);
+		addReloads = com.sfb.systemgroups.StateIo.integer(state, "addReloads", addReloads);
+		lastAntiDroneImpulse = com.sfb.systemgroups.StateIo.integer(state,
+				"lastAntiDroneImpulse", lastAntiDroneImpulse);
+
+		String mode = com.sfb.systemgroups.StateIo.text(state, "modeThisTurn");
+		if (mode != null) {
+			try {
+				modeThisTurn = RackMode.valueOf(mode);
+			} catch (IllegalArgumentException e) {
+				modeThisTurn = RackMode.UNDECIDED;
+			}
+		}
+	}
+
+	/** Each drone as {@link Drone#exportState()} writes it. */
+	private static java.util.List<Object> droneStates(java.util.List<Drone> drones) {
+		java.util.List<Object> out = new java.util.ArrayList<>();
+		for (Drone drone : drones)
+			if (drone != null)
+				out.add(drone.exportState());
+		return out;
+	}
+
+	/**
+	 * Rebuild a list of drones from a save, or null when the value is not a list at all.
+	 *
+	 * A drone naming a type this build does not have is DROPPED rather than refused: the rest of
+	 * the rack is still usable, and a rack that silently held one fewer drone is a smaller wrong
+	 * than a battle that will not load.
+	 */
+	private static java.util.List<Drone> dronesFrom(Object raw) {
+		if (!(raw instanceof java.util.List<?> list))
+			return null;
+		java.util.List<Drone> out = new java.util.ArrayList<>();
+		for (Object item : list) {
+			if (!(item instanceof java.util.Map<?, ?> map))
+				continue;
+			@SuppressWarnings("unchecked")
+			java.util.Map<String, Object> droneState = (java.util.Map<String, Object>) map;
+			Drone drone = Drone.fromState(droneState, null, null, null);
+			if (drone != null)
+				out.add(drone);
+		}
+		return out;
+	}
 }

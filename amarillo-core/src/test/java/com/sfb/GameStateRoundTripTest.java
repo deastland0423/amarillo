@@ -71,7 +71,6 @@ public class GameStateRoundTripTest {
      * surfaced both of the entries below, which the coarse version had been hiding.
      */
     private static final Map<String, String> KNOWN_GAPS = Map.of(
-            ".droneRacks", "DroneRack contents and settled mode are not saved yet (slice D3c)",
             ".controlUsed", "ControlSpaces is not converted yet (slice D3c)");
 
     /** Everything the scenario rebuilds, plus everything the battle did to it. */
