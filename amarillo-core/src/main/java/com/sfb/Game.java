@@ -342,7 +342,12 @@ public class Game {
      * suppression — so a base placed without one would look present and behave like nothing in
      * particular, which is the harder failure to notice.
      *
-     * @return true if it was sited and should join the game
+     * <p>The caller IGNORES this return value, deliberately: {@code placeGroundBase} enrols the
+     * base itself, so a caller that read this as permission to add it would add it twice — the
+     * bug that once put every battery on Nivram on the map in duplicate. It is reported here for
+     * the sake of a future caller that needs to know, not as a thing to act on.
+     *
+     * @return true if it was sited
      */
     private boolean siteGroundBase(Ship base, ScenarioSpec.ShipSetup setup) {
         int face = ScenarioLoader.parsePlanetFace(setup.planetFace);
