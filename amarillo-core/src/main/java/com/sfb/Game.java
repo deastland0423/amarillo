@@ -2254,6 +2254,15 @@ public class Game {
             craftStates.add(craft.exportState());
         state.put("activeShuttles", craftStates);
 
+        // Mines already laid. Created during the battle like the two above, and the last thing
+        // in this format that could be lost in SILENCE: a minefield never reached the save at
+        // all, so a player came back to open space with nothing said and the enemy sailed
+        // through where they had spent the energy and the impulses.
+        List<Map<String, Object>> mineStates = new ArrayList<>();
+        for (com.sfb.objects.SpaceMine mine : mines)
+            mineStates.add(mine.exportState());
+        state.put("mines", mineStates);
+
         state.put("players", playerStates);
 
         return state;
@@ -2339,7 +2348,7 @@ public class Game {
         // and a seeker is flown by a ship OR by a craft (J4.222), so each kind of unit must
         // already exist before the next kind looks for it by name:
         //
-        //     ships (pass one)  ->  craft in flight  ->  seekers  ->  references among them
+        //     ships (pass one)  ->  craft  ->  seekers  ->  mines  ->  references among them
         //
         // Every departure from that order has cost something real. Resolving lock-ons before
         // the seekers existed dropped every lock held on a weapon in flight — exactly the lock
@@ -2351,6 +2360,7 @@ public class Game {
         restoreSavedOwnership(state, problems);
         problems.addAll(reviveSavedCraft(state));
         problems.addAll(reviveSavedSeekers(state));
+        problems.addAll(reviveSavedMines(state));
         resolveSavedCraftReferences(state);
         resolveSavedLockOns(state);
         resolveSavedTractors(state);
@@ -2439,6 +2449,52 @@ public class Game {
                     fighter.restoreControl(seeker);
             }
         }
+    }
+
+    /**
+     * Rebuild the minefield (M2.0, M3.0).
+     *
+     * <h2>Why a mine is created rather than overlaid</h2>
+     * Like a seeker or a craft in flight, a mine does not exist until somebody lays it, so there
+     * is nothing for the save to overlay. And everything that identifies one is FINAL on the
+     * class — its type, how it was laid, whether it is real, when it went down — so it has to be
+     * constructed, which is why the laying ship is resolved first and the mine built second.
+     *
+     * <h2>A mine outlives its layer, lawfully</h2>
+     * An unresolved laying ship is left null and NOT reported. A minefield survives the ship
+     * that laid it, and {@code MineResolver} already reads a null layer as a range of
+     * {@code Integer.MAX_VALUE} — "not nearby" — which is the correct answer when that ship is
+     * dead. Reporting it would cry about the ordinary course of a battle.
+     *
+     * <p>What IS reported is a mine whose saved type this build does not have, because that one
+     * really does disappear.
+     */
+    private List<String> reviveSavedMines(Map<String, Object> state) {
+        List<String> problems = new ArrayList<>();
+        if (!(state.get("mines") instanceof List<?> list))
+            return problems;
+        Map<String, Unit> units = unitsByName();
+
+        mines.clear();
+        for (Object entry : list) {
+            if (!(entry instanceof Map<?, ?> raw))
+                continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> saved = (Map<String, Object>) raw;
+
+            String layerName = com.sfb.systemgroups.StateIo.text(saved, "layingShip");
+            Ship layer = units.get(layerName) instanceof Ship ship ? ship : null;
+
+            com.sfb.objects.SpaceMine mine = com.sfb.objects.SpaceMine.fromState(saved, layer);
+            if (mine == null) {
+                problems.add("a mine could not be restored: the save calls it a "
+                        + com.sfb.systemgroups.StateIo.text(saved, "mineType")
+                        + ", which this build does not have");
+                continue;
+            }
+            mines.add(mine);
+        }
+        return problems;
     }
 
     /** Ships the battle had already killed go back to the destroyed list, for VP scoring. */

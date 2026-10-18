@@ -196,4 +196,82 @@ public class SpaceMine extends Marker {
     public static SpaceMine createDroppedNSM(Ship layingShip, int placedOnImpulse) {
         return new SpaceMine(MineType.NSM, PlacementMethod.DROPPED, layingShip, placedOnImpulse, true, false);
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game
+    // -------------------------------------------------------------------------
+
+    /**
+     * A laid mine, completely enough to rebuild it.
+     *
+     * <h2>Why mines had to be saved at all</h2>
+     * They were the last thing in the format that could be lost SILENTLY. A minefield never
+     * reached {@code exportState}, so a player who spent the energy and the impulses to lay one,
+     * then saved, came back to open space with nothing said — and the enemy sailed through it.
+     * Every other loss in a save either survives or reports itself.
+     *
+     * <h2>What is saved and what is derived</h2>
+     * Damage is not here: a mine's warhead is a property of its TYPE (M2.0), so the type carries
+     * it. What travels is how it was laid, when, whether it is armed, and whether a dummy has
+     * been found out.
+     *
+     * <p>{@code isReal} is the dummy secret (M3.224) and is saved as it stands. That is safe
+     * because a save file lives on the server and is never a client's view — {@code MineDto}
+     * deliberately exposes only {@code active} and {@code revealed}, and restoring the truth
+     * here is what lets a reloaded dummy go on fooling people exactly as far as it had.
+     *
+     * <p>The LAYING SHIP is a reference to another unit and is written as a name, like every
+     * other saved reference. It may legitimately resolve to nothing: a mine outlives the ship
+     * that laid it, and {@code MineResolver} already reads a null layer as "the layer is not
+     * nearby", which is the right answer when it is dead.
+     */
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("mineType", mineType.name());
+        state.put("placementMethod", placementMethod.name());
+        state.put("isReal", isReal);
+        state.put("placedOnImpulse", placedOnImpulse);
+        state.put("placedAdjacent", placedAdjacent);
+        state.put("active", active);
+        state.put("revealed", revealed);
+        state.put("layingShip", layingShip == null ? null : layingShip.getName());
+        if (getLocation() != null) {
+            state.put("x", getLocation().getX());
+            state.put("y", getLocation().getY());
+        }
+        return state;
+    }
+
+    /**
+     * Rebuild a laid mine from a save.
+     *
+     * CONSTRUCTED rather than overlaid, because everything that identifies a mine — its type,
+     * how it was laid, whether it is real, when it was placed, and whether it went down next to
+     * its layer — is final on the class. The same shape the wild weasel needs for its ship.
+     *
+     * @param layingShip the resolved layer, or null if it did not survive the battle
+     * @return the mine, or null if the save names a type this build does not have
+     */
+    public static SpaceMine fromState(java.util.Map<String, Object> state, Ship layingShip) {
+        if (state == null)
+            return null;
+        MineType type;
+        PlacementMethod method;
+        try {
+            type = MineType.valueOf(com.sfb.systemgroups.StateIo.text(state, "mineType"));
+            method = PlacementMethod.valueOf(
+                    com.sfb.systemgroups.StateIo.text(state, "placementMethod"));
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return null;
+        }
+        SpaceMine mine = new SpaceMine(type, method, layingShip,
+                com.sfb.systemgroups.StateIo.integer(state, "placedOnImpulse", 0),
+                com.sfb.systemgroups.StateIo.flag(state, "isReal", true),
+                com.sfb.systemgroups.StateIo.flag(state, "placedAdjacent", false));
+        mine.active   = com.sfb.systemgroups.StateIo.flag(state, "active", false);
+        mine.revealed = com.sfb.systemgroups.StateIo.flag(state, "revealed", false);
+        if (state.get("x") instanceof Number x && state.get("y") instanceof Number y)
+            mine.setLocation(new com.sfb.properties.Location(x.intValue(), y.intValue()));
+        return mine;
+    }
 }

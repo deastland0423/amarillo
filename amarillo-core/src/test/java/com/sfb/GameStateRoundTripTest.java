@@ -520,6 +520,181 @@ public class GameStateRoundTripTest {
         assertTrue(rebuilt.getActiveShuttles().isEmpty());
     }
 
+    // ---------------------------------------------------------------- mines
+
+    private static com.sfb.objects.SpaceMine theMine(Game game) {
+        assertEquals("fixture: one mine on the map", 1, game.getMines().size());
+        return game.getMines().get(0);
+    }
+
+    /**
+     * THE TEST THIS SLICE EXISTS FOR: a laid minefield used to vanish, in SILENCE.
+     *
+     * {@code Game.mines} never reached {@code exportState}, so a player who spent the energy and
+     * the impulses to lay a field came back to open space with nothing said, and the enemy
+     * sailed through it. Every other loss in this format either survives or reports itself.
+     */
+    @Test
+    public void aLaidMineIsStillOnTheMapAfterAReload() {
+        Game before = battleInProgress();
+        com.sfb.objects.SpaceMine laid = theMine(before);
+
+        com.sfb.objects.SpaceMine restored = theMine(roundTrip(before));
+
+        assertEquals("it must be in the same hex", laid.getLocation(), restored.getLocation());
+        assertEquals(laid.getMineType(), restored.getMineType());
+        assertEquals("and laid the same way, because that decides how it arms (M2.34/M3.223)",
+                laid.getPlacementMethod(), restored.getPlacementMethod());
+        assertEquals(laid.getPlacedOnImpulse(), restored.getPlacedOnImpulse());
+    }
+
+    /**
+     * M3.223: a transporter mine arms two impulses after it is laid, and the arming state is the
+     * difference between a mine that goes off and one that does not.
+     *
+     * Dropping it would be wrong in both directions. An armed mine coming back unarmed gives the
+     * enemy a free pass through the hex; an unarmed one coming back armed detonates under a ship
+     * that was entitled to be there.
+     */
+    @Test
+    public void anArmedMineComesBackArmed() {
+        Game before = battleInProgress();
+        com.sfb.objects.SpaceMine laid = theMine(before);
+        laid.tryActivate(laid.getPlacedOnImpulse() + 2, 9);
+        assertTrue("fixture: it should have armed", laid.isActive());
+
+        assertTrue("an armed mine must still be armed", theMine(roundTrip(before)).isActive());
+    }
+
+    @Test
+    public void anUnarmedMineComesBackUnarmed() {
+        Game before = battleInProgress();
+        assertFalse("fixture: freshly laid, so not yet armed", theMine(before).isActive());
+
+        assertFalse("and a reload must not arm it early (M3.223)",
+                theMine(roundTrip(before)).isActive());
+    }
+
+    /**
+     * M3.224: a dummy is a bluff, and the bluff has to survive the save.
+     *
+     * A dummy that came back REAL would detonate where the player had spent nothing and intended
+     * nothing; a real one that came back a dummy would be a weapon quietly disarmed. The save
+     * holds the truth because it is a server-side file, and MineDto still shows a client only
+     * active and revealed, so reloading leaks nothing about which it is.
+     */
+    @Test
+    public void aDummyStaysADummyAndKeepsItsCover() {
+        Game before = battleInProgress();
+        before.getMines().clear();
+        Ship hood = shipNamed(before, "USS Hood");
+        com.sfb.objects.SpaceMine dummy = com.sfb.objects.SpaceMine.createTBomb(
+                hood, before.getClock().getImpulse(), false, false);
+        dummy.setLocation(new com.sfb.properties.Location(10, 13));
+        before.getMines().add(dummy);
+        assertFalse("fixture: it is a dummy", dummy.isReal());
+        assertFalse("fixture: and has not been found out", dummy.isRevealed());
+
+        com.sfb.objects.SpaceMine restored = theMine(roundTrip(before));
+
+        assertFalse("a dummy must not come back live", restored.isReal());
+        assertFalse("and its cover must hold", restored.isRevealed());
+    }
+
+    /** Once a dummy has been exposed it stays exposed — the bluff does not reset. */
+    @Test
+    public void anExposedDummyStaysExposed() {
+        Game before = battleInProgress();
+        before.getMines().clear();
+        com.sfb.objects.SpaceMine dummy = com.sfb.objects.SpaceMine.createTBomb(
+                shipNamed(before, "USS Hood"), before.getClock().getImpulse(), false, false);
+        dummy.setLocation(new com.sfb.properties.Location(10, 13));
+        dummy.reveal();
+        before.getMines().add(dummy);
+
+        assertTrue("a reload must not restore the bluff",
+                theMine(roundTrip(before)).isRevealed());
+    }
+
+    /** Its layer is a reference like any other, and must point at the RESTORED ship. */
+    @Test
+    public void aMineKnowsWhichRestoredShipLaidIt() {
+        Game before = battleInProgress();
+        assertNotNull("fixture: the Hood laid it", theMine(before).getLayingShip());
+
+        Game after = roundTrip(before);
+
+        assertSame("the layer must be the restored Hood, not the saved one",
+                shipNamed(after, "USS Hood"), theMine(after).getLayingShip());
+    }
+
+    /**
+     * A minefield OUTLIVES the ship that laid it, and that is not a fault in the save.
+     *
+     * The layer is left null and nothing is reported, because MineResolver already reads a null
+     * layer as a range of Integer.MAX_VALUE — "not nearby" — which is exactly right when that
+     * ship is dead. M2.34 then lets a dropped mine arm, which is the correct outcome.
+     */
+    @Test
+    public void aMineOutlivesTheShipThatLaidIt() {
+        Game before = battleInProgress();
+        Ship hood = shipNamed(before, "USS Hood");
+        assertSame("fixture", hood, theMine(before).getLayingShip());
+        before.getShips().remove(hood);
+        before.getDestroyedShips().add(hood);
+
+        Game rebuilt = new Game();
+        rebuilt.setupFromScenario(spec());
+        List<String> problems = rebuilt.applyState(before.exportState());
+
+        assertEquals("the mine must still be there", 1, rebuilt.getMines().size());
+        assertNull("with no layer, which is lawful",
+                rebuilt.getMines().get(0).getLayingShip());
+        assertTrue("and nothing to report about it: " + problems,
+                problems.stream().noneMatch(p -> p.toLowerCase().contains("mine")));
+    }
+
+    /** A mine of a type this build does not have is REPORTED, never dropped in silence. */
+    @Test
+    public void aMineOfAnUnknownTypeIsReported() {
+        Game before = battleInProgress();
+        Map<String, Object> saved = before.exportState();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> mineStates = (List<Map<String, Object>>) saved.get("mines");
+        assertEquals("fixture: the mine must be IN the save", 1, mineStates.size());
+        mineStates.get(0).put("mineType", "ANTIMATTER_CHARGE");
+
+        Game rebuilt = new Game();
+        rebuilt.setupFromScenario(spec());
+        List<String> problems = rebuilt.applyState(saved);
+
+        assertTrue("the player must be told: " + problems,
+                problems.stream().anyMatch(p -> p.contains("ANTIMATTER_CHARGE")));
+        assertTrue(rebuilt.getMines().isEmpty());
+    }
+
+    /**
+     * A ship's stock of UNLAID transporter bombs is ammunition, and the hull declares it.
+     *
+     * So a save that left it out rebuilt the stock from the JSON and handed back every bomb the
+     * battle had spent — the drone-rack mistake in a smaller package. Found by the fixture above
+     * laying a mine: it had three, spent one, and the reload reported two against zero.
+     */
+    @Test
+    public void aShipDoesNotGetItsSpentTransporterBombsBack() {
+        Game before = battleInProgress();
+        Ship hood = shipNamed(before, "USS Hood");
+        int left = hood.getTBombs();
+        assertEquals("fixture: it should have spent one of three", 2, left);
+        hood.setDummyTBombs(1);
+
+        Ship after = shipNamed(roundTrip(before), "USS Hood");
+
+        assertEquals("the spent bomb must stay spent", left, after.getTBombs());
+        assertEquals("and the dummies too, because M3.224 makes the count the secret",
+                1, after.getDummyTBombs());
+    }
+
     // ------------------------------------------------- what a craft in flight is holding
 
     /**
@@ -848,6 +1023,17 @@ public class GameStateRoundTripTest {
                 + "and the net proves nothing — " + launched.getMessage(), launched.isSuccess());
         assertFalse("fixture: there should be a seeker in flight", game.getSeekers().isEmpty());
         blade.clearLockOns();   // the lock was only to make the launch legal
+
+        // And a T-bomb on the map, for the same reason: mines persist across turns, and until
+        // this they were not in the save AT ALL. Laid through the real transporter path rather
+        // than constructed, so the fixture cannot quietly create a state the game cannot.
+        hood.getTransporters().bankEnergy(1.0);
+        hood.setTBombs(3);
+        Game.ActionResult laid = game.placeTBomb(hood,
+                new com.sfb.properties.Location(10, 12), true);
+        assertTrue("fixture: the T-bomb must actually be laid, or the mine gap is invisible — "
+                + laid.getMessage(), laid.isSuccess());
+        assertEquals("fixture: there should be a mine on the map", 1, game.getMines().size());
 
         return game;
     }

@@ -52,21 +52,22 @@ final class DtoDiff {
 	 * compared as a SET. Sorting is the cheapest way to say so.
 	 *
 	 * <h2>What is filtered, and why filtering rather than tolerating</h2>
-	 * A shuttle, suicide shuttle, scatter-pack and wild weasel all wrap a craft created from a
-	 * bay, and restoring one means restoring the bay; mines are unconverted too. These are
-	 * removed rather than excused by a tolerated field name, because the tolerated name would be
-	 * {@code mapObjects} — which holds every ship as well, so a save could lose every shield on
-	 * every ship and still pass. Drones and plasma torpedoes are NOT filtered: slice D3b saves
-	 * them, so they are compared like anything else.
+	 * What is left here are the CRAFT-BASED units — a suicide shuttle and a scatter-pack wrap a
+	 * craft and export only partially on purpose. They are removed rather than excused by a
+	 * tolerated field name, because the tolerated name would be {@code mapObjects} — which holds
+	 * every ship as well, so a save could lose every shield on every ship and still pass.
+	 *
+	 * <p>Drones and plasma torpedoes are NOT filtered (slice D3b), nor are craft in flight
+	 * (shuttle slices 1–3), nor MINES, which are saved now. Unfiltering mines is what put the
+	 * fixture's laid T-bomb under the net, and it immediately reported a second loss nobody was
+	 * looking for: the ship's stock of UNLAID transporter bombs was being rebuilt from the hull,
+	 * so a reload handed back every bomb the battle had spent.
 	 */
 	static GameStateDto comparable(Game game) {
 		GameStateDto dto = new GameStateDto(game);
 		dto.mapObjects = dto.mapObjects.stream()
-				.filter(object -> !(object instanceof GameStateDto.ShuttleDto
-						|| object instanceof GameStateDto.SuicideShuttleDto
-						|| object instanceof GameStateDto.ScatterPackDto
-						|| object instanceof GameStateDto.WildWeaselDto
-						|| object instanceof GameStateDto.MineDto))
+				.filter(object -> !(object instanceof GameStateDto.SuicideShuttleDto
+						|| object instanceof GameStateDto.ScatterPackDto))
 				.toList();
 		for (GameStateDto.MapObjectDto object : dto.mapObjects)
 			if (object instanceof GameStateDto.ShipDto ship && ship.lockOnTargets != null)

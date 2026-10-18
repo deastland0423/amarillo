@@ -2039,6 +2039,15 @@ public class Ship extends Unit implements DroneController {
 		state.put("activeFireControl", activeFireControl);
 		state.put("lifeSupportActive", lifeSupportActive);
 
+		// AMMUNITION, and the hull declares it (tbombs/dummytbombs in the JSON) — so a save that
+		// left these out handed back every transporter bomb the battle had spent, which is the
+		// drone-rack mistake in a smaller package. Found by giving the round-trip fixture a mine
+		// to lay: it laid one of three and the reload reported two against zero.
+		// The DUMMIES are saved alongside the real ones because M3.224 makes the count itself
+		// the secret — a player who has thrown their dummies must not get them back.
+		state.put("tBombs", tBombs);
+		state.put("dummyTBombs", dummyTBombs);
+
 		state.put("shields", shields.exportState());
 		state.put("hullBoxes", hullBoxes.exportState());
 		state.put("powerSystems", powerSystems.exportState());
@@ -2120,6 +2129,8 @@ public class Ship extends Unit implements DroneController {
 		entryDirection = StateIo.integer(state, "entryDirection", entryDirection);
 		if (state.get("planetFace") instanceof Number face)
 			planetFace = face.intValue();
+		tBombs = com.sfb.systemgroups.StateIo.integer(state, "tBombs", tBombs);
+		dummyTBombs = com.sfb.systemgroups.StateIo.integer(state, "dummyTBombs", dummyTBombs);
 
 		activeFireControl = StateIo.flag(state, "activeFireControl", activeFireControl);
 		lifeSupportActive = StateIo.flag(state, "lifeSupportActive", lifeSupportActive);
