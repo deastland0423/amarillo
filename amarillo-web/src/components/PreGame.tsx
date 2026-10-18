@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { LobbyResult } from './Lobby';
 import { useLobbySocket } from '../hooks/useLobbySocket';
 import { gameApi } from '../api/gameApi';
+import { screenFor } from '../game/screens';
 import type {
   PlayerListing, ScenarioSummary, CoiSideData, CoiSubmission, FleetSummary, TerrainChoice,
 } from '../api/gameApi';
@@ -116,9 +117,23 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   }, [rawCoiData, lobby?.players, session.playerName]);
 
   // ---- Transition to game board once started ----
+  //
+  // Asks screenFor rather than reading `started` directly, and that is the fix for a real bug: a
+  // RESTORED battle is already started, so this effect fired the instant the screen mounted and
+  // threw the host straight to the map — past the assignment controls they needed, and past the
+  // new game code the other players have to be told. Reported from a playtest.
+  //
+  // The lesson is the duplication, not the condition. The rule already existed in screenFor;
+  // this was a second, older decision point that quietly outvoted it. One rule, one place.
   useEffect(() => {
-    if (lobby?.started) onGameStarted();
-  }, [lobby?.started, onGameStarted]);
+    if (!lobby) return;
+    if (screenFor({
+      started: lobby.started,
+      restored: lobby.restored,
+      unassignedShips: lobby.unassignedShips.length,
+    }) === 'game')
+      onGameStarted();
+  }, [lobby, onGameStarted]);
 
   // ---- Reset COI state if scenario reloaded ----
   useEffect(() => {
@@ -345,12 +360,23 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
         {/* A restored battle says what it is instead of offering a picker: the scenario was
             decided when it was first fought, and it is embedded in the save. */}
         {lobby?.restored && (
-          <p className="subtitle">
-            Restored battle{lobby.scenarioName ? ` — ${lobby.scenarioName}` : ''}.
-            {lobby.unassignedShips.length > 0
-              ? ' Assign the ships to whoever is playing, then enter the battle.'
-              : ' Every ship is assigned — enter the battle.'}
-          </p>
+          <>
+            <p className="subtitle">
+              Restored battle{lobby.scenarioName ? ` — ${lobby.scenarioName}` : ''}.
+              {lobby.unassignedShips.length > 0
+                ? ' Assign the ships to whoever is playing, then enter the battle.'
+                : ' Every ship is assigned — enter the battle.'}
+            </p>
+            {/* Which DOOR to use, not just the code. A restored battle is a new game with a new
+                id, and the old one is still alive on the server — so a player who clicks Resume
+                lands back in the pre-save game, which looks identical and diverges silently.
+                Reported from a playtest, where the other player had no way to know any of this. */}
+            <p className="subtitle" style={{ color: '#d29922' }}>
+              This is a NEW game: {session.gameId}. Other players must use
+              <strong> Join a game</strong> with that code — not Resume, which would take them
+              back to the battle as it was before the save.
+            </p>
+          </>
         )}
 
         {/* Host: scenario picker — not for a restored battle, which already has its forces. */}

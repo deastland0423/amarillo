@@ -158,6 +158,73 @@ public class SavedGameJsonTest {
                 restored.getBallisticCourse().getAdjacentHexesEntered());
     }
 
+    // ---------------------------------------------------------------- cooldown across a save
+
+    /**
+     * A weapon fired late in a turn is STILL COOLING at the start of the next one, and that has
+     * to survive a save.
+     *
+     * Reported from a playtest: two disruptors fired late in turn 1 did not look as though they
+     * were on cooldown after the battle was reloaded. The rule is {@code canFire()}: eight
+     * ABSOLUTE impulses between shots, which is why it reaches across a turn boundary at all —
+     * fire on impulse 28 and you are still waiting at impulse 32, where energy allocation for the
+     * next turn happens. Losing {@code lastImpulseFired} would hand the player a free shot.
+     */
+    @Test
+    public void aWeaponFiredLateInATurnIsStillCoolingAfterAReload() throws Exception {
+        Game before = battleInProgress();
+        // Put the clock where the playtest was: late in turn 1.
+        while (before.getClock().getImpulse() < 28)
+            before.getClock().nextImpulse();
+
+        Ship blade = shipNamed(before, "IKV Blade");
+        com.sfb.weapons.Weapon disruptor = blade.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.Disruptor)
+                .findFirst().orElseThrow(() -> new AssertionError("the D7 should carry one"));
+        disruptor.setLastImpulseFired(before.getClock().getImpulse());
+
+        // Now step to the turn boundary, where allocation for turn 2 happens.
+        while (before.getClock().getImpulse() < 32)
+            before.getClock().nextImpulse();
+        assertFalse("fixture: four impulses after firing, it cannot fire again",
+                disruptor.canFire());
+
+        Game after = throughJson(before);
+
+        com.sfb.weapons.Weapon restored = shipNamed(after, "IKV Blade")
+                .getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.Disruptor
+                        && disruptor.getDesignator().equals(w.getDesignator()))
+                .findFirst().orElseThrow(() -> new AssertionError("the disruptor was lost"));
+
+        assertEquals("the same mount", disruptor.getDesignator(), restored.getDesignator());
+        assertEquals("the impulse it fired on must survive",
+                disruptor.getLastImpulseFired(), restored.getLastImpulseFired());
+        assertFalse("and so must the cooldown it implies", restored.canFire());
+    }
+
+    /** And a weapon that has had its eight impulses comes back ready, not stuck. */
+    @Test
+    public void aWeaponThatHasCooledDownComesBackReady() throws Exception {
+        Game before = battleInProgress();
+        Ship blade = shipNamed(before, "IKV Blade");
+        com.sfb.weapons.Weapon disruptor = blade.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.Disruptor)
+                .findFirst().orElseThrow();
+        disruptor.setLastImpulseFired(1);
+        while (before.getClock().getImpulse() < 32)
+            before.getClock().nextImpulse();
+        assertTrue("fixture: long since cooled", disruptor.canFire());
+
+        com.sfb.weapons.Weapon restored = shipNamed(throughJson(before), "IKV Blade")
+                .getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.Disruptor
+                        && disruptor.getDesignator().equals(w.getDesignator()))
+                .findFirst().orElseThrow();
+
+        assertTrue("a cooled weapon must not come back blocked", restored.canFire());
+    }
+
     // ---------------------------------------------------------------- the envelope
 
     /**

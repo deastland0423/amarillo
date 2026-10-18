@@ -2479,6 +2479,21 @@ public class Game {
             if (ship.getName() != null)
                 units.put(ship.getName(), ship);
 
+        // ---- pass one: build every weapon, WITHOUT its references ----
+        //
+        // Split from the resolution below because a seeker can be aimed at another seeker — a
+        // drone fired at an incoming drone is ordinary anti-drone fire — and in one pass the
+        // first weapon revived could never point at the last. Resolving against the ships alone,
+        // which is what this did at first, silently dropped the target of every seeker that was
+        // chasing another seeker: it came back flying at nothing. Reported from a playtest.
+        //
+        // A ballistic course's ground target IS resolved here, and can be: it is always a ground
+        // base, so it is among the ships, and BallisticCourse holds it final so the course must
+        // be built with it.
+        record Revived(Seeker seeker, Map<String, Object> saved) {
+        }
+        List<Revived> revivedSeekers = new ArrayList<>();
+
         seekers.clear();
         for (Object entry : list) {
             if (!(entry instanceof Map<?, ?> rawEntry))
@@ -2487,8 +2502,6 @@ public class Game {
             Map<String, Object> saved = (Map<String, Object>) rawEntry;
 
             String kind = com.sfb.systemgroups.StateIo.text(saved, Seeker.SAVE_KIND);
-            Unit target       = units.get(com.sfb.systemgroups.StateIo.text(saved, "target"));
-            Unit controller   = units.get(com.sfb.systemgroups.StateIo.text(saved, "controller"));
             Map<String, Object> course =
                     com.sfb.systemgroups.StateIo.child(saved, "ballisticCourse");
             Unit groundTarget = course == null ? null
@@ -2496,9 +2509,9 @@ public class Game {
 
             Seeker revived = null;
             if (Drone.SAVE_KIND_DRONE.equals(kind))
-                revived = Drone.fromState(saved, target, controller, groundTarget);
+                revived = Drone.fromState(saved, null, null, groundTarget);
             else if (PlasmaTorpedo.SAVE_KIND_PLASMA.equals(kind))
-                revived = PlasmaTorpedo.fromState(saved, target, controller, groundTarget);
+                revived = PlasmaTorpedo.fromState(saved, null, null, groundTarget);
             else {
                 // A craft-based seeker — a suicide shuttle or a scatter-pack. Rebuilding one
                 // means rebuilding the shuttle it wraps and the bay it came from, which is not
@@ -2515,6 +2528,30 @@ public class Game {
                 continue;
             }
             seekers.add(revived);
+            revivedSeekers.add(new Revived(revived, saved));
+            if (revived instanceof Unit unit && unit.getName() != null)
+                units.put(unit.getName(), unit);
+        }
+
+        // ---- pass two: point them at what they were chasing ----
+        //
+        // An unresolved reference is left null and NOT reported. That is lawful rather than
+        // broken: F4.12 and the drone-control rules both produce an orphan, a target can be
+        // destroyed while a weapon is still in flight, and such a weapon keeps flying on its
+        // last instructions.
+        for (Revived r : revivedSeekers) {
+            Unit target = units.get(com.sfb.systemgroups.StateIo.text(r.saved(), "target"));
+            if (target != null)
+                r.seeker().setTarget(target);
+
+            Unit controller = units.get(
+                    com.sfb.systemgroups.StateIo.text(r.saved(), "controller"));
+            if (controller != null) {
+                if (r.seeker() instanceof Drone drone)
+                    drone.setController(controller);
+                else if (r.seeker() instanceof PlasmaTorpedo torpedo)
+                    torpedo.setController(controller);
+            }
         }
         return problems;
     }

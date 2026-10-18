@@ -362,6 +362,54 @@ public class GameStateRoundTripTest {
                 restoredHood.hasLockOn(restoredDrone));
     }
 
+    /**
+     * A seeker can be aimed at ANOTHER SEEKER — a drone fired at an incoming drone is ordinary
+     * anti-drone fire — and that target has to survive a save.
+     *
+     * Reported from a playtest: "the CA+ launched a drone at one of the Klingon drones, but it no
+     * longer shows that the drone is a target, nor any target". The revival resolved target names
+     * against the SHIPS only, so a seeker chasing a seeker came back flying at nothing. And even
+     * with seekers in the map it would not have been enough: built in one pass, the first weapon
+     * revived could never point at the last. Hence two passes — build them all, then resolve.
+     *
+     * <p>Third time this shape has appeared in the save format, after lock-ons held on a drone
+     * and the ordering between those two steps. Anything that resolves a unit by name has to see
+     * every unit, and has to run after they all exist.
+     */
+    @Test
+    public void aDroneAimedAtAnotherDroneKeepsItsTarget() {
+        Game before = battleInProgress();
+        com.sfb.objects.Drone incoming = (com.sfb.objects.Drone) before.getSeekers().get(0);
+
+        // A second drone, from the Federation ship, chasing the first one.
+        com.sfb.objects.Drone interceptor =
+                new com.sfb.objects.Drone(incoming.getDroneType());
+        interceptor.setName("USS Hood-Drone-1");
+        interceptor.setLocation(new com.sfb.properties.Location(10, 12));
+        interceptor.setFacing(1);
+        interceptor.setSpeed(32);
+        interceptor.setTarget(incoming);
+        interceptor.setController(shipNamed(before, "USS Hood"));
+        interceptor.setLaunchImpulse(before.getClock().getImpulse());
+        before.getSeekers().add(interceptor);
+
+        Game after = roundTrip(before);
+
+        assertEquals(2, after.getSeekers().size());
+        Seeker restoredInterceptor = after.getSeekers().stream()
+                .filter(sk -> sk instanceof com.sfb.objects.Unit u
+                        && "USS Hood-Drone-1".equals(u.getName()))
+                .findFirst().orElseThrow(() -> new AssertionError("the interceptor was lost"));
+
+        assertNotNull("a drone chasing a drone must not come back chasing nothing",
+                restoredInterceptor.getTarget());
+        assertEquals("and it must be the OTHER restored seeker, not a ship",
+                ((com.sfb.objects.Unit) incoming).getName(),
+                restoredInterceptor.getTarget().getName());
+        assertTrue("pointing at the restored object, not the saved one",
+                after.getSeekers().contains(restoredInterceptor.getTarget()));
+    }
+
     // ---------------------------------------------------------------- ships
 
     @Test
