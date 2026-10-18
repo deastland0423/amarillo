@@ -169,4 +169,61 @@ public class ShipSystemsSaveTest {
                 bridge, ship.getControlSpaces().getAvailableBridge());
         assertEquals(labs, ship.getLabs().availableLabs(1));
     }
+
+    // ---------------------------------------------------------------- special functions
+
+    /**
+     * The SENSOR track is damage, and a save that lost it repaired the ship for free.
+     *
+     * This is the sharpest of the three. A ship's sensor rating drives its EW (D6.3), its
+     * lock-on odds and the number of seekers it can guide, so handing the track back returned
+     * the most valuable thing a damaged ship had lost. SpecialFunctions was not saved at all,
+     * and the round-trip test could only see the derived {@code controlUsed} — which it filed
+     * against ControlSpaces, a class that does not contain it.
+     */
+    @Test
+    public void aDamagedSensorStaysDamaged() {
+        int full = ship.getSpecialFunctions().getSensor();
+        assertTrue("fixture: a CA should have sensors to lose", full > 0);
+        // A track can repeat a value, so one hit may not move the rating. Damage until it does,
+        // which is what makes this fixture prove it created the state it is testing for.
+        while (ship.getSpecialFunctions().getSensor() == full
+                && ship.getSpecialFunctions().damageSensor()) { /* keep hitting it */ }
+        int hurt = ship.getSpecialFunctions().getSensor();
+        assertTrue("fixture: the rating should have dropped", hurt < full);
+
+        assertEquals("a reload must not repair the sensors",
+                hurt, roundTrip().getSpecialFunctions().getSensor());
+    }
+
+    /** Damage control decides how fast a ship puts out its own fires, and is lost the same way. */
+    @Test
+    public void aDamagedDamageControlStaysDamaged() {
+        int full = ship.getSpecialFunctions().getDamageControl();
+        while (ship.getSpecialFunctions().getDamageControl() == full
+                && ship.getSpecialFunctions().damageDamCon()) { /* keep hitting it */ }
+        int hurt = ship.getSpecialFunctions().getDamageControl();
+        assertTrue("fixture: the rating should have dropped", hurt < full);
+
+        assertEquals("a reload must not repair damage control",
+                hurt, roundTrip().getSpecialFunctions().getDamageControl());
+    }
+
+    /**
+     * The SCANNER track is pinned by its CONSEQUENCE rather than its rating.
+     *
+     * A Fed CA's scanner track holds the same value at every step, so shooting it out changes no
+     * number this test could read — but it still changes what the ship can absorb. Once the
+     * track is spent {@code canDamageScanner} is false, and a reload that reset the pointer
+     * would hand the ship fresh scanner boxes for the DAC to score hits on.
+     */
+    @Test
+    public void anExhaustedScannerTrackDoesNotRefill() {
+        while (ship.getSpecialFunctions().damageScanner()) { /* shoot it all away */ }
+        assertFalse("fixture: the track should be spent",
+                ship.getSpecialFunctions().canDamageScanner());
+
+        assertFalse("a reload must not hand back scanner boxes to lose",
+                roundTrip().getSpecialFunctions().canDamageScanner());
+    }
 }

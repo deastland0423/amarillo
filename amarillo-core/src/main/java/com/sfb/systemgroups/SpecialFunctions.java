@@ -268,4 +268,81 @@ public class SpecialFunctions {
 		return true;
 	}
 	
+
+	// -------------------------------------------------------------------------
+	// Saved game
+	// -------------------------------------------------------------------------
+
+	/**
+	 * The damage tracks, the spare-system counts, and the seekers this ship is guiding.
+	 *
+	 * <h2>What this class turned out to be hiding</h2>
+	 * The round-trip test named this gap {@code .controlUsed} and blamed ControlSpaces, which
+	 * was wrong on both counts: the field lives here, and it was the least of what was missing.
+	 * SpecialFunctions was not saved AT ALL, so the SENSOR, SCANNER and DAMAGE CONTROL tracks
+	 * were rebuilt from the hull and a reloaded ship came back repaired. Sensors are the worst
+	 * of the three — the rating drives EW (D6.3), lock-on and how many seekers the ship can
+	 * guide — so a save was handing back the most valuable thing a damaged ship had lost.
+	 *
+	 * <p>What is saved is the POINTER into each track, not the track: the steps themselves are
+	 * the hull's and are rebuilt with it. {@code controlChannels} travels too, because
+	 * {@code damageSensor} recomputes it as the track advances.
+	 *
+	 * <h2>controlUsed is not saved, deliberately</h2>
+	 * It is a COUNT of {@code controlledSeekers}, kept in lockstep by acquire and release. Two
+	 * records of one fact is what let a weapon's firing history contradict itself, so only the
+	 * list travels — as NAMES, resolved by Game.applyState once the seekers exist — and the
+	 * count is rebuilt from it. A count restored on its own could outlive the seekers it counted
+	 * and leave a ship unable to guide a drone it was no longer flying.
+	 */
+	public Map<String, Object> exportState() {
+		Map<String, Object> state = new java.util.LinkedHashMap<>();
+		state.put("availableDamageControl", availableDamageControl);
+		state.put("availableScanner", availableScanner);
+		state.put("availableSensor", availableSensor);
+		state.put("availableExcessDamage", availableExcessDamage);
+		state.put("availableUim", availableUim);
+		state.put("availableDerfacs", availableDerfacs);
+		state.put("controlChannels", controlChannels);
+		state.put("scoutControlBonus", scoutControlBonus);
+
+		java.util.List<String> flown = new java.util.ArrayList<>();
+		for (Seeker seeker : controlledSeekers)
+			if (seeker instanceof com.sfb.objects.Unit unit && unit.getName() != null)
+				flown.add(unit.getName());
+		state.put("controlledSeekers", flown);
+		return state;
+	}
+
+	public void applyState(Map<String, Object> state) {
+		if (state == null)
+			return;
+		availableDamageControl = StateIo.integer(state, "availableDamageControl",
+				availableDamageControl);
+		availableScanner = StateIo.integer(state, "availableScanner", availableScanner);
+		availableSensor  = StateIo.integer(state, "availableSensor", availableSensor);
+		availableExcessDamage = StateIo.integer(state, "availableExcessDamage",
+				availableExcessDamage);
+		availableUim     = StateIo.integer(state, "availableUim", availableUim);
+		availableDerfacs = StateIo.integer(state, "availableDerfacs", availableDerfacs);
+		controlChannels  = StateIo.integer(state, "controlChannels", controlChannels);
+		scoutControlBonus = StateIo.integer(state, "scoutControlBonus", scoutControlBonus);
+	}
+
+	/**
+	 * Put back a control channel a save says was already spent.
+	 *
+	 * Not {@link #acquireControl}, for the reason a fighter's equivalent is not: that method
+	 * ASKS whether the ship may take a seeker now, and a save is a record of a decision already
+	 * made under the conditions of its own moment. Re-running the limit check judges it against
+	 * the present — including a sensor track the battle has since shot down — and would silently
+	 * drop the channels of a ship that is over its limit, when what the rules want there is the
+	 * CONTROL_OVERFLOW interrupt that lets the player choose.
+	 */
+	public void restoreControl(Seeker seeker) {
+		if (seeker == null)
+			return;
+		controlledSeekers.add(seeker);
+		controlUsed++;
+	}
 }

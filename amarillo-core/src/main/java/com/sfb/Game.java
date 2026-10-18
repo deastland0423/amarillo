@@ -2362,10 +2362,53 @@ public class Game {
         problems.addAll(reviveSavedSeekers(state));
         problems.addAll(reviveSavedMines(state));
         resolveSavedCraftReferences(state);
+        resolveSavedShipControl(state);
         resolveSavedLockOns(state);
         resolveSavedTractors(state);
 
         return problems;
+    }
+
+    /**
+     * Give each ship back the seekers it was guiding (J4.222 for a fighter; D6.11 here).
+     *
+     * <h2>The same reference problem as the fighter's, one level up</h2>
+     * A ship's {@code controlledSeekers} is a list of other units, so it is restored by name
+     * through {@link #unitsByName()} once the seekers exist — exactly like a fighter's. What
+     * made it hide longer is that the round-trip test saw only the derived COUNT and filed it as
+     * {@code .controlUsed}, a gap against the wrong class entirely.
+     *
+     * <p>The count is not restored here and must not be: it is kept in lockstep with the list by
+     * {@code restoreControl}, so rebuilding the list rebuilds the count. Restoring a count on its
+     * own is the two-records-of-one-fact mistake that let a weapon's firing history contradict
+     * itself.
+     *
+     * <p>A name that does not resolve is skipped in silence. A controlled seeker can be shot
+     * down, run out of endurance or hit its target while the ship lives, and the save is simply
+     * describing a battle in which that happened.
+     */
+    private void resolveSavedShipControl(Map<String, Object> state) {
+        if (!(state.get("ships") instanceof List<?> list))
+            return;
+        Map<String, Unit> units = unitsByName();
+
+        for (Object entry : list) {
+            if (!(entry instanceof Map<?, ?> raw))
+                continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> shipState = (Map<String, Object>) raw;
+            String name = com.sfb.systemgroups.StateIo.text(shipState, "name");
+            if (!(units.get(name) instanceof Ship ship))
+                continue;
+
+            Map<String, Object> saved =
+                    com.sfb.systemgroups.StateIo.child(shipState, "specialFunctions");
+            if (saved == null)
+                continue;
+            for (String flown : savedNames(saved.get("controlledSeekers")))
+                if (units.get(flown) instanceof Seeker seeker)
+                    ship.getSpecialFunctions().restoreControl(seeker);
+        }
     }
 
     /**

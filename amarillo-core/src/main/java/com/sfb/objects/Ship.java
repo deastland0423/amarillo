@@ -2054,6 +2054,7 @@ public class Ship extends Unit implements DroneController {
 		state.put("crew", crew.exportState());
 		state.put("weapons", weapons.exportState());
 		state.put("controlSpaces", controlSpaces.exportState());
+		state.put("specialFunctions", specialFunctions.exportState());
 		state.put("labs", labs.exportState());
 		state.put("transporters", transporters.exportState());
 		if (cloak != null)
@@ -2141,6 +2142,7 @@ public class Ship extends Unit implements DroneController {
 		crew.applyState(StateIo.child(state, "crew"));
 		weapons.applyState(StateIo.child(state, "weapons"));
 		controlSpaces.applyState(StateIo.child(state, "controlSpaces"));
+		specialFunctions.applyState(StateIo.child(state, "specialFunctions"));
 		labs.applyState(StateIo.child(state, "labs"));
 		transporters.applyState(StateIo.child(state, "transporters"));
 		if (cloak != null)

@@ -70,8 +70,7 @@ public class GameStateRoundTripTest {
      * names, and everything either side of it stays checked. Switching to fragments is what
      * surfaced both of the entries below, which the coarse version had been hiding.
      */
-    private static final Map<String, String> KNOWN_GAPS = Map.of(
-            ".controlUsed", "ControlSpaces is not converted yet (slice D3c)");
+    private static final Map<String, String> KNOWN_GAPS = Map.of();
 
     /** Everything the scenario rebuilds, plus everything the battle did to it. */
     @Test
@@ -518,6 +517,55 @@ public class GameStateRoundTripTest {
         assertTrue("the player must be told: " + problems,
                 problems.stream().anyMatch(p -> p.contains("Hood-Shuttle-1")));
         assertTrue(rebuilt.getActiveShuttles().isEmpty());
+    }
+
+    // ---------------------------------------------------------------- seeker control
+
+    /**
+     * A ship keeps guiding the drone it launched (D6.11), and keeps the channel it spent.
+     *
+     * The LIST is what travels; {@code controlUsed} is a count kept in lockstep with it and is
+     * rebuilt rather than saved, because two records of one fact is how a weapon's firing
+     * history came to contradict itself. So this asserts both halves: the channel is spent, and
+     * it is spent on the RESTORED drone rather than on a name that no longer means anything.
+     */
+    @Test
+    public void aShipKeepsGuidingTheDroneItLaunched() {
+        Game before = battleInProgress();
+        Ship blade = shipNamed(before, "IKV Blade");
+        assertEquals("fixture: the Blade should be guiding its drone", 1,
+                blade.getSpecialFunctions().getControlUsed());
+
+        Game after = roundTrip(before);
+        Ship restoredBlade = shipNamed(after, "IKV Blade");
+
+        assertEquals("the channel must still be spent (J4.25 counts these)",
+                1, restoredBlade.getSpecialFunctions().getControlUsed());
+        assertEquals(1, restoredBlade.getSpecialFunctions().getControlledSeekers().size());
+        assertSame("and on the RESTORED drone",
+                after.getSeekers().get(0),
+                restoredBlade.getSpecialFunctions().getControlledSeekers().get(0));
+    }
+
+    /**
+     * A ship that loses its sensors mid-battle must come back having lost them.
+     *
+     * Pinned here as well as in ShipSystemsSaveTest because this is the level where it bites:
+     * the sensor rating sets the control limit, so a reload that repaired the track would also
+     * quietly restore channels the battle had taken away.
+     */
+    @Test
+    public void aShipDoesNotGetItsSensorsBack() {
+        Game before = battleInProgress();
+        Ship hood = shipNamed(before, "USS Hood");
+        int full = hood.getSpecialFunctions().getSensor();
+        while (hood.getSpecialFunctions().getSensor() == full
+                && hood.getSpecialFunctions().damageSensor()) { /* keep hitting it */ }
+        int hurt = hood.getSpecialFunctions().getSensor();
+        assertTrue("fixture: the rating should have dropped", hurt < full);
+
+        assertEquals("the sensors must stay shot out", hurt,
+                shipNamed(roundTrip(before), "USS Hood").getSpecialFunctions().getSensor());
     }
 
     // ---------------------------------------------------------------- mines
