@@ -460,6 +460,7 @@ export interface ShipObject extends MapObjectBase {
   turnMode?:         string;    // e.g. "A", "B", "C"
   turnHexes?:        number;    // hexes required between turns at current speed
   hexesUntilTurn?:   number;    // 0 = may turn now; >0 = hexes still needed
+  canSideslip?:      boolean;   // C2.44: one hex of movement since the last sideslip
   captured?:              boolean;   // true after all control rooms taken (D7.50)
   disengaged?:            boolean;   // true after ship voluntarily exits the map
   canDisengageBySeparation?: boolean; // true when ship is >50 hexes from all enemies with no seekers targeting it

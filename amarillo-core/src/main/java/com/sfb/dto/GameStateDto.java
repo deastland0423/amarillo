@@ -757,6 +757,8 @@ public class GameStateDto {
         public String tokenArt; // optional path to PNG token image
         // Turn mode display helpers
         public String turnMode; // e.g. "A", "B", "C"
+        /** C2.44: true when a sideslip is legal now — one hex of movement since the last. */
+        public boolean canSideslip;
         public int turnHexes; // hexes required between turns at current speed
         public int hexesUntilTurn; // 0 = may turn now; >0 = hexes still needed
         // Capture / disengagement state
@@ -1776,6 +1778,10 @@ public class GameStateDto {
         boolean turns = ship.getTurnMode() != null;
         dto.turnHexes = turns ? ship.getTurnHexes() : 0;
         dto.hexesUntilTurn = turns ? Math.max(0, ship.getTurnHexes() - ship.getTurnCount()) : 0;
+        // C2.44: a sideslip needs one hex of movement since the last one. Sent so the client can
+        // grey the sideslip buttons the way it already greys HET, instead of accepting a click
+        // the engine will refuse without saying why.
+        dto.canSideslip = ship.canSideslip();
         dto.lockOnTargets = ship.getLockOns().stream()
                 .map(com.sfb.objects.Unit::getName)
                 .collect(java.util.stream.Collectors.toList());

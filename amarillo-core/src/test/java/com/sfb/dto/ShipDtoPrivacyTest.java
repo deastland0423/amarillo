@@ -121,8 +121,14 @@ public class ShipDtoPrivacyTest {
         // so anyone who can see it already knows which face it is on. Withholding it would hide
         // nothing and would stop a targeting chooser saying why a base is out of reach.
         "planetFace",
-        // Movement, which is watched
+        // Movement, which is watched.
+        //
+        // canSideslip sits here for the same reason hexesUntilTurn does: it is derived from how
+        // many hexes the ship has moved since its last sideslip (C2.44), and every one of those
+        // moves happened in the open. Withholding it would hide nothing an opponent could not
+        // count for themselves, and would stop the move grid saying why a button is greyed.
         "facing", "speed", "tractorTrueSpeed", "turnMode", "turnHexes", "hexesUntilTurn",
+        "canSideslip",
         "moveCost", "maxSpeedNextTurn", "decelerating", "decelerationEndsAtImpulse",
         "immobileUntilImpulse", "canDisengageBySeparation", "destructionDirections",
         "hetsThisTurn", "lastHetImpulse", "hetCost", "usingEm", "emPending",

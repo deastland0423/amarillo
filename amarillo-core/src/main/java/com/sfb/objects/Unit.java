@@ -273,6 +273,18 @@ public class Unit extends Marker implements Tractorable {
 		return false;
 	}
 
+	/**
+	 * Whether a sideslip is legal right now: the unit must have moved at least one hex since its
+	 * last one (C2.44).
+	 *
+	 * Exposed so a client can GREY THE BUTTON rather than letting a player press it and have the
+	 * move silently refused — the same courtesy the HET button already gets. The rule itself
+	 * stays in {@link #sideslipLeft()}; this only reports it.
+	 */
+	public boolean canSideslip() {
+		return sideslipCount > 0;
+	}
+
 	public int getTurnCount() {
 		return turnCount;
 	}

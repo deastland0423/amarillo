@@ -5,6 +5,7 @@ import type { MapObject, ShipObject, ShuttleObject, DroneObject, ObjectiveObject
 import { factionColor, parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import { bearsOn, hexRangeBetween as hexRange } from '../hex/geometry';
+import { moveRefusal } from '../game/moveLegality';
 import HexGrid from './HexGrid';
 import WeaponFullTable from './WeaponFullTable';
 import SsdPanel from './SsdPanel';
@@ -551,6 +552,11 @@ function ShuttleMovementPanel({
             </div>
           )}
           <div className="move-grid">
+            {/* NOT gated by moveRefusal, unlike the ship grid below: the shuttle DTO carries
+                neither a turn mode nor a sideslip flag, and C2.44 applies to a craft as much as
+                a ship — so the honest state here is "the client does not know", and greying a
+                legal button is worse than offering an illegal one. Add canSideslip to ShuttleDto
+                and this becomes the same three lines. */}
             {MOVE_BUTTONS.map(btn => (
               <button
                 key={btn.action}
@@ -952,18 +958,22 @@ function ShipSidebar({
                 </div>
               )}
               <div className="move-grid">
-                {MOVE_BUTTONS.map(btn => (
-                  <button
-                    key={btn.action}
-                    className="move-btn secondary"
-                    style={{ gridRow: btn.row, gridColumn: btn.col }}
-                    disabled={!canMove || btn.alwaysDisabled}
-                    onClick={() => onMove(btn.action)}
-                    title={btn.action.replace(/_/g, ' ').toLowerCase()}
-                  >
-                    {btn.label}
-                  </button>
-                ))}
+                {MOVE_BUTTONS.map(btn => {
+                  // Greyed WITH THE REASON, like the HET button below it.
+                  const refusal = moveRefusal(btn.action, ship);
+                  return (
+                    <button
+                      key={btn.action}
+                      className="move-btn secondary"
+                      style={{ gridRow: btn.row, gridColumn: btn.col }}
+                      disabled={!canMove || btn.alwaysDisabled || refusal !== null}
+                      onClick={() => onMove(btn.action)}
+                      title={refusal ?? btn.action.replace(/_/g, ' ').toLowerCase()}
+                    >
+                      {btn.label}
+                    </button>
+                  );
+                })}
               </div>
 
               {/* HET button + facing picker */}
