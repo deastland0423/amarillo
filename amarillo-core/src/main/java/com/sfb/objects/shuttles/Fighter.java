@@ -615,6 +615,28 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
         return new java.util.ArrayList<>(controlledSeekers);
     }
 
+    /**
+     * Put a channel back that a saved game says was already spent.
+     *
+     * <h2>Why this is not {@link #acquireControl}</h2>
+     * {@code acquireControl} ASKS whether this fighter may take a seeker now. A save is not an
+     * ask — the fighter took it earlier in the battle, under the conditions of that moment, and
+     * those conditions were judged then. Re-running the gate judges a past decision against the
+     * present state and quietly loses the channel when they differ: the EM check alone would
+     * drop every drone a fighter is guiding.
+     *
+     * <h2>And it is not the same fact as the seeker's controller</h2>
+     * Both are saved because they genuinely differ. A SELF-GUIDING drone takes no channel — the
+     * launch path short-circuits past {@code acquireControl} — but is still given the fighter as
+     * its controller, so it names the fighter while occupying nothing. Deriving this list from
+     * the seekers would hand the fighter back a channel it never spent, and J4.25's capacity is
+     * exactly what that channel count is for.
+     */
+    public void restoreControl(com.sfb.objects.Seeker seeker) {
+        if (seeker != null)
+            controlledSeekers.add(seeker);
+    }
+
     // --- Lock-on (D6.121). A fighter holds its own; see LockOnResolver. ---
 
     @Override

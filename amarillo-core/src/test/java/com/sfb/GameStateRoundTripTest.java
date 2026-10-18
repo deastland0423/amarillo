@@ -520,6 +520,136 @@ public class GameStateRoundTripTest {
         assertTrue(rebuilt.getActiveShuttles().isEmpty());
     }
 
+    // ------------------------------------------------- what a craft in flight is holding
+
+    /**
+     * A fighter in flight, already in the game, with the catalogue loaded for it.
+     *
+     * An F-18 rather than a stinger, because the stinger carries no drone rails and a fighter
+     * with no rails has a control capacity of zero by J4.25 — a correct refusal that would have
+     * made the control tests below untestable rather than failing.
+     */
+    private static com.sfb.objects.shuttles.Fighter fighterInFlight(Game game, String name) {
+        try {
+            com.sfb.objects.ShuttleCatalog.loadDefault("../data");
+        } catch (Exception e) {
+            throw new AssertionError("fixture: the shuttle catalogue should load", e);
+        }
+        com.sfb.objects.shuttles.Fighter fighter =
+                com.sfb.objects.shuttles.CataloguedFighter.of("f18");
+        fighter.setName(name);
+        fighter.setLocation(new com.sfb.properties.Location(11, 11));
+        fighter.setFacing(1);
+        game.getActiveShuttles().add(fighter);
+        return fighter;
+    }
+
+    private static com.sfb.objects.shuttles.Fighter restoredFighter(Game game, String name) {
+        for (com.sfb.objects.shuttles.Shuttle craft : game.getActiveShuttles())
+            if (name.equals(craft.getName())
+                    && craft instanceof com.sfb.objects.shuttles.Fighter fighter)
+                return fighter;
+        throw new AssertionError(name + " did not survive the save");
+    }
+
+    /**
+     * A fighter holds a lock-on of its own (D6.121), and it must come back pointing at the
+     * RESTORED ship rather than dangling.
+     *
+     * The names were written into the save by slice 1 and read by nothing, so a fighter returned
+     * from a reload unable to fire at the ship it had been locked onto all battle.
+     */
+    @Test
+    public void aFightersLockOnPointsAtTheRestoredShip() {
+        Game before = battleInProgress();
+        com.sfb.objects.shuttles.Fighter fighter = fighterInFlight(before, "Hood-F18-1");
+        fighter.addLockOn(shipNamed(before, "IKV Blade"));
+
+        Game after = roundTrip(before);
+
+        com.sfb.objects.shuttles.Fighter restored = restoredFighter(after, "Hood-F18-1");
+        assertEquals("the lock must survive the save", 1, restored.getLockOns().size());
+        assertSame("and point at the RESTORED Blade, not the saved one",
+                shipNamed(after, "IKV Blade"), restored.getLockOns().iterator().next());
+    }
+
+    /**
+     * A drone flown by a fighter (J4.222) keeps its pilot, and the pilot keeps the channel.
+     *
+     * <h2>Both halves were broken, for different reasons</h2>
+     * The drone lost its controller because of ORDER: slice 2 revived craft after the seekers
+     * had already resolved their references, so the fighter did not exist at the moment the
+     * drone went looking for it. The name was in the save; there was nothing of that name to
+     * find. The fighter lost the channel because nothing read its saved list back at all.
+     */
+    @Test
+    public void aDroneFlownByAFighterKeepsItsPilotAndTheFighterKeepsTheChannel() {
+        Game before = battleInProgress();
+        com.sfb.objects.shuttles.Fighter fighter = fighterInFlight(before, "Hood-F18-1");
+        com.sfb.objects.Drone flown = droneFrom(before, "Hood-F18-1-Drone-1");
+        flown.setController(fighter);
+        assertTrue("fixture: the fighter should have a channel free",
+                fighter.acquireControl(flown));
+
+        Game after = roundTrip(before);
+
+        com.sfb.objects.shuttles.Fighter restored = restoredFighter(after, "Hood-F18-1");
+        com.sfb.objects.Drone restoredDrone = droneNamed(after, "Hood-F18-1-Drone-1");
+        assertSame("the drone must be flown by the RESTORED fighter",
+                restored, restoredDrone.getController());
+        assertEquals("and the fighter must still be spending that channel (J4.25)",
+                1, restored.getControlledSeekers().size());
+        assertSame(restoredDrone, restored.getControlledSeekers().get(0));
+    }
+
+    /**
+     * A SELF-GUIDING drone names the fighter as its controller but spends none of its channels,
+     * because the launch path short-circuits past {@code acquireControl} entirely.
+     *
+     * That asymmetry is why the save carries both records instead of deriving the fighter's list
+     * from the seekers: deriving it would hand back a channel that was never spent, and J4.25's
+     * capacity is the whole point of counting them.
+     */
+    @Test
+    public void aSelfGuidingDroneDoesNotGiveTheFighterBackAChannel() {
+        Game before = battleInProgress();
+        com.sfb.objects.shuttles.Fighter fighter = fighterInFlight(before, "Hood-F18-1");
+        com.sfb.objects.Drone loose = droneFrom(before, "Hood-F18-1-Drone-2");
+        loose.setSelfGuiding(true);
+        loose.setController(fighter);
+        assertEquals("fixture: no channel is spent on a self-guiding drone",
+                0, fighter.getControlledSeekers().size());
+
+        Game after = roundTrip(before);
+
+        com.sfb.objects.shuttles.Fighter restored = restoredFighter(after, "Hood-F18-1");
+        assertSame("it still answers to the fighter",
+                restored, droneNamed(after, "Hood-F18-1-Drone-2").getController());
+        assertEquals("but the fighter gets no channel back",
+                0, restored.getControlledSeekers().size());
+    }
+
+    /** A drone in flight, built like the fixture's, added to the game. */
+    private static com.sfb.objects.Drone droneFrom(Game game, String name) {
+        com.sfb.objects.Drone existing = (com.sfb.objects.Drone) game.getSeekers().get(0);
+        com.sfb.objects.Drone drone = new com.sfb.objects.Drone(existing.getDroneType());
+        drone.setName(name);
+        drone.setLocation(new com.sfb.properties.Location(11, 12));
+        drone.setFacing(1);
+        drone.setSpeed(32);
+        drone.setTarget(shipNamed(game, "IKV Blade"));
+        drone.setLaunchImpulse(game.getClock().getImpulse());
+        game.getSeekers().add(drone);
+        return drone;
+    }
+
+    private static com.sfb.objects.Drone droneNamed(Game game, String name) {
+        for (Seeker seeker : game.getSeekers())
+            if (seeker instanceof com.sfb.objects.Drone drone && name.equals(drone.getName()))
+                return drone;
+        throw new AssertionError(name + " did not survive the save");
+    }
+
     // ---------------------------------------------------------------- ships
 
     @Test

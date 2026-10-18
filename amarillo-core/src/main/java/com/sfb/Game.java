@@ -2329,15 +2329,24 @@ public class Game {
             problems.add(missing + " is in the save but not in the scenario");
 
         // ---- pass two: references between units ----
-        // ORDER MATTERS HERE. Seekers are revived BEFORE lock-ons are resolved, because a ship
-        // can hold a lock on an incoming drone — lockOns is a Set<Unit>, not a set of ships — and
-        // a drone that does not exist yet cannot be pointed at. Resolving locks first silently
-        // dropped every lock held on a weapon in flight, which is exactly the lock a player most
-        // wants back: the one their point defence was about to use.
+        //
+        // ORDER MATTERS HERE, and the order is the ownership chain. A craft belongs to a ship,
+        // and a seeker is flown by a ship OR by a craft (J4.222), so each kind of unit must
+        // already exist before the next kind looks for it by name:
+        //
+        //     ships (pass one)  ->  craft in flight  ->  seekers  ->  references among them
+        //
+        // Every departure from that order has cost something real. Resolving lock-ons before
+        // the seekers existed dropped every lock held on a weapon in flight — exactly the lock
+        // a player most wants back, the one their point defence was about to use. And reviving
+        // craft AFTER the seekers, which is how slice 2 left it, meant a drone flown by a
+        // fighter came back with no controller at all: the name was in the save and there was
+        // simply nothing of that name to find.
         retireSavedDestroyedShips(state, problems);
         restoreSavedOwnership(state, problems);
-        problems.addAll(reviveSavedSeekers(state));
         problems.addAll(reviveSavedCraft(state));
+        problems.addAll(reviveSavedSeekers(state));
+        resolveSavedCraftReferences(state);
         resolveSavedLockOns(state);
         resolveSavedTractors(state);
 
@@ -2380,6 +2389,49 @@ public class Game {
                 Unit unit = units.get(target);
                 if (unit != null)
                     ship.addTractorLockOn(unit);
+            }
+        }
+    }
+
+    /**
+     * Re-point what a craft in flight was holding: its lock-ons, and the seekers it is guiding.
+     *
+     * <h2>Why a fighter needs its own pass</h2>
+     * A fighter holds a lock-on of its own (D6.121) and guides its own drones (J4.222), so it
+     * has the same two reference sets a ship has and they are restored the same way — by name,
+     * through {@link #unitsByName()}, once everything exists. Slice 1 wrote those names into
+     * the save; until this, nothing read them back, so a fighter returned from a save unable to
+     * fire at the ship it was locked onto and with its drones flying unguided.
+     *
+     * <p>Only craft IN FLIGHT are walked. One sitting in a bay has nothing to be locked onto
+     * and nothing in the air to guide, and its state travels inside its bay box rather than here.
+     *
+     * <p>An unresolved name is left out and not reported, for the same reason a seeker's dangling
+     * target is: a locked-onto unit can be destroyed while the fighter lives, and that is an
+     * ordinary outcome of the battle rather than a fault in the save.
+     */
+    private void resolveSavedCraftReferences(Map<String, Object> state) {
+        if (!(state.get("activeShuttles") instanceof List<?> list))
+            return;
+        Map<String, Unit> units = unitsByName();
+
+        for (Object entry : list) {
+            if (!(entry instanceof Map<?, ?> raw))
+                continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> saved = (Map<String, Object>) raw;
+            String name = com.sfb.systemgroups.StateIo.text(saved, "name");
+            if (!(units.get(name) instanceof com.sfb.objects.shuttles.Fighter fighter))
+                continue;
+
+            for (String target : savedNames(saved.get("lockOns"))) {
+                Unit unit = units.get(target);
+                if (unit != null)
+                    fighter.addLockOn(unit);
+            }
+            for (String flown : savedNames(saved.get("controlledSeekers"))) {
+                if (units.get(flown) instanceof Seeker seeker)
+                    fighter.restoreControl(seeker);
             }
         }
     }
@@ -2477,10 +2529,11 @@ public class Game {
         if (!(raw instanceof List<?> list))
             return problems;
 
-        Map<String, Unit> units = new java.util.HashMap<>();
-        for (Ship ship : ships)
-            if (ship.getName() != null)
-                units.put(ship.getName(), ship);
+        // Cleared first so the map below is built from what is really there. It includes the
+        // CRAFT IN FLIGHT, which is the whole reason this runs after they are rebuilt: a
+        // fighter can be what a seeker is chasing, and can be the unit flying it (J4.222).
+        seekers.clear();
+        Map<String, Unit> units = unitsByName();
 
         // ---- pass one: build every weapon, WITHOUT its references ----
         //
@@ -2497,7 +2550,6 @@ public class Game {
         }
         List<Revived> revivedSeekers = new ArrayList<>();
 
-        seekers.clear();
         for (Object entry : list) {
             if (!(entry instanceof Map<?, ?> rawEntry))
                 continue;
