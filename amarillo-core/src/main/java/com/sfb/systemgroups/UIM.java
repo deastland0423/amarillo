@@ -105,4 +105,33 @@ public class UIM implements Systems {
         }
         return false;
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game (see Systems.exportState)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Whether the UIM has burned out, which is PERMANENT for the scenario.
+     *
+     * D6.522: "UIMs cannot be repaired during a scenario. They can be repaired between scenarios
+     * using the campaign repair system (D9.4)." So this is not a per-turn flag that will sort
+     * itself out — a reload that forgot it would silently un-break a device the player had
+     * already lost, and go on doing so for the rest of the battle.
+     */
+    @Override
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("damaged", damaged);
+        state.put("lastBurnoutRoll", lastBurnoutRoll);
+        return state;
+    }
+
+    @Override
+    public void applyState(java.util.Map<String, Object> state) {
+        if (state == null)
+            return;
+        damaged = com.sfb.systemgroups.StateIo.flag(state, "damaged", damaged);
+        lastBurnoutRoll = com.sfb.systemgroups.StateIo.integer(state, "lastBurnoutRoll",
+                lastBurnoutRoll);
+    }
 }

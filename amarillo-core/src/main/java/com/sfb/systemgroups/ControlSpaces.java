@@ -274,4 +274,49 @@ public class ControlSpaces implements Systems {
 	public Unit fetchOwningUnit() {
 		return this.owningUnit;
 	}
+
+	// -------------------------------------------------------------------------
+	// Saved game (see Systems.exportState)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Which control boxes survive, and which the enemy is sitting in.
+	 *
+	 * The originals ({@code bridge} and friends) are what the SSD prints and are rebuilt from the
+	 * hull. Two things the battle changes are here: the AVAILABLE counts, which damage reduces,
+	 * and the CAPTURED counts, which are control spaces held by enemy boarding parties (D16.0).
+	 * A captured bridge decides who may use what the ship can still do, so losing it on a reload
+	 * would hand a boarded ship back to its original crew for nothing.
+	 */
+	@Override
+	public Map<String, Object> exportState() {
+		Map<String, Object> state = new java.util.LinkedHashMap<>();
+		state.put("bridge", availableBridge);
+		state.put("flag", availableFlag);
+		state.put("emer", availableEmer);
+		state.put("auxcon", availableAuxcon);
+		state.put("security", availableSecurity);
+		state.put("capturedBridge", capturedBridge);
+		state.put("capturedFlag", capturedFlag);
+		state.put("capturedEmer", capturedEmer);
+		state.put("capturedAuxcon", capturedAuxcon);
+		state.put("capturedSecurity", capturedSecurity);
+		return state;
+	}
+
+	@Override
+	public void applyState(Map<String, Object> state) {
+		if (state == null)
+			return;
+		availableBridge   = StateIo.integer(state, "bridge", availableBridge);
+		availableFlag     = StateIo.integer(state, "flag", availableFlag);
+		availableEmer     = StateIo.integer(state, "emer", availableEmer);
+		availableAuxcon   = StateIo.integer(state, "auxcon", availableAuxcon);
+		availableSecurity = StateIo.integer(state, "security", availableSecurity);
+		capturedBridge    = StateIo.integer(state, "capturedBridge", capturedBridge);
+		capturedFlag      = StateIo.integer(state, "capturedFlag", capturedFlag);
+		capturedEmer      = StateIo.integer(state, "capturedEmer", capturedEmer);
+		capturedAuxcon    = StateIo.integer(state, "capturedAuxcon", capturedAuxcon);
+		capturedSecurity  = StateIo.integer(state, "capturedSecurity", capturedSecurity);
+	}
 }

@@ -109,4 +109,34 @@ public class CargoDroneStore {
         return "cargo drones " + spacesHeld + "/" + capacitySpaces
                 + " spaces (" + spacesPerBox + " a box)";
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game (see Systems.exportState)
+    // -------------------------------------------------------------------------
+
+    /**
+     * How much of the cargo drone store is still full.
+     *
+     * Ammunition, and therefore the same class of problem a drone rack had: {@code spacesHeld}
+     * is what the battle has drawn down, and restoring it from the hull would quietly refill the
+     * hold. {@code capacitySpaces} is saved too because cargo boxes can be destroyed, which
+     * shrinks the store itself rather than its contents.
+     *
+     * <p>Not a Systems implementation — a helper owned by whoever holds the store, so its state
+     * is spliced into theirs rather than registered on its own, the same way BoxCycle is.
+     */
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("capacitySpaces", capacitySpaces);
+        state.put("spacesHeld", spacesHeld);
+        return state;
+    }
+
+    public void applyState(java.util.Map<String, Object> state) {
+        if (state == null)
+            return;
+        capacitySpaces = com.sfb.systemgroups.StateIo.integer(state, "capacitySpaces",
+                capacitySpaces);
+        spacesHeld = com.sfb.systemgroups.StateIo.integer(state, "spacesHeld", spacesHeld);
+    }
 }

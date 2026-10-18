@@ -2044,6 +2044,21 @@ public class Ship extends Unit implements DroneController {
 		state.put("powerSystems", powerSystems.exportState());
 		state.put("crew", crew.exportState());
 		state.put("weapons", weapons.exportState());
+		state.put("controlSpaces", controlSpaces.exportState());
+		state.put("labs", labs.exportState());
+		state.put("transporters", transporters.exportState());
+		if (cloak != null)
+			state.put("cloak", cloak.exportState());
+		if (cargoDroneStore != null)
+			state.put("cargoDroneStore", cargoDroneStore.exportState());
+		// UIMs are a LIST and are saved positionally, which is safe here and nowhere else: they
+		// are identical, anonymous modules rebuilt in a fixed number from the hull, with no
+		// designator to key on. D6.522 makes a burnout permanent for the scenario, so what
+		// matters is HOW MANY are broken, not which.
+		java.util.List<Object> uimStates = new java.util.ArrayList<>();
+		for (com.sfb.systemgroups.UIM uim : uims)
+			uimStates.add(uim.exportState());
+		state.put("uims", uimStates);
 
 		// Lock-ons are written as NAMES, and are deliberately not restored by applyState: a lock
 		// is a reference to another unit, and a ship being rebuilt in isolation has nothing to
@@ -2107,6 +2122,20 @@ public class Ship extends Unit implements DroneController {
 		powerSystems.applyState(StateIo.child(state, "powerSystems"));
 		crew.applyState(StateIo.child(state, "crew"));
 		weapons.applyState(StateIo.child(state, "weapons"));
+		controlSpaces.applyState(StateIo.child(state, "controlSpaces"));
+		labs.applyState(StateIo.child(state, "labs"));
+		transporters.applyState(StateIo.child(state, "transporters"));
+		if (cloak != null)
+			cloak.applyState(StateIo.child(state, "cloak"));
+		if (cargoDroneStore != null)
+			cargoDroneStore.applyState(StateIo.child(state, "cargoDroneStore"));
+		if (state.get("uims") instanceof java.util.List<?> savedUims)
+			for (int i = 0; i < Math.min(savedUims.size(), uims.size()); i++)
+				if (savedUims.get(i) instanceof java.util.Map<?, ?> raw) {
+					@SuppressWarnings("unchecked")
+					java.util.Map<String, Object> uimState = (java.util.Map<String, Object>) raw;
+					uims.get(i).applyState(uimState);
+				}
 	}
 
 	public Shields getShields() {

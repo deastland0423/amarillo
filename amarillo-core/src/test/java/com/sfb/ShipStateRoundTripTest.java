@@ -345,6 +345,18 @@ public class ShipStateRoundTripTest {
         }
         ship.getWeapons().fetchAllWeapons().get(0).damage();
 
+        // Control spaces, labs and the transporter bank — disturbed because the net only ever
+        // detects an omission in state the fixture actually CHANGES. An untouched system
+        // compares equal and proves nothing, which this file has now learned three times.
+        ship.getControlSpaces().damageBridge();
+        ship.getControlSpaces().damageSecurity();
+        ship.getLabs().useLab(12);
+        ship.getLabs().damage();
+        for (com.sfb.systemgroups.UIM uim : ship.getUims()) {
+            uim.damage();   // D6.522: a burnout is permanent for the scenario
+            break;
+        }
+
         ship.setFacing(9);
         ship.setSpeed(16);
         ship.setLocation(new com.sfb.properties.Location(21, 17));

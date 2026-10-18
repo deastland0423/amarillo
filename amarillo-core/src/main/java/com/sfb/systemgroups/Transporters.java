@@ -159,4 +159,34 @@ public class Transporters implements Systems {
 		return this.owningShip;
 	}
 
+
+	// -------------------------------------------------------------------------
+	// Saved game (see Systems.exportState)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Energy banked for transporter use and how much of it has been spent, plus which boxes are
+	 * busy.
+	 *
+	 * The boxes are the part that matters beyond this turn: a transporter used stays unavailable
+	 * for the longer of the next turn or eight impulses, and {@link BoxCycle} holds the
+	 * timestamps that decide it.
+	 */
+	@Override
+	public Map<String, Object> exportState() {
+		Map<String, Object> state = new java.util.LinkedHashMap<>();
+		state.put("bankedEnergy", bankedEnergy);
+		state.put("energyUsed", energyUsed);
+		state.put("boxes", boxes.exportState());
+		return state;
+	}
+
+	@Override
+	public void applyState(Map<String, Object> state) {
+		if (state == null)
+			return;
+		bankedEnergy = StateIo.real(state, "bankedEnergy", bankedEnergy);
+		energyUsed   = StateIo.real(state, "energyUsed", energyUsed);
+		boxes.applyState(StateIo.child(state, "boxes"));
+	}
 }

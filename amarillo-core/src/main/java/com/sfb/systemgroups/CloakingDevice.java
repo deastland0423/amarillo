@@ -320,4 +320,56 @@ public class CloakingDevice implements Systems {
         if (state != CloakState.FADING_OUT && state != CloakState.FADING_IN) return 0;
         return Math.max(1, Math.min(FADE_IMPULSES, impulsesElapsed(currentImpulse)));
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game (see Systems.exportState)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Whether the ship is cloaked, and how far through a transition it is.
+     *
+     * The most visible thing in this file: a cloaked ship that reloads UNCLOAKED is simply a
+     * different tactical position, and G13's fade is a timed sequence — {@code transitionImpulse}
+     * is when it started, and the five-impulse fade is measured from it, so dropping it would
+     * either finish the fade instantly or strand the ship mid-transition for ever.
+     *
+     * <p>The per-turn flags go too. They are not scratch: {@code cloakedThisTurn} and
+     * {@code uncloakedThisTurn} enforce G13's once-a-turn limits, and {@code costPaidThisTurn}
+     * is energy already spent — restoring it as false would charge the player twice or let them
+     * cloak again for free, depending on which way the check falls.
+     */
+    @Override
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("state", this.state == null ? null : this.state.name());
+        state.put("damaged", damaged);
+        state.put("transitionImpulse", transitionImpulse);
+        state.put("cloakedThisTurn", cloakedThisTurn);
+        state.put("uncloakedThisTurn", uncloakedThisTurn);
+        state.put("costPaidThisTurn", costPaidThisTurn);
+        return state;
+    }
+
+    @Override
+    public void applyState(java.util.Map<String, Object> state) {
+        if (state == null)
+            return;
+        String saved = com.sfb.systemgroups.StateIo.text(state, "state");
+        if (saved != null) {
+            try {
+                this.state = CloakState.valueOf(saved);
+            } catch (IllegalArgumentException e) {
+                this.state = CloakState.INACTIVE;
+            }
+        }
+        damaged = com.sfb.systemgroups.StateIo.flag(state, "damaged", damaged);
+        transitionImpulse = com.sfb.systemgroups.StateIo.integer(state, "transitionImpulse",
+                transitionImpulse);
+        cloakedThisTurn = com.sfb.systemgroups.StateIo.flag(state, "cloakedThisTurn",
+                cloakedThisTurn);
+        uncloakedThisTurn = com.sfb.systemgroups.StateIo.flag(state, "uncloakedThisTurn",
+                uncloakedThisTurn);
+        costPaidThisTurn = com.sfb.systemgroups.StateIo.flag(state, "costPaidThisTurn",
+                costPaidThisTurn);
+    }
 }

@@ -172,4 +172,29 @@ public class Labs implements Systems {
 		return researchPerLab * boxes.functioning();
 	}
 
+
+	// -------------------------------------------------------------------------
+	// Saved game (see Systems.exportState)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Which lab boxes survive and when each was last used.
+	 *
+	 * Both halves matter and neither is obvious. A lab that identified something late last turn
+	 * is still inside G4.451's quarter-turn delay, so the timestamps decide what the ship can do
+	 * now; and a lab shot off the SSD must stay off.
+	 */
+	@Override
+	public Map<String, Object> exportState() {
+		Map<String, Object> state = new java.util.LinkedHashMap<>();
+		state.put("boxes", boxes.exportState());
+		return state;
+	}
+
+	@Override
+	public void applyState(Map<String, Object> state) {
+		if (state == null)
+			return;
+		boxes.applyState(StateIo.child(state, "boxes"));
+	}
 }

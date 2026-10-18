@@ -224,4 +224,57 @@ public class BoxCycle {
     public static int turnOf(int absoluteImpulse) {
         return (absoluteImpulse - 1) / IMPULSES_PER_TURN;
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game
+    // -------------------------------------------------------------------------
+
+    /**
+     * Which boxes still exist, and when each was last used.
+     *
+     * Both halves are battle state and neither is obvious. A box shot off the SSD is REMOVED
+     * from this list, so the surviving NUMBERS are what damage has left; and a box used recently
+     * is unavailable for the longer of the next turn or eight impulses, so the timestamps decide
+     * what the ship can do right now.
+     *
+     * <p>Saved as number/lastUsed PAIRS rather than as a count and a list of times, because the
+     * number is the identity: destroying a box removes it and everything after would otherwise
+     * shift, so a hit-and-run raid that named a box (D7.835) or a scout channel holding one
+     * across four attempts (G24.251) would quietly follow the wrong one.
+     *
+     * <p>Not a Systems implementation — this is a helper that Labs, Transporters and TractorBeam
+     * each own one of, so it is spliced into their state rather than registered on its own.
+     */
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("total", total);
+        java.util.List<java.util.Map<String, Object>> saved = new java.util.ArrayList<>();
+        for (Box box : boxes) {
+            java.util.Map<String, Object> one = new java.util.LinkedHashMap<>();
+            one.put("number", box.number);
+            one.put("lastUsed", box.lastUsed);
+            saved.add(one);
+        }
+        state.put("boxes", saved);
+        return state;
+    }
+
+    public void applyState(java.util.Map<String, Object> state) {
+        if (state == null)
+            return;
+        total = StateIo.integer(state, "total", total);
+        if (!(state.get("boxes") instanceof java.util.List<?> list))
+            return;
+        boxes.clear();
+        for (Object item : list) {
+            if (!(item instanceof java.util.Map<?, ?> raw))
+                continue;
+            if (!(raw.get("number") instanceof Number number))
+                continue;
+            Box box = new Box(number.intValue());
+            if (raw.get("lastUsed") instanceof Number used)
+                box.lastUsed = used.intValue();
+            boxes.add(box);
+        }
+    }
 }
