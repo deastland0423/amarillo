@@ -2467,7 +2467,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [declarationEw, setDeclarationEw] = useState<Record<string, { ecm: number; eccm: number }>>({});
   const [committedRound, setCommittedRound] = useState<string | null>(null);
   const [showCommitConfirm, setShowCommitConfirm] = useState(false);
-  const [confirmExit, setConfirmExit] = useState<null | 'concede' | 'leave'>(null);
+  const [confirmExit, setConfirmExit] = useState<null | 'concede' | 'leave' | 'end'>(null);
   // Saving is host-only and only legal between turns, so the button needs somewhere to say so.
   const [saveNote, setSaveNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -3483,6 +3483,24 @@ export default function GameBoard({ session, onLeave }: Props) {
    * what keeps a save small enough to be correct. The server refuses otherwise, so this is a
    * courtesy rather than the rule — the button explains instead of failing.
    */
+  /**
+   * End the game for everybody and free it on the server.
+   *
+   * Distinct from Leave, which keeps the seat so a player can come back. Nothing used to remove
+   * a session, so a finished battle went on existing and answering to its code — which is how a
+   * battle restored from a save ended up with a still-joinable twin that Resume would walk back
+   * into. Host only, and confirmed, because it takes the game away from everyone.
+   */
+  async function handleEndGame() {
+    try {
+      await gameApi.endGame(session.gameId, session.playerToken);
+    } catch {
+      // Already gone is the outcome we wanted; anything else is still a reason to leave the
+      // board, since staying on a game we just tried to end helps nobody.
+    }
+    onLeave();
+  }
+
   async function handleSaveGame() {
     setSaving(true);
     setSaveNote(null);
@@ -4343,6 +4361,18 @@ export default function GameBoard({ session, onLeave }: Props) {
           )}
           <button className="secondary" onClick={() => setConfirmExit('leave')}>Leave</button>
           {/* Host only: a save is taken of the whole battle, so it is not a per-player action. */}
+          {/* Host only, and sitting beside Leave because the two are easy to confuse: Leave
+              keeps your seat, End takes the game away from everybody. */}
+          {session.isHost && (
+            <button
+              className="secondary"
+              style={{ borderColor: '#f85149', color: '#f85149' }}
+              onClick={() => setConfirmExit('end')}
+              title="End this game for every player and free it on the server"
+            >
+              End game
+            </button>
+          )}
           {session.isHost && (
             <button
               className="secondary"
@@ -4905,11 +4935,19 @@ export default function GameBoard({ session, onLeave }: Props) {
             borderRadius: 12, padding: '1.5rem', width: '100%', maxWidth: 400,
           }}>
             <div style={{ color: '#f85149', fontWeight: 700, fontSize: '1.1rem', marginBottom: 6 }}>
-              {confirmExit === 'concede' ? 'Concede the battle?' : 'Leave the game?'}
+              {confirmExit === 'concede' ? 'Concede the battle?'
+                : confirmExit === 'end' ? 'End this game for everyone?'
+                : 'Leave the game?'}
             </div>
             <div style={{ fontSize: '0.9rem', color: '#c9d1d9', marginBottom: 16 }}>
               {confirmExit === 'concede'
                 ? 'All your ships will be marked DESTROYED and the game may end.'
+                : confirmExit === 'end'
+                /* Ending is not Leaving. Leaving keeps your seat so you can come back; ending
+                   frees the game for everybody, which is what stops a finished battle sitting
+                   on the server still answering to its code. Save first if you want it back. */
+                ? 'This game will be closed for every player and can no longer be joined or '
+                  + 'resumed. Save it first if you want to continue it later.'
                 : 'You will exit this game and return to the lobby.'}
             </div>
             <button
@@ -4917,12 +4955,14 @@ export default function GameBoard({ session, onLeave }: Props) {
                 const action = confirmExit;
                 setConfirmExit(null);
                 if (action === 'concede') handleConcede();
+                else if (action === 'end') handleEndGame();
                 else onLeave();
               }}
               style={{ marginRight: 8, borderColor: '#f85149', color: '#f85149' }}
               className="secondary"
             >
-              {confirmExit === 'concede' ? 'Concede' : 'Leave'}
+              {confirmExit === 'concede' ? 'Concede'
+                : confirmExit === 'end' ? 'End game' : 'Leave'}
             </button>
             <button className="secondary" onClick={() => setConfirmExit(null)}>Cancel</button>
           </div>

@@ -2531,6 +2531,44 @@ public class GameController {
         return locked(session, () -> ResponseEntity.ok(new LobbyStateDto(session)));
     }
 
+    /**
+     * End a game for everybody and free it. Host only.
+     *
+     * <h2>Why a game needs an end at all</h2>
+     * Nothing ever removed a session, so every game ever hosted stayed in memory and stayed
+     * joinable. That is a slow leak, but the sharper cost is GHOSTS: after a battle is restored
+     * from a save, the pre-save game is still alive, and a player who clicks Resume lands in a
+     * copy that looks identical and diverges silently from the one everybody else is playing.
+     * Ending the old one is how a host stops that happening.
+     *
+     * <p>The lobby is broadcast BEFORE the session is removed, so clients that are listening
+     * learn the game is finished while there is still a game to tell them about. After the
+     * removal, every request for it answers 404, which clients already read as "that game is
+     * gone" — the resume check clears a saved seat on exactly that.
+     */
+    @PostMapping("/{id}/end")
+    public ResponseEntity<Map<String, Object>> endGame(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+        if (!session.isHost(token))
+            return ResponseEntity.status(403).body(Map.of(
+                    "error", "Only the host can end the game"));
+
+        return locked(session, () -> {
+            session.appendCombatLog("The host has ended this game.");
+            broadcastState(session);
+            broadcastLobby(session);
+            sessionService.endSession(id);
+            return ResponseEntity.ok(Map.of(
+                    "ended", id,
+                    "message", "Game " + id + " has ended"));
+        });
+    }
+
     // -------------------------------------------------------------------------
     // Status
     // -------------------------------------------------------------------------

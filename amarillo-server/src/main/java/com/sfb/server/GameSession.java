@@ -90,6 +90,24 @@ public class GameSession {
      */
     private final ReentrantLock lock = new ReentrantLock(true);
 
+    /**
+     * When this session was last used for anything, so a forgotten game can be swept up.
+     *
+     * Nothing ever removed a session, so every game ever hosted stayed in memory and stayed
+     * joinable — a slow leak, and the reason a battle restored from a save had a still-living
+     * twin that Resume would walk back into.
+     */
+    private volatile long lastTouched = System.currentTimeMillis();
+
+    /** Called whenever anything reads or changes this session. */
+    void touch() {
+        lastTouched = System.currentTimeMillis();
+    }
+
+    public long getLastTouched() {
+        return lastTouched;
+    }
+
     /** seat token → PlayerInfo */
     private final Map<String, PlayerInfo> players = new LinkedHashMap<>();
 

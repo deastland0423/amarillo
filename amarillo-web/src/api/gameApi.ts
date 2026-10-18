@@ -719,6 +719,20 @@ export const gameApi = {
     });
   },
 
+  /**
+   * End a game for everybody and free it on the server. Host only.
+   *
+   * Not the same as leaving: Leave keeps the seat so a player can come back, while this removes
+   * the game entirely. Afterwards every request for it answers 404, which the client already
+   * reads as "that game is gone" when clearing a stale saved seat.
+   */
+  endGame(gameId: string, hostToken: string): Promise<{ ended: string; message: string }> {
+    return request(`/api/games/${gameId}/end`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': hostToken },
+    });
+  },
+
   // ---- Saved battles ----
 
   listSaves(): Promise<SavedBattle[]> {

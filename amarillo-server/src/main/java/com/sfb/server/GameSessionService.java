@@ -2,6 +2,7 @@ package com.sfb.server;
 
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -46,6 +47,65 @@ public class GameSessionService {
     // Session lifecycle
     // -------------------------------------------------------------------------
 
+    /**
+     * How long a session may sit completely untouched before a later create may sweep it away.
+     *
+     * Deliberately generous. A battle left overnight and picked up the next evening is an
+     * ordinary way to play this game, so anything measured in hours would throw away games
+     * people still want. Two days is long enough that reaching it means the game really was
+     * abandoned, and short enough that a server running for months does not hold every battle
+     * ever started.
+     *
+     * <p>This is a backstop, not the mechanism. Ending a game explicitly is what a host should
+     * do, and the sweep only catches the ones nobody ever closed.
+     */
+    private static final long ABANDONED_AFTER_MILLIS = java.time.Duration.ofDays(2).toMillis();
+
+    /**
+     * End a game and free it. Returns the session that was removed, or null if there was none.
+     *
+     * <h2>Why this had to exist</h2>
+     * Nothing ever removed a session. Every game ever hosted stayed in the map, which is a slow
+     * leak and, worse, left ghosts: after a battle was restored from a save the pre-save game was
+     * still alive and still joinable, so a player clicking Resume landed in a copy of the battle
+     * that diverged silently from the one everybody else was playing.
+     *
+     * <p>Removing it from the map is the whole job — nothing outside holds a session, the
+     * controller looks each one up by id on every call, so an ended game simply stops existing
+     * and later requests for it answer 404, which clients already treat as "that game is gone".
+     */
+    public GameSession endSession(String sessionId) {
+        if (sessionId == null)
+            return null;
+        return sessions.remove(sessionId);
+    }
+
+    /**
+     * Forget games nobody has touched in a long time.
+     *
+     * Swept lazily from {@link #createSession}, rather than from a background thread, because
+     * the only moment the map grows is when a session is added — so that is the only moment it
+     * needs pruning, and it costs no scheduler, no thread and nothing to shut down.
+     *
+     * @return how many were removed
+     */
+    int sweepAbandoned() {
+        long cutoff = System.currentTimeMillis() - ABANDONED_AFTER_MILLIS;
+        int removed = 0;
+        for (Map.Entry<String, GameSession> entry : sessions.entrySet())
+            if (entry.getValue().getLastTouched() < cutoff
+                    && sessions.remove(entry.getKey(), entry.getValue()))
+                removed++;
+        return removed;
+    }
+
+    /** Every live session, newest activity first — for an "are these still going?" listing. */
+    public java.util.List<GameSession> liveSessions() {
+        java.util.List<GameSession> out = new java.util.ArrayList<>(sessions.values());
+        out.sort((a, b) -> Long.compare(b.getLastTouched(), a.getLastTouched()));
+        return out;
+    }
+
     /** Create a new game session with no durable identity recorded for the host. */
     public GameSession createSession(String hostName) {
         return createSession(hostName, null);
@@ -62,6 +122,8 @@ public class GameSessionService {
      * @param accountId durable identity of the host, or null if unknown
      */
     public GameSession createSession(String hostName, String accountId) {
+        // The map only grows here, so this is the only place it needs pruning.
+        sweepAbandoned();
         String hostToken = generateToken();
         for (int attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
             String sessionId = generateCode();
@@ -140,7 +202,12 @@ public class GameSessionService {
     }
 
     public GameSession getSession(String sessionId) {
-        return sessions.get(sessionId);
+        GameSession session = sessions.get(sessionId);
+        // Looking a game up is the one thing every request does, so it is where "still in use"
+        // is cheapest and most reliably observed.
+        if (session != null)
+            session.touch();
+        return session;
     }
 
     // -------------------------------------------------------------------------
