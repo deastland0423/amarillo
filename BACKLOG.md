@@ -848,11 +848,17 @@ learns which path it came from — so there is one save format and one restore p
 `setupFromScenario(saved.scenario)` builds the pieces, then `applyState(saved.state)` overlays
 the battle. `SavedGame.restore()` does both.
 
-**`applyState` runs in two passes**, and the ORDER within pass two matters: destroyed ships,
-ownership, then **seekers**, then **lock-ons**. Lock-ons must resolve last because `lockOns` is a
-`Set<Unit>` — a ship can hold a lock on an incoming drone, and a drone that has not been revived
-yet cannot be pointed at. Doing it the other way round silently dropped exactly the lock a
-player's point defence was about to use.
+**`applyState` runs in two passes**, and the ORDER within pass two is the OWNERSHIP CHAIN:
+destroyed ships, ownership, then **craft in flight**, then **seekers**, then the **references
+among them** (fighter lock-ons and control, ship lock-ons, tractors). Each kind must exist before
+the next kind looks for it by name. Every departure from this has cost something real: resolving
+lock-ons before the seekers existed dropped exactly the lock a player's point defence was about
+to use, and reviving craft after the seekers left a fighter-guided drone with no controller —
+the name was in the save and there was nothing of that name to find.
+
+**One shared resolver, `Game.unitsByName()`,** backs every name-based reference. Four separate
+things resolve units by name and each one that built its own map got it wrong the same way. A new
+kind of reference now gets the whole map by default instead of whatever its author thought of.
 
 ### Built
 
@@ -869,20 +875,21 @@ player's point defence was about to use.
 
 ### Left
 
-- **`ControlSpaces`**, which `GameStateRoundTripTest.KNOWN_GAPS` still names by path fragment
-  (`.controlUsed`), plus the other ~23 system groups that have not been converted. None of them
-  is known to be player-visible; `.controlUsed` is the only one the round-trip test can see.
-- **Mines and craft in flight.** `SuicideShuttle` and `ScatterPack` export PARTIALLY on purpose
-  and a load REPORTS them rather than letting them vanish; rebuilding one means rebuilding the
-  bay it came from.
-- **Session lifecycle**, which the save work exposed rather than created. `sessions.remove`
-  appears NOWHERE: every game ever hosted stays in memory and stays joinable, so after a battle
-  is restored the pre-save game is still alive and a player who clicks Resume lands in it. The
-  restored screen now warns about this in words, which is a label over a lifecycle problem. An
-  "end this game" action, or evicting sessions with no players, would remove it — and the
-  campaign ambitions will want the same thing.
-- **No Delete button for saves.** The endpoint exists (`DELETE /api/games/saves/{id}`); nothing
-  in the UI calls it.
+- **MINES ARE NOT SAVED AT ALL, and nothing reports it.** `Game.mines` never reaches
+  `exportState`, so a laid minefield — T-bombs, dummies, NSMs — silently ceases to exist on
+  reload and the enemy sails through where a player spent energy and a turn. This is the same
+  class as the drone racks coming back full, and it is now the sharpest remaining gap: every
+  other loss in the format either survives or SAYS it did not. Note `MineResolver` already owns
+  arming and detonation, so this is a serialisation job, not a rules one.
+- **Craft-based seekers.** `SuicideShuttle` and `ScatterPack` export PARTIALLY on purpose and a
+  load REPORTS them rather than letting them vanish. The reason for the partial export is gone:
+  `Shuttle.fromState` now exists and rebuilds a craft from its catalogue row, so these two need
+  wrapping rather than new machinery.
+- **`ControlSpaces.controlUsed`**, the last entry in `GameStateRoundTripTest.KNOWN_GAPS`. A
+  ship's count of spent control channels, where a fighter's equivalent is now restored. Every
+  other system group has been converted.
+- **No auth on the save endpoints.** Anyone who knows a game id can save, list or delete its
+  saves. Deferred deliberately while the accounts work settles.
 
 ### Verified in a real game, 2026-10-18
 
@@ -900,6 +907,21 @@ weapon firing history whose two records agree (`lastImpulseFired: 28` beside
 - `DroneRack`: contents, reload sets, anti-drone rounds and the per-turn flags. This was the
   exploitable one — racks used to come back FULL.
 - The ship-spec fingerprint, compared on load and reported by name.
+- **All the remaining system groups** — tractors and their links, EW circuits, labs,
+  transporters, cloak, UIM, DERFACS, drone and cargo stores, reload stockpiles, ready racks, box
+  cycles. `StateIo` centralises the defensive JSON reads they all needed.
+- **Carrier hangars and craft in flight** (shuttle slices 1–3). A bay box carries the craft
+  that is actually in it, so a reload no longer refills a hangar the battle emptied; craft in
+  flight are rebuilt from their catalogue type with a saved ROLE to tell a wild weasel from the
+  admin shuttle it is built from; and a fighter keeps its own lock-on (D6.121) and the drones it
+  is guiding (J4.222).
+- **Session lifecycle**: `endSession` plus a sweep of abandoned games, so a restored battle no
+  longer leaves its pre-save twin alive and joinable.
+- **Delete button for saves**, wired to the endpoint that already existed.
+- **Bases**, verified rather than assumed (`BaseSaveTest`). A ground base is the one unit whose
+  position is NOT in the save: R1.14 names a planet and a face, so `setupFromScenario` re-sites
+  it and the hex, heading and face are all reconstructed. The one way that fails — a scenario
+  whose planet no longer matches by name — is reported rather than silent.
 
 ### Two testing lessons worth not relearning
 
