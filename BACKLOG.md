@@ -869,19 +869,37 @@ player's point defence was about to use.
 
 ### Left
 
-- **Putting a save BACK into a session.** The engine half is done and tested; the session half is
-  not, and it is a design question rather than plumbing: `GameSession.game` is `final`,
-  `setupFromScenario` APPENDS ships rather than clearing, a restored game is already past
-  assignment/COI/deployment, and ships come back owned by a **team, not a seat**. Re-attaching
-  the people is the account-and-seat work (slices A and B of the accounts entry).
-- **`DroneRack` and `ControlSpaces`**, which `GameStateRoundTripTest.KNOWN_GAPS` names by path
-  fragment, plus the other ~23 system groups.
+- **`ControlSpaces`**, which `GameStateRoundTripTest.KNOWN_GAPS` still names by path fragment
+  (`.controlUsed`), plus the other ~23 system groups that have not been converted. None of them
+  is known to be player-visible; `.controlUsed` is the only one the round-trip test can see.
 - **Mines and craft in flight.** `SuicideShuttle` and `ScatterPack` export PARTIALLY on purpose
   and a load REPORTS them rather than letting them vanish; rebuilding one means rebuilding the
   bay it came from.
-- **The ship-spec fingerprint.** The embedded spec names hulls, which are read from
-  `data/factions` at load time, and this repo edits ship JSON constantly. Store a hash of each
-  resolved `ShipSpec` and compare on load. The top unaddressed risk.
+- **Session lifecycle**, which the save work exposed rather than created. `sessions.remove`
+  appears NOWHERE: every game ever hosted stays in memory and stays joinable, so after a battle
+  is restored the pre-save game is still alive and a player who clicks Resume lands in it. The
+  restored screen now warns about this in words, which is a label over a lifecycle problem. An
+  "end this game" action, or evicting sessions with no players, would remove it — and the
+  campaign ambitions will want the same thing.
+- **No Delete button for saves.** The endpoint exists (`DELETE /api/games/saves/{id}`); nothing
+  in the UI calls it.
+
+### Verified in a real game, 2026-10-18
+
+Played through turn 1, saved during allocation for turn 2, reloaded, continued. The save file
+carried: the turn ABOUT to be played (2, not 0), partially-spent drone racks with their drone
+TYPES intact, three seekers in flight, hull fingerprints, and — the point of the exercise —
+weapon firing history whose two records agree (`lastImpulseFired: 28` beside
+`recentShots: [28]`, where a pre-fix save had `-9` beside `[30]`).
+
+### Done since this entry was first written
+
+- Putting a save back into a session (a restored battle opens as a NEW game, ships unclaimed,
+  reassigned by whoever is in the room — which is what lets a battle be continued by different
+  players, and handles captured hulls correctly).
+- `DroneRack`: contents, reload sets, anti-drone rounds and the per-turn flags. This was the
+  exploitable one — racks used to come back FULL.
+- The ship-spec fingerprint, compared on load and reported by name.
 
 ### Two testing lessons worth not relearning
 
