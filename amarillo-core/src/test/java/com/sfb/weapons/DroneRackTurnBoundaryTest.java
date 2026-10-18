@@ -97,12 +97,28 @@ public class DroneRackTurnBoundaryTest {
     }
 
     /**
-     * The half of Weapon.cleanUp that must keep working. A phaser carries the same default
-     * eight-impulse gap, and nothing in the rules keeps it waiting into the next turn — so
-     * the fix had to live on the rack rather than on Weapon.
+     * AN ORDINARY WEAPON IS HELD BY THE SAME GAP, and this test used to assert the opposite.
+     *
+     * It read: "a phaser carries the same default eight-impulse gap, and nothing in the rules
+     * keeps it waiting into the next turn — so the fix had to live on the rack rather than on
+     * Weapon." That is backwards. E1.50: "No weapon may be fired twice within a period of
+     * one-fourth of a turn... if a specific phaser were fired during Impulse #29 of one turn, it
+     * could not be fired again before Impulse #5 of the next turn... It is intended to eliminate
+     * the unrealistic tactic of firing a 'full broadside' on Impulse #32 of one turn and then
+     * repeating it on Impulse #1 of the next."
+     *
+     * <p>The rule's worked example is a PHASER — the very case this test licensed. Written on a
+     * mistaken reading, it then locked the mistake in: FD3.0 says the same thing again for racks,
+     * so giving the rack its own fix looked like the whole job and the general rule stayed
+     * missing. Found in a playtest, where a disruptor fired on Turn 1 Impulse 30 was offered
+     * again on Turn 2 Impulse 1.
+     *
+     * <p>{@link FiringRateAcrossTurnsTest} covers E1.50 and E1.52 properly; this stays because
+     * this file is where the wrong belief lived, and a corrected test is worth more here than a
+     * deleted one.
      */
     @Test
-    public void anOrdinaryWeaponStillStartsTheNewTurnFree() {
+    public void anOrdinaryWeaponIsHeldByTheGapIntoTheNewTurnToo() {
         Phaser1 phaser = new Phaser1();
         phaser.setClock(clock);
 
@@ -112,7 +128,10 @@ public class DroneRackTurnBoundaryTest {
         phaser.cleanUp();
         impulses(1);
 
-        assertTrue("a phaser fired late in one turn may fire early in the next",
+        assertFalse("impulse #32 then impulse #1 is the exact broadside E1.50 forbids",
                 phaser.canFire());
+
+        impulses(7);
+        assertTrue("eight impulses after firing, it is free again", phaser.canFire());
     }
 }

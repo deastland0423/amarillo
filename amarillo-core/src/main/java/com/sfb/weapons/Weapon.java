@@ -467,13 +467,29 @@ public abstract class Weapon {
 	public void cleanUp() {
 		shotsThisTurn = 0;
 		shotsThisImpulse = 0;
-		// An ordinary weapon starts each turn free of the gap, which is what this sentinel now
-		// says in as many words. A DRONE RACK must NOT: FD3.0 holds the quarter-turn gap across
-		// the turn boundary, so DroneRack.cleanUp reads the timestamp back over this.
-		lastImpulseFired = NEVER_FIRED;
-		// recentShots is deliberately NOT cleared. The quarter-turn window straddles the turn
-		// boundary by design (E2.151), so a turn ending is not an amnesty — clearing it here
-		// would let a gatling fire four on impulses 29-32 and four more on 1-4.
+		// lastImpulseFired is deliberately NOT cleared, and this used to clear it.
+		//
+		// E1.50 BASIC RULE: "No weapon may be fired twice within a period of one-fourth of a
+		// turn. (Note that, in most cases, this involves firing the weapon on two consecutive
+		// turns.) For example, if a specific phaser were fired during Impulse #29 of one turn,
+		// it could not be fired again before Impulse #5 of the next turn... It is intended to
+		// eliminate the unrealistic tactic of firing a 'full broadside' on Impulse #32 of one
+		// turn and then repeating it on Impulse #1 of the next."
+		//
+		// Clearing the timestamp here permitted exactly that broadside. The comment that used to
+		// stand in its place argued an ordinary weapon "starts each turn free of the gap", which
+		// is the opposite of the rule — and the rule's own worked example is a PHASER, the very
+		// case the comment said needed freeing. E1.52 counts it out: fired on Impulse #25, a
+		// weapon waits through #26 to #32 and may fire on #1 of the next turn, eight impulses
+		// later. The rulebook names those two impulses the "Impulse of Decision" and the
+		// "Impulse of Truth" precisely because the gap spans the boundary.
+		//
+		// Found in a playtest: a disruptor fired on Turn 1 Impulse 30 was offered again on
+		// Turn 2 Impulse 1 — three impulses later.
+		//
+		// recentShots is likewise not cleared. The quarter-turn window straddles the turn
+		// boundary by design (E2.151), so a turn ending is not an amnesty — clearing it would
+		// let a gatling fire four on impulses 29-32 and four more on 1-4.
 	}
 
 	public int getMaxShotsPerTurn() {

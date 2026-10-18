@@ -53,13 +53,24 @@ public class AddElectronicWarfareTest {
             int expectedShift) {
         ADD add = new ADD(ADD.AddType.ADD_12);
         add.setFirerUsingEm(firerEm);
+        // A clock the fixture can advance. It used to call cleanUp() between shots, described as
+        // "next impulse" — and that worked only because Weapon.cleanUp wrongly cleared the
+        // firing timestamp, which E1.50 says must survive even a TURN boundary. Time passing is
+        // what the gap measures, so the fixture now passes time.
+        com.sfb.TurnTracker clock = new com.sfb.TurnTracker();
+        add.setClock(clock);
         int fired = 0, hits = 0, misses = 0;
         for (int i = 0; i < 40; i++) {
-            if (!add.canFire()) {
-                add.cleanUp();                        // next impulse; reload if it can
-                if (!add.canFire())
-                    break;
+            // Walk forward until it may fire again, reloading at each turn boundary the way the
+            // game does (ADD.cleanUp refills an unfired rack).
+            int guard = 0;
+            while (!add.canFire() && guard++ < 200) {
+                clock.nextImpulse();
+                if (clock.getImpulse() % com.sfb.constants.Constants.IMPULSES_PER_TURN == 0)
+                    add.cleanUp();
             }
+            if (!add.canFire())
+                break;
             add.setEcmShift(ecmShift);
             int result;
             try {

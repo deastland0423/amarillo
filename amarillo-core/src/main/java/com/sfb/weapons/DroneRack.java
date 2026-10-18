@@ -764,14 +764,12 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 		// type-G at FD3.71: the delay "includes the last firing on one turn and the first
 		// firing on the next".
 		//
-		// So the per-turn shot COUNTER resets with the turn, but the timestamp the gap is
-		// measured from must not. Weapon.cleanUp clears that timestamp so an ordinary weapon
-		// starts each turn free — right for a phaser, which would otherwise be locked out of
-		// the first eight impulses after firing late in the turn before, and wrong for a
-		// rack, which was handing back a launch at every turn boundary.
-		int firedAt = getLastImpulseFired();
+		// This used to save the timestamp across super.cleanUp() and write it back, because
+		// Weapon.cleanUp cleared it. That clearing was itself the bug — E1.50 holds the gap
+		// across the turn boundary for EVERY weapon, not only for racks, and its worked example
+		// is a phaser. A rack is not the exception here; it never was. FD3.0 simply says the
+		// same thing again for racks, which is why nobody noticed the general rule was missing.
 		super.cleanUp();
-		setLastImpulseFired(firedAt);
 		// FD3.71: the choice is made afresh each turn, so a new turn finds the rack
 		// undecided again — but the timestamps above, which span the boundary, do not move.
 		modeThisTurn = RackMode.UNDECIDED;
