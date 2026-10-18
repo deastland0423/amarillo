@@ -718,6 +718,11 @@ public abstract class Shuttle extends Unit {
 	public java.util.Map<String, Object> exportState() {
 		java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
 		state.put("catalogType", getCatalogType());
+		// The ROLE, which catalogType cannot express. A scatter pack, a suicide shuttle and a
+		// wild weasel are an administrative shuttle PLAYING A PART (J2.0, J3.0, FD7.0), so all
+		// three keep "admin" as their catalogue type — and a save that stored only that would
+		// rebuild a wild weasel as an ordinary shuttle with no weasel in it at all.
+		state.put("role", saveRole());
 		state.put("name", getName());
 		state.put("localName", localName);
 
@@ -780,11 +785,40 @@ public abstract class Shuttle extends Unit {
 	 * rather than substituting something, because a craft that silently became an admin shuttle
 	 * would be worse than one that is missing and said so.
 	 */
+	/**
+	 * What part this craft is playing, or null for catalogue stock doing its ordinary job.
+	 *
+	 * Overridden by the three role craft. Kept separate from {@code catalogType} because the two
+	 * answer different questions: what it IS, and what it is DOING.
+	 */
+	public String saveRole() {
+		return null;
+	}
+
+	/** The role recorded in a saved craft, or null. */
+	public static String savedRole(java.util.Map<String, Object> state) {
+		return com.sfb.systemgroups.StateIo.text(state, "role");
+	}
+
+	/**
+	 * Craft that are NOT catalogue rows but are still real: the three that ShuttleBay builds from
+	 * a switch rather than from the catalogue, because they behave differently enough to need
+	 * classes of their own.
+	 */
+	private static final java.util.Set<String> KNOWN_UNCATALOGUED =
+			java.util.Set.of("admin", "gas", "hts");
+
 	public static Shuttle fromState(java.util.Map<String, Object> state) {
 		if (state == null)
 			return null;
 		String type = com.sfb.systemgroups.StateIo.text(state, "catalogType");
 		if (type == null)
+			return null;
+		// Checked HERE rather than relying on the factory. buildShuttle deliberately falls back
+		// to an admin shuttle for an unknown key so a scenario still loads — right for a
+		// scenario, wrong for a save, where it would silently turn a craft into a different one
+		// and report nothing. A save would rather be told something is missing.
+		if (com.sfb.objects.ShuttleCatalog.get(type) == null && !KNOWN_UNCATALOGUED.contains(type))
 			return null;
 		String name = com.sfb.systemgroups.StateIo.text(state, "name");
 		Shuttle craft = com.sfb.systemgroups.ShuttleBay.buildShuttle(type,

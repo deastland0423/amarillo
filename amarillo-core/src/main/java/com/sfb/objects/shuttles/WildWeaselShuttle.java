@@ -107,4 +107,50 @@ public class WildWeaselShuttle extends Shuttle {
     public String dtoType() {
         return "wildweasel";
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game (see Shuttle.exportState)
+    // -------------------------------------------------------------------------
+
+    /** What {@link #saveRole()} reports, and what the loader rebuilds a weasel from. */
+    public static final String SAVE_ROLE = "WILD_WEASEL";
+
+    @Override
+    public String saveRole() {
+        return SAVE_ROLE;
+    }
+
+    /**
+     * Where this weasel is in its life (J3.2111, J3.2123).
+     *
+     * A weasel is a timed thing: it charges, explodes, and then spends a period as a spent
+     * decoy that still occupies a hex. {@code explosionEndsAtImpulse} is what decides when the
+     * middle phase ends, so dropping it would either end the explosion instantly or never.
+     *
+     * <p>The parent ship is NOT here. It is final on this class, so a restored weasel has to be
+     * constructed with it — which is why Game.applyState resolves the name and builds the weasel
+     * rather than overlaying state onto one.
+     */
+    @Override
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = super.exportState();
+        // Its OWN parent, not the inherited parentShipName: that field is set at launch, so a
+        // weasel built any other way would save a null and come back belonging to nobody.
+        state.put("parentShipName", parentShip == null ? null : parentShip.getName());
+        state.put("exploding", exploding);
+        state.put("postExplosion", postExplosion);
+        state.put("explosionEndsAtImpulse", explosionEndsAtImpulse);
+        return state;
+    }
+
+    @Override
+    public void applyState(java.util.Map<String, Object> state) {
+        super.applyState(state);
+        if (state == null)
+            return;
+        exploding = com.sfb.systemgroups.StateIo.flag(state, "exploding", exploding);
+        postExplosion = com.sfb.systemgroups.StateIo.flag(state, "postExplosion", postExplosion);
+        explosionEndsAtImpulse = com.sfb.systemgroups.StateIo.integer(state,
+                "explosionEndsAtImpulse", explosionEndsAtImpulse);
+    }
 }

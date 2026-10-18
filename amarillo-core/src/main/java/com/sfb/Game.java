@@ -2242,6 +2242,13 @@ public class Game {
             seekerStates.add(seeker.exportState());
         state.put("seekers", seekerStates);
 
+        // Craft in flight. Created during the battle like seekers, so the save describes them
+        // outright rather than overlaying onto something the scenario rebuilt.
+        List<Map<String, Object>> craftStates = new ArrayList<>();
+        for (com.sfb.objects.shuttles.Shuttle craft : activeShuttles)
+            craftStates.add(craft.exportState());
+        state.put("activeShuttles", craftStates);
+
         state.put("players", playerStates);
 
         return state;
@@ -2330,6 +2337,7 @@ public class Game {
         retireSavedDestroyedShips(state, problems);
         restoreSavedOwnership(state, problems);
         problems.addAll(reviveSavedSeekers(state));
+        problems.addAll(reviveSavedCraft(state));
         resolveSavedLockOns(state);
         resolveSavedTractors(state);
 
@@ -2547,6 +2555,80 @@ public class Game {
                 else if (r.seeker() instanceof PlasmaTorpedo torpedo)
                     torpedo.setController(controller);
             }
+        }
+        return problems;
+    }
+
+    /**
+     * Rebuild the craft that were in flight (shuttles, slice 2).
+     *
+     * <h2>Why they are created here and not overlaid</h2>
+     * Like a seeker, a craft in flight does not exist until somebody launches it, so there is
+     * nothing for the save to overlay — it describes the craft and this builds it. Before this,
+     * {@code activeShuttles} was not in the save at all, so a launched fighter simply ceased to
+     * exist on reload, and unlike a scatter-pack nothing even reported it: only craft-based
+     * SEEKERS went through the reporting path.
+     *
+     * <h2>The wild weasel is the awkward one</h2>
+     * A weasel is an administrative shuttle playing a part (J3.0), so its catalogue type is
+     * "admin" and the type alone would rebuild an ordinary shuttle with no weasel in it. The
+     * saved ROLE is what distinguishes it, and its parent ship is final on the class, so the
+     * weasel has to be CONSTRUCTED with the parent rather than have it set afterwards — which
+     * is why this resolves the name first and builds second.
+     *
+     * @return problems worth telling the player about
+     */
+    private List<String> reviveSavedCraft(Map<String, Object> state) {
+        List<String> problems = new ArrayList<>();
+        Object raw = state.get("activeShuttles");
+        if (!(raw instanceof List<?> list))
+            return problems;
+
+        Map<String, Ship> shipsByName = new java.util.HashMap<>();
+        for (Ship ship : ships)
+            if (ship.getName() != null)
+                shipsByName.put(ship.getName(), ship);
+
+        activeShuttles.clear();
+        for (Object entry : list) {
+            if (!(entry instanceof Map<?, ?> rawEntry))
+                continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> saved = (Map<String, Object>) rawEntry;
+
+            String role = com.sfb.objects.shuttles.Shuttle.savedRole(saved);
+            String name = com.sfb.systemgroups.StateIo.text(saved, "name");
+            com.sfb.objects.shuttles.Shuttle craft;
+
+            if (com.sfb.objects.shuttles.WildWeaselShuttle.SAVE_ROLE.equals(role)) {
+                String parentName =
+                        com.sfb.systemgroups.StateIo.text(saved, "parentShipName");
+                Ship parent = parentName == null ? null : shipsByName.get(parentName);
+                if (parent == null) {
+                    // A weasel without the ship that launched it has nothing to belong to, and
+                    // J3.0 hangs its whole lifecycle off the parent. Say so rather than build a
+                    // decoy that answers to nobody.
+                    problems.add("a wild weasel could not be restored: its ship "
+                            + parentName + " is not in this battle");
+                    continue;
+                }
+                com.sfb.objects.shuttles.WildWeaselShuttle weasel =
+                        new com.sfb.objects.shuttles.WildWeaselShuttle(parent);
+                weasel.applyState(saved);
+                craft = weasel;
+                parent.setActiveWildWeasel(weasel);
+            } else {
+                craft = com.sfb.objects.shuttles.Shuttle.fromState(saved);
+                if (craft == null) {
+                    problems.add("a craft in flight could not be restored: "
+                            + (name == null ? "unnamed" : name)
+                            + " (type "
+                            + com.sfb.systemgroups.StateIo.text(saved, "catalogType") + ")");
+                    continue;
+                }
+            }
+            craft.attachClock(clock);
+            activeShuttles.add(craft);
         }
         return problems;
     }

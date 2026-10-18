@@ -442,6 +442,84 @@ public class GameStateRoundTripTest {
         assertSame("and point at the RESTORED Blade, not the saved one", restoredBlade, held);
     }
 
+    // ---------------------------------------------------------------- craft in flight
+
+    /**
+     * A launched craft used to vanish on reload, SILENTLY.
+     *
+     * {@code activeShuttles} was not in the save at all, and unlike a scatter-pack nothing
+     * reported it: only craft-based SEEKERS went through the reporting path, so an ordinary
+     * fighter simply ceased to exist with nothing said.
+     */
+    @Test
+    public void aCraftInFlightSurvivesASave() {
+        Game before = battleInProgress();
+        com.sfb.objects.shuttles.Shuttle craft =
+                com.sfb.systemgroups.ShuttleBay.buildShuttle("admin", "Hood-Shuttle-1");
+        craft.setLocation(new com.sfb.properties.Location(11, 11));
+        craft.setFacing(5);
+        craft.setCurrentHull(craft.getCurrentHull() - 1);
+        before.getActiveShuttles().add(craft);
+
+        Game after = roundTrip(before);
+
+        assertEquals("the craft must still be in flight", 1, after.getActiveShuttles().size());
+        com.sfb.objects.shuttles.Shuttle restored = after.getActiveShuttles().get(0);
+        assertEquals("Hood-Shuttle-1", restored.getName());
+        assertEquals("admin", restored.getCatalogType());
+        assertEquals("and keep the damage it had taken",
+                craft.getCurrentHull(), restored.getCurrentHull());
+        assertEquals(craft.getLocation(), restored.getLocation());
+    }
+
+    /**
+     * A wild weasel is an admin shuttle PLAYING A PART (J3.0), so its catalogue type is "admin"
+     * and the type alone would rebuild an ordinary shuttle with no weasel in it. The saved role
+     * is what keeps it a weasel, and its parent ship is final on the class — so it has to be
+     * constructed with the parent rather than have one set afterwards.
+     */
+    @Test
+    public void aWildWeaselComesBackAsAWeaselAndKeepsItsShip() {
+        Game before = battleInProgress();
+        Ship hood = shipNamed(before, "USS Hood");
+        com.sfb.objects.shuttles.WildWeaselShuttle weasel =
+                new com.sfb.objects.shuttles.WildWeaselShuttle(hood);
+        weasel.setName("Hood-Weasel-1");
+        weasel.setLocation(new com.sfb.properties.Location(10, 11));
+        before.getActiveShuttles().add(weasel);
+
+        Game after = roundTrip(before);
+
+        assertEquals(1, after.getActiveShuttles().size());
+        com.sfb.objects.shuttles.Shuttle restored = after.getActiveShuttles().get(0);
+        assertTrue("it must still be a weasel, not the admin shuttle it is built from",
+                restored instanceof com.sfb.objects.shuttles.WildWeaselShuttle);
+        assertSame("and belong to the RESTORED Hood", shipNamed(after, "USS Hood"),
+                ((com.sfb.objects.shuttles.WildWeaselShuttle) restored).getParentShip());
+    }
+
+    /** A craft this build cannot rebuild is REPORTED, never dropped in silence. */
+    @Test
+    public void aCraftOfAnUnknownTypeIsReported() {
+        Game before = battleInProgress();
+        com.sfb.objects.shuttles.Shuttle craft =
+                com.sfb.systemgroups.ShuttleBay.buildShuttle("admin", "Hood-Shuttle-1");
+        before.getActiveShuttles().add(craft);
+        Map<String, Object> saved = before.exportState();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> craftStates =
+                (List<Map<String, Object>>) saved.get("activeShuttles");
+        craftStates.get(0).put("catalogType", "notacraft");
+
+        Game rebuilt = new Game();
+        rebuilt.setupFromScenario(spec());
+        List<String> problems = rebuilt.applyState(saved);
+
+        assertTrue("the player must be told: " + problems,
+                problems.stream().anyMatch(p -> p.contains("Hood-Shuttle-1")));
+        assertTrue(rebuilt.getActiveShuttles().isEmpty());
+    }
+
     // ---------------------------------------------------------------- ships
 
     @Test
