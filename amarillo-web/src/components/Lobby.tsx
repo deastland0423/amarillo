@@ -45,6 +45,9 @@ export default function Lobby({ onJoined, onBuildFleet, savedSession, onResume,
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [saves, setSaves] = useState<SavedBattle[] | null>(null);
+  // Which save is awaiting a "really delete it?" answer. Deleting a battle is irreversible and
+  // the button sits next to Resume, so it asks in place rather than acting on one click.
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   // Fetched when the saves door is opened rather than on mount: most visits never look at it,
   // and a landing page should not wait on a directory listing to render.
@@ -54,6 +57,26 @@ export default function Lobby({ onJoined, onBuildFleet, savedSession, onResume,
       .then(setSaves)
       .catch(() => setSaves([]));
   }, [mode, saves]);
+
+  /**
+   * Delete a saved battle.
+   *
+   * The list is refetched from the server rather than filtered locally: the file is the truth,
+   * and a row that vanished from the screen while the file survived — or the reverse — is the
+   * kind of quiet disagreement that makes a player distrust the whole feature.
+   */
+  async function handleDeleteSave(saveId: string) {
+    setBusy(true); setError('');
+    try {
+      await gameApi.deleteSave(saveId);
+      setConfirmDelete(null);
+      setSaves(await gameApi.listSaves());
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not delete that battle.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function handleOpenSave(saveId: string) {
     if (!name.trim()) { setError('Enter your name first.'); return; }
@@ -199,9 +222,41 @@ export default function Lobby({ onJoined, onBuildFleet, savedSession, onResume,
                     : `unreadable — ${save.error ?? 'unknown problem'}`}
                 </span>
               </span>
+              {confirmDelete === save.id ? (
+                <>
+                  {/* Asked in place: a modal for a one-line decision is more ceremony than the
+                      decision deserves, and the row being replaced makes it obvious WHICH save
+                      is about to go — which a modal has to restate and can get wrong. */}
+                  <button
+                    onClick={() => handleDeleteSave(save.id)}
+                    disabled={busy}
+                    style={{ borderColor: '#f85149', color: '#f85149' }}
+                    className="secondary"
+                    title="Delete this saved battle permanently"
+                  >
+                    {busy ? 'Deleting…' : 'Delete it'}
+                  </button>
+                  <button className="secondary" disabled={busy}
+                          onClick={() => setConfirmDelete(null)}>
+                    Keep
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="secondary"
+                  onClick={() => { setError(''); setConfirmDelete(save.id); }}
+                  disabled={busy}
+                  /* Offered even for an UNREADABLE save, unlike Resume: a file this build
+                     cannot parse is exactly the one a player most wants rid of, and refusing
+                     to delete it would leave them with a row they can neither use nor clear. */
+                  title="Delete this saved battle"
+                >
+                  Delete
+                </button>
+              )}
               <button
                 onClick={() => handleOpenSave(save.id)}
-                disabled={busy || !save.readable}
+                disabled={busy || !save.readable || confirmDelete === save.id}
                 title={save.readable ? 'Open this battle as a new game'
                                      : 'This build cannot read that file'}
               >
