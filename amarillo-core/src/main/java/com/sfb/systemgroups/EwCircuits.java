@@ -267,4 +267,63 @@ public class EwCircuits {
         while (circuits.size() < sensorRating)
             circuits.add(new Circuit());
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game
+    // -------------------------------------------------------------------------
+
+    /**
+     * Each EW circuit: what it is doing, whether it is powered, and when it last changed.
+     *
+     * {@code lastSwitchImpulse} is the one that looks like scratch and is not. D6.32 lets a
+     * circuit change between ECM and ECCM no more than once a quarter turn, measured from that
+     * stamp — so a save that dropped it would hand every circuit a free flip the moment the game
+     * came back.
+     *
+     * <p>{@code reserveBought} matters for the same reason money does: it records a circuit
+     * powered from reserve rather than from allocation (D6.312), which is energy already spent.
+     */
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        java.util.List<java.util.Map<String, Object>> saved = new java.util.ArrayList<>();
+        for (Circuit circuit : circuits) {
+            java.util.Map<String, Object> one = new java.util.LinkedHashMap<>();
+            one.put("mode", circuit.mode == null ? null : circuit.mode.name());
+            one.put("lastSwitchImpulse", circuit.lastSwitchImpulse);
+            one.put("powered", circuit.powered);
+            one.put("reserveBought", circuit.reserveBought);
+            saved.add(one);
+        }
+        state.put("circuits", saved);
+        return state;
+    }
+
+    public void applyState(java.util.Map<String, Object> state) {
+        if (state == null || !(state.get("circuits") instanceof java.util.List<?> list))
+            return;
+        // Circuits are identical and anonymous, so they restore POSITIONALLY — and only as far
+        // as the ship actually has, since the hull decides how many there are (one per point of
+        // sensor rating) and the save must never add or remove any.
+        for (int i = 0; i < Math.min(list.size(), circuits.size()); i++) {
+            if (!(list.get(i) instanceof java.util.Map<?, ?> raw))
+                continue;
+            Circuit circuit = circuits.get(i);
+            Object mode = raw.get("mode");
+            if (mode instanceof String name) {
+                try {
+                    circuit.mode = Mode.valueOf(name);
+                } catch (IllegalArgumentException e) {
+                    circuit.mode = null;
+                }
+            } else if (mode == null) {
+                circuit.mode = null;
+            }
+            if (raw.get("lastSwitchImpulse") instanceof Number n)
+                circuit.lastSwitchImpulse = n.intValue();
+            if (raw.get("powered") instanceof Boolean b)
+                circuit.powered = b;
+            if (raw.get("reserveBought") instanceof Boolean b)
+                circuit.reserveBought = b;
+        }
+    }
 }

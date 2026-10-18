@@ -324,4 +324,51 @@ public class Tractors implements Systems {
 		}
 		return true;
 	}
+
+	// -------------------------------------------------------------------------
+	// Saved game (see Systems.exportState)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Every beam, in order.
+	 *
+	 * Positional, like the UIMs and the EW circuits, and for the same reason: beams are identical
+	 * and anonymous, rebuilt in a fixed number from the hull, with nothing to key on. What each
+	 * one is HOLDING is written as a name and resolved by {@code Game.applyState} in its second
+	 * pass, once every unit it might point at exists.
+	 */
+	@Override
+	public Map<String, Object> exportState() {
+		Map<String, Object> state = new java.util.LinkedHashMap<>();
+		java.util.List<Object> beamStates = new java.util.ArrayList<>();
+		for (TractorBeam beam : beams)
+			beamStates.add(beam.exportState());
+		state.put("beams", beamStates);
+		return state;
+	}
+
+	@Override
+	public void applyState(Map<String, Object> state) {
+		if (state == null || !(state.get("beams") instanceof java.util.List<?> list))
+			return;
+		for (int i = 0; i < Math.min(list.size(), beams.size()); i++)
+			if (list.get(i) instanceof Map<?, ?> raw) {
+				@SuppressWarnings("unchecked")
+				Map<String, Object> beamState = (Map<String, Object>) raw;
+				beams.get(i).applyState(beamState);
+			}
+	}
+
+	/** The saved state of each beam, for the second pass that re-points the links. */
+	public static java.util.List<Map<String, Object>> savedBeams(Map<String, Object> state) {
+		java.util.List<Map<String, Object>> out = new java.util.ArrayList<>();
+		if (state != null && state.get("beams") instanceof java.util.List<?> list)
+			for (Object item : list)
+				if (item instanceof Map<?, ?> raw) {
+					@SuppressWarnings("unchecked")
+					Map<String, Object> beamState = (Map<String, Object>) raw;
+					out.add(beamState);
+				}
+		return out;
+	}
 }

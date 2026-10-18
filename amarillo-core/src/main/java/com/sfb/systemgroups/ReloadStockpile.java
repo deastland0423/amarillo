@@ -381,4 +381,31 @@ public final class ReloadStockpile {
     public boolean exists() {
         return capacitySpaces() > 0;
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game
+    // -------------------------------------------------------------------------
+
+    /**
+     * Whether the stockpile has been destroyed, plus the cargo store it draws from.
+     *
+     * The cargo store is ammunition and is the part worth guarding: restoring it from the hull
+     * would quietly refill a hold the battle had drawn down, which is the same mistake the drone
+     * racks made.
+     */
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("destroyed", destroyed);
+        if (cargo != null)
+            state.put("cargo", cargo.exportState());
+        return state;
+    }
+
+    public void applyState(java.util.Map<String, Object> state) {
+        if (state == null)
+            return;
+        destroyed = StateIo.flag(state, "destroyed", destroyed);
+        if (cargo != null)
+            cargo.applyState(StateIo.child(state, "cargo"));
+    }
 }

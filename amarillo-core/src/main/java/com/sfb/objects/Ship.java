@@ -2059,6 +2059,12 @@ public class Ship extends Unit implements DroneController {
 		for (com.sfb.systemgroups.UIM uim : uims)
 			uimStates.add(uim.exportState());
 		state.put("uims", uimStates);
+		state.put("tractors", tractors.exportState());
+		state.put("ewCircuits", ewCircuits.exportState());
+		if (derfacs != null)
+			state.put("derfacs", derfacs.exportState());
+		if (reloadStockpile != null)
+			state.put("reloadStockpile", reloadStockpile.exportState());
 
 		// Lock-ons are written as NAMES, and are deliberately not restored by applyState: a lock
 		// is a reference to another unit, and a ship being rebuilt in isolation has nothing to
@@ -2129,6 +2135,12 @@ public class Ship extends Unit implements DroneController {
 			cloak.applyState(StateIo.child(state, "cloak"));
 		if (cargoDroneStore != null)
 			cargoDroneStore.applyState(StateIo.child(state, "cargoDroneStore"));
+		tractors.applyState(StateIo.child(state, "tractors"));
+		ewCircuits.applyState(StateIo.child(state, "ewCircuits"));
+		if (derfacs != null)
+			derfacs.applyState(StateIo.child(state, "derfacs"));
+		if (reloadStockpile != null)
+			reloadStockpile.applyState(StateIo.child(state, "reloadStockpile"));
 		if (state.get("uims") instanceof java.util.List<?> savedUims)
 			for (int i = 0; i < Math.min(savedUims.size(), uims.size()); i++)
 				if (savedUims.get(i) instanceof java.util.Map<?, ?> raw) {

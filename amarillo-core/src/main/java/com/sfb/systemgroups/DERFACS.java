@@ -50,4 +50,23 @@ public class DERFACS implements Systems {
 
     /** Permanently damages the DERFACS unit (e.g. via Hit and Run raid). */
     public void damage() { this.damaged = true; }
+
+    // -------------------------------------------------------------------------
+    // Saved game (see Systems.exportState)
+    // -------------------------------------------------------------------------
+
+    /** Whether the DERFACS has been shot off. One flag, and it is the whole system. */
+    @Override
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("damaged", damaged);
+        return state;
+    }
+
+    @Override
+    public void applyState(java.util.Map<String, Object> state) {
+        if (state == null)
+            return;
+        damaged = StateIo.flag(state, "damaged", damaged);
+    }
 }

@@ -2331,6 +2331,7 @@ public class Game {
         restoreSavedOwnership(state, problems);
         problems.addAll(reviveSavedSeekers(state));
         resolveSavedLockOns(state);
+        resolveSavedTractors(state);
 
         return problems;
     }
@@ -2348,15 +2349,9 @@ public class Game {
         Object rawShips = state.get("ships");
         if (!(rawShips instanceof List<?> list))
             return;
-        // Ships AND seekers: a lock may be held on a weapon in flight, which is why this runs
-        // after the seekers have been revived.
-        Map<String, Unit> units = new java.util.HashMap<>();
-        for (Ship ship : ships)
-            if (ship.getName() != null)
-                units.put(ship.getName(), ship);
-        for (Seeker seeker : seekers)
-            if (seeker instanceof Unit unit && unit.getName() != null)
-                units.put(unit.getName(), unit);
+        // Everything a lock could be held on — a lock may be held on a weapon in flight, which
+        // is why this runs after the seekers have been revived. See unitsByName().
+        Map<String, Unit> units = unitsByName();
 
         for (Object entry : list) {
             if (!(entry instanceof Map<?, ?> raw))
@@ -2554,6 +2549,82 @@ public class Game {
             }
         }
         return problems;
+    }
+
+    /**
+     * Every unit a saved reference could point at, by name.
+     *
+     * <h2>Why this is shared rather than rebuilt at each site</h2>
+     * Four separate things in a save refer to another unit by name — a ship's lock-ons, a
+     * seeker's target, a seeker's controller, and a tractor beam's held unit — and each one that
+     * built its own map got it wrong in the same way. Lock-ons were resolved against the ships
+     * alone, so a lock held on an incoming drone was dropped. Seeker targets were too, so a drone
+     * chasing a drone came back chasing nothing. Both were found in play, separately, and fixed
+     * separately.
+     *
+     * <p>So the map is built once, from everything, and everything resolves through it. A new
+     * kind of reference gets the whole map by default instead of whatever its author happened to
+     * think of.
+     *
+     * <h2>And it must run late</h2>
+     * Seekers do not exist until the save revives them, so this is only complete in the SECOND
+     * pass of {@link #applyState}. Calling it earlier returns a map that is quietly missing
+     * every weapon in flight.
+     */
+    private Map<String, Unit> unitsByName() {
+        Map<String, Unit> units = new java.util.HashMap<>();
+        for (Ship ship : ships)
+            if (ship.getName() != null)
+                units.put(ship.getName(), ship);
+        for (Seeker seeker : seekers)
+            if (seeker instanceof Unit unit && unit.getName() != null)
+                units.put(unit.getName(), unit);
+        for (com.sfb.objects.shuttles.Shuttle craft : activeShuttles)
+            if (craft.getName() != null)
+                units.put(craft.getName(), craft);
+        return units;
+    }
+
+    /**
+     * Re-attach tractor links (G7.0), which are references between units like the lock-ons above.
+     *
+     * A link that came back dangling would leave two units each believing something different
+     * about whether they are attached — the holder still showing a beam in use, the held unit
+     * free to move away.
+     */
+    private void resolveSavedTractors(Map<String, Object> state) {
+        Object rawShips = state.get("ships");
+        if (!(rawShips instanceof List<?> list))
+            return;
+        Map<String, Unit> units = unitsByName();
+
+        for (Object entry : list) {
+            if (!(entry instanceof Map<?, ?> raw))
+                continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> shipState = (Map<String, Object>) raw;
+            String name = com.sfb.systemgroups.StateIo.text(shipState, "name");
+            Ship holder = null;
+            for (Ship ship : ships)
+                if (ship.getName() != null && ship.getName().equals(name))
+                    holder = ship;
+            if (holder == null)
+                continue;
+
+            Map<String, Object> tractorState =
+                    com.sfb.systemgroups.StateIo.child(shipState, "tractors");
+            java.util.List<Map<String, Object>> beams =
+                    com.sfb.systemgroups.Tractors.savedBeams(tractorState);
+            java.util.List<com.sfb.systemgroups.TractorBeam> live =
+                    holder.getTractors().getBeams();
+            for (int i = 0; i < Math.min(beams.size(), live.size()); i++) {
+                String heldName =
+                        com.sfb.systemgroups.TractorBeam.savedHeldUnitName(beams.get(i));
+                Unit held = heldName == null ? null : units.get(heldName);
+                if (held instanceof com.sfb.objects.Tractorable tractorable)
+                    live.get(i).restoreHeldUnit(tractorable);
+            }
+        }
     }
 
     /** A list of names from a save, tolerating the JSON shapes it may arrive in. */

@@ -409,6 +409,39 @@ public class GameStateRoundTripTest {
                 after.getSeekers().contains(restoredInterceptor.getTarget()));
     }
 
+    /**
+     * A tractor link (G7.0) is a reference between two units, so it resolves in the second pass
+     * like a lock-on and a seeker's target.
+     *
+     * A link that came back dangling would leave the two units disagreeing about their own
+     * situation: the holder still showing a beam in use, the held ship free to move away.
+     *
+     * <p>This is the FOURTH kind of saved reference, after lock-ons, seeker targets and seeker
+     * controllers — and the first one not to need its own bespoke lookup, because they now all
+     * resolve through one map of every unit. The three before it were each written separately
+     * and each got it wrong in the same way.
+     */
+    @Test
+    public void aTractorLinkIsReattachedToTheRestoredShip() {
+        Game before = battleInProgress();
+        Ship hood = shipNamed(before, "USS Hood");
+        Ship blade = shipNamed(before, "IKV Blade");
+        assertTrue("fixture: the Hood should get a beam onto the Blade",
+                hood.getTractors().linkUnit(blade, before.getClock().getImpulse()));
+
+        Game after = roundTrip(before);
+
+        Ship restoredHood = shipNamed(after, "USS Hood");
+        Ship restoredBlade = shipNamed(after, "IKV Blade");
+        com.sfb.objects.Tractorable held = null;
+        for (com.sfb.systemgroups.TractorBeam beam : restoredHood.getTractors().getBeams())
+            if (beam.getHeldUnit() != null)
+                held = beam.getHeldUnit();
+
+        assertNotNull("the link must survive the save", held);
+        assertSame("and point at the RESTORED Blade, not the saved one", restoredBlade, held);
+    }
+
     // ---------------------------------------------------------------- ships
 
     @Test

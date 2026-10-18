@@ -292,4 +292,54 @@ public class ReadyRack {
     public void destroy() {
         drones.clear();
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game
+    // -------------------------------------------------------------------------
+
+    /**
+     * What the ready rack is holding — drones, or plasma for a rack that serves plasma fighters.
+     *
+     * Ammunition again (J4.83), so the same rule as a drone rack: the CAPACITY and the design
+     * stock are what the hull provides, while the contents are what the battle has drawn down.
+     * Drones go through {@link Drone#exportState()}, the same path a drone in flight takes.
+     */
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        java.util.List<Object> held = new java.util.ArrayList<>();
+        for (Drone drone : drones)
+            if (drone != null)
+                held.add(drone.exportState());
+        state.put("drones", held);
+        state.put("plasmaType", plasmaType == null ? null : plasmaType.name());
+        state.put("plasmaHeld", plasmaHeld);
+        return state;
+    }
+
+    public void applyState(java.util.Map<String, Object> state) {
+        if (state == null)
+            return;
+        if (state.get("drones") instanceof java.util.List<?> saved) {
+            drones.clear();
+            for (Object item : saved) {
+                if (!(item instanceof java.util.Map<?, ?> raw))
+                    continue;
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> droneState = (java.util.Map<String, Object>) raw;
+                Drone drone = Drone.fromState(droneState, null, null, null);
+                if (drone != null)
+                    drones.add(drone);
+            }
+        }
+        String type = StateIo.text(state, "plasmaType");
+        if (type != null) {
+            try {
+                plasmaType = com.sfb.properties.PlasmaType.valueOf(type);
+            } catch (IllegalArgumentException e) {
+                // A plasma type this build does not know: leave what the hull gave it rather
+                // than null out a rack that is otherwise usable.
+            }
+        }
+        plasmaHeld = StateIo.integer(state, "plasmaHeld", plasmaHeld);
+    }
 }

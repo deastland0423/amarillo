@@ -93,4 +93,43 @@ public class TractorBeam {
     public String describe() {
         return "Tractor #" + number + (heldUnit != null ? " — holding " + heldUnit.getName() : "");
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game
+    // -------------------------------------------------------------------------
+
+    /**
+     * This beam: whether it works, when it was last used, and WHO IT IS HOLDING — by name.
+     *
+     * The held unit is a reference to another unit on the map, so it cannot be resolved here.
+     * {@code Game.applyState} re-points it in its second pass, once every ship and seeker exists,
+     * exactly as it does for lock-ons and for a seeker's target. A tractor link that came back
+     * dangling would leave two units each believing something different about whether they are
+     * attached (G7.0).
+     */
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("functional", functional);
+        state.put("lastUsedImpulse", lastUsedImpulse);
+        state.put("heldUnit", heldUnit == null ? null : heldUnit.getName());
+        return state;
+    }
+
+    /** Everything except the held unit, which the caller resolves and passes to {@link #hold}. */
+    public void applyState(java.util.Map<String, Object> state) {
+        if (state == null)
+            return;
+        functional = StateIo.flag(state, "functional", functional);
+        lastUsedImpulse = StateIo.integer(state, "lastUsedImpulse", lastUsedImpulse);
+    }
+
+    /** The name this beam was holding when the game was saved, or null. */
+    public static String savedHeldUnitName(java.util.Map<String, Object> state) {
+        return StateIo.text(state, "heldUnit");
+    }
+
+    /** Re-attach a restored link. Used by the saved-game load, after every unit exists. */
+    public void restoreHeldUnit(com.sfb.objects.Tractorable unit) {
+        this.heldUnit = unit;
+    }
 }

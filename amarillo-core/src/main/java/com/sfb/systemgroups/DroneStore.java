@@ -238,4 +238,26 @@ public class DroneStore {
     public List<Drone> contents() {
         return Collections.unmodifiableList(reserve);
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game
+    // -------------------------------------------------------------------------
+
+    /**
+     * How much of the store is given over to plasma rather than drones.
+     *
+     * {@code capacitySpaces} is final and comes from the hull; this is the part the battle moves.
+     * Not a Systems implementation — a helper spliced into its owner's state.
+     */
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("plasmaSpaces", plasmaSpaces);
+        return state;
+    }
+
+    public void applyState(java.util.Map<String, Object> state) {
+        if (state == null)
+            return;
+        plasmaSpaces = StateIo.real(state, "plasmaSpaces", plasmaSpaces);
+    }
 }
