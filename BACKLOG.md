@@ -875,21 +875,17 @@ kind of reference now gets the whole map by default instead of whatever its auth
 
 ### Left
 
-- **MINES ARE NOT SAVED AT ALL, and nothing reports it.** `Game.mines` never reaches
-  `exportState`, so a laid minefield — T-bombs, dummies, NSMs — silently ceases to exist on
-  reload and the enemy sails through where a player spent energy and a turn. This is the same
-  class as the drone racks coming back full, and it is now the sharpest remaining gap: every
-  other loss in the format either survives or SAYS it did not. Note `MineResolver` already owns
-  arming and detonation, so this is a serialisation job, not a rules one.
-- **Craft-based seekers.** `SuicideShuttle` and `ScatterPack` export PARTIALLY on purpose and a
-  load REPORTS them rather than letting them vanish. The reason for the partial export is gone:
-  `Shuttle.fromState` now exists and rebuilds a craft from its catalogue row, so these two need
-  wrapping rather than new machinery.
-- **`ControlSpaces.controlUsed`**, the last entry in `GameStateRoundTripTest.KNOWN_GAPS`. A
-  ship's count of spent control channels, where a fighter's equivalent is now restored. Every
-  other system group has been converted.
+**The format is complete.** `KNOWN_GAPS` is empty, `DtoDiff` filters nothing, and every unit
+type is either restored or reported by name. What remains is operational:
+
 - **No auth on the save endpoints.** Anyone who knows a game id can save, list or delete its
   saves. Deferred deliberately while the accounts work settles.
+- **Not yet seen in a browser.** Mines, sensor damage, carrier hangars, craft in flight and the
+  craft-based seekers are all proved by tests and none of them by a playtest. A two-browser run
+  with a carrier, a laid minefield and a scatter-pack is what would actually exercise them.
+- **Turn-boundary only, by design.** A save is refused mid-turn. Per-impulse state (pending
+  damage, DAC choices, fire declarations) is empty at a boundary and is therefore not in the
+  format at all — saving mid-impulse would be a different and much larger job.
 
 ### Verified in a real game, 2026-10-18
 
@@ -899,7 +895,32 @@ TYPES intact, three seekers in flight, hull fingerprints, and — the point of t
 weapon firing history whose two records agree (`lastImpulseFired: 28` beside
 `recentShots: [28]`, where a pre-fix save had `-9` beside `[30]`).
 
-### Done since this entry was first written
+### Closed 2026-10-18, after the entry above was written
+
+- **Mines.** The last silent loss: a laid field simply ceased to exist. Mines are constructed
+  rather than overlaid (type, placement method, `isReal` and `placedOnImpulse` are final), their
+  layer resolves through `unitsByName()` and may lawfully resolve to nothing, because a minefield
+  outlives the ship that laid it and `MineResolver` already reads a null layer as "not nearby".
+  M3.224's dummy bluff travels, which is safe because a save is server-side and `MineDto` shows a
+  client only `active` and `revealed`.
+- **A ship's stock of UNLAID T-bombs**, found by unfiltering `MineDto`: it was rebuilt from the
+  hull JSON, so a reload handed back every bomb the battle had spent.
+- **`SpecialFunctions`**, which was not saved AT ALL — the gap entry said `.controlUsed` and
+  blamed `ControlSpaces`, a class that does not contain that field. The SENSOR, SCANNER and
+  DAMAGE CONTROL tracks were being rebuilt from the hull, so a damaged ship came back repaired
+  (a Fed CA went from a shot-out sensor 5 to a factory-fresh 6). Only the POINTER into each track
+  travels; the steps are the hull's. `controlUsed` is deliberately NOT saved — it is a count kept
+  in lockstep with `controlledSeekers`, so only the list travels and the count is rebuilt from it.
+- **Suicide shuttles and scatter-packs.** Both wrap a craft, and the reason for deferring them
+  died with `Shuttle.fromState`. J3.0's arming state is the weapon; a scatter-pack's payload was
+  a COUNT, which is the drone-rack mistake from the other side, so each drone now travels as a
+  drone and the pending payload stays separate (FD7.3).
+- **A lesson about the restore of any reference**: the controller was being set through a chain of
+  `instanceof` tests that knew only `Drone` and `PlasmaTorpedo`, so a new seeker kind came back
+  unguided. `Seeker` declares `setController`; it goes through the interface now. A new kind must
+  not have to find and extend a list like that.
+
+### Done earlier in the save work
 
 - Putting a save back into a session (a restored battle opens as a NEW game, ships unclaimed,
   reassigned by whoever is in the room — which is what lets a battle be continued by different
