@@ -69,6 +69,10 @@ groundwork already in place.
   "Ships modified by (S7.0) to carry mines in the shuttle bay are not considered minesweepers
   for any purpose."
 
+  **Cost is a separate prerequisite, and not this entry's to solve** — the mines in a rack are
+  not part of the ship's BPV (M9.17) and are bought outside the 20% cap. See the force-total
+  entry below; it serves drone speed upgrades and crew quality too.
+
   **M9.11:** minesweepers and minelayers carry mine storage boxes. "Each such box holds FOUR large
   mines. Two small mines can be substituted for one large one." So a rack is 4 NSMs or up to 8
   T-bombs — the owner's analogy is a type-G drone rack holding type-I against type-VI drones, and
@@ -99,6 +103,53 @@ groundwork already in place.
   What exists today: `Game.dropMine` takes "TBOMB", "DUMMY_TBOMB" or "NSM", `MineResolver` runs
   arming and detonation, and `auxiliary.nuclearSpaceMines` gives a ship its NSMs. What is missing
   is the RACK as an inventory and as a hit location.
+- **Costs that count against the FORCE total but escape the per-ship COI cap — DESIGNED
+  2026-10-19, not built. A prerequisite THREE parked features were each waiting on separately.**
+
+  **The category.** S3.21 names the pattern for Annex #6A items: they "could be purchased as
+  Commander's options" but "are normally purchased as part of the overall force structure of a
+  patrol scenario and **are not within the percentage limits given here**." S3.211 then defines
+  the basis the percentage is taken from — "the ship, its refits, and its fighters, **but not
+  including the cost of mandatory drone speed upgrades or crew quality adjustments**" — so these
+  items are excluded TWICE: not in the basis, not in the cap. SH.432 says it again for drone
+  speed, and M9.17 for mines: "the cost of mines in mine racks is part of the overall force
+  total, not a part of the cost of the minesweeper."
+
+  **Three members, already identified:**
+  1. **Rack mines** (M9.17, M6.31). Annex #6 costs: a transporter bomb **4**, a nuclear space
+     mine (minelayers only) **8**, one NSM on a Romulan M2.73/.74/.76 ship **8**, a PA mine
+     **4**, a Y-transporter bomb **3**, a Y-NSM **7**. M6.31's cheaper chart is for mines ALREADY
+     PLACED on the map before the scenario — small explosive 1, large 3, small captor 3, large
+     captor 6, +1 for a chain, deadman or command detonator — and it says outright that mines
+     carried on ships "cost considerably more". Same NSM: 3 on the board, 8 in a rack.
+  2. **Drone speed upgrades** (FD2.223 medium, ½ point per drone; FD2.224 fast, 1 point per
+     drone; FD2.226 halves it for type-VI). See the drone-cost entry elsewhere in this file.
+  3. **Crew quality adjustments** (G21.0), named by S3.211 alongside drone speed. The declaration
+     exists on `ShipSpec`; the costs do not.
+
+  **The code is already the right shape, and needs ONE new figure.** `FleetValidator.totalCost`
+  is hulls + carried fighters + every ship's `getCoiSpend()`, and `checkBudget` holds it to the
+  agreed budget (S8.11) — its javadoc already says "option points come out of the agreed total
+  rather than on top of it". Separately, `checkCommanderOptions` caps each ship's `coiSpend`
+  against `CoiBudget.allowanceFor`, whose basis is `effectiveAdjustedCombatBpv` =
+  `getEffectiveBpv() + carriedFighterBpv`. So:
+  - add a SECOND spend on `Ship` — summed into `totalCost`, ignored by `checkCommanderOptions`;
+  - leave `effectiveAdjustedCombatBpv` alone, which already excludes the category by omission,
+    exactly as S3.211 requires.
+
+  **Do NOT fold these into the ship's BPV.** It looks equivalent — the force total comes out the
+  same — and it is not. That figure is the basis for the ship's OWN 20%, `CoiBudget`'s
+  `D_PERCENT_BONUS` takes S3.223's extra tenth from it, and S2.2 victory points read BPV. Adding
+  24 points of NSMs to the large Q-ship's 75 would quietly grant it about five more points of
+  option budget and change what destroying it is worth.
+
+  **Two clauses to carry across when building it.** M9.17 lets a scenario waive the mine cost
+  entirely ("perhaps where a minesweeper or minelayer is surprised by enemy units while going
+  about its normal business"). And a single carried NSM sometimes IS in the BPV — M2.71 for the
+  old Romulan sublight ships and M2.75 for the SMALL Q-ship — so the rule is not "Romulan hulls
+  include their mines" but "rack mines are never included, while one bundled NSM on certain hulls
+  is".
+
 - **R1.7 acceleration limits — BUILT 2026-10-19.** Kept here only because this entry was wrong
   in a way worth not repeating: it said "every freighter and Q-ship sheet carries the same line".
   They do not, and that error survived into the first implementation.
