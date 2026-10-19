@@ -113,8 +113,12 @@ groundwork already in place.
 
   Three facts in `auxiliary`, all three defaulting to permissive: `maxAccel` (5 on all thirteen
   Q-ships, 4 and 3 on the two plain freighters), `accelDoubling` and `disengageByAccel`. The two
-  booleans are kept SEPARATE although they agree on every hull in the game, because a single
-  flag carrying both is how the distinction was lost the first time — `slow: true` stood for the
+  booleans are SEPARATE, and the ARMED FREIGHTERS prove they had to be — owner, from the sheets,
+  2026-10-19: every armed freighter says "it can disengage by acceleration", and the large one
+  also says "can accelerate by 5 movement points per turn" with no doubling clause. Three
+  combinations across one family: plain freighter hard-capped with no C7.1, **armed freighter
+  hard-capped WITH C7.1**, Q-ship doubling with C7.1. A single flag cannot express the middle
+  row — which is how the distinction was lost the first time, when `slow: true` stood for the
   pairing, was read as a vaguer spelling of `maxAccel`, and was unified away in `e391c0ed`. Note
   the history: `slow` sat on the four large Q-SHIPS, which do double and can disengage, so the
   flag was already being applied to the wrong hulls.

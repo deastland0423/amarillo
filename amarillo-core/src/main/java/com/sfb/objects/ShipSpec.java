@@ -718,9 +718,18 @@ public class ShipSpec {
          * Q-ship sheets say "It can disengage by acceleration" — stated outright on both, so it
          * is data rather than something to derive from warp power.
          *
-         * <p>Kept SEPARATE from {@link #accelDoubling} even though the two agree on every hull
-         * in the game today. They are two sentences, and a single flag carrying both is exactly
-         * how the distinction got lost: {@code slow: true} once stood for this pairing, was read
+         * <p>SEPARATE from {@link #accelDoubling}, and the ARMED FREIGHTERS are why — they are
+         * the hull where the two facts diverge. Owner, from the sheets, 2026-10-19: every armed
+         * freighter (F-AS and F-AL) says "it can disengage by acceleration", while the large one
+         * also says "can accelerate by 5 movement points per turn" with no doubling clause. So a
+         * hard cap AND C7.1 allowed. Three distinct combinations across one family:
+         * <ul>
+         * <li><b>plain freighter</b> — hard cap, no C7.1 (both false);</li>
+         * <li><b>armed freighter</b> — hard cap, C7.1 allowed (they split);</li>
+         * <li><b>Q-ship</b> — doubling, C7.1 allowed (both permissive).</li>
+         * </ul>
+         * A single flag carrying both could not express the middle row, which is how the
+         * distinction got lost the first time: {@code slow: true} stood for the pairing, was read
          * as "a second name for the same unimplemented rule", and was unified away in e391c0ed.
          */
         public Boolean disengageByAccel;
