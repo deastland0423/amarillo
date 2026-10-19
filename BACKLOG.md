@@ -895,6 +895,16 @@ TYPES intact, three seekers in flight, hull fingerprints, and — the point of t
 weapon firing history whose two records agree (`lastImpulseFired: 28` beside
 `recentShots: [28]`, where a pre-fix save had `-9` beside `[30]`).
 
+A second run the same day, after the four closures below, carried **launched shuttles in flight,
+drones targeted on a SHIP, drones targeted on other DRONES, and weapon cooldown cycles** across a
+save and reload with nothing lost. The drone-chasing-a-drone case is the one worth noting: it is
+what forced the two-phase seeker revival and the shared `unitsByName()`, and it had only ever
+been proved by a fixture before this.
+
+**Still unverified in a browser**, and tests are the only witness: mines (laid, dummy and armed),
+sensor/scanner damage, a carrier hangar with losses in it, scatter-packs, and a fighter's own
+lock-on and guided drones.
+
 ### Closed 2026-10-18, after the entry above was written
 
 - **Mines.** The last silent loss: a laid field simply ceased to exist. Mines are constructed
