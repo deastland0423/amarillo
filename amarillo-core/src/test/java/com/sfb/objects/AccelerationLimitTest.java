@@ -192,6 +192,44 @@ public class AccelerationLimitTest {
         assertEquals(24, freighter.getMaxAccelerationSpeed());
     }
 
+    /**
+     * EVERY Q-ship doubles and may disengage by acceleration — all thirteen of them.
+     *
+     * <h2>Why this is a guard and not a comment</h2>
+     * Both properties default to permissive, so these thirteen hulls say nothing at all in their
+     * JSON and rely entirely on that default. Nothing would report it if someone added
+     * {@code accelDoubling: false} to one of them, or if a future hull were copied from a
+     * freighter instead of from a sibling Q-ship — the ship would simply be slower than its
+     * sheet, quietly, for the rest of the project.
+     *
+     * <h2>The reason, from the owner (2026-10-19)</h2>
+     * "All the Q-ships are secret military conversions. So they can all double and they can all
+     * disengage by acceleration." Which is why only the two PLAIN freighters carry the
+     * restrictions: a Q-ship is a warship wearing a freighter's hull.
+     */
+    @Test
+    public void everyQShipDoublesAndMayDisengageByAcceleration() {
+        int checked = 0;
+        for (ShipSpec spec : ShipLibrary.all()) {
+            String type = spec.type;
+            if (type == null || !(type.equals("L-Q") || type.equals("S-Q")))
+                continue;
+            Ship qship = ShipLibrary.createShip(spec);
+            String who = spec.faction + " " + type;
+            assertEquals(who + " should carry R1.7's five-point floor", 5, qship.getMaxAccel());
+            assertTrue(who + " must keep C2.21's doubling arm — a Q-ship is a warship in a"
+                    + " freighter's hull", qship.getMaxAccelerationSpeed() >= 5);
+            withRecentSpeed(qship, 6);
+            assertEquals(who + " must double past its floor", 12,
+                    qship.getMaxAccelerationSpeed());
+            assertTrue(who + " must be able to disengage by acceleration",
+                    qship.canDisengageByAcceleration());
+            checked++;
+        }
+        assertEquals("fixture: all thirteen Q-ships should have been checked — if this number"
+                + " moves, a hull was added or renamed and wants looking at", 13, checked);
+    }
+
     // ---------------------------------------------------------------- C7.1, the other sentence
 
     /**

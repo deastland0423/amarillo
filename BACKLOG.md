@@ -68,19 +68,31 @@ groundwork already in place.
   What exists today: `Game.dropMine` takes "TBOMB", "DUMMY_TBOMB" or "NSM", `MineResolver` runs
   arming and detonation, and `auxiliary.nuclearSpaceMines` gives a ship its NSMs. What is missing
   is the RACK as an inventory and as a hit location.
-- **R1.7 acceleration limit on freighters and Q-ships — DEAD DATA, not implemented.** Every
-  freighter and Q-ship sheet carries the same line: "this ship can accelerate by no more than 5
-  movement points or double the current speed. It can disengage by acceleration." Eleven ship files
-  declare `auxiliary.maxAccel: 5` and **nothing reads it** — `ShipSpec` does not even declare the
-  field, so Jackson drops it at parse time. A freighter can presently go from zero to flank in one
-  energy allocation.
+- **R1.7 acceleration limits — BUILT 2026-10-19.** Kept here only because this entry was wrong
+  in a way worth not repeating: it said "every freighter and Q-ship sheet carries the same line".
+  They do not, and that error survived into the first implementation.
 
-  Already tracked in code: `ShipJsonKeyGuardTest`'s PARKED list names it, which is what keeps
-  the gap visible rather than silent. Spelling unified 2026-10-12 (owner: "maxAccel: 5 is cleaner"): the four large Q-ships said
-  `slow: true` instead, which was a second name for the same unimplemented rule and made the gap
-  look like a distinction. Note the field name still only carries ONE bound of the rule — the
-  doubling clause and the disengage-by-acceleration clause are not expressible in it, so whatever
-  implements this will probably want to read the rule rather than the number.
+  The sheets state the limit in **two forms**, and only one is C2.21's shape. A Q-ship reads "no
+  more than five movement points **or double its current speed**. It can disengage by
+  acceleration." A plain freighter reads "cannot accelerate by more than 3 movement points per
+  turn. This ship **cannot** disengage by acceleration." So a freighter has a HARD cap with no
+  doubling arm, and no C7.1 at all — two rules, not one rule with two numbers. Reading the
+  Q-ship sentence onto every sheet let an F-S at speed 20 reach 31 where it may reach 23. Owner
+  caught it from the Basic Set SSD book, page 3, within the hour.
+
+  Three facts in `auxiliary`, all three defaulting to permissive: `maxAccel` (5 on all thirteen
+  Q-ships, 4 and 3 on the two plain freighters), `accelDoubling` and `disengageByAccel`. The two
+  booleans are kept SEPARATE although they agree on every hull in the game, because a single
+  flag carrying both is how the distinction was lost the first time — `slow: true` stood for the
+  pairing, was read as a vaguer spelling of `maxAccel`, and was unified away in `e391c0ed`. Note
+  the history: `slow` sat on the four large Q-SHIPS, which do double and can disengage, so the
+  flag was already being applied to the wrong hulls.
+
+  **The permissive default is the only thing holding thirteen hulls up**, since no Q-ship JSON
+  says anything about either boolean. `AccelerationLimitTest.everyQShipDoublesAndMayDisengageByAcceleration`
+  guards that by walking the library and counting to thirteen — owner's ruling, 2026-10-19: "All
+  the Q-ships are secret military conversions. So they can all double and they can all disengage
+  by acceleration." A hull copied from a freighter instead of a sibling Q-ship fails it by name.
 - **The EM restriction set (C10.51/C10.52) — AUDITED 2026-10-19, mostly NOT built.** Notes in
   this project have said EM's "prohibitions" were done. Some are. Built and cited: **C10.511**
   (cannot launch — `LaunchCoordinator.emLaunchBlock`, one helper for every launch path),
