@@ -214,6 +214,9 @@ public class Ship extends Unit implements DroneController {
 	/** J4.61/J4.62: what this ship may DO as a carrier, as opposed to what a fleet list allows. */
 	private com.sfb.properties.CarrierClass carrierClass = com.sfb.properties.CarrierClass.NONE;
 
+	/** M9.21: minesweeper, minelayer, or neither — which decides the mine-laying rate. */
+	private com.sfb.properties.MineRole mineRole = com.sfb.properties.MineRole.NONE;
+
 	// --- Aegis fire control (D13.0) ---
 	/**
 	 * What the hull HAS, which is also what it is always running.
@@ -286,6 +289,7 @@ public class Ship extends Unit implements DroneController {
 		isBase      = Boolean.TRUE.equals(values.get("isbase"));
 		requiresEscort = Boolean.TRUE.equals(values.get("requiresescort"));
 		carrierClass = com.sfb.properties.CarrierClass.from(values.get("carrierclass"));
+		mineRole = com.sfb.properties.MineRole.from(values.get("minerole"));
 		aegisFitted = com.sfb.properties.AegisLevel.from(values.get("aegis"));
 		Object aegisWeaponList = values.get("aegisweapons");
 		aegisWeaponTypes = aegisWeaponList instanceof java.util.List
@@ -1001,6 +1005,22 @@ public class Ship extends Unit implements DroneController {
 
 	public void setWeaponStatus(int weaponStatus) {
 		this.weaponStatus = weaponStatus;
+	}
+
+	/**
+	 * M9.21: whether this ship lays one mine from EACH rack per turn, or one per shuttle bay.
+	 *
+	 * The question the rack code asks, phrased as the rule phrases it. True only for a
+	 * minesweeper or a minelayer; every other hull — including one converted under S7.0 to carry
+	 * racks, which M9.16 says is "not considered a minesweeper for any purpose" — drops through
+	 * the shuttle hatch at one per bay regardless of how many racks it has.
+	 */
+	public boolean laysOneMinePerRack() {
+		return mineRole.laysOneMinePerRack();
+	}
+
+	public com.sfb.properties.MineRole getMineRole() {
+		return mineRole;
 	}
 
 	public com.sfb.properties.CarrierClass getCarrierClass() {

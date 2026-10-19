@@ -213,6 +213,19 @@ public class ShipSpec {
      * (S8.333).
      */
     public boolean isBCH;
+    /**
+     * M9.21: "MINESWEEPER" or "MINELAYER" where this hull is a dedicated mine-warfare vessel.
+     * Absent means it is neither, which is the answer for every hull in the data today.
+     *
+     * <p>A String here and a {@link com.sfb.properties.MineRole} in core, matching
+     * {@link #carrierClass} and {@link #aegis}: the file speaks the rulebook's word and the
+     * engine holds the enum. It decides the LAYING RATE — one mine per rack per turn for either
+     * role, one per shuttle bay for anything else — so the Romulan large Q-ship, being neither a
+     * minesweeper (M2.78) nor a minelayer (M2.79), leaves it out and lays at the bay rate.
+     *
+     * <p>See {@code MineRole} for what MINESWEEPER does not yet confer: M8.0 sweeping is unbuilt.
+     */
+    public String mineRole;
 
     /**
      * Annex #3's <b>"D%"</b> or <b>"DB"</b> marking: a unit allowed a higher proportion of special
@@ -892,6 +905,8 @@ public class ShipSpec {
             m.put("requiresescort", true);
         if (carrierClass != null)
             m.put("carrierclass", carrierClass);
+        if (mineRole != null)
+            m.put("minerole", mineRole);
         // Absent means normal, so an unstated quality is simply left out of the map and
         // Crew.init's default stands. Nothing had ever put this key in: the enum, the DTO field
         // and both rules sites existed, and every ship in the game was NORMAL because no entry
