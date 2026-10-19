@@ -241,6 +241,12 @@ class MineResolver {
 
             // Try to arm inactive mines; skip detection the impulse they arm
             if (!mine.isActive()) {
+                // M2.32 DESTROYED MINELAYER: "If the laying unit is destroyed or displaced, it
+                // is no longer within the safety range and the mine becomes armed at that
+                // point." A range of MAX_VALUE is how that is said here — the mine outlives its
+                // layer and arms rather than waiting forever for a ship that will never move
+                // away. The saved-game format leans on this: a restored mine whose layer did
+                // not survive the battle resolves to null and is NOT reported as a problem.
                 int layerRange = mine.getLayingShip() != null
                         ? MapUtils.getRange(mine, mine.getLayingShip())
                         : Integer.MAX_VALUE;
