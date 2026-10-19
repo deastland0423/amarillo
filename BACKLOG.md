@@ -81,9 +81,40 @@ groundwork already in place.
   look like a distinction. Note the field name still only carries ONE bound of the rule — the
   doubling clause and the disengage-by-acceleration clause are not expressible in it, so whatever
   implements this will probably want to read the rule rather than the number.
-- **EM C10.514** — a ship using erratic maneuvers may not lay or sweep a mine. `Game.placeTBomb`
-  and `Game.dropMine` both exist, so this is a guard rather than new machinery. (C10.512, cannot
-  guide seekers, is real work by comparison.)
+- **The EM restriction set (C10.51/C10.52) — AUDITED 2026-10-19, mostly NOT built.** Notes in
+  this project have said EM's "prohibitions" were done. Some are. Built and cited: **C10.511**
+  (cannot launch — `LaunchCoordinator.emLaunchBlock`, one helper for every launch path),
+  **C10.512** (cannot guide seekers — on both `Ship` and `Fighter`, with `checkControlOverflow`
+  sweeping a ship that starts EM while already guiding), **C10.516** (the carve-out that a
+  fighter under EM CAN use chaff), and two of C10.521's systems: **scout channels**
+  (`Ship.scoutChannelBlockReason`) and **labs** (`SeekerControl`), both citing the parent C10.52.
+
+  *(Audit note: grepping `C10.521` finds nothing and makes the systems list look wholly unbuilt.
+  The guards that exist cite `C10.52`. Grep the parent clause.)*
+
+  **The rest of C10.521 is the real work, and it is a SYSTEMS list rather than a set of
+  features**: a unit using EM also cannot operate **transporters**, **tractor beams**,
+  **passive fire control** (tracked separately as C10.415/D19.25), web generators, stasis field
+  generators, maulers, ESGs, or web casters for normal web. Web, SFGs, maulers and ESGs are
+  unbuilt here so they cost nothing yet. The live gaps are **transporters and tractor beams**,
+  neither of which has any EM guard — `Transporters` and `TractorResolver` contain no `C10.`
+  citation and no EM check at all. That is the general mechanism to wire this to, not one guard
+  per feature.
+
+  **And it subsumes half the mine question.** `Game.placeTBomb` lays a mine BY TRANSPORTER, so
+  C10.521 bars it as a transporter action before C10.514 ever speaks. Only the bay/rack path
+  (`Game.dropMine`) needs C10.514 on its own. A guard written against mines alone would leave
+  every other transporter action — boarding parties, hit-and-run raids, cargo — unguarded.
+
+  **Two clauses are exceptions and must not be flattened**: C10.522 lets a unit RECEIVE lent EW
+  while barring it from LENDING any (EWF squadron lending is live, so this one bites today), and
+  C10.525 allows negative tractor energy at full strength, which whoever implements the tractor
+  ban has to carve out.
+
+  **Beware the rulebook's own cross-reference here.** M2.11 says the EM mine prohibition is at
+  "(C10.53)". It is not — C10.53 is DOCKING. The mine clause is **C10.514**: "A unit using EM
+  cannot detect, lay, or sweep a mine. It can detect a minefield under (M7.11)." Do not "correct"
+  this entry to match the pointer.
 - **G24.23, attracting drones** — then G24.1343, phaser downfire to avoid blinding.
 - **G21.1/G21.2 crew quality adjustments.** The declaration is built and `crewQuality` is on
   `ShipSpec`; the adjustment lists are not. The ±3 natural EW is the first slice.
