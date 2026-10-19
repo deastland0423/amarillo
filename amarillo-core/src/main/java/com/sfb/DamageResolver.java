@@ -686,7 +686,14 @@ class DamageResolver {
                 return attacker.getName() + " cannot fire at " + target.getName()
                         + " — tractored ships may only fire direct-fire weapons at the holding ship (G7.91)";
         }
-        if (attacker instanceof Ship && !((Ship) attacker).isActiveFireControl()) {
+        if (attacker instanceof Ship ship && !ship.isActiveFireControl()) {
+            // C10.415 / D19.25: EM does not shorten passive fire control, it REMOVES it — the
+            // ship counts as inactive (D6.614) rather than passive, and "cannot fire or launch
+            // any weapons while using PFC". Checked before the range test because the range is
+            // a property of passive fire control, which this ship no longer has.
+            if (!ship.isPassiveFireControl())
+                return ship.getName() + " cannot fire — Erratic Maneuvers leave its fire control"
+                        + " inactive rather than passive (C10.415, D19.25)";
             if (range > 5)
                 return attacker.getName()
                         + " cannot fire — target out of passive fire control range (5 hexes max, D19.23)";

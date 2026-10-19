@@ -2518,6 +2518,36 @@ public class Ship extends Unit implements DroneController {
 	 * Erratic Maneuvers bar channel use too (G24.16, C10.52) — the same prohibition G4.21
 	 * puts on identifying with labs.
 	 */
+	/**
+	 * Whether this ship is on PASSIVE fire control (D19.0), as opposed to active or inactive.
+	 *
+	 * <h2>Three states out of one boolean</h2>
+	 * Fire control is modelled as {@code activeFireControl}, so "passive" was simply its
+	 * negation everywhere. C10.415 adds a third state and it is not a refusal but an absence:
+	 * "Using EM will negate the effects of passive fire control (D19.25) and prevent its use. If
+	 * the fire control is not active, it would be considered <b>inactive</b> (D6.614) rather than
+	 * <b>passive</b>." So a ship conducting EM without active fire control has none at all.
+	 *
+	 * <p>Expressed as a capability yielding nothing rather than as a guard at each caller, which
+	 * is the shape C10.512 already uses — a fighter's control capacity returns zero under EM
+	 * instead of every control path testing for it. Anything that asks "is this ship passive?"
+	 * gets the right answer without knowing about EM.
+	 *
+	 * <h2>What passive fire control actually buys, and so what EM takes away</h2>
+	 * Firing at range 5 or less (D19.23) is the only one that is reachable today. D19.221's
+	 * self-guiding-drone launch is already barred under EM by C10.511, and D19.224's tractor by
+	 * C10.521, so those paths need nothing of their own. D19.25's remaining clauses — that time
+	 * spent on EM does not accrue the PFC bonus and that EM cancels one already earned — wait on
+	 * D19.3, which is unbuilt.
+	 *
+	 * <p>Asks {@code isUsingEm()} rather than {@code isEmEffective()} to match the other C10.52
+	 * guards; see {@code Game.emActionBlock} for why that family is consistent rather than
+	 * individually settled.
+	 */
+	public boolean isPassiveFireControl() {
+		return !activeFireControl && !isUsingEm();
+	}
+
 	public String scoutChannelBlockReason(boolean selfProtection) {
 		if (!selfProtection && cloak != null && cloak.isRestrictingActions())
 			return getName() + " is cloaked — only self-protection may use a channel (G24.16, G13.515)";

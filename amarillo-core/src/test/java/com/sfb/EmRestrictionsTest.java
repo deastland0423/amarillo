@@ -218,6 +218,57 @@ public class EmRestrictionsTest {
     // the INITIAL_ACTIVITY phase (G7.7), which needs a turn-start fixture with links already in
     // place. That test lives with the other rotation tests, in TractorTest.
 
+    // ---------------------------------------------------------------- C10.415 fire control
+
+    /**
+     * C10.415: EM does not shorten passive fire control, it REMOVES it.
+     *
+     * "If the fire control is not active, it would be considered inactive (D6.614) rather than
+     * passive", and D19.25 adds that such a ship "cannot fire or launch any weapons while using
+     * PFC". So the difference is between firing out to range 5 (D19.23) and not firing at all —
+     * which is why the fixture fires successfully FIRST. A refusal from a ship that could not
+     * have fired anyway is no evidence.
+     */
+    @Test
+    public void emLeavesFireControlInactiveSoTheShipCannotFireAtAll() {
+        ship.setActiveFireControl(false);
+        assertFalse("fixture: no active fire control", ship.isActiveFireControl());
+        assertTrue("fixture: so it is PASSIVE, which D19.23 lets fire inside range 5",
+                ship.isPassiveFireControl());
+        while (game.getCurrentPhase() != Game.ImpulsePhase.DIRECT_FIRE)
+            game.advancePhase();
+
+        java.util.List<com.sfb.weapons.Weapon> guns = new java.util.ArrayList<>();
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.PhaserWeapon && w.isFunctional()) {
+                guns.add(w);
+                break;
+            }
+        assertFalse("fixture: the ship needs a phaser to fire", guns.isEmpty());
+
+        String before = game.fireWeapons(ship, other, guns, 1, 1, 1);
+        assertFalse("fixture: it must be able to fire at range 1 BEFORE EM, or the refusal below"
+                + " proves nothing — " + before, before.contains("cannot fire"));
+
+        startEm();
+
+        assertFalse("EM makes it inactive, not passive", ship.isPassiveFireControl());
+        String after = game.fireWeapons(ship, other, guns, 1, 1, 1);
+        assertTrue("an inactive ship cannot fire at any range, and the refusal must name the"
+                + " rule: " + after, after.contains("C10.415"));
+    }
+
+    /** With ACTIVE fire control, EM costs the ship nothing here — C10.415 is about PFC only. */
+    @Test
+    public void emDoesNotTouchActiveFireControl() {
+        ship.setActiveFireControl(true);
+        startEm();
+
+        assertFalse("active is not passive, so the predicate says no",
+                ship.isPassiveFireControl());
+        assertTrue("but the ship still HAS fire control", ship.isActiveFireControl());
+    }
+
     // ---------------------------------------------------------------- the carve-outs
 
     /**

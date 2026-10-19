@@ -2249,7 +2249,11 @@ function ShipSidebar({
             label="Fire Control"
             value={ship.fireControlActivating
               ? `activating (impulse ${ship.fcActivatingUntil ?? '?'})`
-              : ship.activeFireControl ? 'active' : 'passive'}
+              : ship.activeFireControl ? 'active'
+              // C10.415: EM leaves it INACTIVE rather than passive, which is the difference
+              // between firing out to range 5 and not firing at all. Derived from the two flags
+              // the DTO already sends rather than adding a third that could disagree with them.
+              : ship.usingEm ? 'inactive (Erratic Maneuvers)' : 'passive'}
           />
         )}
         {(ship.cloakCost ?? 0) > 0 && (

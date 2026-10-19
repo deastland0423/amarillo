@@ -951,7 +951,9 @@ function shipTooltipLines(ship: ShipObject): string[] {
     if (jam > 0)  ew += ` · jammed ${jam}`;
     lines.push(ew);
   }
-  if (!ship.activeFireControl) lines.push(`FC:       passive`);
+  // C10.415: under EM it is inactive, not passive — it cannot fire at all.
+  if (!ship.activeFireControl)
+    lines.push(ship.usingEm ? `FC:       inactive (EM)` : `FC:       passive`);
   return lines;
 }
 
