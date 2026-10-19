@@ -151,27 +151,26 @@ public class SuicideShuttle extends Shuttle implements Seeker {
     public static final String SAVE_KIND = "SUICIDE_SHUTTLE";
 
     /**
-     * PARTIAL, and deliberately so: enough for a load to REPORT this craft, not enough to
-     * rebuild it.
+     * A suicide shuttle in flight, completely enough to rebuild it.
      *
-     * This class wraps a {@code Shuttle}, and rebuilding that shuttle is the deferred half of
-     * the saved-game work — a shuttle is created in play from a bay, and restoring one means
-     * restoring the bay it came from. So {@code Game.applyState} does not revive this kind; it
-     * names it among the problems it returns, which is the whole reason this method writes
-     * anything at all. A silent default would have let a scatter-pack in flight simply cease to
-     * exist with nothing said.
+     * <h2>This used to be partial on purpose, and no longer needs to be</h2>
+     * The old note here said rebuilding one meant rebuilding the bay it came from, so the save
+     * wrote just enough for a load to REPORT the craft and let it go. That reason has expired:
+     * {@link Shuttle#fromState} builds a craft from its catalogue row and needs no bay at all.
+     * So this now writes the whole craft — {@code super.exportState()} carries the hull damage,
+     * the crippling and the position — and {@link #fromState} wraps it.
+     *
+     * <h2>The arming state is the whole weapon</h2>
+     * J3.0 arms a suicide shuttle over three turns, and {@code armingTurnsComplete} with
+     * {@code totalEnergy} is what decides whether it detonates for nothing or for its full
+     * warhead. Dropping them would have turned a loaded weapon back into a bus.
+     * {@code upkeepPaidThisTurn} travels too: a fully armed shuttle owes a hold cost each turn,
+     * and a save taken mid-turn that forgot it would grant the hold free.
      */
     @Override
     public java.util.Map<String, Object> exportState() {
-        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        java.util.Map<String, Object> state = super.exportState();
         state.put(Seeker.SAVE_KIND, SAVE_KIND);
-        state.put("name", getName());
-        if (getLocation() != null) {
-            state.put("x", getLocation().getX());
-            state.put("y", getLocation().getY());
-        }
-        state.put("facing", getFacing());
-        state.put("speed", getSpeed());
         state.put("target", getTarget() == null ? null : getTarget().getName());
         state.put("controller", controller == null ? null : controller.getName());
         state.put("armingTurnsComplete", armingTurnsComplete);
@@ -181,5 +180,37 @@ public class SuicideShuttle extends Shuttle implements Seeker {
         state.put("ballisticCourse",
                 ballisticCourse == null ? null : ballisticCourse.exportState());
         return state;
+    }
+
+    /**
+     * Rebuild a suicide shuttle from a save.
+     *
+     * The base craft comes back through {@link Shuttle#fromState}, which is what makes this
+     * possible without the bay it was converted in, and the wrapper is CONSTRUCTED around it
+     * because the constructor is what carries the hull, the speed and the catalogue type across.
+     *
+     * @param groundTarget a ballistic course's target, already resolved by the caller
+     * @return the shuttle, or null if the saved craft type is not one this build has
+     */
+    public static SuicideShuttle fromState(java.util.Map<String, Object> state,
+            Unit groundTarget) {
+        if (state == null)
+            return null;
+        Shuttle base = Shuttle.fromState(state);
+        if (base == null)
+            return null;
+        SuicideShuttle shuttle = new SuicideShuttle(base);
+        shuttle.applyState(state);
+
+        shuttle.armingTurnsComplete = com.sfb.systemgroups.StateIo.integer(state,
+                "armingTurnsComplete", 0);
+        shuttle.totalEnergy = com.sfb.systemgroups.StateIo.integer(state, "totalEnergy", 0);
+        shuttle.lastArmingEnergy = com.sfb.systemgroups.StateIo.integer(state,
+                "lastArmingEnergy", 0);
+        shuttle.upkeepPaidThisTurn = com.sfb.systemgroups.StateIo.flag(state,
+                "upkeepPaidThisTurn", false);
+        shuttle.setBallisticCourse(com.sfb.objects.BallisticCourse.fromState(
+                com.sfb.systemgroups.StateIo.child(state, "ballisticCourse"), groundTarget));
+        return shuttle;
     }
 }

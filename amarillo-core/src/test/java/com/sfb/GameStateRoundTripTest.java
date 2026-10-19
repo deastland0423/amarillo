@@ -233,8 +233,12 @@ public class GameStateRoundTripTest {
     }
 
     /**
-     * A craft-based seeker cannot be rebuilt yet, and must be REPORTED rather than quietly
-     * ceasing to exist. This is what the partial exportState on those classes is for.
+     * A seeker kind with no loader is REPORTED rather than quietly ceasing to exist.
+     *
+     * This test used to name SCATTER_PACK as the example, with a comment saying craft-based
+     * seekers could not be rebuilt yet. Both halves have expired — they rebuild now — so the
+     * example is a kind that genuinely does not exist. The guarantee it protects is unchanged
+     * and is the one that matters: whatever this build cannot load, the player hears about.
      */
     @Test
     public void aSeekerKindThisBuildCannotRebuildIsReported() {
@@ -242,7 +246,7 @@ public class GameStateRoundTripTest {
         Map<String, Object> saved = before.exportState();
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> seekers = (List<Map<String, Object>>) saved.get("seekers");
-        seekers.get(0).put(Seeker.SAVE_KIND, "SCATTER_PACK");
+        seekers.get(0).put(Seeker.SAVE_KIND, "MONGOOSE_MISSILE");
         seekers.get(0).put("name", "Scatter-1");
 
         Game rebuilt = new Game();
@@ -517,6 +521,181 @@ public class GameStateRoundTripTest {
         assertTrue("the player must be told: " + problems,
                 problems.stream().anyMatch(p -> p.contains("Hood-Shuttle-1")));
         assertTrue(rebuilt.getActiveShuttles().isEmpty());
+    }
+
+    // ---------------------------------------------------------------- craft-based seekers
+
+    /** An admin shuttle converted to a suicide shuttle and sent off, added to the battle. */
+    private static com.sfb.objects.shuttles.SuicideShuttle suicideShuttleInFlight(Game game,
+            String name, int armingTurns) {
+        try {
+            com.sfb.objects.ShuttleCatalog.loadDefault("../data");
+        } catch (Exception e) {
+            throw new AssertionError("fixture: the shuttle catalogue should load", e);
+        }
+        com.sfb.objects.shuttles.Shuttle base =
+                com.sfb.systemgroups.ShuttleBay.buildShuttle("admin", name);
+        com.sfb.objects.shuttles.SuicideShuttle shuttle =
+                new com.sfb.objects.shuttles.SuicideShuttle(base);
+        shuttle.setLocation(new com.sfb.properties.Location(11, 11));
+        shuttle.setFacing(1);
+        for (int i = 0; i < armingTurns; i++)
+            assertTrue("fixture: arming turn " + (i + 1) + " should be accepted",
+                    shuttle.arm(3));
+        game.getSeekers().add(shuttle);
+        return shuttle;
+    }
+
+    private static <T> T seekerNamed(Game game, String name, Class<T> kind) {
+        for (Seeker seeker : game.getSeekers())
+            if (seeker instanceof com.sfb.objects.Unit unit && name.equals(unit.getName())
+                    && kind.isInstance(seeker))
+                return kind.cast(seeker);
+        throw new AssertionError(name + " did not survive the save as a " + kind.getSimpleName());
+    }
+
+    /**
+     * THE TEST THIS SLICE EXISTS FOR: a craft-based seeker used to be REPORTED and dropped.
+     *
+     * Both kinds wrap a craft, and the old reason for not rebuilding them — that it would mean
+     * rebuilding the bay the craft came from — expired when Shuttle.fromState arrived.
+     */
+    @Test
+    public void aSuicideShuttleInFlightSurvivesASave() {
+        Game before = battleInProgress();
+        com.sfb.objects.shuttles.SuicideShuttle sent =
+                suicideShuttleInFlight(before, "Hood-Suicide-1", 1);
+
+        Game after = roundTrip(before);
+
+        com.sfb.objects.shuttles.SuicideShuttle restored =
+                seekerNamed(after, "Hood-Suicide-1",
+                        com.sfb.objects.shuttles.SuicideShuttle.class);
+        assertEquals("it must still be in the same hex", sent.getLocation(),
+                restored.getLocation());
+        assertEquals("and remember what it was built from (J3.18)",
+                sent.getCatalogType(), restored.getCatalogType());
+    }
+
+    /**
+     * J3.0: a suicide shuttle arms over three turns, and the arming state IS the weapon.
+     *
+     * Dropping it would turn a loaded weapon back into a bus — or, the other way round, let a
+     * half-armed shuttle detonate for a full warhead.
+     */
+    @Test
+    public void aSuicideShuttleKeepsHowFarItIsArmed() {
+        Game before = battleInProgress();
+        com.sfb.objects.shuttles.SuicideShuttle sent =
+                suicideShuttleInFlight(before, "Hood-Suicide-1", 2);
+        assertEquals("fixture: two turns of arming", 2, sent.getArmingTurnsComplete());
+        assertFalse("fixture: and therefore not yet fully armed", sent.isFullyArmed());
+        int energy = sent.getTotalEnergy();
+        assertTrue("fixture: it should have energy in it", energy > 0);
+
+        com.sfb.objects.shuttles.SuicideShuttle restored =
+                seekerNamed(roundTrip(before), "Hood-Suicide-1",
+                        com.sfb.objects.shuttles.SuicideShuttle.class);
+
+        assertEquals("the arming turns must survive", 2, restored.getArmingTurnsComplete());
+        assertEquals("and the energy put into it", energy, restored.getTotalEnergy());
+        assertFalse("so it is still not fully armed", restored.isFullyArmed());
+    }
+
+    /** A fully armed shuttle owes its hold cost each turn, and a reload must not forgive it. */
+    @Test
+    public void aFullyArmedSuicideShuttleStillOwesItsHold() {
+        Game before = battleInProgress();
+        com.sfb.objects.shuttles.SuicideShuttle sent =
+                suicideShuttleInFlight(before, "Hood-Suicide-1", 3);
+        assertTrue("fixture: three turns means fully armed", sent.isFullyArmed());
+        sent.payHold();
+        assertTrue("fixture: the hold is paid for this turn", sent.isUpkeepPaid());
+
+        assertTrue("a reload must not un-pay the hold",
+                seekerNamed(roundTrip(before), "Hood-Suicide-1",
+                        com.sfb.objects.shuttles.SuicideShuttle.class).isUpkeepPaid());
+    }
+
+    /**
+     * A scatter-pack's PAYLOAD is ammunition, and the save used to write only a count.
+     *
+     * Six type-I drones and six type-VI drones are both "6", so a count would have rebuilt the
+     * pack with whatever the default happened to be. FD7.21 even makes the pack's spaces depend
+     * on what is loaded, so the drones have to travel as drones.
+     */
+    @Test
+    public void aScatterPackKeepsTheDronesAboardIt() {
+        Game before = battleInProgress();
+        com.sfb.objects.Drone sample = (com.sfb.objects.Drone) before.getSeekers().get(0);
+        com.sfb.objects.shuttles.Shuttle base =
+                com.sfb.systemgroups.ShuttleBay.buildShuttle("admin", "Hood-Scatter-1");
+        com.sfb.objects.shuttles.ScatterPack pack =
+                new com.sfb.objects.shuttles.ScatterPack(base);
+        pack.setLocation(new com.sfb.properties.Location(11, 12));
+        for (int i = 0; i < 3; i++)
+            assertTrue("fixture: drone " + i + " should load",
+                    pack.addDrone(new com.sfb.objects.Drone(sample.getDroneType())));
+        before.getSeekers().add(pack);
+
+        com.sfb.objects.shuttles.ScatterPack restored =
+                seekerNamed(roundTrip(before), "Hood-Scatter-1",
+                        com.sfb.objects.shuttles.ScatterPack.class);
+
+        assertEquals("all three drones must still be aboard", 3, restored.getPayload().size());
+        assertEquals("and be the drones that were loaded, not a default",
+                sample.getDroneType(), restored.getPayload().get(0).getDroneType());
+    }
+
+    /**
+     * FD7.3: a drone loaded this turn is available the NEXT one, so the pending payload is a
+     * separate list. Collapsing the two would hand the player a pack ready to release early.
+     */
+    @Test
+    public void aScatterPacksPendingPayloadStaysPending() {
+        Game before = battleInProgress();
+        com.sfb.objects.Drone sample = (com.sfb.objects.Drone) before.getSeekers().get(0);
+        com.sfb.objects.shuttles.ScatterPack pack = new com.sfb.objects.shuttles.ScatterPack(
+                com.sfb.systemgroups.ShuttleBay.buildShuttle("admin", "Hood-Scatter-1"));
+        pack.setLocation(new com.sfb.properties.Location(11, 12));
+        assertTrue("fixture: it should load as pending",
+                pack.addPendingDrone(new com.sfb.objects.Drone(sample.getDroneType())));
+        before.getSeekers().add(pack);
+
+        com.sfb.objects.shuttles.ScatterPack restored =
+                seekerNamed(roundTrip(before), "Hood-Scatter-1",
+                        com.sfb.objects.shuttles.ScatterPack.class);
+
+        assertEquals("the pending drone must still be pending",
+                1, restored.getPendingPayload().size());
+        assertTrue("and must not have become available early",
+                restored.getPayload().isEmpty());
+    }
+
+    /**
+     * And its references resolve like any other seeker's.
+     *
+     * This one would have broken quietly: the controller was restored through a chain of
+     * instanceof tests that knew only Drone and PlasmaTorpedo, so the moment these kinds became
+     * restorable they would have come back unguided. It goes through the Seeker interface now.
+     */
+    @Test
+    public void aCraftBasedSeekerKeepsItsTargetAndController() {
+        Game before = battleInProgress();
+        com.sfb.objects.shuttles.SuicideShuttle sent =
+                suicideShuttleInFlight(before, "Hood-Suicide-1", 1);
+        sent.setTarget(shipNamed(before, "IKV Blade"));
+        sent.setController(shipNamed(before, "USS Hood"));
+
+        Game after = roundTrip(before);
+        com.sfb.objects.shuttles.SuicideShuttle restored =
+                seekerNamed(after, "Hood-Suicide-1",
+                        com.sfb.objects.shuttles.SuicideShuttle.class);
+
+        assertSame("the target must be the restored Blade",
+                shipNamed(after, "IKV Blade"), restored.getTarget());
+        assertSame("and the controller the restored Hood",
+                shipNamed(after, "USS Hood"), restored.getController());
     }
 
     // ---------------------------------------------------------------- seeker control

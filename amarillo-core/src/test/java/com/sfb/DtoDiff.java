@@ -51,24 +51,24 @@ final class DtoDiff {
 	 * in the full suite, which is the signature of exactly this: a set surfaced as a list must be
 	 * compared as a SET. Sorting is the cheapest way to say so.
 	 *
-	 * <h2>What is filtered, and why filtering rather than tolerating</h2>
-	 * What is left here are the CRAFT-BASED units — a suicide shuttle and a scatter-pack wrap a
-	 * craft and export only partially on purpose. They are removed rather than excused by a
-	 * tolerated field name, because the tolerated name would be {@code mapObjects} — which holds
-	 * every ship as well, so a save could lose every shield on every ship and still pass.
+	 * <h2>NOTHING is filtered any more, and that is the point</h2>
+	 * This method used to strip whole classes of unit out of the comparison because the save
+	 * could not carry them: first the seekers, then the craft in flight, then the mines, then the
+	 * craft-based seekers. Each removal was honest about a real gap, and each one has now been
+	 * closed, so the graph is compared whole.
 	 *
-	 * <p>Drones and plasma torpedoes are NOT filtered (slice D3b), nor are craft in flight
-	 * (shuttle slices 1–3), nor MINES, which are saved now. Unfiltering mines is what put the
-	 * fixture's laid T-bomb under the net, and it immediately reported a second loss nobody was
-	 * looking for: the ship's stock of UNLAID transporter bombs was being rebuilt from the hull,
-	 * so a reload handed back every bomb the battle had spent.
+	 * <p>Filtering was always preferred to a tolerated FIELD NAME, because the tolerated name
+	 * would have been {@code mapObjects} — which holds every ship as well, so a save could have
+	 * lost every shield on every ship and still passed. The granularity of an excuse matters
+	 * more than the list of them.
+	 *
+	 * <p>Taking a class out of the filter has twice reported a loss nobody was looking for.
+	 * Unfiltering mines surfaced a ship's stock of UNLAID transporter bombs being rebuilt from
+	 * the hull, so a reload handed back every bomb the battle had spent. That is the argument
+	 * for closing the last of these rather than leaving it excused.
 	 */
 	static GameStateDto comparable(Game game) {
 		GameStateDto dto = new GameStateDto(game);
-		dto.mapObjects = dto.mapObjects.stream()
-				.filter(object -> !(object instanceof GameStateDto.SuicideShuttleDto
-						|| object instanceof GameStateDto.ScatterPackDto))
-				.toList();
 		for (GameStateDto.MapObjectDto object : dto.mapObjects)
 			if (object instanceof GameStateDto.ShipDto ship && ship.lockOnTargets != null)
 				ship.lockOnTargets = ship.lockOnTargets.stream().sorted().toList();

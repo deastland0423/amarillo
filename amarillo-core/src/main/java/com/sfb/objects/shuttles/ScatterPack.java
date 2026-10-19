@@ -227,26 +227,92 @@ public class ScatterPack extends Shuttle implements Seeker {
      * anything at all. A silent default would have let a scatter-pack in flight simply cease to
      * exist with nothing said.
      */
+    /**
+     * A scatter-pack in flight, completely enough to rebuild it — payload included.
+     *
+     * <h2>The payload was a COUNT, and a count is not ammunition</h2>
+     * This method used to write {@code payloadCount} and nothing else about what was aboard,
+     * because the class was only ever meant to be reported and dropped. Counting them would
+     * have been the drone-rack mistake over again from the other side: six type-I drones and six
+     * type-VI drones are both "6", and FD7.21 makes the pack's spaces depend on what is loaded.
+     * So each drone goes through {@link Drone#exportState()}, the same path a drone in flight
+     * takes.
+     *
+     * <p>{@code pendingPayload} is kept separate because it is not loaded yet — FD7.3 makes a
+     * drone loaded this turn available the next — and collapsing the two would hand the player
+     * a pack ready to release a turn early.
+     */
     @Override
     public java.util.Map<String, Object> exportState() {
-        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        java.util.Map<String, Object> state = super.exportState();
         state.put(Seeker.SAVE_KIND, SAVE_KIND);
-        state.put("name", getName());
-        if (getLocation() != null) {
-            state.put("x", getLocation().getX());
-            state.put("y", getLocation().getY());
-        }
-        state.put("facing", getFacing());
-        state.put("speed", getSpeed());
         state.put("target", getTarget() == null ? null : getTarget().getName());
         state.put("controller", controller == null ? null : controller.getName());
         state.put("launchImpulse", launchImpulse);
         state.put("released", released);
         state.put("maxDroneSpaces", maxDroneSpaces);
-        state.put("payloadCount", payload.size());
-        state.put("pendingPayloadCount", pendingPayload.size());
+
+        java.util.List<Object> aboard = new java.util.ArrayList<>();
+        for (Drone drone : payload)
+            if (drone != null)
+                aboard.add(drone.exportState());
+        state.put("payload", aboard);
+
+        java.util.List<Object> loading = new java.util.ArrayList<>();
+        for (Drone drone : pendingPayload)
+            if (drone != null)
+                loading.add(drone.exportState());
+        state.put("pendingPayload", loading);
+
         state.put("ballisticCourse",
                 ballisticCourse == null ? null : ballisticCourse.exportState());
         return state;
+    }
+
+    /**
+     * Rebuild a scatter-pack from a save.
+     *
+     * The base craft comes back through {@link Shuttle#fromState}, which is what makes this
+     * possible without the bay it was built in, and the wrapper is CONSTRUCTED around it because
+     * {@link #ScatterPack(Shuttle)} is what reads FD7.21's capacity off the catalogue row.
+     *
+     * @param groundTarget a ballistic course's target, already resolved by the caller
+     * @return the pack, or null if the saved craft type is not one this build has
+     */
+    public static ScatterPack fromState(java.util.Map<String, Object> state, Unit groundTarget) {
+        if (state == null)
+            return null;
+        Shuttle base = Shuttle.fromState(state);
+        if (base == null)
+            return null;
+        ScatterPack pack = new ScatterPack(base);
+        pack.applyState(state);
+
+        pack.launchImpulse = com.sfb.systemgroups.StateIo.integer(state, "launchImpulse", -1);
+        pack.released = com.sfb.systemgroups.StateIo.flag(state, "released", false);
+        pack.maxDroneSpaces = com.sfb.systemgroups.StateIo.integer(state, "maxDroneSpaces",
+                pack.maxDroneSpaces);
+        pack.payload = dronesFrom(state.get("payload"));
+        pack.pendingPayload = dronesFrom(state.get("pendingPayload"));
+        pack.setBallisticCourse(com.sfb.objects.BallisticCourse.fromState(
+                com.sfb.systemgroups.StateIo.child(state, "ballisticCourse"), groundTarget));
+        return pack;
+    }
+
+    /** The drones in one saved list, through the same path a drone in flight takes. */
+    private static List<Drone> dronesFrom(Object raw) {
+        List<Drone> drones = new ArrayList<>();
+        if (!(raw instanceof List<?> list))
+            return drones;
+        for (Object item : list) {
+            if (!(item instanceof java.util.Map<?, ?> entry))
+                continue;
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> droneState = (java.util.Map<String, Object>) entry;
+            Drone drone = Drone.fromState(droneState, null, null, null);
+            if (drone != null)
+                drones.add(drone);
+        }
+        return drones;
     }
 }

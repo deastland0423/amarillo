@@ -2671,10 +2671,15 @@ public class Game {
                 revived = Drone.fromState(saved, null, null, groundTarget);
             else if (PlasmaTorpedo.SAVE_KIND_PLASMA.equals(kind))
                 revived = PlasmaTorpedo.fromState(saved, null, null, groundTarget);
+            else if (com.sfb.objects.shuttles.SuicideShuttle.SAVE_KIND.equals(kind))
+                revived = com.sfb.objects.shuttles.SuicideShuttle.fromState(saved, groundTarget);
+            else if (com.sfb.objects.shuttles.ScatterPack.SAVE_KIND.equals(kind))
+                revived = com.sfb.objects.shuttles.ScatterPack.fromState(saved, groundTarget);
             else {
-                // A craft-based seeker — a suicide shuttle or a scatter-pack. Rebuilding one
-                // means rebuilding the shuttle it wraps and the bay it came from, which is not
-                // done yet. Say so rather than letting it quietly cease to exist.
+                // A kind this build has no loader for at all. Say so rather than letting a
+                // weapon in flight quietly cease to exist — which is what the craft-based
+                // seekers used to do, before Shuttle.fromState made rebuilding them possible
+                // without the bay they were built in.
                 problems.add("a " + (kind == null ? "seeker of unknown kind" : kind)
                         + " was in flight and could not be restored: "
                         + com.sfb.systemgroups.StateIo.text(saved, "name"));
@@ -2703,14 +2708,14 @@ public class Game {
             if (target != null)
                 r.seeker().setTarget(target);
 
+            // Seeker declares setController, so this goes through the INTERFACE rather than a
+            // chain of instanceof tests. The chain had held only Drone and PlasmaTorpedo, so
+            // the moment the craft-based kinds became restorable they would have come back
+            // unguided — a new kind must not have to find and extend a list like that.
             Unit controller = units.get(
                     com.sfb.systemgroups.StateIo.text(r.saved(), "controller"));
-            if (controller != null) {
-                if (r.seeker() instanceof Drone drone)
-                    drone.setController(controller);
-                else if (r.seeker() instanceof PlasmaTorpedo torpedo)
-                    torpedo.setController(controller);
-            }
+            if (controller != null)
+                r.seeker().setController(controller);
         }
         return problems;
     }
