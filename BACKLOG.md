@@ -35,8 +35,39 @@ groundwork already in place.
   F4.0 and somebody looking for it will come here first. Still open: the SCATTER-PACK has no
   ballistic door (it needs F4.41/F4.42/F4.43, which is a feature in its own right — see the
   scatter-pack section), F4.3 wild boars, F4.5 tractors, and firing at a bare hex has no UI.
-- **Mine racks (M9.0) — rules READ 2026-10-12, unbuilt.** The Romulan large Q-ship is the first
-  hull in the data to carry them, and `auxiliary.mineRacks` is parked rather than read.
+- **Mine racks (M9.0) — rules READ, and SMALLER than they look. Unbuilt.** The Romulan large
+  Q-ship is the first hull in the data to carry them, and `auxiliary.mineRacks` is parked rather
+  than read.
+
+  **The laying ACTION is already built and correct** (established 2026-10-19). A rack mine is
+  laid exactly as a bay-dropped one is: M9.0 says "large or small mines can be laid directly (in
+  the hex occupied by the ship); see (M2.0)", and M2.12 puts the counter in the ship's own hex.
+  So `Game.dropMine` already does the placement, records `PlacementMethod.DROPPED`, arms by
+  RANGE rather than by the T-bomb's timer (M2.31: the layer must move two hexes off), arms
+  immediately if the layer dies (M2.32), and honours M2.34's sequencing. Because `DROPPED`
+  already exists as a placement method, **the saved-game format carries rack mines with no
+  change at all**. EM is guarded too (C10.514, 2026-10-19).
+
+  **What is actually left is three things, none of them the laying:**
+  1. *Inventory* — the rack's contents. `DroneRack` is the pattern, since it already models
+     capacity that varies with what is loaded.
+  2. *Rate, and whether the bay is involved.* `MineResolver` currently refuses with "No shuttle
+     bay available to drop a mine this impulse", and for a true minelayer that is WRONG — M9.21
+     bypasses the hatch entirely. So the bay requirement has to become conditional.
+  3. *Damage location* — M9.13, below.
+
+  **M9.21 splits three ways**, and only the first gets the fast rate:
+  - minesweepers and minelayers: one mine **per rack** per turn, no bay consumed, no quarter-turn
+    spacing, no M2.111 conflict with shuttle launches;
+  - ships converted under S7.0: one per turn **per shuttle bay**, regardless of how many racks;
+  - Orion option-mount racks: one per rack, but Orion racks *in* bays are one per bay per turn.
+
+  **OWNER'S RULING 2026-10-19: the Romulan large Q-ship uses the BAY RATE.** It is neither a
+  minesweeper (M2.78) nor a minelayer (M2.79) — those are separate entries from M2.76's Q-ship —
+  and M9.21 says "Only minesweepers and minelayers use these rates". So its two racks are
+  inventory only and the bay is the bottleneck: one mine per turn, not two. M9.16 supports it:
+  "Ships modified by (S7.0) to carry mines in the shuttle bay are not considered minesweepers
+  for any purpose."
 
   **M9.11:** minesweepers and minelayers carry mine storage boxes. "Each such box holds FOUR large
   mines. Two small mines can be substituted for one large one." So a rack is 4 NSMs or up to 8
@@ -127,6 +158,33 @@ groundwork already in place.
   "(C10.53)". It is not — C10.53 is DOCKING. The mine clause is **C10.514**: "A unit using EM
   cannot detect, lay, or sweep a mine. It can detect a minefield under (M7.11)." Do not "correct"
   this entry to match the pointer.
+- **C10.415 / D19.25: EM negates passive fire control — ANALYSED 2026-10-19, not built.** The
+  last reachable clause in C10.52. Zero citations for either `C10.415` or `D19.25` in code.
+
+  **The rule.** C10.415: "Using EM will negate the effects of passive fire control (D19.25) and
+  prevent its use. If the fire control is not active, it would be considered **inactive**
+  (D6.614) rather than **passive**." D19.25 adds: a ship without active FC conducting EM "gains
+  no benefits from PFC (D19.3) and cannot fire or launch any weapons while using PFC", the time
+  spent on EM does not count toward earning PFC benefits (D19.31), and any use of EM cancels the
+  PFC bonus so it must be earned again afterwards.
+
+  **What is reachable here is FIRING, and only firing.** Our model has no PASSIVE/INACTIVE
+  distinction: fire control is the boolean `Ship.activeFireControl`, so "passive" is simply
+  `!activeFireControl`. What passive FC currently BUYS a ship is three things — firing at range
+  5 or less (`DamageResolver`, D19.23), launching self-guiding drones only (D19.221/D19.22), and
+  holding a tractor or firing ballistically (D19.224). Of those, launching is already barred
+  under EM by C10.511, so the live gap is that **a ship conducting EM with no active fire
+  control can still fire at range ≤5 and should not be able to fire at all.**
+
+  **D19.3's earned PFC bonus is not implemented** (no `D19.3` or `D19.31` citation anywhere), so
+  the two clauses about accruing and losing it are moot until it is.
+
+  **Design note: this one is NOT a guard.** `Game.emActionBlock` is the wrong shape for it,
+  because passive fire control is a MODE rather than an action. It wants the C10.512 treatment —
+  express the rule as the capability yielding nothing, the way `getControlCapacity()` returns 0
+  under EM — so that every consumer of passive FC is covered at once rather than the fire path
+  alone. Probably a single predicate that answers "is this ship on passive fire control?" with
+  false while it is conducting EM, because the ship is INACTIVE instead.
 - **G24.23, attracting drones** — then G24.1343, phaser downfire to avoid blinding.
 - **G21.1/G21.2 crew quality adjustments.** The declaration is built and `crewQuality` is on
   `ShipSpec`; the adjustment lists are not. The ±3 natural EW is the first slice.
