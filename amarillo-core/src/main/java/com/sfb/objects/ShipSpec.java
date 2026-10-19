@@ -269,7 +269,24 @@ public class ShipSpec {
     public List<WeaponSpec> weapons;
     public List<OptionMountSpec> optionMounts; // Orion "OPT" boxes (G15.4); empty until filled at setup
     public List<ShuttleBaySpec> shuttleBays;
-    /** If present, applied instead of faction default Y175 upgrades. Empty lists = fully exempt. */
+    /**
+     * This hull's Y175 refit, where it differs from its navy's default.
+     *
+     * <h2>It NARROWS the faction default; it does not replace it</h2>
+     * This comment said "applied instead of faction default... Empty lists = fully exempt" long
+     * after {@code ScenarioLoader.applyYearUpgrades} stopped working that way. A block now says
+     * what is DIFFERENT about this ship and the default fills in the rest: the racks it names are
+     * upgraded as stated and then excluded, and every rack it does not name still gets the navy's
+     * treatment. An empty {@code racks} list therefore exempts NOTHING.
+     *
+     * <h2>And there is no default for most factions</h2>
+     * The defaults cover the three drone navies only — Federation (a type-G gains a reload set,
+     * FD3.72), Klingon (type-A becomes type-B), Kzinti (type-A becomes type-C, then type-B past
+     * the first two). Every other faction falls through {@code default: break}, so a NEUTRAL
+     * hull — an armed freighter, say — inherits nothing at all and must name each rack it wants
+     * upgraded. Declaring a {@code refitCost} alone would charge for a refit that never happens,
+     * which is the shape of the bug the loader's own comment records against the Klingon G2.
+     */
     public Y175Upgrades y175Upgrades;
 
     /**
