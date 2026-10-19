@@ -1,0 +1,73 @@
+{
+  "faction": "Neutral",
+  "type": "F-AS-DR",
+  "typeName": "Small Drone-Armed Freighter",
+  "line": "F-S",
+  "name": "Back Off Jack",
+  "serviceYear": 120,
+  "bpv": 36,
+  "turnMode": "C",
+  "sizeClass": 4,
+  "moveCost": 0.3333333,
+  "breakdown": 1,
+  "bonusHets": 0,
+  "commandRating": 0,
+  
+  "shields": [10, 10, 10, 10, 10, 10],
+  
+  "hullBoxes": {
+    "chull": 4,
+    "cargo": 25
+  },
+  
+  "power": {
+    "leftWarp": 4,
+    "rightWarp": 4,
+    "impulse": 1,
+    "battery": 1
+  },
+  
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [2, 0],
+    "sensor": [6, 0],
+    "scanner": [0, 9],
+    "excess": 2
+  },
+
+  "auxiliary": {
+    "transporters": 1,
+    "tractors": 0,
+    "probes": 0,
+    "maxAccel": 5,
+    "accelDoubling": false
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 8,
+    "boardingParties": 4,
+    "minCrew": 2
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FULL"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]}
+
+  ],
+
+  "y175Upgrades": {
+    "refitCost": 1,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_B" }
+    ]
+  }
+}

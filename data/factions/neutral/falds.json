@@ -1,0 +1,71 @@
+{
+  "faction": "Neutral",
+  "type": "F-AL-DS",
+  "typeName": "Large Disruptor-Armed Freighter",
+  "line": "F-L",
+  "name": "One Ping Only",
+  "serviceYear": 120,
+  "bpv": 75,
+  "turnMode": "D",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 1,
+  "bonusHets": 0,
+  "commandRating": 0,
+  
+  "shields": [15, 15, 15, 15, 15, 15],
+  
+  "hullBoxes": {
+    "chull": 6,
+    "cargo": 50
+  },
+  
+  "power": {
+    "leftWarp": 8,
+    "rightWarp": 8,
+    "impulse": 2,
+    "apr": 1,
+    "battery": 1
+  },
+  
+  "control": {
+    "bridge": 1,
+    "auxCon": 1,
+    "emergency": 1,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 0],
+    "sensor": [6, 3, 0],
+    "scanner": [0, 2, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 1,
+    "tractors": 1,
+    "probes": 0,
+    "maxAccel": 5,
+    "accelDoubling": false
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 12,
+    "boardingParties": 6,
+    "minCrew": 3
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["LS"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["RS"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["RA"] },
+    { "type": "Disruptor",  "designator": "A", "range": 22, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "B", "range": 22, "arcs": ["FA"] }
+  ]
+}
