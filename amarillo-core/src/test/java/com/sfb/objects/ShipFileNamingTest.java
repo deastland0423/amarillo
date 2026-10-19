@@ -126,6 +126,38 @@ public class ShipFileNamingTest {
      * in all fourteen of its hulls. {@link com.sfb.objects.RefitResolver} orders derived codes the
      * same way, so a combination history never named comes out in the house style rather than in
      * whatever order the refits happen to be declared.
+     *
+     * <h2>Where a code comes from: the SSD SHEET, not the Annex</h2>
+     * The Master Annex's family lists spell the small Q-ship {@code Q-S}; the sheets spell it
+     * {@code S-Q} (Advanced Missions SSD p.31), and the thirteen Q-ship hulls here use
+     * {@code S-Q}/{@code L-Q}. Owner's rule, 2026-10-19: "I tend to always use the one on the
+     * SSD sheet." Both are current in the hobby, so this is a house convention rather than a
+     * correctness question — do not "fix" the data to match an Annex list.
+     *
+     * <h2>And where ADB gives one designation to several ships: an ALL-CAPS hyphenated suffix</h2>
+     * Owner's call, 2026-10-19. The armed small freighter is printed on four separate sheets in
+     * the Advanced Missions SSD book (pp. 17–20) — phaser, plasma, drone and disruptor armed —
+     * yet the Master Annex has a single {@code F-AS} row at one BPV, and the four sheets are
+     * identical but for their weapons. So the designation really is {@code F-AS} for all of them
+     * while the registry needs four keys, since {@code faction + type} is the key.
+     *
+     * <p>The answer is {@code F-AS-PH}, {@code F-AS-PL}, {@code F-AS-DR}, {@code F-AS-DS}:
+     * <ul>
+     * <li>Capitals and hyphens, so the house order above is satisfied and nothing here changed
+     *     to accommodate them. Hyphens were already ordinary — {@code GEN-F}, {@code L-Q},
+     *     {@code SUP-A} — and {@link #normalise} drops them, so {@code fasph.json} already
+     *     matched {@code F-AS-PH} before anyone renamed a file.</li>
+     * <li>It leaves the LOWER CASE slot free, which is the point: the drone-armed sheet is the
+     *     one with a Y175 refit, so it has to be able to derive {@code F-AS-DRp}.</li>
+     * <li>{@code PH}/{@code PL} and {@code DR}/{@code DS} are unambiguous, where a single letter
+     *     would not be — P could be phaser or plasma, D drone or disruptor.</li>
+     * </ul>
+     *
+     * <p><b>So do not "correct" these to a bare {@code F-AS}.</b> The suffix is a qualified
+     * designation and is deliberate; collapsing the four would silently delete three hulls, which
+     * is what a duplicate {@code faction + type} does. The rejected alternative was keeping
+     * {@code F-AS} on all four and adding a {@code variant} to the registry key — more faithful
+     * to the Annex, but the key is relied on by the fleet builder, scenarios, saves and the DTOs.
      */
     @Test
     public void everyTypeCodeIsCapitalsThenLowerCaseThenPlus() throws Exception {
