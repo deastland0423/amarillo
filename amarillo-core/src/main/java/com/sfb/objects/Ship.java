@@ -114,6 +114,16 @@ public class Ship extends Unit implements DroneController {
 	private int speedPreviousTurn = 0;
 	private int speedTwoTurnsAgo = 0;
 
+	/**
+	 * C2.21's ten: the floor on how much speed a turn may add, before doubling takes over.
+	 * "The player may increase the ship's practical speed by a number which is equal to the
+	 * previous turn's speed, or ten, whichever is greater."
+	 */
+	private static final int DEFAULT_MAX_ACCEL = 10;
+
+	/** R1.7: five for freighters and Q-ships, ten for everything else. */
+	private int maxAccel = DEFAULT_MAX_ACCEL;
+
 	/** True if this ship has been captured (D7.50). */
 	private boolean captured = false;
 
@@ -284,6 +294,8 @@ public class Ship extends Unit implements DroneController {
 		java.util.List<OptionMount> mounts = (java.util.List<OptionMount>) values.get("optionmounts");
 		if (mounts != null) optionMounts = mounts;
 		armor = values.get("armor") == null ? 0 : (Integer) values.get("armor");
+		maxAccel = values.get("maxaccel") == null
+				? DEFAULT_MAX_ACCEL : (Integer) values.get("maxaccel");
 		tBombs = values.get("tbombs") == null ? 0 : (Integer) values.get("tbombs");
 		dummyTBombs = values.get("dummytbombs") == null ? 0 : (Integer) values.get("dummytbombs");
 		nuclearSpaceMines = values.get("nuclearspacemines") == null ? 0 : (Integer) values.get("nuclearspacemines");
@@ -624,14 +636,37 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Maximum speed this ship may allocate next turn (C2.2).
-	 * Based on the lowest speed in the last 32 impulses (= last 2 turns).
-	 * Formula: max(lowestRecent + 10, lowestRecent * 2), capped at 31.
-	 * Nimble ships and civilian freighters will have different rules (future).
+	 * Maximum speed this ship may allocate next turn (C2.21, C12.33).
+	 *
+	 * <h2>The formula, and where each half comes from</h2>
+	 * C2.21: "the player may increase the ship's practical speed by a number which is equal to
+	 * the previous turn's speed, or ten, whichever is greater." So the cap is
+	 * {@code max(lowest + floor, lowest * 2)} — add the floor, or double, whichever is kinder —
+	 * held to 31 by C2.16.
+	 *
+	 * <p>The "lowest" is C12.33 rather than C2.21: "The lowest speed during the previous 32
+	 * impulses determines the maximum speed to which the ship can accelerate." A ship that dipped
+	 * mid-turn is held to the dip, which is why two turns of history are kept.
+	 *
+	 * <h2>R1.7 is a different FLOOR, not a different rule</h2>
+	 * Freighters and Q-ships accelerate "by no more than 5 movement points or double the current
+	 * speed", which is this same expression with five in place of ten — and C12.33 expects
+	 * exactly that: "Some unit types have different acceleration limits." So the exception is one
+	 * number, read from {@code auxiliary.maxAccel}. Before 2026-10-19 that key was declared by
+	 * fifteen ship files and read by nothing, and a freighter could go from a standing start to
+	 * flank in a single allocation.
+	 *
+	 * <p>Still not expressed here: R1.7's other sentence, "It can disengage by acceleration",
+	 * which is C7.1's business rather than this cap's.
 	 */
 	public int getMaxAccelerationSpeed() {
 		int lowest = Math.min(speedPreviousTurn, speedTwoTurnsAgo);
-		return Math.min(31, Math.max(lowest + 10, lowest * 2));
+		return Math.min(31, Math.max(lowest + maxAccel, lowest * 2));
+	}
+
+	/** R1.7: this hull's acceleration floor — five for a freighter, ten by C2.21 otherwise. */
+	public int getMaxAccel() {
+		return maxAccel;
 	}
 
 	public int getSpeedPreviousTurn() {

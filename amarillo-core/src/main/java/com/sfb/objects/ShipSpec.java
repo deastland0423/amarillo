@@ -678,6 +678,26 @@ public class ShipSpec {
         public int cloakCost;
         public boolean derfacs;
         public int uim;
+        /**
+         * R1.7: how many points of speed this hull may gain in a turn before the doubling arm
+         * of C2.21 takes over. Null means the ordinary military limit of ten.
+         *
+         * <h2>Integer, not int, and for the reason deckCrews is</h2>
+         * A primitive cannot tell "the file says nothing" from "the file says zero", and zero
+         * here would mean a hull that can never accelerate at all. Fifteen files were declaring
+         * {@code auxiliary.maxAccel: 5} into thin air before this field existed — ShipSpec did
+         * not have it, so Jackson dropped it at parse time and every freighter accelerated like
+         * a cruiser.
+         *
+         * <h2>This number IS the whole exception</h2>
+         * R1.7 reads "this ship can accelerate by no more than 5 movement points or double the
+         * current speed", which is exactly C2.21's shape with five substituted for ten — and
+         * C12.33 says as much: "most ships can accelerate by double their current speed or by
+         * ten. Some unit types have different acceleration limits." So the doubling arm needs no
+         * separate expression; it is the other half of the same maximum. A note in BACKLOG.md
+         * claimed otherwise until 2026-10-19.
+         */
+        public Integer maxAccel;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -936,6 +956,10 @@ public class ShipSpec {
                 m.put("derfacs", true);
             if (auxiliary.uim > 0)
                 m.put("uim", auxiliary.uim);
+            // Null, not zero, is "the file said nothing" — see the field's note. Passing it
+            // through only when set keeps Ship.init's default of ten in one place.
+            if (auxiliary.maxAccel != null)
+                m.put("maxaccel", auxiliary.maxAccel);
         }
 
         // Shuttle bays — use object format when launch tubes are specified (J1.54)
