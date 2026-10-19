@@ -612,6 +612,31 @@ public class TractorTest {
         assertEquals(new Location(11, 11), klingon.getLocation());
     }
 
+    /**
+     * C10.521: a unit using EM cannot operate tractor beams, and rotating a held unit is
+     * operating one — the same reading the cloak rule already takes of rotation.
+     *
+     * It lives here rather than with the other EM restriction tests because rotation is legal
+     * only in the INITIAL_ACTIVITY phase (G7.7), which needs this class's turn-start fixture.
+     */
+    @Test
+    public void rotate_refusedWhileConductingEm() {
+        linkKlingon(5);
+        enterInitialActivity();
+        int impulse = game.getAbsoluteImpulse();
+        fed.announceEm(true, impulse);
+        assertTrue("fixture: EM should come into force at Stage 6E",
+                fed.applyEmAnnouncement(impulse));
+
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 11);
+
+        assertFalse("rotation is operating the beam", r.isSuccess());
+        assertTrue("the refusal must name the rule: " + r.getMessage(),
+                r.getMessage().contains("C10.521"));
+        assertEquals("and the held unit must not have moved",
+                new Location(11, 10), klingon.getLocation());
+    }
+
     @Test
     public void rotate_costsThreeEnergyAtRange1() {
         linkKlingon(5);

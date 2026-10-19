@@ -68,6 +68,12 @@ class MineResolver {
         ActionResult cloakBlock = game.cloakActionBlock(actingShip);
         if (cloakBlock != null)
             return cloakBlock;
+        // C10.514 bars laying a mine and C10.521 bars the transporter that lays this one, so EM
+        // stops a T-bomb twice over. The MINE clause is named because it is the specific one,
+        // and because the rulebook misdirects here: M2.11 cites "(C10.53)", which is DOCKING.
+        ActionResult emBlock = game.emActionBlock(actingShip, "lay a mine", "C10.514");
+        if (emBlock != null)
+            return emBlock;
         if (actingShip.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot use transporters — breakdown lockout for 8 impulses (C6.5474)");
 
@@ -150,6 +156,11 @@ class MineResolver {
         ActionResult cloakBlock = game.cloakActionBlock(actingShip);
         if (cloakBlock != null)
             return cloakBlock;
+        // C10.514. This is the path a mine RACK will also use (M9.0 lays "in the hex occupied by
+        // the ship"), so the guard is in place before the racks arrive rather than after.
+        ActionResult emBlock = game.emActionBlock(actingShip, "lay a mine", "C10.514");
+        if (emBlock != null)
+            return emBlock;
         if (actingShip.isInPostHetWindow(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot drop mines from bay within 4 impulses of a HET (C6.38)");
         if (actingShip.isInBreakdownLockout(game.getAbsoluteImpulse()))

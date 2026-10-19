@@ -254,6 +254,9 @@ class BoardingResolver {
         ActionResult cloakBlock = game.cloakActionBlock(actingShip);
         if (cloakBlock != null)
             return cloakBlock;
+        ActionResult emBlock = game.emActionBlock(actingShip, "use transporters", "C10.521");
+        if (emBlock != null)
+            return emBlock;
 
         int range = com.sfb.utilities.MapUtils.getRange(actingShip.getLocation(), objective.getLocation());
         if (range > 5)
@@ -317,6 +320,9 @@ class BoardingResolver {
     ActionResult transportCrew(Ship source, Unit dest, int amount) {
         if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             return ActionResult.fail("Transporter actions can only be performed during the Activity phase");
+        ActionResult emBlock = game.emActionBlock(source, "use transporters", "C10.521");
+        if (emBlock != null)
+            return emBlock;
 
         ActionResult cloakBlock = game.cloakActionBlock(source);
         if (cloakBlock != null)
@@ -413,6 +419,9 @@ class BoardingResolver {
         int numParties = normal + commandos;
         if (numParties <= 0)
             return ActionResult.fail("Must send at least one boarding party");
+        ActionResult emBlock = game.emActionBlock(actingShip, "use transporters", "C10.521");
+        if (emBlock != null)
+            return emBlock;
         if (actingShip.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot use transporters — breakdown lockout for 8 impulses (C6.5474)");
 
@@ -495,6 +504,9 @@ class BoardingResolver {
         ActionResult cloakBlock = game.cloakActionBlock(actingShip);
         if (cloakBlock != null)
             return cloakBlock;
+        ActionResult emBlock = game.emActionBlock(actingShip, "use transporters", "C10.521");
+        if (emBlock != null)
+            return emBlock;
         if (actingShip.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot use transporters — breakdown lockout for 8 impulses (C6.5474)");
         if (targetSystems.isEmpty())

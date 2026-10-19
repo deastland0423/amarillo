@@ -226,6 +226,12 @@ class TractorResolver {
         ActionResult cloakBlock = game.cloakActionBlock(holder);
         if (cloakBlock != null)
             return cloakBlock;
+        // C10.521: a unit using EM cannot operate tractor beams. Note what this does NOT touch —
+        // submitNegativeTractorBid, because C10.525 allows negative tractor energy under EM "and
+        // this use is not degraded in any way". Resisting a tractor is not operating one.
+        ActionResult emBlock = game.emActionBlock(holder, "operate a tractor beam", "C10.521");
+        if (emBlock != null)
+            return emBlock;
         if (holder.getTractors().getTractors() == 0)
             return ActionResult.fail(holder.getName() + " has no tractor beams");
         if (holder.getTractors().getAvailableTractors() == 0)
@@ -380,6 +386,12 @@ class TractorResolver {
         ActionResult cloakBlock = game.cloakActionBlock(holder);
         if (cloakBlock != null)
             return cloakBlock;
+        // C10.521, for the same reason the cloak blocks it: rotating a held unit (G7.42) is
+        // operating the beam. Releasing one is not, so releaseTractor is deliberately left open
+        // — a ship must always be able to let go, and nothing in C10.5 says otherwise.
+        ActionResult emBlock = game.emActionBlock(holder, "operate a tractor beam", "C10.521");
+        if (emBlock != null)
+            return emBlock;
         if (holder.getTractors() == null)
             return ActionResult.fail(holder.getName() + " has no tractor system");
 

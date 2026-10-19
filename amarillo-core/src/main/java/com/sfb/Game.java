@@ -4190,6 +4190,37 @@ public class Game {
         return null;
     }
 
+    /**
+     * Why Erratic Maneuvers bar this action, or null if they do not (C10.51, C10.52).
+     *
+     * <h2>One helper, sitting beside the cloak one it mirrors</h2>
+     * C10.5 is a LIST of prohibitions across unrelated systems — transporters, tractor beams,
+     * mines, labs, scouts, web — and the mistake to avoid is writing a separate EM test into
+     * each feature as it comes up. {@code cloakActionBlock} above is the shape this codebase
+     * already uses for a cross-cutting ban, and every caller of that one is a candidate for this
+     * one. {@code LaunchCoordinator.emLaunchBlock} is the same idea confined to C10.511's nine
+     * launch paths.
+     *
+     * <p>The caller passes the clause, because the rule's force comes from naming it: a player
+     * told "cannot use transporters while conducting Erratic Maneuvers (C10.521)" can look it up
+     * and argue with it. A bare refusal cannot be checked.
+     *
+     * <h2>isUsingEm, not isEmEffective — deliberately, and not necessarily right</h2>
+     * The existing C10.52 guards ({@code Ship.scoutChannelBlockReason}, labs in
+     * {@code SeekerControl}) key on {@code isUsingEm()}, so these do too, to keep one family
+     * consistent. There is a real argument the whole family is wrong: C10.24's words are that EM
+     * "cannot be CONDUCTED" while a tractor holds the unit, which is why the ECM points and
+     * P3.254 ask {@code isEmEffective()} instead. Every case needs a tractor AND the prohibited
+     * act at the same moment, so nothing visible turns on it today. If one is ever revisited,
+     * revisit them together rather than one at a time.
+     */
+    ActionResult emActionBlock(Ship ship, String what, String clause) {
+        if (ship == null || !ship.isUsingEm())
+            return null;
+        return ActionResult.fail(ship.getName() + " cannot " + what
+                + " while conducting Erratic Maneuvers (" + clause + ")");
+    }
+
     /** Launch the next drone from the given rack (FD1.0). */
     public ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack) {
         return launchCoordinator.launchDrone(launcher, target, rack);
