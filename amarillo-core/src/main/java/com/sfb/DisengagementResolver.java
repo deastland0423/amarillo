@@ -58,6 +58,12 @@ class DisengagementResolver {
         for (Ship ship : ships) {
             if (ship.getLocation() == null || ship.isDisengaged())
                 continue;
+            // C7.1: some sheets deny this outright — "This ship cannot disengage by
+            // acceleration" on the plain freighters, against "It can disengage by acceleration"
+            // on the Q-ships converted from them. Asked before the power test because it is a
+            // property of the hull, not of how the battle has gone.
+            if (!ship.canDisengageByAcceleration())
+                continue;
             int originalWarp = ship.getPowerSystems().getOriginalWarp();
             if (originalWarp == 0)
                 continue; // no warp engines

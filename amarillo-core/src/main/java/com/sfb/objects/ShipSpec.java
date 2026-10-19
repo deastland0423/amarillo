@@ -679,25 +679,51 @@ public class ShipSpec {
         public boolean derfacs;
         public int uim;
         /**
-         * R1.7: how many points of speed this hull may gain in a turn before the doubling arm
-         * of C2.21 takes over. Null means the ordinary military limit of ten.
+         * How many points of speed this hull may gain in a turn. Null means C2.21's ten.
          *
          * <h2>Integer, not int, and for the reason deckCrews is</h2>
          * A primitive cannot tell "the file says nothing" from "the file says zero", and zero
          * here would mean a hull that can never accelerate at all. Fifteen files were declaring
-         * {@code auxiliary.maxAccel: 5} into thin air before this field existed — ShipSpec did
-         * not have it, so Jackson dropped it at parse time and every freighter accelerated like
-         * a cruiser.
+         * {@code auxiliary.maxAccel} into thin air before this field existed — ShipSpec did not
+         * have it, so Jackson dropped it at parse time and every freighter accelerated like a
+         * cruiser.
          *
-         * <h2>This number IS the whole exception</h2>
-         * R1.7 reads "this ship can accelerate by no more than 5 movement points or double the
-         * current speed", which is exactly C2.21's shape with five substituted for ten — and
-         * C12.33 says as much: "most ships can accelerate by double their current speed or by
-         * ten. Some unit types have different acceleration limits." So the doubling arm needs no
-         * separate expression; it is the other half of the same maximum. A note in BACKLOG.md
-         * claimed otherwise until 2026-10-19.
+         * <h2>The number is NOT the whole exception — see {@link #accelDoubling}</h2>
+         * This javadoc claimed it was, for about an hour on 2026-10-19. The Q-ship sheets read
+         * "no more than five movement points or double the current speed", which is C2.21's
+         * shape with five for ten; but the plain freighter sheets read "cannot accelerate by
+         * more than 3 movement points per turn" and stop there. Two rules, not one rule with two
+         * numbers, so the doubling arm needs a fact of its own.
          */
         public Integer maxAccel;
+        /**
+         * Whether C2.21's doubling arm applies to this hull. Null means it does.
+         *
+         * <h2>Two SSD sentences, and conflating them was the mistake</h2>
+         * <ul>
+         * <li>Small freighter: "This ship cannot accelerate by more than 3 movement points per
+         *     turn." A HARD cap — no doubling at any speed.</li>
+         * <li>Small Q-ship: "This ship can accelerate by no more than five movement points
+         *     <b>or double its current speed</b>."</li>
+         * </ul>
+         * Reading the Q-ship sentence as though it were on every sheet gave the freighters a
+         * doubling arm their SSDs deny them: an F-S at speed 20 could reach 31 rather than 23.
+         * Owner caught it from the Basic Set SSD book, page 3.
+         */
+        public Boolean accelDoubling;
+        /**
+         * Whether this hull may use C7.1 disengagement by acceleration. Null means it may.
+         *
+         * The freighter sheets say "This ship cannot disengage by acceleration" where the
+         * Q-ship sheets say "It can disengage by acceleration" — stated outright on both, so it
+         * is data rather than something to derive from warp power.
+         *
+         * <p>Kept SEPARATE from {@link #accelDoubling} even though the two agree on every hull
+         * in the game today. They are two sentences, and a single flag carrying both is exactly
+         * how the distinction got lost: {@code slow: true} once stood for this pairing, was read
+         * as "a second name for the same unimplemented rule", and was unified away in e391c0ed.
+         */
+        public Boolean disengageByAccel;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -960,6 +986,10 @@ public class ShipSpec {
             // through only when set keeps Ship.init's default of ten in one place.
             if (auxiliary.maxAccel != null)
                 m.put("maxaccel", auxiliary.maxAccel);
+            if (auxiliary.accelDoubling != null)
+                m.put("acceldoubling", auxiliary.accelDoubling);
+            if (auxiliary.disengageByAccel != null)
+                m.put("disengagebyaccel", auxiliary.disengageByAccel);
         }
 
         // Shuttle bays — use object format when launch tubes are specified (J1.54)

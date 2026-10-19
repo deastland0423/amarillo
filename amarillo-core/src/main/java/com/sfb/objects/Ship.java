@@ -121,8 +121,20 @@ public class Ship extends Unit implements DroneController {
 	 */
 	private static final int DEFAULT_MAX_ACCEL = 10;
 
-	/** R1.7: five for freighters and Q-ships, ten for everything else. */
+	/** R1.7: five on a Q-ship, four or three on a freighter, ten by C2.21 otherwise. */
 	private int maxAccel = DEFAULT_MAX_ACCEL;
+
+	/**
+	 * Whether C2.21's doubling arm applies (true for almost everything).
+	 *
+	 * False only where a sheet states a HARD per-turn cap instead — the plain freighters say
+	 * "cannot accelerate by more than 3 movement points per turn" with no doubling clause,
+	 * where a Q-ship says "five movement points or double its current speed".
+	 */
+	private boolean accelDoubling = true;
+
+	/** C7.1: whether this hull may disengage by acceleration. The freighters may not. */
+	private boolean disengageByAccel = true;
 
 	/** True if this ship has been captured (D7.50). */
 	private boolean captured = false;
@@ -296,6 +308,10 @@ public class Ship extends Unit implements DroneController {
 		armor = values.get("armor") == null ? 0 : (Integer) values.get("armor");
 		maxAccel = values.get("maxaccel") == null
 				? DEFAULT_MAX_ACCEL : (Integer) values.get("maxaccel");
+		accelDoubling = values.get("acceldoubling") == null
+				|| Boolean.TRUE.equals(values.get("acceldoubling"));
+		disengageByAccel = values.get("disengagebyaccel") == null
+				|| Boolean.TRUE.equals(values.get("disengagebyaccel"));
 		tBombs = values.get("tbombs") == null ? 0 : (Integer) values.get("tbombs");
 		dummyTBombs = values.get("dummytbombs") == null ? 0 : (Integer) values.get("dummytbombs");
 		nuclearSpaceMines = values.get("nuclearspacemines") == null ? 0 : (Integer) values.get("nuclearspacemines");
@@ -656,12 +672,32 @@ public class Ship extends Unit implements DroneController {
 	 * fifteen ship files and read by nothing, and a freighter could go from a standing start to
 	 * flank in a single allocation.
 	 *
-	 * <p>Still not expressed here: R1.7's other sentence, "It can disengage by acceleration",
-	 * which is C7.1's business rather than this cap's.
+	 * <h2>And some sheets deny the doubling arm entirely</h2>
+	 * The plain freighters say "cannot accelerate by more than 3 movement points per turn" — a
+	 * HARD cap, with no "or double its current speed" clause at all. That is a different rule
+	 * from the Q-ship's, not a different number in the same one, which is why
+	 * {@code accelDoubling} is its own fact. A first pass at R1.7 applied the Q-ship sentence to
+	 * every hull that declared a limit and handed the freighters a doubling arm their SSDs deny
+	 * them: an F-S at speed 20 could reach 40 (31 after the cap) instead of 23.
+	 *
+	 * <p>"It can disengage by acceleration" is the sheets' other sentence and lives in
+	 * {@link #canDisengageByAcceleration()}, for C7.1 to ask.
 	 */
 	public int getMaxAccelerationSpeed() {
 		int lowest = Math.min(speedPreviousTurn, speedTwoTurnsAgo);
-		return Math.min(31, Math.max(lowest + maxAccel, lowest * 2));
+		int byFloor = lowest + maxAccel;
+		return Math.min(31, accelDoubling ? Math.max(byFloor, lowest * 2) : byFloor);
+	}
+
+	/**
+	 * C7.1: whether this hull may disengage by acceleration.
+	 *
+	 * Stated on the sheet rather than derived from warp power — "This ship cannot disengage by
+	 * acceleration" on a freighter, "It can disengage by acceleration" on a Q-ship. C7.11's own
+	 * conditions (maximum speed, half the original warp power retained) still apply on top.
+	 */
+	public boolean canDisengageByAcceleration() {
+		return disengageByAccel;
 	}
 
 	/** R1.7: this hull's acceleration floor — five for a freighter, ten by C2.21 otherwise. */

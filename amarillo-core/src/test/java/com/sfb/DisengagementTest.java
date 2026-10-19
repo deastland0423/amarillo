@@ -154,6 +154,43 @@ public class DisengagementTest {
                 game.isAwaitingAllocation());
     }
 
+    /**
+     * C7.1 is denied outright on some sheets, and that has to be enforced HERE.
+     *
+     * "This ship cannot disengage by acceleration" on the plain freighters, against "It can
+     * disengage by acceleration" on the Q-ships converted from them. Tested at the queueing
+     * step rather than on {@code Ship.canDisengageByAcceleration()} alone, because the predicate
+     * being right proves nothing about whether anything asks it — a freighter offered the
+     * option would still escape, and this project has twice shipped a rule that passed its own
+     * test while being unreachable in play.
+     */
+    @Test
+    public void accel_freighterIsNeverQueuedBecauseItsSheetForbidsIt() {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("../data/factions");
+        com.sfb.objects.ShipSpec spec = com.sfb.objects.ShipLibrary.get("Neutral", "F-S");
+        assertNotNull("fixture: the small freighter should be in the library", spec);
+        Ship freighter = com.sfb.objects.ShipLibrary.createShip(spec);
+        freighter.setName("Hauler");
+        freighter.setLocation(new Location(14, 10));
+        freighter.setFacing(1);
+        freighter.setSpeedPreviousTurn(3);
+        freighter.setSpeedTwoTurnsAgo(3);
+        game.getShips().add(freighter);
+        assertFalse("fixture: its sheet forbids it", freighter.canDisengageByAcceleration());
+
+        // Run it at the most it can do, which is what C7.11 asks of a disengaging ship.
+        game.submitAllocation(freighter, makeAllocation(freighter, 30.0));
+        makeFedEligibleAndEndTurn();
+
+        assertEquals("fixture: and it IS at its acceleration ceiling, so only the sheet's"
+                + " prohibition can be keeping it out of the queue",
+                freighter.getMaxAccelerationSpeed(), freighter.getSpeed());
+        assertFalse("a freighter must never be offered C7.1",
+                game.getPendingAccelDisengage().contains(freighter));
+        assertTrue("while the warship beside it still is",
+                game.getPendingAccelDisengage().contains(fed));
+    }
+
     @Test
     public void accel_decline_shipStaysAndNextTurnBegins() {
         makeFedEligibleAndEndTurn();

@@ -16,12 +16,21 @@ import com.sfb.samples.FederationShips;
  * previous 32 impulses determines the maximum speed to which the ship can accelerate." Together
  * that is {@code max(lowest + floor, lowest * 2)}, held to 31 by C2.16.
  *
- * <h2>Why R1.7 is one number and not a second rule</h2>
- * A freighter "can accelerate by no more than 5 movement points or double the current speed" —
- * the same expression with five in place of ten, which is what C12.33 means by "Some unit types
- * have different acceleration limits". Fifteen ship files declared {@code auxiliary.maxAccel: 5}
- * and nothing read it, because ShipSpec had no such field and Jackson dropped it at parse time.
- * A freighter could go from a standing start to flank in one allocation.
+ * <h2>TWO exceptions, which the first draft of this file conflated</h2>
+ * The sheets state the limit in two forms, and only one of them is C2.21's shape:
+ * <ul>
+ * <li><b>Q-ship:</b> "can accelerate by no more than five movement points or double its current
+ *     speed. It can disengage by acceleration." — C2.21 with five for ten.</li>
+ * <li><b>Plain freighter:</b> "cannot accelerate by more than 3 movement points per turn. This
+ *     ship cannot disengage by acceleration." — a HARD cap, no doubling arm at all.</li>
+ * </ul>
+ * Reading the Q-ship sentence as though it were on every sheet let an F-S at speed 20 reach 31
+ * where its sheet allows 23. So {@code accelDoubling} and {@code disengageByAccel} are facts of
+ * their own, and both forms are pinned below.
+ *
+ * <p>Fifteen ship files declared {@code auxiliary.maxAccel} and nothing read it, because
+ * ShipSpec had no such field and Jackson dropped it at parse time. A freighter could go from a
+ * standing start to flank in one allocation.
  */
 public class AccelerationLimitTest {
 
@@ -117,7 +126,7 @@ public class AccelerationLimitTest {
      * accelerated exactly like a cruiser.
      */
     @Test
-    public void aFreighterDeclaredFloorIsRead() {
+    public void aQShipDeclaredFloorIsRead() {
         assertEquals("R1.7: five, from auxiliary.maxAccel",
                 5, fromLibrary("Federation", "L-Q").getMaxAccel());
     }
@@ -139,7 +148,7 @@ public class AccelerationLimitTest {
 
     /** And the floor is what changes the answer, from a standing start. */
     @Test
-    public void aFreighterFromAStandingStartReachesOnlyFive() {
+    public void aQShipFromAStandingStartReachesOnlyFive() {
         Ship freighter = fromLibrary("Federation", "L-Q");
 
         assertEquals("a freighter cannot go to flank in one allocation",
@@ -147,27 +156,77 @@ public class AccelerationLimitTest {
     }
 
     /**
-     * R1.7's doubling arm needs no separate code: it is the other half of the same maximum.
-     * At speed six, doubling (12) beats the five-point floor (11).
+     * A Q-SHIP gets the doubling arm, because its sheet grants it: "no more than five movement
+     * points or double its current speed". At speed six, doubling (12) beats the floor (11).
      */
     @Test
-    public void aFreighterPastItsFloorDoublesLikeAnyoneElse() {
-        Ship freighter = fromLibrary("Federation", "L-Q");
-        withRecentSpeed(freighter, 6);
+    public void aQShipPastItsFloorDoublesLikeAnyoneElse() {
+        Ship qship = fromLibrary("Federation", "L-Q");
+        withRecentSpeed(qship, 6);
 
-        assertEquals("R1.7 again: or double the current speed",
-                12, freighter.getMaxAccelerationSpeed());
+        assertEquals("or double its current speed", 12, qship.getMaxAccelerationSpeed());
     }
 
-    /** The two hulls differ only where the floor bites, which is the point of the exception. */
+    /**
+     * THE CORRECTION: a PLAIN FREIGHTER has a hard cap and never doubles.
+     *
+     * "This ship cannot accelerate by more than 3 movement points per turn" — and that is the
+     * whole sentence. The first draft of this work let an F-S at speed 20 reach 31 by doubling;
+     * its sheet allows 23.
+     */
     @Test
-    public void theDifferenceIsTheFloorAndNothingElse() {
-        Ship warship = warship();
-        Ship freighter = fromLibrary("Federation", "L-Q");
-        withRecentSpeed(warship, 20);
+    public void aPlainFreighterNeverDoubles() {
+        Ship freighter = fromLibrary("Neutral", "F-S");
         withRecentSpeed(freighter, 20);
 
+        assertEquals("a hard cap: twenty plus three, not twenty doubled",
+                23, freighter.getMaxAccelerationSpeed());
+    }
+
+    /** Same rule on the large freighter, with its own number. */
+    @Test
+    public void theLargeFreighterIsAHardCapToo() {
+        Ship freighter = fromLibrary("Neutral", "F-L");
+        withRecentSpeed(freighter, 20);
+
+        assertEquals(24, freighter.getMaxAccelerationSpeed());
+    }
+
+    // ---------------------------------------------------------------- C7.1, the other sentence
+
+    /**
+     * "This ship cannot disengage by acceleration" on a freighter, against "It can disengage by
+     * acceleration" on the Q-ship converted from it. Stated on both sheets, so it is data and
+     * not something to derive from warp power.
+     */
+    @Test
+    public void aFreighterMayNotDisengageByAccelerationButAQShipMay() {
+        assertFalse("the freighter sheet denies it",
+                fromLibrary("Neutral", "F-S").canDisengageByAcceleration());
+        assertFalse(fromLibrary("Neutral", "F-L").canDisengageByAcceleration());
+        assertTrue("the Q-ship sheet allows it",
+                fromLibrary("Federation", "L-Q").canDisengageByAcceleration());
+        assertTrue("and so does an ordinary warship, by C7.11",
+                warship().canDisengageByAcceleration());
+    }
+
+    /**
+     * A Q-ship and a warship converge once both are doubling, which is what makes the Q-ship's
+     * exception a FLOOR — where the freighter's is a different rule and never converges.
+     */
+    @Test
+    public void aQShipConvergesWithAWarshipButAFreighterNever() {
+        Ship warship = warship();
+        Ship qship = fromLibrary("Federation", "L-Q");
+        withRecentSpeed(warship, 20);
+        withRecentSpeed(qship, 20);
+
         assertEquals("past the floor both are doubling, and both hit C2.16's 31",
+                warship.getMaxAccelerationSpeed(), qship.getMaxAccelerationSpeed());
+
+        Ship freighter = fromLibrary("Neutral", "F-S");
+        withRecentSpeed(freighter, 20);
+        assertNotEquals("the freighter has no doubling arm, so it stays behind",
                 warship.getMaxAccelerationSpeed(), freighter.getMaxAccelerationSpeed());
     }
 }
