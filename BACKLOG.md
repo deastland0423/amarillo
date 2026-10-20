@@ -250,9 +250,18 @@ groundwork already in place.
   Nothing in the engine caps rack firing — only G15.2 engine doubling is Orion-specific — so
   every Orion fires every rack today and behaves as though it had OAKDISC.
 
-  **The cap is on RACKS FIRING, not drones launched**, which is why Orions favour type-C racks:
+  **The cap is on RACKS USED, not drones launched**, which is why Orions favour type-C racks:
   three racks at a type-C's two-per-turn is six drones in the air, fully legal. The SAL's Y175
   refit converts its four racks A→C for exactly that reason — it buys rate, not permission.
+
+  So the thing to track is WHICH RACKS HAVE LAUNCHED THIS TURN, not a drone count:
+  - a rack that fires twice counts ONCE against the three;
+  - once three distinct racks have launched, a fourth may not, even if the first three are empty;
+  - the player picks which three implicitly, by firing them;
+  - anti-drones and seeking shuttles are outside the count entirely.
+
+  `DroneRack` already carries its own per-turn firing state, so "has this rack launched this
+  turn" is a question the engine can answer without new bookkeeping.
 
   **Design, settled with the owner:** a NUMBER on the hull, not a boolean —
   `auxiliary.rackFiringLimit: 3` on Orion hulls, absent meaning the only limit is each rack's own
