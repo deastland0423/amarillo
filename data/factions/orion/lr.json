@@ -45,7 +45,8 @@
 
   "auxiliary": {
     "transporters": 2,
-    "tractors": 2
+    "tractors": 2,
+    "rackFiringLimit": 3
   },
 
   "shuttleBays": [
@@ -57,6 +58,34 @@
     "boardingParties": 8,
     "minCrew": 3
   },
+
+  "refits": [
+    {
+      "code": "O",
+      "name": "oakdisc refit",
+      "label": "OAKDISC",
+      "year": 129,
+      "bpv": 5,
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 155,
+      "bpv": 12,
+      "auxiliary": { "cloakCost": 6 }
+    },
+    {
+      "code": "+",
+      "name": "+ refit",
+      "label": "Plus Refit",
+      "year": 169,
+      "bpv": 5,
+      "shields": [20, 20, 20, 20, 20, 20]
+    }
+  ],
 
   "weapons": [
     { "type": "Phaser1", "designator": "1", "arcs": ["FULL"] },

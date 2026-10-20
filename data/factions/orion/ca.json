@@ -45,7 +45,8 @@
 
   "auxiliary": {
     "transporters": 4,
-    "tractors": 6
+    "tractors": 6,
+    "rackFiringLimit": 3
   },
 
   "shuttleBays": [
@@ -57,6 +58,48 @@
     "boardingParties": 16,
     "minCrew": 4
   },
+
+  "refits": [
+    {
+      "code": "O",
+      "name": "oakdisc refit",
+      "label": "OAKDISC",
+      "year": 132,
+      "bpv": 15,
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 155,
+      "bpv": 25,
+      "auxiliary": { "cloakCost": 20 }
+    },
+    {
+      "code": "P",
+      "name": "plasma rack refit",
+      "label": "Plasma Racks",
+      "year": 165,
+      "bpv": 4,
+      "replaceWeapons": [
+        {
+          "from": "DroneRack",
+          "to": "PlasmaRack",
+          "designators": ["Rack 1", "Rack 2"]
+        }
+      ]
+    },
+    {
+      "code": "+",
+      "name": "+ refit",
+      "label": "Plus Refit",
+      "year": 169,
+      "bpv": 8,
+      "shields": [30, 30, 24, 24, 24, 30]
+    }
+  ],
 
   "weapons": [
     { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
