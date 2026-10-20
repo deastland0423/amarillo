@@ -116,7 +116,11 @@ export interface WeaponState {
   plasmaRackCapacity?:   number;  // FP10.1/FP10.14: always 4 on a non-base
   plasmaRackTorpedoes?:  number;  // owner only: how many are left
   plasmaRackActive?:     number;  // owner only: of those, how many are paid for (FP9.22)
-  plasmaRackReloadSets?: number;  // owner only: FP10.312, one or two from Y175
+  // owner only. The reload PLOT, not a count: FD2.421 takes the rack out of action for the
+  // whole turn, so an opponent who saw it would know the rack cannot fire at them all turn.
+  plasmaRackReloading?:      boolean;
+  plasmaRackPendingReload?:  number;
+  plasmaRackReloadRefusal?:  string | null;  // null = a reload may be plotted
   plasmaRackMode?:       string;  // owner only: UNDECIDED | OFFENSIVE | DEFENSIVE
   plasmaRackBoltUsed?:   boolean; // owner only: FP10.221, the turn's one bolt is spent
 }
@@ -283,6 +287,9 @@ export interface ShipObject extends MapObjectBase {
    * what the other racks have already claimed.
    */
   reloadPool?:      ReloadPoolEntry[];
+  // FP10.31's plasma-D hold, one pool for every plasma rack aboard. Owner only, like reloadPool.
+  plasmaReloadHeld?:     number;
+  plasmaReloadCapacity?: number;
   shuttleBays:      ShuttleBayState[];
   phaserCapacitor:    number;
   phaserCapacitorMax: number;

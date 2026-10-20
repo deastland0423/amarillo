@@ -74,18 +74,12 @@ the class calls `setReloadingThisTurn(true)`. The server's reload path (`stagePe
 `ReloadStockpile`) is `DroneRack`-only. So a rack fires its four torpedoes and is dead weight
 for the rest of the game while the UI reports reload sets that cannot be spent.
 
-**Core is now BUILT (2026-10-20)**: `PlasmaReloadStore` is the ship's pool, `stagePendingReload`
+**BUILT END TO END (2026-10-20)**: `PlasmaReloadStore` is the ship's pool, `stagePendingReload`
 plots a reload under FD2.421 (two torpedoes a turn, rack out of action, rate cannot be
-increased), and `cleanUp` lands it at 8C exactly as `DroneRack` does. Saved and restored. What
-is left:
+increased), and `cleanUp` lands it at 8C exactly as `DroneRack` does. Saved and restored,
+plotted from the EA dialog's "Plasma Reloads" panel, and the DTO reports the hold once for the
+ship rather than once per rack. What is left:
 
-- **No server or web surface.** Nothing calls `stagePendingReload` outside tests, so a player
-  cannot yet plot one — it belongs beside the drone rack reloads in the EA dialog, which
-  `GameSession` already handles for `DroneRack` via `getDroneReloadSelections()`.
-- **The DTO still reports a PER-RACK figure**, `plasmaRackReloadSets`, which is now the wrong
-  shape: the supply is the ship's. It should report the pool, the same lesson `ReloadStockpile`
-  records — while two places could hold the same drone "the DTO reported a pool PER RACK, so a
-  two-rack ship offered the same stockpile twice and a player could spend it twice over".
 - **FP10.31's fighter interchangeability** — type-Ds stored for fighters (`DroneStore`,
   `ReadyRack`) are interchangeable with the rack supply. Deliberately NOT built: the owner chose
   two stores mirroring the drone side's `ReloadStockpile`/`DroneStore` split, with transfer as a

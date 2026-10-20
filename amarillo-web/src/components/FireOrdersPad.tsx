@@ -817,10 +817,17 @@ export default function FireOrdersPad({
                         {(w.addReloads ?? 0) > 0 ? ` (+${w.addReloads})` : ''}
                       </span>
                     )}
-                    {/* A plasma rack's load (FP10.1): torpedoes aboard, how many are paid for
-                        under FP9.22, and reload sets (FP10.312). An unactivated torpedo cannot
-                        be launched at all, so the active count is the number that matters and is
-                        shown first when it differs. */}
+                    {/* A plasma rack's load (FP10.1): torpedoes aboard and how many are paid
+                        for under FP9.22. An unactivated torpedo cannot be launched at all, so
+                        the active count is the number that matters and is shown first when it
+                        differs.
+                        <p>
+                        The reload SETS used to be shown here as "(+1)". They are the ship's, not
+                        the rack's (FP10.31), so a two-rack ship advertised the same hold twice —
+                        the same mistake the drone stockpile already made and fixed. The hold is
+                        now shown once, in the allocation form where reloads are plotted. What
+                        belongs here is this rack's own state: a rack reloading is out of action
+                        for the whole turn (FD2.421), which is a firing fact. */}
                     {w?.plasmaRack && w.plasmaRackTorpedoes != null && (
                       <span style={{ color: '#86efac', fontSize: '0.9em', whiteSpace: 'nowrap' }}
                             title={'type-D torpedoes aboard / rack capacity'
@@ -830,7 +837,7 @@ export default function FireOrdersPad({
                           ? `${w.plasmaRackActive}✓/${w.plasmaRackTorpedoes}`
                           : `${w.plasmaRackTorpedoes}`}
                         /{w.plasmaRackCapacity ?? 4}
-                        {(w.plasmaRackReloadSets ?? 0) > 0 ? ` (+${w.plasmaRackReloadSets})` : ''}
+                        {w.plasmaRackReloading ? ' •reloading' : ''}
                         {w.plasmaRackBoltUsed ? ' •bolt used' : ''}
                       </span>
                     )}

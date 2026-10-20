@@ -570,6 +570,73 @@ class GameSessionAllocateTest {
         assertEquals(1, staged, "and only one rack has a reload staged");
     }
 
+
+    // -------------------------------------------------------------------------
+    // Plasma rack reloads (FP10.3 via FD2.421)
+    // -------------------------------------------------------------------------
+
+    /** Mount a plasma rack on the Federation hull, which is the shortest route to one in a test. */
+    private com.sfb.weapons.PlasmaRack mountPlasmaRack(Ship ship, String designator) {
+        com.sfb.weapons.PlasmaRack rack = new com.sfb.weapons.PlasmaRack();
+        rack.setDesignator(designator);
+        rack.setOwningShip(ship);
+        ship.getWeapons().addWeapon(rack);
+        return rack;
+    }
+
+    /**
+     * A plotted reload reaches core and takes the rack out of action (FD2.421), which is the
+     * whole point of surfacing it: before this the rule existed and no player could invoke it.
+     */
+    @Test
+    void plasmaReload_plottedDuringAllocation_takesTheRackOutOfAction() {
+        com.sfb.weapons.PlasmaRack rack = mountPlasmaRack(fed, "PL-D 1");
+        rack.activate(rack.activationEnergyWanted());
+        rack.launch(com.sfb.weapons.PlasmaRack.RackMode.OFFENSIVE);
+        rack.cleanUp();                       // a fresh turn, so FD2.421 allows the plot
+        assertEquals(3, rack.getTorpedoes(), "fixture: one torpedo short");
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPlasmaReloadRacks(java.util.List.of("PL-D 1"));
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+        assertTrue(rack.isReloadingThisTurn(), "FD2.421 takes the rack out of service");
+        assertEquals(1, rack.getPendingReload());
+    }
+
+    /**
+     * And an illegal plot is refused with core's own words rather than the server's. FD2.421
+     * requires the plot be made in advance, so a rack that has already fired this turn cannot.
+     */
+    @Test
+    void plasmaReload_afterTheRackHasFired_isRefused() {
+        com.sfb.weapons.PlasmaRack rack = mountPlasmaRack(fed, "PL-D 1");
+        rack.activate(rack.activationEnergyWanted());
+        rack.launch(com.sfb.weapons.PlasmaRack.RackMode.OFFENSIVE);
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPlasmaReloadRacks(java.util.List.of("PL-D 1"));
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("FD2.421"), result.getMessage());
+        assertFalse(rack.isReloadingThisTurn());
+    }
+
+    /** Naming a full rack is refused too, rather than quietly plotting a reload of nothing. */
+    @Test
+    void plasmaReload_ofAFullRack_isRefused() {
+        mountPlasmaRack(fed, "PL-D 1");
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPlasmaReloadRacks(java.util.List.of("PL-D 1"));
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("full"), result.getMessage());
+    }
+
     /** Drones a rack has staged for reload, which is null rather than empty when it has none. */
     private static int stagedCount(com.sfb.weapons.DroneRack rack) {
         return rack.getPendingReloadSet() == null ? 0 : rack.getPendingReloadSet().size();

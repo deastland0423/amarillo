@@ -99,6 +99,10 @@ public class ActionRequest {
     private int                 generalReinforcement;   // general shield reinforcement points (2 energy each)
     private int[]               specificReinforcement;  // specific reinforcement per shield 1-6
     private Map<String, Map<String, Integer>> droneReloadSelections;   // rack name → {droneType → count}
+    // FD2.421 via FP10.3: the plasma racks plotted to reload this turn, by designator. A LIST
+    // and not a map because a plasma rack has nothing to choose - one type-D is any other
+    // (FP9.18) - so the only decision is which racks go out of action.
+    private java.util.List<String> plasmaReloadRacks;
     private Map<String, Map<String, Integer>> scatterPackLoading;     // shuttle name → {droneType → count}
     private Map<String, Integer>             suicideShuttleArming;   // shuttle name → energy (1–3)
     private java.util.Set<String>            suicideShuttleHold;     // shuttle names paying hold this turn
@@ -224,6 +228,8 @@ public class ActionRequest {
 
     public Map<String, Map<String, Integer>> getDroneReloadSelections()                                              { return droneReloadSelections; }
     public void                              setDroneReloadSelections(Map<String, Map<String, Integer>> selections) { this.droneReloadSelections = selections; }
+    public java.util.List<String>            getPlasmaReloadRacks()                                                  { return plasmaReloadRacks; }
+    public void                              setPlasmaReloadRacks(java.util.List<String> racks)                      { this.plasmaReloadRacks = racks; }
 
     public Map<String, Map<String, Integer>> getScatterPackLoading()                                              { return scatterPackLoading; }
     public void                              setScatterPackLoading(Map<String, Map<String, Integer>> selections)  { this.scatterPackLoading = selections; }

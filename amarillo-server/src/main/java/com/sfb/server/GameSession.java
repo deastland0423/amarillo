@@ -1689,6 +1689,32 @@ public class GameSession {
                     }
                 }
 
+                // Plasma rack reloads (FP10.3 via FD2.421). Plotted during allocation and no
+                // later: the rule requires it "plotted in advance ... taking the rack out of
+                // service for that turn", and "this decision cannot be reversed".
+                //
+                // Core owns every condition - already fired, already full, nothing left in the
+                // hold - so this asks PlasmaRack.reloadRefusal() rather than restating them
+                // here. A server-side copy of a rule in core is how a pre-G7.6 tractor cap
+                // survived two revisions of the rule it was enforcing.
+                java.util.List<String> plasmaReloads = request.getPlasmaReloadRacks();
+                if (plasmaReloads != null && !plasmaReloads.isEmpty()) {
+                    for (String designator : plasmaReloads) {
+                        if (designator == null)
+                            continue;
+                        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                            if (!(w instanceof com.sfb.weapons.PlasmaRack rack))
+                                continue;
+                            if (!designator.equalsIgnoreCase(rack.getDesignator()))
+                                continue;
+                            String refusal = rack.reloadRefusal();
+                            if (refusal != null)
+                                return ActionResult.fail(refusal);
+                            rack.stagePendingReload();
+                        }
+                    }
+                }
+
                 // Scatter pack loading — uses deck crews (FD7.22): 1 crew per rack space from
                 // reload stockpile.
                 Map<String, Map<String, Integer>> spLoading = request.getScatterPackLoading();

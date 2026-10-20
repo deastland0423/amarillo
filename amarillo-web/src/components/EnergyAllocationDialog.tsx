@@ -59,6 +59,9 @@ interface ShipAlloc {
   weaponArming:         Record<string, ArmChoice>;
   photonArming:         Record<string, number>;   // warp energy dialled into each photon tube
   droneReloads:         Record<string, Record<string, number>>;  // rackName → {droneType → count}
+  // FP10.3 via FD2.421: which plasma racks are plotted to reload. A list of designators and not
+  // a map, because a plasma rack has nothing to choose - one type-D is any other (FP9.18).
+  plasmaReloads:        string[];
   scatterPackLoading:   Record<string, Record<string, number>>;  // shuttleName → {droneType → count}
   suicideArming:        Record<string, number>;   // shuttleName → energy (1–3); 0 = not arming
   suicideHold:          Record<string, boolean>;  // shuttleName → paying hold this turn
@@ -161,6 +164,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
         .map(w => [w.name, w.armed ? (w.holdCost || 1) : 2]),
     ),
     droneReloads:        {},
+    plasmaReloads:       [],
     scatterPackLoading:  {},
     // Carry on at last turn's rate. Arming runs three turns and the rate is the player's
     // each turn, so a stepper that starts at 0 makes every turn of a three-turn job a hunt
@@ -610,6 +614,7 @@ export default function EnergyAllocationDialog({
               )])
               .filter(([, sel]) => Object.keys(sel as Record<string,number>).length > 0)
           ),
+          plasmaReloadRacks: a.plasmaReloads.length > 0 ? a.plasmaReloads : undefined,
           shuttleSpeeds: Object.keys(a.shuttleSpeeds).length > 0 ? a.shuttleSpeeds : undefined,
           suicideShuttleArming: Object.fromEntries(
             Object.entries(a.suicideArming ?? {}).filter(([, e]) => e > 0)
@@ -1386,6 +1391,60 @@ export default function EnergyAllocationDialog({
             })}
           </Collapsible>
         )}
+
+        {/* ---- Plasma Rack Reloads (FP10.3 via FD2.421) ---- */}
+        {(() => {
+          const racks = (ship.weapons ?? []).filter(w => w.plasmaRack);
+          if (racks.length === 0) return null;
+          const held = ship.plasmaReloadHeld ?? 0;
+          const capacity = ship.plasmaReloadCapacity ?? 0;
+          const plotted = alloc.plasmaReloads.length;
+          return (
+            <Collapsible title="Plasma Reloads" color="#d5a03a">
+              <div className="ea-note">
+                One hold for every plasma rack aboard — any rack may draw from it (FP10.31).
+                A rack takes two torpedoes a turn and cannot fire while it reloads (FD2.421),
+                and they arrive unarmed (FP9.22).
+              </div>
+              <div className="ea-note">
+                Hold: {held} / {capacity} torpedoes
+                {plotted > 0 ? ` — ${plotted} rack${plotted === 1 ? '' : 's'} plotted` : ''}
+              </div>
+              {racks.map(w => {
+                const id = w.designator ?? w.name;
+                // Jackson writes an absent reason as `null`, never by omitting the key, so this
+                // has to be `!= null` — `!== undefined` is true for null and would offer every
+                // rack a reload it cannot have.
+                const refusal = w.plasmaRackReloadRefusal != null ? w.plasmaRackReloadRefusal : null;
+                const checked = alloc.plasmaReloads.includes(id);
+                return (
+                  <div key={id} className="ea-weapon-alloc-block">
+                    <label className="ea-weapon-alloc-name">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={refusal != null}
+                        onChange={e => setAlloc(a => ({
+                          ...a,
+                          plasmaReloads: e.target.checked
+                            ? [...a.plasmaReloads, id]
+                            : a.plasmaReloads.filter(r => r !== id),
+                        }))}
+                      />
+                      {' '}{w.name}
+                      {w.plasmaRackTorpedoes != null && (
+                        <span className="ea-weapon-alloc-status">
+                          {' '}({w.plasmaRackTorpedoes} aboard)
+                        </span>
+                      )}
+                    </label>
+                    {refusal && <div className="ea-note">{refusal}</div>}
+                  </div>
+                );
+              })}
+            </Collapsible>
+          );
+        })()}
 
         {/* ---- Shuttle speeds (collapsible) ---- */}
         {(() => {

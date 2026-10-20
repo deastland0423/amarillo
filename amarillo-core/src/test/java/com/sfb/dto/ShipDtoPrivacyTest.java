@@ -90,6 +90,11 @@ public class ShipDtoPrivacyTest {
         // even the TYPES aboard off a scan ("the drones aboard a ship... cannot be determined").
         // The rack COUNT stays public, being boxes on the SSD; what is behind them does not.
         "reloadPool",
+        // FP10.31's plasma-D hold, ruled exactly as the drone stockpile above and for the same
+        // reason: how many reloads a ship has left is how many more launches it has in it. The
+        // CAPACITY is private with it rather than argued separately - an enemy who knew the hold
+        // was full would know as much as one who knew it was empty.
+        "plasmaReloadHeld", "plasmaReloadCapacity",
         "tractorEnergy", "tractorEnergyRemaining",
         // Mines carried, and which are bluffs
         "tBombs", "dummyTBombs", "nuclearSpaceMines",
@@ -195,8 +200,12 @@ public class ShipDtoPrivacyTest {
         // hexes out is legal in either mode, so the shot does not reveal it, while knowing a
         // rack is DEFENSIVE tells an opponent it can fire again next impulse and cannot engage
         // their cruiser at all (FP10.211, FP10.212).
-        "plasmaRackTorpedoes", "plasmaRackActive", "plasmaRackReloadSets", "plasmaRackMode",
-        "plasmaRackBoltUsed",
+        "plasmaRackTorpedoes", "plasmaRackActive", "plasmaRackMode", "plasmaRackBoltUsed",
+        // The reload plot is private for a sharper reason than the rest: FD2.421 takes the rack
+        // out of action for the whole turn, so an opponent who knew it was reloading would know
+        // that rack cannot fire at them all turn - a free read on this turn's defence. The
+        // refusal string goes with it because it names what the rack has already done.
+        "plasmaRackReloading", "plasmaRackPendingReload", "plasmaRackReloadRefusal",
         // D13.22's two halves. Both are private for a reason that is not about the weapon at all:
         // either field being PRESENT discloses that the ship has aegis, which D13.51 puts behind
         // tactical intelligence Level E. (The restriction itself is printed in the D5's ship

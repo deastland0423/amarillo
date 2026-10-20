@@ -177,7 +177,12 @@ public class GameStateDto {
         public Integer plasmaRackCapacity;     // FP10.1/FP10.14: always 4 on a non-base
         public Integer plasmaRackTorpedoes;    // how many are left in it
         public Integer plasmaRackActive;       // of those, how many are paid for (FP9.22)
-        public Integer plasmaRackReloadSets;   // FP10.312: one, or two from Y175
+        /** FP10.23: this rack is out of action reloading, and may not fire in either mode. */
+        public Boolean plasmaRackReloading;
+        /** Torpedoes plotted to arrive at the end of this turn (FD2.421). */
+        public Integer plasmaRackPendingReload;
+        /** Why a reload may not be plotted this turn, or null if one may be (FD2.421). */
+        public String plasmaRackReloadRefusal;
         public String  plasmaRackMode;         // FP10.21: UNDECIDED / OFFENSIVE / DEFENSIVE
         public Boolean plasmaRackBoltUsed;     // FP10.221: the turn's one bolt is spent
         public boolean isHeavy; // true for HeavyWeapon (disruptors, plasma, photon)
@@ -669,6 +674,14 @@ public class GameStateDto {
          * can be loaded onto any rack on the ship".
          */
         public List<ReloadPoolEntryDto> reloadPool;
+        /**
+         * FP10.31's plasma-D hold: torpedoes left for ALL of this ship's plasma racks, and what
+         * it holds when full. One pool for the same reason as {@link #reloadPool} above — "a
+         * given rack can use reloads nominally assigned to another rack" — and reported here
+         * rather than per rack so a two-rack ship cannot offer the same supply twice.
+         */
+        public Integer plasmaReloadHeld;
+        public Integer plasmaReloadCapacity;
         public List<ShuttleBayDto> shuttleBays;
         public int tBombs;
         public int dummyTBombs;
@@ -1925,7 +1938,9 @@ public class GameStateDto {
                 wd.plasmaRackCapacity = com.sfb.weapons.PlasmaRack.CAPACITY;
                 wd.plasmaRackTorpedoes = rack.getTorpedoes();
                 wd.plasmaRackActive = rack.getActiveTorpedoes();
-                wd.plasmaRackReloadSets = rack.getReloadSets();
+                wd.plasmaRackReloading = rack.isReloadingThisTurn();
+                wd.plasmaRackPendingReload = rack.getPendingReload();
+                wd.plasmaRackReloadRefusal = rack.reloadRefusal();
                 wd.plasmaRackMode = rack.getModeThisTurn().name();
                 wd.plasmaRackBoltUsed = rack.getBoltsThisTurn() > 0;
             }
@@ -2034,6 +2049,14 @@ public class GameStateDto {
             entry.count++;
         }
         dto.reloadPool.addAll(shipPool.values());
+
+        // FP10.31's plasma hold, once for the ship, for the same reason and in the same place.
+        // Only sent when the ship actually has a plasma rack: a capacity of zero on every other
+        // hull in the game is noise the client would have to filter.
+        if (ship.plasmaReloadStore().capacity() > 0 || ship.plasmaReloadStore().held() > 0) {
+            dto.plasmaReloadHeld = ship.plasmaReloadStore().held();
+            dto.plasmaReloadCapacity = ship.plasmaReloadStore().capacity();
+        }
 
         dto.shuttleBays = new ArrayList<>();
         List<ShuttleBay> bays = ship.getShuttles().getBays();
@@ -2520,7 +2543,9 @@ public class GameStateDto {
                 // all. That is a real tactical disclosure the observed shot does not imply.
                 wd.plasmaRackTorpedoes = null;
                 wd.plasmaRackActive = null;
-                wd.plasmaRackReloadSets = null;
+                wd.plasmaRackReloading = null;
+                wd.plasmaRackPendingReload = null;
+                wd.plasmaRackReloadRefusal = null;
                 wd.plasmaRackMode = null;
                 wd.plasmaRackBoltUsed = null;
             }
