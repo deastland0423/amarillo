@@ -30,11 +30,26 @@ groundwork already in place.
   bigger Orion with >=2 adjacent centerline mounts" is out of date: the **CA** has had two
   adjacent centerline mounts since it was entered, and the **SAL** now does too.
 
-  **The SLV is why adjacency cannot be inferred from the count.** It also shows two centerline
-  mounts, A and B, and the owner confirmed (2026-10-20) they are NOT adjacent — so
-  `position == CENTERLINE && count >= 2` would wrongly let a Plasma-G onto it. Adjacency is a
-  property of the SHEET's layout and has to be stated per hull; the `OptionMount` model carries
-  `position`, `designator` and `arcs`, and nothing that says which mounts neighbour which.
+  **ADJACENCY IS INDEPENDENT OF POSITION** (owner, 2026-10-20): "option mounts can be adjacent
+  or not. You can have adjacent centerline or even adjacent wing mounts. Orion and WYN ships
+  have these and there are some weapons that can be mounted only on adjacent centerline or
+  adjacent wing mounts." So it is two separate facts about a pair — where the mounts are, and
+  whether they touch — not one.
+
+  **The catalogue side already expresses the requirement.** `OptionCatalogEntry` carries
+  `positions` (defaulting to both CENTERLINE and WING) and `mountsRequired`, so "two adjacent
+  wing mounts" is `positions: ["WING"], mountsRequired: 2`. Worth checking against Annex #8B:
+  none of our eight two-mount entries restricts `positions` today, so all eight currently permit
+  either — which contradicts the owner's "some weapons … only on adjacent centerline or adjacent
+  wing".
+
+  **What is missing is the HULL side.** `OptionMount` carries `position`, `designator` and
+  `arcs`, and nothing saying which mounts neighbour which. It cannot be inferred from the count:
+  the **CA** has two adjacent centerline mounts and the **SLV** has two that are NOT adjacent, so
+  `position == CENTERLINE && count >= 2` would wrongly admit a Plasma-G onto the Slaver.
+  Adjacency is a property of the sheet's layout and has to be declared per hull — probably as
+  pairs or groups on the hull (`"adjacentMounts": [["A","B"]]`) rather than a per-mount
+  `adjacentTo`, so the fact is stated once and cannot fall out of symmetry.
 
   **What it unlocks: six of the eight.** Plasma-G and Plasma-S, swivel and no-swivel, are
   buildable now (`PlasmaLauncher` with plasmaType G and S both exist; Plasma-S needs size <= 3
