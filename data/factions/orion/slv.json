@@ -1,0 +1,77 @@
+{
+  "faction": "Orion",
+  "type": "SLV",
+  "typeName": "Slaver",
+  "line": "FF",
+  "name": "Bad Company",
+  "serviceYear": 129,
+  "sizeClass": 4,
+  "bpv": 60,
+  "epv": 83,
+  "commandRating": 3,
+  "turnMode": "D",
+  "moveCost": 0.25,
+  "breakdown": 3,
+  "nimble": true,
+  "stealthBonus": 2,
+
+  "shields": [20, 14, 14, 14, 14, 14],
+
+  "hullBoxes": { "chull": 8, "cargo": 22 },
+
+  "power": {
+    "leftWarp": 4,
+    "rightWarp": 4,
+    "impulse": 2,
+    "battery": 2
+  },
+
+  "control": { "bridge": 1, "auxCon": 1, "controlMod": 1.0 },
+
+  "crewData": { "totalCrew": 12, "boardingParties": 8, "minCrew": 3 },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 0],
+    "sensor": [6, 6, 4, 2, 0],
+    "scanner": [0, 1, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": { "transporters": 2, "tractors": 2, "rackFiringLimit": 3 },
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "A", "arcs": ["FA"] },
+    { "position": "CENTERLINE", "designator": "B", "arcs": ["FA"] }
+  ],
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FULL"] }
+  ],
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "refits": [
+    {
+      "code": "O",
+      "name": "oakdisc refit",
+      "label": "OAKDISC",
+      "year": 129,
+      "bpv": 5,
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 155,
+      "bpv": 12,
+      "auxiliary": { "cloakCost": 6 }
+    }
+  ],
+
+  "note": "R8.5, Advanced Missions SSD p.141. Point value prints EPV/BPV (83/60). Its two Ph-1 fire on a 360 arc, which the sheet states outright, and it carries no drone racks at all - the rackFiringLimit is declared because FD4.4 binds every Orion, not because this hull can reach it unaided. ITS TWO OPTION MOUNTS ARE NOT ADJACENT (owner, 2026-10-20), so it may never take a two-mount weapon however many centerline mounts it shows - see BACKLOG on why adjacency has to be declared rather than inferred from the count. Sensor/scanner/damage-control tracks are five steps where the CA's are six; verified against the sheet. No plasma rack refit, no plus refit and no Y175 block: the sheet prints none, which fits a hull with no racks to convert."
+}

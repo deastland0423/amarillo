@@ -24,6 +24,30 @@ something does not exist is the kind that rots quietest.
 Each of these was named by an earlier session as the next sensible slice in its area, with the
 groundwork already in place.
 
+- **Orion multi-mount option weapons (G15.4) — UNBLOCKED 2026-10-20, and adjacency must be
+  DECLARED.** Eight catalogue options need two adjacent centerline mounts (`mountsRequired: 2`)
+  and `OptionMountLoadout.validate` refuses them outright today. The note that this "needs a
+  bigger Orion with >=2 adjacent centerline mounts" is out of date: the **CA** has had two
+  adjacent centerline mounts since it was entered, and the **SAL** now does too.
+
+  **The SLV is why adjacency cannot be inferred from the count.** It also shows two centerline
+  mounts, A and B, and the owner confirmed (2026-10-20) they are NOT adjacent — so
+  `position == CENTERLINE && count >= 2` would wrongly let a Plasma-G onto it. Adjacency is a
+  property of the SHEET's layout and has to be stated per hull; the `OptionMount` model carries
+  `position`, `designator` and `arcs`, and nothing that says which mounts neighbour which.
+
+  **What it unlocks: six of the eight.** Plasma-G and Plasma-S, swivel and no-swivel, are
+  buildable now (`PlasmaLauncher` with plasmaType G and S both exist; Plasma-S needs size <= 3
+  and Y170). **ESG and ESG-without-capacitor** are buildable too — the weapon class is fully
+  built (50 G23 clauses, 55 tests) and only lacks a `weaponSpec` recipe in the Orion catalogue,
+  which `project_esg` records as deliberately withheld "until multi-mount adjacency lands". PPD
+  is genuinely unimplemented, and the Stasis Field Generator is `available: false` anyway.
+
+  **One data question first:** the swivel variants cost MORE (2 vs 1, 7 vs 4) yet carry the more
+  constrained `weaponSpec` — `launchDirections: ["FA"]` where the no-swivel entry has none. Read
+  Annex #8B before building: either absent means "inherits the mount's arc" and the swivel entry
+  is merely redundant, or the data has the two transposed.
+
 - **R1.32 Base Augmentation Modules.** Module R1 SSD book p.78, not yet read. All nine Base
   Stations declare the fighter, hangar and PF modules out of their baseline, so this is what
   finishes them. Build module **purchasing** with fighters as one entry in a catalogue — the
