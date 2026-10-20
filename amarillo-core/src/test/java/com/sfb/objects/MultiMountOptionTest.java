@@ -148,6 +148,41 @@ public class MultiMountOptionTest {
         assertTrue(filled.toString(), filled.contains("B"));
     }
 
+    // ---------------------------------------------------------------- the row of four
+
+    /**
+     * The Heavy Battlecruiser's four centerline mounts are ONE run, so it is the only hull that
+     * can carry two separate two-mount weapons — A+B and C+D — which no other Orion can do.
+     */
+    @Test
+    public void theBchSeatsTwoSeparateTwoMountWeapons() {
+        Ship bch = hull("BCH");
+
+        Weapon first = OptionMountLoadout.equip(bch, catalog, "A", "Plasma-G Torp (No Swivel)", 180);
+        Weapon second = OptionMountLoadout.equip(bch, catalog, "C", "Plasma-G Torp (No Swivel)", 180);
+
+        assertNotSame("two weapons, not one", first, second);
+        assertSame(first, mount(bch, "A").getWeapon());
+        assertSame(first, mount(bch, "B").getWeapon());
+        assertSame(second, mount(bch, "C").getWeapon());
+        assertSame(second, mount(bch, "D").getWeapon());
+    }
+
+    /**
+     * And a run of four still means CONSECUTIVE: once A+B is taken, a weapon asked for at D
+     * seats on C+D, because B is no longer free. A+D was never a pair at all.
+     */
+    @Test
+    public void aRunOfFourIsStillConsecutive() {
+        Ship bch = hull("BCH");
+        OptionMountLoadout.equip(bch, catalog, "A", "Plasma-G Torp (No Swivel)", 180);
+
+        Weapon second = OptionMountLoadout.equip(bch, catalog, "D", "Plasma-S Torp (No Swivel)", 180);
+
+        assertSame("D took C, the only neighbour left", second, mount(bch, "C").getWeapon());
+        assertFalse(bch.mountsAreAdjacent("A", "D"));
+    }
+
     // ---------------------------------------------------------------- it does not fit
 
     /**

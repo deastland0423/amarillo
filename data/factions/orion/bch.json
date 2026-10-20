@@ -1,0 +1,112 @@
+{
+  "faction": "Orion",
+  "type": "BCH",
+  "typeName": "Heavy Battlecruiser",
+  "line": "BCH",
+  "name": "Grand Larceny",
+  "serviceYear": 180,
+  "sizeClass": 3,
+  "bpv": 180,
+  "commandRating": 10,
+  "turnMode": "C",
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 2,
+  "stealthBonus": 1,
+
+  "shields": [36, 30, 24, 24, 24, 30],
+
+  "hullBoxes": { "chull": 10, "cargo": 6 },
+
+  "power": {
+    "leftWarp": 10,
+    "centerWarp": 12,
+    "rightWarp": 10,
+    "impulse": 6,
+    "battery": 5
+  },
+
+  "control": { "bridge": 2, "auxCon": 2, "emergency": 1, "controlMod": 1.0 },
+
+  "crewData": { "totalCrew": 40, "boardingParties": 20, "minCrew": 4 },
+
+  "tables": {
+    "damageControl": [6, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "labs": 2,
+    "transporters": 3,
+    "tractors": 6,
+    "rackFiringLimit": 3
+  },
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "A", "arcs": ["FA"] },
+    { "position": "CENTERLINE", "designator": "B", "arcs": ["FA"] },
+    { "position": "CENTERLINE", "designator": "C", "arcs": ["FA"] },
+    { "position": "CENTERLINE", "designator": "D", "arcs": ["FA"] }
+  ],
+
+  "adjacentMounts": [["A", "B", "C", "D"]],
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "11", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["RS"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_C", "arcs": ["FULL"] },
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_C", "arcs": ["FULL"] }
+  ],
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"] }
+  ],
+
+  "refits": [
+    {
+      "code": "O",
+      "name": "oakdisc refit",
+      "label": "OAKDISC",
+      "year": 180,
+      "bpv": 20,
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 180,
+      "bpv": 30,
+      "auxiliary": { "cloakCost": 22 }
+    },
+    {
+      "code": "P",
+      "name": "plasma rack refit",
+      "label": "Plasma Racks",
+      "year": 180,
+      "bpv": 4,
+      "replaceWeapons": [
+        {
+          "from": "DroneRack",
+          "to": "PlasmaRack",
+          "designators": ["Rack 1", "Rack 2"]
+        }
+      ]
+    }
+  ],
+
+  "note": "R8.17, Module R2 SSD p.69. The largest Orion we have at 180 BPV, and the only one that breaks the faction's own patterns in three places. STEALTH IS +1 ECM, not the +2 every other Orion carries - read off the data table, not assumed. Its damage control track has SEVEN steps (6/4/4/2/2/2/0) where every other Orion has six. And it CANNOT land on planets by any means other than a crash landing (P2.431), where the rest of the fleet lands freely. FOUR CENTERLINE MOUNTS printed as a 2x2 block, declared as one run of four (owner, 2026-10-20) - the first run of four in the data, so it seats two separate two-mount weapons (A+B and C+D) or one across B+C, and never A+D. Its sheet says nothing about adjacency either way, unlike the DBR's capitals, so this is the owner's ruling rather than a reading. The two drone racks are type-C and fire on a 360 arc; their sheet note, 'THIS SHIP'S RACKS ALWAYS HAD TWO RELOADS', is just what a type-C carries, and the +1 every Orion rack gains in Y175 comes from the faction rule. Carries an EMERGENCY BRIDGE beside its bridge and auxiliary control. NOT MODELLED: the Y170 plasma carronade and the sabot refit (Module R10), the MINELAYER REFIT (R8.R1), and (R8.R3) for option mount firing arcs - none of which we have read."
+}

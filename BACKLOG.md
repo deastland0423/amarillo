@@ -22,14 +22,13 @@ something does not exist is the kind that rots quietest.
 ## Orion ship data — MODULE R2 IS NOW ON DISK (2026-10-20)
 
 `data/ssd/Module_R2_SSD.pdf` arrived late on 2026-10-20 and its Orion section starts at printed
-page 67 (PDF 68). The **DBR** (R8.14) is entered. The master ship chart in the Master Annex File
+page 67 (PDF 68). The **DBR** (R8.14, p.67) and the **BCH** (R8.17, p.69) are entered. The master ship chart in the Master Annex File
 lists these other R2 Orions, none of them entered — the chart's last two columns are the source
 book and the R8.x number, so "R2 22" means Module R2, rule R8.22:
 
 | Type | Rule | BPV | Notes from the chart |
 |------|------|-----|----------------------|
 | AR   | R8.22 | 100 | size 3, move 0.67 |
-| BCH  | R8.17 | 180 | heavy battlecruiser, size 3, move 1.0 |
 | DBP  | R8.25 | 110 | the DBR's variant, 6 boarding parties where the DBR has 12 |
 | DW   | R8.18 | 80  | war destroyer, size 4, move 0.50 |
 | DWS  | R8.24 | 100/80 | a converted trader, so EPV/BPV |
@@ -37,6 +36,10 @@ book and the R8.x number, so "R2 22" means Module R2, rule R8.22:
 | LRS  | R8.23 | 88/68 | light raider scout |
 | MR   | R8.21 | 110 | size 3 |
 | OK6  | R8.15 | 130 | **captured Klingon** cruiser in Orion service |
+
+The contents page lists the Orion section in full: DBR 67, OK6 68, BCH 69, DW 70, HR 71, MR 72,
+AR 73, LRS 74, DWS 75, DBP 76. Note **DBP is a PF tender**, and PFs are not modelled at all, so
+it is the one to leave until last.
 
 Reading one takes about one exchange with the owner — the DBR needed two questions (whether the
 lettered warp box counts as power, and the crew asterisk).

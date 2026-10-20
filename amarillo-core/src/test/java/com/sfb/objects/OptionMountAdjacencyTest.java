@@ -106,6 +106,25 @@ public class OptionMountAdjacencyTest {
         assertFalse(dbr.mountsAreAdjacent("B", "C"));
     }
 
+    /**
+     * The Heavy Battlecruiser's four centerline mounts are ONE run, not two pairs, and B-C is
+     * the assertion that tells them apart. Both shapes allow A+B and C+D, so a test that only
+     * seats weapons on those would pass either way — which is why this is here and not only in
+     * {@code MultiMountOptionTest}.
+     */
+    @Test
+    public void theBchsFourMountsAreOneRunAndNotTwoPairs() {
+        Ship bch = hull("Orion", "BCH");
+
+        assertEquals(List.of(List.of("A", "B", "C", "D")), bch.getAdjacentMountRuns());
+        assertTrue("the pair that only a single run allows", bch.mountsAreAdjacent("B", "C"));
+        assertTrue(bch.mountsAreAdjacent("A", "B"));
+        assertTrue(bch.mountsAreAdjacent("C", "D"));
+        assertFalse("still consecutive-only: A and C are two apart",
+                bch.mountsAreAdjacent("A", "C"));
+        assertFalse(bch.mountsAreAdjacent("A", "D"));
+    }
+
     /** Every other hull in the game declares nothing, and is therefore free of all this. */
     @Test
     public void ahullThatDeclaresNoRunsHasNoAdjacency() {
