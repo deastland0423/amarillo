@@ -1,0 +1,93 @@
+{
+  "faction": "Orion",
+  "type": "BR",
+  "typeName": "Battle Raider",
+  "line": "CW",
+  "name": "Hard Bargain",
+  "serviceYear": 168,
+  "sizeClass": 3,
+  "bpv": 115,
+  "commandRating": 6,
+  "turnMode": "A",
+  "moveCost": 0.6666667,
+  "breakdown": 6,
+  "bonusHets": 2,
+  "nimble": false,
+  "stealthBonus": 2,
+
+  "shields": [30, 30, 24, 24, 24, 30],
+
+  "hullBoxes": { "chull": 6, "cargo": 6 },
+
+  "power": {
+    "leftWarp": 12,
+    "rightWarp": 12,
+    "impulse": 3,
+    "battery": 4
+  },
+
+  "control": { "bridge": 1, "auxCon": 2, "controlMod": 1.0 },
+
+  "crewData": { "totalCrew": 26, "boardingParties": 16, "minCrew": 4 },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "labs": 2,
+    "transporters": 3,
+    "tractors": 4,
+    "rackFiringLimit": 3
+  },
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "A", "arcs": ["FA"] },
+    { "position": "CENTERLINE", "designator": "B", "arcs": ["FA"] },
+    { "position": "CENTERLINE", "designator": "C", "arcs": ["FA"] },
+    { "position": "WING",       "designator": "D", "arcs": ["LS"] },
+    { "position": "WING",       "designator": "E", "arcs": ["RS"] }
+  ],
+
+  "adjacentMounts": [["A", "B", "C"]],
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RA"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RA"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["RA"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["RA"] }
+  ],
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"] }
+  ],
+
+  "refits": [
+    {
+      "code": "O",
+      "name": "oakdisc refit",
+      "label": "OAKDISC",
+      "year": 168,
+      "bpv": 12,
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 168,
+      "bpv": 20,
+      "auxiliary": { "cloakCost": 15 }
+    }
+  ],
+
+  "note": "R8.13, Advanced Missions SSD p.144. The Orion war cruiser, and the only Orion in the book whose point value prints as a SINGLE number (115) rather than EPV/BPV - it is a warship, not a converted trader. Cloak cost prints 15/4; the 4 applies only to a ship with no warp engines, so cloakCost is 15. The sheet states its HET standing outright - 'THIS SHIP HAS TWO HET BONUSES UNDER (C6.521). IT IS NOT NIMBLE.' - hence bonusHets 2 with nimble false, two separate facts on one hull. THREE ADJACENT CENTERLINE MOUNTS (A, B, C) plus one on each wing (D on the LS, E on the RS): the first three-mount run in the data, and the first real exercise of the run semantics, since A-B and B-C are adjacent while A-C is not. NO PLUS REFIT: the CA's sheet carries a stippled swatch legended 'SHADED BOXES ARE ADDED BY THE PLUS REFIT' and this one carries neither legend nor stipple, so every box printed counts. Its 30/30/24/24/24/30 is exactly the CA's POST-plus shielding, which fits a Y168 hull built to the later standard. Phaser arcs are read from the box labels 'PH-1-FA' and 'PH-3-RA'; the L and R printed beside them mark which side of the hull the pair is drawn on, not arc components - see BACKLOG, because orion/ca.json reads the same letters the other way. NOT MODELLED, all for the same reason - they depend on what goes into the option mounts, so no static field can hold them: DERFACS free in Y168 if a disruptor of range 30+ is fitted; one extra reload in Y175 for drone or plasma racks fitted to the mounts; the Y170 plasma carronade and the sabot refit, both Module R10. The MINELAYER REFIT (R8.R1) is also unentered - its text is in neither the Master Rulebook nor this book's text layer - but M9.21 says its racks go in the SHUTTLE BAYS and are limited to one mine per turn per BAY (not per box), and M9.16 says a ship given mine racks this way is NOT thereby a minesweeper. Each cargo box holds 25 points of cargo (G25.12)."
+}

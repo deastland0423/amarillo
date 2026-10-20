@@ -45,7 +45,8 @@
 
   "auxiliary": {
     "transporters": 3,
-    "tractors": 2
+    "tractors": 2,
+    "rackFiringLimit": 3
   },
 
   "shuttleBays": [

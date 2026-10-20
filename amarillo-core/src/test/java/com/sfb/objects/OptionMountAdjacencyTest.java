@@ -70,6 +70,23 @@ public class OptionMountAdjacencyTest {
                 slv.mountsAreAdjacent("A", "B"));
     }
 
+    /**
+     * THE FIRST REAL ROW OF THREE: the Battle Raider's A, B and C are one run of adjacent
+     * centerline mounts, so it is the only hull where the ends-are-not-adjacent rule is a
+     * statement about real data rather than a testbed.
+     */
+    @Test
+    public void theBrCarriesAThreeMountCenterlineRun() {
+        Ship br = hull("Orion", "BR");
+
+        assertEquals(List.of(List.of("A", "B", "C")), br.getAdjacentMountRuns());
+        assertTrue(br.mountsAreAdjacent("A", "B"));
+        assertTrue(br.mountsAreAdjacent("B", "C"));
+        assertFalse("A and C are two apart, so no two-mount weapon may span them",
+                br.mountsAreAdjacent("A", "C"));
+        assertFalse("and the wing mounts stand alone", br.mountsAreAdjacent("D", "E"));
+    }
+
     /** Every other hull in the game declares nothing, and is therefore free of all this. */
     @Test
     public void ahullThatDeclaresNoRunsHasNoAdjacency() {
