@@ -87,6 +87,25 @@ public class OptionMountAdjacencyTest {
         assertFalse("and the wing mounts stand alone", br.mountsAreAdjacent("D", "E"));
     }
 
+    /**
+     * THE RULE IN CAPITALS. The Double Raider shows THREE centerline mounts and its sheet says
+     * outright "MOUNTS 'A,' 'B,' AND 'C' ARE NOT 'CENTERLINE ADJACENT' OPTION MOUNTS" (R8.14,
+     * Module R2 p.67). Counting centerline mounts would make it the best multi-mount platform
+     * in the game; the sheet makes it incapable of carrying a two-mount weapon at all.
+     */
+    @Test
+    public void theDoubleRaidersThreeCenterlineMountsAreNotAdjacent() {
+        Ship dbr = hull("Orion", "DBR");
+
+        long centerline = dbr.getOptionMounts().stream()
+                .filter(m -> m.getPosition() == OptionMount.Position.CENTERLINE)
+                .count();
+        assertEquals("fixture: three of them, more than any other hull", 3, centerline);
+        assertTrue("and not one run between them", dbr.getAdjacentMountRuns().isEmpty());
+        assertFalse(dbr.mountsAreAdjacent("A", "B"));
+        assertFalse(dbr.mountsAreAdjacent("B", "C"));
+    }
+
     /** Every other hull in the game declares nothing, and is therefore free of all this. */
     @Test
     public void ahullThatDeclaresNoRunsHasNoAdjacency() {

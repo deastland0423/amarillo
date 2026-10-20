@@ -1,0 +1,91 @@
+{
+  "faction": "Orion",
+  "type": "DBR",
+  "typeName": "Double Raider",
+  "line": "DW",
+  "name": "Twice Shy",
+  "serviceYear": 168,
+  "sizeClass": 4,
+  "bpv": 100,
+  "commandRating": 6,
+  "turnMode": "A",
+  "moveCost": 0.5,
+  "breakdown": 6,
+  "bonusHets": 2,
+  "nimble": true,
+  "stealthBonus": 2,
+
+  "shields": [24, 20, 20, 20, 20, 20],
+
+  "hullBoxes": { "chull": 6, "cargo": 6 },
+
+  "power": {
+    "leftWarp": 5,
+    "centerWarp": 5,
+    "rightWarp": 5,
+    "impulse": 4,
+    "battery": 4
+  },
+
+  "control": { "bridge": 2, "auxCon": 2, "controlMod": 1.0 },
+
+  "crewData": { "totalCrew": 20, "boardingParties": 12, "minCrew": 4 },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "labs": 2,
+    "transporters": 4,
+    "tractors": 4,
+    "rackFiringLimit": 3
+  },
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "A", "arcs": ["FA"] },
+    { "position": "CENTERLINE", "designator": "B", "arcs": ["FA"] },
+    { "position": "CENTERLINE", "designator": "C", "arcs": ["FA"] },
+    { "position": "WING",       "designator": "D", "arcs": ["LS"] },
+    { "position": "WING",       "designator": "E", "arcs": ["RS"] }
+  ],
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["RA", "L"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RA", "L"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RA", "R"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["RA", "R"] }
+  ],
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin"] }
+  ],
+
+  "refits": [
+    {
+      "code": "O",
+      "name": "oakdisc refit",
+      "label": "OAKDISC",
+      "year": 168,
+      "bpv": 10,
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 168,
+      "bpv": 16,
+      "auxiliary": { "cloakCost": 10 }
+    }
+  ],
+
+  "note": "R8.14, Module R2 SSD p.67 - the first hull entered from a book outside the Basic Set and Advanced Missions. Point value prints a single 100, so a warship. Cloak cost prints 10/2; the 2 applies only to a ship with no warp engines. ITS THREE CENTERLINE MOUNTS ARE NOT ADJACENT: the sheet says so outright - 'MOUNTS A, B, AND C ARE NOT CENTERLINE ADJACENT OPTION MOUNTS' - so it declares no adjacentMounts run and can never take a two-mount weapon, however many centerline boxes it shows. That is the SLV's lesson printed in capitals, and the clearest proof yet that adjacency has to be declared rather than counted. Three Ph-1 on a 360 arc, and four Ph-3 whose arcs combine the RA printed by the boxes with the L or R printed at the hull edge, as on the BR. Each warp engine is a row of five boxes whose first box carries the engine letter; the lettered box IS a power box (owner, 2026-10-20), so 5+5+5 warp with 4 impulse. The asterisk in the crew track sits at 4, where the other size-class-4 Orions use 3 - per-hull, as the sheets keep insisting. Its Y175 note says reloads 'ARE DOUBLED', the CR's older wording for the +1 every Orion rack gets. NOT MODELLED, all loadout-dependent: the Y170 plasma carronade and the sabot refit (Module R10). The MINELAYER REFIT (R8.R1) is cited and unentered, as on the BR and CR. The sheet also cites (R8.R3) for option mount firing arcs and (G15.213) for doubling IMPULSE engines, neither of which we have read."
+}

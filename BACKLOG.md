@@ -19,7 +19,29 @@ something does not exist is the kind that rots quietest.
 
 ---
 
-## Orion ship data — the hulls are ENTERED (2026-10-20)
+## Orion ship data — MODULE R2 IS NOW ON DISK (2026-10-20)
+
+`data/ssd/Module_R2_SSD.pdf` arrived late on 2026-10-20 and its Orion section starts at printed
+page 67 (PDF 68). The **DBR** (R8.14) is entered. The master ship chart in the Master Annex File
+lists these other R2 Orions, none of them entered — the chart's last two columns are the source
+book and the R8.x number, so "R2 22" means Module R2, rule R8.22:
+
+| Type | Rule | BPV | Notes from the chart |
+|------|------|-----|----------------------|
+| AR   | R8.22 | 100 | size 3, move 0.67 |
+| BCH  | R8.17 | 180 | heavy battlecruiser, size 3, move 1.0 |
+| DBP  | R8.25 | 110 | the DBR's variant, 6 boarding parties where the DBR has 12 |
+| DW   | R8.18 | 80  | war destroyer, size 4, move 0.50 |
+| DWS  | R8.24 | 100/80 | a converted trader, so EPV/BPV |
+| HR   | R8.20 | 108 | size 3, move 0.75 |
+| LRS  | R8.23 | 88/68 | light raider scout |
+| MR   | R8.21 | 110 | size 3 |
+| OK6  | R8.15 | 130 | **captured Klingon** cruiser in Orion service |
+
+Reading one takes about one exchange with the owner — the DBR needed two questions (whether the
+lettered warp box counts as power, and the crew asterisk).
+
+## Orion ship data — the Basic Set and Advanced Missions hulls are ENTERED (2026-10-20)
 
 All six Advanced Missions hulls (PDF 140-145, printed 139-144) plus the CR from the Basic Set
 book (PDF 49, printed 47) are in `data/factions/orion/`. **Reading rules, settled while doing
