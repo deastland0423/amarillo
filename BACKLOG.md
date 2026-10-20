@@ -46,8 +46,15 @@ groundwork already in place.
   **Plasma-G corrected 2026-10-20** (owner, from Annex #8B): it "requires two adjacent
   centerline optional mounts or two adjacent WYN hull side mounts", so both Plasma-G entries now
   carry `positions: ["CENTERLINE"]` where they previously defaulted to permitting wing mounts.
-  **Still unchecked against #8B: Plasma-S, both ESGs and the PPD**, which still default to
-  either position.
+  **Plasma-S corrected the same day**: "two adjacent centerline mounts" plus "the normal
+  requirement of size class 3 or larger", so both entries now carry `positions: ["CENTERLINE"]`.
+  Its size rule was already right — `maxSizeClass: 3` with `sizeClass <= maxSizeClass`, since
+  size class counts UP as a hull gets smaller.
+
+  **Still unchecked against #8B: both ESGs and the PPD**, which still default to either
+  position. Given that all four plasma entries turned out centerline-only, the default of
+  "either" looks more like an unfilled field than a statement, so these three deserve the same
+  read rather than being trusted.
 
   **A THIRD position exists and is not modelled: WYN HULL SIDE mounts.** `OptionMount.Position`
   is CENTERLINE or WING only. No WYN ship is in the data, so nothing is wrong today, but the
