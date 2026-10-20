@@ -19,6 +19,36 @@ something does not exist is the kind that rots quietest.
 
 ---
 
+## Orion ship data — IN PROGRESS, resume here (2026-10-20)
+
+Advanced Missions SSD book, PDF pages 140-145 (printed 139-144). Render with
+`pdftoppm.exe -f N -l N -r 150 -png` for layout, `-r 400 -x -y -W -H` crops to count boxes.
+Reading rules settled: point value prints **EPV/BPV**; shaded boxes are the PLUS refit and white
+ones count normally; `OPT-FA` or `FA OPT` is centerline, bare `OPT` by a wing is a wing mount;
+breakdown is the LOWEST breaking roll ("4-6" = 4); "NO HET BONUS" means `bonusHets: 0`.
+
+DONE: CA and LR refitted; SAL (p.141), SLV (p.142), OFT (p.144) entered.
+
+**STILL TO DO:**
+- **BR (p.145), the last hull.** Everything below is READ OFF THE SHEET already — only the box
+  counts are missing, so do not re-render for these:
+  R8.13 Orion Battle Raider, the Orion war cruiser. line **CW**, size 3, **bpv 115** (single
+  value, a warship), breakdown 6, turn mode **A**, moveCost **0.6666667**, serviceYear **168**,
+  commandRating 6, cloakCost **15** (sheet prints 15/4), stealthBonus 2, **bonusHets 2**,
+  nimble **false** ("This ship has two HET bonuses under (C6.521). It is not nimble.").
+  Speeds 2-6 / 7-12 / 13-19 / 20-26 / 27+. Four admin shuttles. Has a **LAB**, the first Orion
+  with one. Weapons: Ph-1 "1","2" (FA,L), Ph-1 "3","4" (FA,R), Ph-3 "5","6" (RA,L),
+  Ph-3 "7","8" (RA,R). Tracks: sensor 6/6/5/3/1/0, scanner 0/0/1/3/5/9, damcon 4/4/2/2/2/0.
+  Refits: OAKDISC **(Y168) +12** and cloak **(Y168) +20**; the sheet also cites (R8.R1) for a
+  MINELAYER REFIT, not yet read.
+  Mounts: **A, B, C centerline and adjacent**, plus **D on the LS wing and E on the RS wing** —
+  so `"adjacentMounts": [["A","B","C"]]`, the first three-mount run and the first real exercise
+  of the row semantics (A-B and B-C adjacent, A-C not).
+  **Needs from the owner:** shields x6, c-hull, cargo, lab, batteries, transporters, tractors,
+  L/R warp, impulse, excess damage, crew units, boarding parties (read as 10).
+- **CR and BS** need `auxiliary.rackFiringLimit: 3`; the BS already has its cloak refit.
+- The BR sheet states FD4.4 outright, which is a nice confirmation of the cap built today.
+
 ## Ready to start
 
 Each of these was named by an earlier session as the next sensible slice in its area, with the
