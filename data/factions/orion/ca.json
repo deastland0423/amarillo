@@ -121,6 +121,8 @@
     { "position": "WING",       "designator": "D", "arcs": ["RS"] }
   ],
 
+  "adjacentMounts": [["A", "B"]],
+
   "y175Upgrades": {
     "refitCost": 2,
     "racks": [

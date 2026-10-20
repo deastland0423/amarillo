@@ -43,7 +43,19 @@ groundwork already in place.
   either — which contradicts the owner's "some weapons … only on adjacent centerline or adjacent
   wing".
 
-  **What is missing is the HULL side.** `OptionMount` carries `position`, `designator` and
+  **The hull side is now BUILT (2026-10-20):** `ShipSpec.adjacentMounts` as runs
+  (`[["A","B"],["C","D"]]`), `Ship.getAdjacentMountRuns()` and `Ship.mountsAreAdjacent(a, b)`,
+  with adjacency meaning CONSECUTIVE within a run so a row of three gives A-B and B-C but not
+  A-C. Declared on the Orion CA; the SLV deliberately declares none. Two data guards: every
+  designator a run names must be a mount the hull has, and no mount may appear in two runs.
+
+  **What is left is the LOADOUT side.** `OptionMountLoadout.validate` still refuses
+  `mountsRequired > 1` outright, and `equip` fills one mount. Still to settle: how a consumed
+  PARTNER mount is represented, since a two-mount weapon occupies both but lives in one —
+  probably the partner carrying the same `optionName` with a null weapon, so the UI can grey it
+  and nothing double-counts its BPV.
+
+  **The old note read:** `OptionMount` carries `position`, `designator` and
   `arcs`, and nothing saying which mounts neighbour which. It cannot be inferred from the count:
   the **CA** has two adjacent centerline mounts and the **SLV** has two that are NOT adjacent, so
   `position == CENTERLINE && count >= 2` would wrongly admit a Plasma-G onto the Slaver.

@@ -139,6 +139,9 @@ public class Ship extends Unit implements DroneController {
 	/** FD4.4: racks usable per turn, or null where only each rack's own rate limits it. */
 	private Integer rackFiringLimit = null;
 
+	/** G15.4: runs of neighbouring option mounts, e.g. [["A","B"],["C","D"]]. Never null. */
+	private java.util.List<java.util.List<String>> adjacentMountRuns = java.util.List.of();
+
 	/** True if this ship has been captured (D7.50). */
 	private boolean captured = false;
 
@@ -320,6 +323,7 @@ public class Ship extends Unit implements DroneController {
 		disengageByAccel = values.get("disengagebyaccel") == null
 				|| Boolean.TRUE.equals(values.get("disengagebyaccel"));
 		rackFiringLimit = values.get("rackfiringlimit") instanceof Integer limit ? limit : null;
+		adjacentMountRuns = readMountRuns(values.get("adjacentmounts"));
 		tBombs = values.get("tbombs") == null ? 0 : (Integer) values.get("tbombs");
 		dummyTBombs = values.get("dummytbombs") == null ? 0 : (Integer) values.get("dummytbombs");
 		nuclearSpaceMines = values.get("nuclearspacemines") == null ? 0 : (Integer) values.get("nuclearspacemines");
@@ -711,6 +715,51 @@ public class Ship extends Unit implements DroneController {
 	/** FD4.4: how many racks this ship may use in a turn, or null for no such limit. */
 	public Integer getRackFiringLimit() {
 		return rackFiringLimit;
+	}
+
+	/**
+	 * G15.4: the runs of neighbouring option mounts, in sheet order. Empty when the hull
+	 * declares none, which means it can take no weapon needing two mounts.
+	 */
+	public java.util.List<java.util.List<String>> getAdjacentMountRuns() {
+		return adjacentMountRuns;
+	}
+
+	/**
+	 * Whether these two option mounts sit next to each other (G15.4).
+	 *
+	 * CONSECUTIVE within a run, which is what makes a three-mount row behave: in
+	 * {@code ["A","B","C"]} the pairs A-B and B-C are adjacent and A-C is not, because B is
+	 * between them. Order is therefore meaningful and a run is not a set.
+	 */
+	public boolean mountsAreAdjacent(String one, String other) {
+		if (one == null || other == null || one.equals(other))
+			return false;
+		for (java.util.List<String> run : adjacentMountRuns)
+			for (int i = 0; i + 1 < run.size(); i++) {
+				String a = run.get(i);
+				String b = run.get(i + 1);
+				if ((a.equals(one) && b.equals(other)) || (a.equals(other) && b.equals(one)))
+					return true;
+			}
+		return false;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static java.util.List<java.util.List<String>> readMountRuns(Object raw) {
+		if (!(raw instanceof java.util.List<?> runs))
+			return java.util.List.of();
+		java.util.List<java.util.List<String>> out = new java.util.ArrayList<>();
+		for (Object run : runs)
+			if (run instanceof java.util.List<?> entries) {
+				java.util.List<String> names = new java.util.ArrayList<>();
+				for (Object e : entries)
+					if (e != null)
+						names.add(e.toString());
+				if (names.size() > 1)
+					out.add(java.util.List.copyOf(names));
+			}
+		return java.util.List.copyOf(out);
 	}
 
 	/**

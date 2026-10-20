@@ -281,6 +281,34 @@ public class ShipSpec {
 
     public List<WeaponSpec> weapons;
     public List<OptionMountSpec> optionMounts; // Orion "OPT" boxes (G15.4); empty until filled at setup
+    /**
+     * Which option mounts sit next to which, as RUNS — {@code [["A","B"],["C","D"]]}.
+     *
+     * <h2>Why runs on the hull, and not an {@code adjacentTo} on each mount</h2>
+     * A per-mount list states the fact twice: A names B and B names A, and the two can drift
+     * apart. A run states it once, so there is no symmetry to maintain and no guard needed to
+     * police it.
+     *
+     * <p>Adjacency means CONSECUTIVE WITHIN A RUN, and that is the whole reason order matters.
+     * A hull showing A-B-C in a row is one run {@code ["A","B","C"]}: A+B and B+C are adjacent
+     * pairs, while <b>A+C are not</b>, because B lies between them. A per-mount list would have
+     * B naming both and no way to say that.
+     *
+     * <h2>Independent of POSITION</h2>
+     * Owner, 2026-10-20: "You can have adjacent centerline or even adjacent wing mounts ... there
+     * are some weapons that can be mounted only on adjacent centerline or adjacent wing mounts."
+     * So two wing mounts in the SAME wing are a run, while one in each wing are not — they are
+     * both WING and not adjacent. Position is already on the mount; this says nothing about it,
+     * and {@code OptionCatalogEntry.positions} does the filtering.
+     *
+     * <h2>Absent means none, which is the safe default</h2>
+     * A hull that declares no runs can take no multi-mount weapon, which is right: adjacency is
+     * PRINTED on the sheets — the Orion Free Traitor's says outright "OPTION MOUNTS ARE NOT
+     * 'ADJACENT CENTERLINE' MOUNTS" — so it is stated data, never inferred from how many mounts
+     * of a position a hull happens to carry. The CA has two adjacent centerline mounts; the SLV
+     * has two that are not.
+     */
+    public List<List<String>> adjacentMounts;
     public List<ShuttleBaySpec> shuttleBays;
     /**
      * This hull's Y175 refit, where it differs from its navy's default.
@@ -945,6 +973,8 @@ public class ShipSpec {
             m.put("candoubleengines", canDoubleEngines);
         if (optionMounts != null && !optionMounts.isEmpty())
             m.put("optionmounts", buildOptionMounts());
+        if (adjacentMounts != null && !adjacentMounts.isEmpty())
+            m.put("adjacentmounts", adjacentMounts);
 
         /*
          * Shields, and how many of them there are.
