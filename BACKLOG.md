@@ -38,10 +38,22 @@ groundwork already in place.
 
   **The catalogue side already expresses the requirement.** `OptionCatalogEntry` carries
   `positions` (defaulting to both CENTERLINE and WING) and `mountsRequired`, so "two adjacent
-  wing mounts" is `positions: ["WING"], mountsRequired: 2`. Worth checking against Annex #8B:
-  none of our eight two-mount entries restricts `positions` today, so all eight currently permit
-  either — which contradicts the owner's "some weapons … only on adjacent centerline or adjacent
-  wing".
+  wing mounts" is `positions: ["WING"], mountsRequired: 2`. Six single-mount options already
+  restrict it — Hellbore, Aux Control, Barracks, Hull, Repair and Transporter are all
+  centerline-only, which is where the Battle Raider's "NO HELLBORES IN WING MOUNTS" note comes
+  from; that is Annex #8B speaking universally, not a quirk of the hull.
+
+  **Plasma-G corrected 2026-10-20** (owner, from Annex #8B): it "requires two adjacent
+  centerline optional mounts or two adjacent WYN hull side mounts", so both Plasma-G entries now
+  carry `positions: ["CENTERLINE"]` where they previously defaulted to permitting wing mounts.
+  **Still unchecked against #8B: Plasma-S, both ESGs and the PPD**, which still default to
+  either position.
+
+  **A THIRD position exists and is not modelled: WYN HULL SIDE mounts.** `OptionMount.Position`
+  is CENTERLINE or WING only. No WYN ship is in the data, so nothing is wrong today, but the
+  enum will need a third value rather than squeezing hull-side into WING — a Plasma-G is legal
+  in two adjacent hull-side mounts and illegal in two adjacent wing mounts, so conflating them
+  would permit an illegal fit.
 
   **The hull side is now BUILT (2026-10-20):** `ShipSpec.adjacentMounts` as runs
   (`[["A","B"],["C","D"]]`), `Ship.getAdjacentMountRuns()` and `Ship.mountsAreAdjacent(a, b)`,
