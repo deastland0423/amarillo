@@ -763,6 +763,24 @@ public class ShipSpec {
          * as "a second name for the same unimplemented rule", and was unified away in e391c0ed.
          */
         public Boolean disengageByAccel;
+        /**
+         * FD4.4: how many of this hull's racks may be USED in a turn. Null means no limit beyond
+         * each rack's own firing rate, which is the answer for every hull outside the Orions.
+         *
+         * <h2>A number, not a boolean</h2>
+         * "None of these ships, however, can launch drones from more than three of their drone
+         * racks during a turn (at the appropriate firing rate for the type of rack)." A flag
+         * would need an {@code isOrion()} test to know whether it applied, and captured Orion
+         * hulls — which G15.28 already carves out of engine doubling — would make that test
+         * wrong invisibly. The other eight empires simply never declare this.
+         *
+         * <h2>OAKDISC clears it</h2>
+         * FD4.5 gives an OAKDISC ship "sufficient tracking capacity to fire every rack (at its
+         * maximum rate) every turn", so the refit sets this to null — which
+         * {@code RefitResolver.setFields} supports outright: "null means the refit REMOVES the
+         * field", as the Federation AWR refit already relies on.
+         */
+        public Integer rackFiringLimit;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -1031,6 +1049,8 @@ public class ShipSpec {
                 m.put("acceldoubling", auxiliary.accelDoubling);
             if (auxiliary.disengageByAccel != null)
                 m.put("disengagebyaccel", auxiliary.disengageByAccel);
+            if (auxiliary.rackFiringLimit != null)
+                m.put("rackfiringlimit", auxiliary.rackFiringLimit);
         }
 
         // Shuttle bays — use object format when launch tubes are specified (J1.54)

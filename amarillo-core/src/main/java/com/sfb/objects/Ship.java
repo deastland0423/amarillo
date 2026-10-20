@@ -136,6 +136,9 @@ public class Ship extends Unit implements DroneController {
 	/** C7.1: whether this hull may disengage by acceleration. The freighters may not. */
 	private boolean disengageByAccel = true;
 
+	/** FD4.4: racks usable per turn, or null where only each rack's own rate limits it. */
+	private Integer rackFiringLimit = null;
+
 	/** True if this ship has been captured (D7.50). */
 	private boolean captured = false;
 
@@ -316,6 +319,7 @@ public class Ship extends Unit implements DroneController {
 				|| Boolean.TRUE.equals(values.get("acceldoubling"));
 		disengageByAccel = values.get("disengagebyaccel") == null
 				|| Boolean.TRUE.equals(values.get("disengagebyaccel"));
+		rackFiringLimit = values.get("rackfiringlimit") instanceof Integer limit ? limit : null;
 		tBombs = values.get("tbombs") == null ? 0 : (Integer) values.get("tbombs");
 		dummyTBombs = values.get("dummytbombs") == null ? 0 : (Integer) values.get("dummytbombs");
 		nuclearSpaceMines = values.get("nuclearspacemines") == null ? 0 : (Integer) values.get("nuclearspacemines");
@@ -702,6 +706,52 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public boolean canDisengageByAcceleration() {
 		return disengageByAccel;
+	}
+
+	/** FD4.4: how many racks this ship may use in a turn, or null for no such limit. */
+	public Integer getRackFiringLimit() {
+		return rackFiringLimit;
+	}
+
+	/**
+	 * FD4.4: whether this ship may still USE a rack it has not fired this turn.
+	 *
+	 * <h2>The cap counts RACKS USED, not weapons launched</h2>
+	 * "None of these ships, however, can launch drones from more than three of their drone racks
+	 * during a turn (at the appropriate firing rate for the type of rack)." So a rack that fires
+	 * twice costs one of the three, and three type-C racks lawfully put six drones in the air —
+	 * which is exactly why Orions favour them, and why the SAL's Y175 refit converts its racks to
+	 * type-C. The refit buys RATE; this cap is about PERMISSION.
+	 *
+	 * <p>A rack that has already fired this turn is therefore always allowed to fire again, so
+	 * far as this rule is concerned: it is spent permission, already counted. Its own rate still
+	 * governs, which is {@code Weapon.canFire}'s business and not this one's.
+	 *
+	 * <h2>Drone and plasma-D racks share ONE allowance</h2>
+	 * "The limit of three drone racks or plasma-D racks firing per turn (each at up to their
+	 * maximum rate) includes both types (i.e., three total, not three of each). The launch
+	 * restriction does not include anti-drones or seeking shuttles (or any other weapon)." So
+	 * ADDs are deliberately absent from the count below, and so is everything else.
+	 *
+	 * @param rack the rack being asked to launch
+	 * @return true if the cap permits it — vacuously true for every hull that declares no limit
+	 */
+	public boolean mayFireAnotherRack(com.sfb.weapons.Weapon rack) {
+		if (rackFiringLimit == null || rack == null)
+			return true;
+		if (rack.getShotsThisTurn() > 0)
+			return true;      // already spent its permission this turn
+		int used = 0;
+		for (com.sfb.weapons.Weapon w : getWeapons().fetchAllWeapons())
+			if (countsAgainstRackLimit(w) && w.getShotsThisTurn() > 0)
+				used++;
+		return used < rackFiringLimit;
+	}
+
+	/** FD4.4's list: drone racks and plasma-D racks, and nothing else. */
+	private static boolean countsAgainstRackLimit(com.sfb.weapons.Weapon w) {
+		return w instanceof com.sfb.weapons.DroneRack
+				|| w instanceof com.sfb.weapons.PlasmaRack;
 	}
 
 	/** R1.7: this hull's acceleration floor — five for a freighter, ten by C2.21 otherwise. */

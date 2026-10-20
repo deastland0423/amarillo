@@ -36,7 +36,7 @@
     "excess": 6
   },
 
-  "auxiliary": { "transporters": 2, "tractors": 6 },
+  "auxiliary": { "transporters": 2, "tractors": 6, "rackFiringLimit": 3 },
 
   "optionMounts": [
     { "position": "CENTERLINE", "designator": "A", "arcs": ["FA"] },
@@ -67,7 +67,8 @@
       "label": "OAKDISC",
       "year": 150,
       "bpv": 15,
-      "control": { "controlMod": 2.0 }
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
     },
     {
       "code": "ck",

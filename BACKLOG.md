@@ -240,45 +240,18 @@ groundwork already in place.
   under EM — so that every consumer of passive FC is covered at once rather than the fire path
   alone. Probably a single predicate that answers "is this ship on passive fire control?" with
   false while it is conducting EM, because the ship is INACTIVE instead.
-- **FD4.4 Orion rack-firing cap — DESIGNED 2026-10-20, not built, and its absence currently
-  OVER-POWERS every Orion.** "None of these ships, however, can launch drones from more than
-  THREE of their drone racks during a turn (at the appropriate firing rate for the type of
-  rack)." It covers plasma racks too: "The limit of three drone racks or plasma-D racks firing
-  per turn (each at up to their maximum rate) includes both types (i.e., three total, not three
-  of each). The launch restriction does not include anti-drones or seeking shuttles."
+- **FD4.4 Orion rack-firing cap — BUILT 2026-10-20.** Kept as a pointer because the rule is
+  easy to restate wrongly: it caps RACKS USED in a turn, not drones launched. A rack that fires
+  twice spends one of the three, so three type-C racks lawfully put six drones up — which is why
+  Orions favour them and why the SAL's Y175 refit converts A→C. It buys rate; FD4.4 governs
+  permission. Drone and plasma-D racks share the one allowance ("three total, not three of
+  each"); anti-drones and seeking shuttles are outside the count.
 
-  Nothing in the engine caps rack firing — only G15.2 engine doubling is Orion-specific — so
-  every Orion fires every rack today and behaves as though it had OAKDISC.
-
-  **The cap is on RACKS USED, not drones launched**, which is why Orions favour type-C racks:
-  three racks at a type-C's two-per-turn is six drones in the air, fully legal. The SAL's Y175
-  refit converts its four racks A→C for exactly that reason — it buys rate, not permission.
-
-  So the thing to track is WHICH RACKS HAVE LAUNCHED THIS TURN, not a drone count:
-  - a rack that fires twice counts ONCE against the three;
-  - once three distinct racks have launched, a fourth may not, even if the first three are empty;
-  - the player picks which three implicitly, by firing them;
-  - anti-drones and seeking shuttles are outside the count entirely.
-
-  `DroneRack` already carries its own per-turn firing state, so "has this rack launched this
-  turn" is a question the engine can answer without new bookkeeping.
-
-  **Design, settled with the owner:** a NUMBER on the hull, not a boolean —
-  `auxiliary.rackFiringLimit: 3` on Orion hulls, absent meaning the only limit is each rack's own
-  fire rate. OAKDISC (FD4.5) then clears it, which the refit model already supports:
-  `setFields` documents that "null means the refit REMOVES the field" and the Federation AWR
-  refit already relies on it. So:
-
-      "auxiliary": { "rackFiringLimit": 3 }                      on the hull
-      "auxiliary": { "rackFiringLimit": null }                   in the OAKDISC refit
-
-  A number beats a boolean on three counts: no `isOrion()` test is needed, since the other eight
-  empires simply never declare it (and captured Orion hulls, which G15.28 already carves out of
-  engine doubling, would make such a test wrong invisibly); it is ONE record of one fact rather
-  than a flag plus a hardcoded 3; and a hull printing a different cap becomes a data edit.
-
-  **The field is deliberately NOT in the data yet** — shipping a key nothing reads is how
-  `auxiliary.maxAccel` sat dead in fifteen files for months. Add it with the enforcement.
+  `auxiliary.rackFiringLimit` (absent = no limit beyond each rack's own rate),
+  `Ship.mayFireAnotherRack`, and `LaunchCoordinator.rackLimitBlock` at all four launch doors.
+  OAKDISC clears it to null, which `setFields` already supported. Declared so far on the Orion
+  SAL only — **the other Orion hulls still need it**, and until they have it they fire every
+  rack.
 
 - **G24.23, attracting drones** — then G24.1343, phaser downfire to avoid blinding.
 - **G21.1/G21.2 crew quality adjustments.** The declaration is built and `crewQuality` is on

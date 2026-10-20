@@ -70,6 +70,24 @@ class LaunchCoordinator {
      *
      * @return the refusal, or null if this unit is not conducting EM
      */
+    /**
+     * FD4.4: an Orion may use only so many racks in a turn, whatever their rate.
+     *
+     * Checked at the LAUNCH, which is where permission is spent — the rule counts racks that
+     * have launched rather than racks that are loaded, so nothing can be decided at allocation.
+     * Returns null for every hull that declares no limit, which is all of them outside the
+     * Orions, so this costs nothing to ask.
+     *
+     * @return the refusal, or null if this launch is permitted
+     */
+    private ActionResult rackLimitBlock(Unit launcher, com.sfb.weapons.Weapon rack) {
+        if (!(launcher instanceof Ship ship) || ship.mayFireAnotherRack(rack))
+            return null;
+        return ActionResult.fail(ship.getName() + " has already used its "
+                + ship.getRackFiringLimit() + " racks this turn (FD4.4) — a rack that has"
+                + " already fired may fire again at its own rate, but no further rack may start");
+    }
+
     private ActionResult emLaunchBlock(Unit launcher, String what) {
         if (launcher == null || !launcher.isEmEffective())
             return null;
@@ -368,6 +386,9 @@ class LaunchCoordinator {
         ActionResult emBlock = emLaunchBlock(launcher, "a drone");
         if (emBlock != null)
             return emBlock;
+        ActionResult rackBlock = rackLimitBlock(launcher, rack);
+        if (rackBlock != null)
+            return rackBlock;
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Drones can only be launched during the Activity phase");
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
@@ -494,6 +515,9 @@ class LaunchCoordinator {
 
     private ActionResult launchDroneBallistic(Ship launcher, Location hex, Unit groundTarget,
             DroneRack rack, Drone drone, int facing) {
+        ActionResult rackBlock = rackLimitBlock(launcher, rack);
+        if (rackBlock != null)
+            return rackBlock;
         ActionResult emBlock = emLaunchBlock(launcher, "a drone");
         if (emBlock != null)
             return emBlock;
@@ -542,6 +566,9 @@ class LaunchCoordinator {
         ActionResult emBlock = emLaunchBlock(launcher, "a drone");
         if (emBlock != null)
             return emBlock;
+        ActionResult rackBlock = rackLimitBlock(launcher, rack);
+        if (rackBlock != null)
+            return rackBlock;
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Drones can only be launched during the Activity phase");
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
@@ -1235,6 +1262,14 @@ class LaunchCoordinator {
             if (targetRefusal != null)
                 return ActionResult.fail(targetRefusal);
         }
+
+        // FD4.4 shares its allowance with the drone racks: "The limit of three drone racks or
+        // plasma-D racks firing per turn ... includes both types (i.e., three total, not three
+        // of each)." Asked here for the same reason FP10.242 is asked below — before the rack
+        // commits to anything.
+        ActionResult rackBlock = rackLimitBlock(launcher, rack);
+        if (rackBlock != null)
+            return rackBlock;
 
         // FP10.242, which belongs to the ship. Asked BEFORE the rack commits, so a refusal does
         // not leave a rack stuck in a mode it was not allowed to enter.
