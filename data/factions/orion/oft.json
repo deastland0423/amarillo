@@ -1,0 +1,77 @@
+{
+  "faction": "Orion",
+  "type": "OFT",
+  "typeName": "Free Traitor",
+  "line": "DD",
+  "name": "Honest Mistake",
+  "serviceYear": 126,
+  "sizeClass": 4,
+  "bpv": 32,
+  "epv": 80,
+  "commandRating": 3,
+  "turnMode": "C",
+  "moveCost": 0.5,
+  "breakdown": 4,
+  "bonusHets": 0,
+  "canDoubleEngines": false,
+
+  "shields": [12, 12, 12, 12, 12, 12],
+
+  "hullBoxes": { "chull": 4, "cargo": 12 },
+
+  "power": {
+    "leftWarp": 6,
+    "rightWarp": 6,
+    "impulse": 2,
+    "battery": 0
+  },
+
+  "control": { "bridge": 1, "controlMod": 1.0 },
+
+  "crewData": { "totalCrew": 8, "boardingParties": 4, "minCrew": 3 },
+
+  "tables": {
+    "damageControl": [2, 2, 0],
+    "sensor": [6, 3, 0],
+    "scanner": [0, 3, 9],
+    "excess": 2
+  },
+
+  "auxiliary": { "transporters": 1, "tractors": 1, "rackFiringLimit": 3 },
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "A", "arcs": ["FA"] },
+    { "position": "CENTERLINE", "designator": "B", "arcs": ["FA"] }
+  ],
+
+  "weapons": [
+    { "type": "Phaser3", "designator": "1", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "2", "arcs": ["FULL"] }
+  ],
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] }
+  ],
+
+  "refits": [
+    {
+      "code": "O",
+      "name": "oakdisc refit",
+      "label": "OAKDISC",
+      "year": 126,
+      "bpv": 5,
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 155,
+      "bpv": 10,
+      "auxiliary": { "cloakCost": 6 }
+    }
+  ],
+
+  "note": "R8.10, Advanced Missions SSD p.143. Point value prints EPV/BPV (80/32). Four things set it apart from every other Orion, all stated on the sheet. NO STEALTH BONUS, where the rest carry +2 ECM - so stealthBonus is deliberately absent rather than overlooked. 'THIS ORION SHIP CANNOT DOUBLE ITS ENGINE POWER', the G15.28 exception, and the first hull in the data to set canDoubleEngines. 'NO HET BONUS', hence bonusHets 0 where the other Orions have 2. And 'OPTION MOUNTS ARE NOT ADJACENT CENTERLINE MOUNTS', so it declares no adjacentMounts run and can never take a two-mount weapon - adjacency printed on a sheet is why it is declared data rather than inferred. Its two Ph-3 fire on a 360 arc. Also noted but NOT modelled: it can land on planets with the powered landing system (P2.434) and has the crash landing bonus (P2.4311), and its cargo boxes hold 50 cargo points."
+}
