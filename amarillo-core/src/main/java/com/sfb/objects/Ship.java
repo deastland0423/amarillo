@@ -247,6 +247,10 @@ public class Ship extends Unit implements DroneController {
 	// reloadStockpile(); stockpileWeapons is only there to notice a replaced weapon group.
 	private com.sfb.systemgroups.ReloadStockpile reloadStockpile = null;
 	private com.sfb.systemgroups.Weapons stockpileWeapons = null;
+	// FP10.31's plasma-D reloads, held once for the whole ship for the same reason as the drone
+	// stockpile above: "a given rack can use reloads nominally assigned to another rack".
+	private com.sfb.systemgroups.PlasmaReloadStore plasmaReloadStore = null;
+	private com.sfb.systemgroups.Weapons plasmaStoreWeapons = null;
 	private double coiSpend = 0; // VP spent on Commander's Option Items (S2.20 B / S3.2); handed to the enemy.
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
 	private boolean isBase = false; // True for starbases, space stations, outposts — gates base-specific mechanics
@@ -1619,6 +1623,20 @@ public class Ship extends Unit implements DroneController {
 				+ lost + " spaces of drones lost (FD2.423)";
 	}
 
+	/**
+	 * FP10.31: the ship's pool of plasma-D reloads, which any plasma rack may draw from.
+	 *
+	 * <p>Rebuilt when the weapon group is replaced, for the reason the drone stockpile below
+	 * does the same: a stale group would keep counting a rack the ship no longer has.
+	 */
+	public com.sfb.systemgroups.PlasmaReloadStore plasmaReloadStore() {
+		if (plasmaReloadStore == null || plasmaStoreWeapons != getWeapons()) {
+			plasmaReloadStore = com.sfb.systemgroups.PlasmaReloadStore.of(getWeapons());
+			plasmaStoreWeapons = getWeapons();
+		}
+		return plasmaReloadStore;
+	}
+
 	public com.sfb.systemgroups.ReloadStockpile reloadStockpile() {
 		if (reloadStockpile == null || stockpileWeapons != getWeapons()) {
 			reloadStockpile = com.sfb.systemgroups.ReloadStockpile.of(getWeapons());
@@ -2266,6 +2284,11 @@ public class Ship extends Unit implements DroneController {
 			state.put("derfacs", derfacs.exportState());
 		if (reloadStockpile != null)
 			state.put("reloadStockpile", reloadStockpile.exportState());
+		// FP10.31's plasma-D hold. Only what has been DRAWN is written; capacity rebuilds itself
+		// from the racks on the far side, so a rack destroyed before the save comes back with its
+		// share of the supply still gone.
+		if (plasmaReloadStore != null)
+			state.put("plasmaReloadStore", plasmaReloadStore.exportState());
 
 		// Lock-ons are written as NAMES, and are deliberately not restored by applyState: a lock
 		// is a reference to another unit, and a ship being rebuilt in isolation has nothing to
@@ -2346,6 +2369,10 @@ public class Ship extends Unit implements DroneController {
 			derfacs.applyState(StateIo.child(state, "derfacs"));
 		if (reloadStockpile != null)
 			reloadStockpile.applyState(StateIo.child(state, "reloadStockpile"));
+		// Asked through the accessor, not guarded on the field: a ship rebuilt from a save has
+		// not touched its pool yet, so the field is null exactly when the state needs applying.
+		if (state.get("plasmaReloadStore") != null)
+			plasmaReloadStore().applyState(StateIo.child(state, "plasmaReloadStore"));
 		if (state.get("uims") instanceof java.util.List<?> savedUims)
 			for (int i = 0; i < Math.min(savedUims.size(), uims.size()); i++)
 				if (savedUims.get(i) instanceof java.util.Map<?, ?> raw) {

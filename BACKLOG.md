@@ -74,15 +74,24 @@ the class calls `setReloadingThisTurn(true)`. The server's reload path (`stagePe
 `ReloadStockpile`) is `DroneRack`-only. So a rack fires its four torpedoes and is dead weight
 for the rest of the game while the UI reports reload sets that cannot be spent.
 
-- **FP10.23 RELOAD MODE** — reloading takes the rack out of action for the whole turn, by the
-  same procedure as drone racks (FD2.42), and it may not fire in either mode that turn.
-- **FP10.31 RELOAD SUPPLY** — and this is the design content, not a counter: "A given rack can
-  use reloads nominally assigned to another rack", and "Plasma-Ds stored for use by fighters are
-  **interchangeable** with those stored for use by plasma racks." The supply is a SHARED POOL,
-  not a per-rack number. `PlasmaRack`'s own class header already asserts that sharing as fact
-  while the code keeps a private per-rack count, so the comment and the field disagree today.
-- **FP10.311** — handled exactly as drones; see J4.825 and FD2.44, both of which are built for
-  drones already, which is where the reuse should come from.
+**Core is now BUILT (2026-10-20)**: `PlasmaReloadStore` is the ship's pool, `stagePendingReload`
+plots a reload under FD2.421 (two torpedoes a turn, rack out of action, rate cannot be
+increased), and `cleanUp` lands it at 8C exactly as `DroneRack` does. Saved and restored. What
+is left:
+
+- **No server or web surface.** Nothing calls `stagePendingReload` outside tests, so a player
+  cannot yet plot one — it belongs beside the drone rack reloads in the EA dialog, which
+  `GameSession` already handles for `DroneRack` via `getDroneReloadSelections()`.
+- **The DTO still reports a PER-RACK figure**, `plasmaRackReloadSets`, which is now the wrong
+  shape: the supply is the ship's. It should report the pool, the same lesson `ReloadStockpile`
+  records — while two places could hold the same drone "the DTO reported a pool PER RACK, so a
+  two-rack ship offered the same stockpile twice and a player could spend it twice over".
+- **FP10.31's fighter interchangeability** — type-Ds stored for fighters (`DroneStore`,
+  `ReadyRack`) are interchangeable with the rack supply. Deliberately NOT built: the owner chose
+  two stores mirroring the drone side's `ReloadStockpile`/`DroneStore` split, with transfer as a
+  later step.
+- **FP10.311** — handled exactly as drones; see J4.825 and FD2.44, both built for drones
+  already, which is where the reuse should come from.
 - **FP10.33 UNLOADING** — a type-D can be unloaded, and an ACTIVATED torpedo switches itself off
   when unloaded, needing fresh activation energy on its next rack. Cheap, but easy to miss.
 - **FP10.313** — some bases use a multiple-magazine version with no reloads at all, the reloads

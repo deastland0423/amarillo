@@ -1,5 +1,7 @@
 package com.sfb.weapons;
 
+import com.sfb.systemgroups.PlasmaReloadStore;
+
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.objects.PlasmaTorpedo;
@@ -112,8 +114,24 @@ public class PlasmaRack extends Weapon implements Launcher, DirectFire {
     /** Reload sets still available (FP10.312), each of four torpedoes. */
     private int reloadSets = BASE_RELOAD_SETS;
 
+    /**
+     * FD2.421, reached through FP10.3: "The reloading and storage procedure for plasma racks is
+     * essentially the same as that for drone racks (FD2.4)." That rule allows "up to two spaces
+     * of drones ... on a given rack during a single turn", and FP9.21 gives a type-D one space,
+     * so two torpedoes a turn — a rack emptied of all four takes two full turns to refill.
+     * FD2.421 ends "The reload rate cannot be increased."
+     */
+    public static final int TORPEDOES_PER_TURN_RELOADED = 2;
+
     /** FP10.23: a rack being reloaded "cannot be fired in either offensive or defensive mode". */
     private boolean reloadingThisTurn;
+
+    /**
+     * Torpedoes plotted to arrive at the end of this turn, held in transit as a drone rack holds
+     * its pending set. They are drawn from the ship's pool when the reload COMPLETES, not when it
+     * is plotted, so a rack destroyed during the turn spends nothing.
+     */
+    private int pendingReload;
 
     /** Torpedoes this rack has sent this turn — the offensive mode limit is one (FP10.211). */
     private int firedThisTurn;
@@ -613,6 +631,79 @@ public class PlasmaRack extends Weapon implements Launcher, DirectFire {
      * touches; the inherited one is kept in step so anything reading {@code getLastImpulseFired}
      * sees the truth rather than a reset.
      */
+    /**
+     * Why this rack may not plot a reload this turn, or null if it may (FD2.421 via FP10.3).
+     *
+     * <p>FD2.421 requires it be "plotted in advance ... provided that the rack is not fired
+     * during the entire turn", so a rack that has already fired has missed its chance, and the
+     * decision "cannot be reversed" once taken.
+     */
+    public String reloadRefusal() {
+        if (reloadingThisTurn)
+            return getName() + " is already reloading this turn, and the decision cannot be"
+                    + " reversed (FD2.421)";
+        if (firedThisTurn > 0 || boltsThisTurn > 0)
+            return getName() + " has fired this turn, and a reload must be plotted in advance"
+                    + " with the rack out of action for the whole turn (FD2.421)";
+        if (torpedoes >= CAPACITY)
+            return getName() + " is already full";
+        if (storeOrNull() == null || storeOrNull().held() <= 0)
+            return getName() + " has no reload torpedoes left in the hold (FP10.31)";
+        return null;
+    }
+
+    /**
+     * Plot a reload for this turn (FD2.421), taking the rack out of action for all of it.
+     *
+     * <p>Capped by the rate, by how much room the rack has, and by nothing else — the hold is
+     * counted at completion, because two racks may both plot against a supply that can only
+     * fill one.
+     *
+     * @return torpedoes plotted, or 0 if the reload was refused.
+     */
+    public int stagePendingReload() {
+        if (reloadRefusal() != null)
+            return 0;
+        pendingReload = Math.min(TORPEDOES_PER_TURN_RELOADED, CAPACITY - torpedoes);
+        reloadingThisTurn = true;
+        return pendingReload;
+    }
+
+    /**
+     * Record keeping 8C: the plotted torpedoes arrive.
+     *
+     * <p>They arrive INACTIVE. FP10.32 and FP9.22 charge half a point to activate a type-D in a
+     * rack, so a reload refills the ammunition and not the readiness — {@code activeTorpedoes}
+     * is deliberately untouched here.
+     *
+     * <p>A rack destroyed during the turn loads nothing and spends nothing, which is why the
+     * pool is only drawn on here and not when the reload was plotted.
+     */
+    public void completePendingReload() {
+        if (pendingReload <= 0) {
+            pendingReload = 0;
+            return;
+        }
+        if (isFunctional()) {
+            PlasmaReloadStore store = storeOrNull();
+            if (store != null)
+                torpedoes += store.take(Math.min(pendingReload, CAPACITY - torpedoes));
+        }
+        pendingReload = 0;
+    }
+
+    /** Torpedoes plotted to arrive at the end of this turn. */
+    public int getPendingReload() {
+        return pendingReload;
+    }
+
+    /** The owning ship's pool, or null for a bare rack in a unit test. */
+    private PlasmaReloadStore storeOrNull() {
+        return fetchOwningShip() instanceof com.sfb.objects.Ship ship
+                ? ship.plasmaReloadStore()
+                : null;
+    }
+
     @Override
     public void cleanUp() {
         int firedAt = getLastImpulseFired();
@@ -624,6 +715,8 @@ public class PlasmaRack extends Weapon implements Launcher, DirectFire {
         firedThisTurn = 0;
         boltsThisTurn = 0;
         declaredBoltMode = null;
+        // 8C: the plotted torpedoes arrive before the flag clears, exactly as DroneRack does it.
+        completePendingReload();
         reloadingThisTurn = false;
     }
 
