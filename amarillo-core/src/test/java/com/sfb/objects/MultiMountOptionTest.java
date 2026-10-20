@@ -232,6 +232,30 @@ public class MultiMountOptionTest {
         assertTrue("and the wings are untouched", mount(ok6, "F").isEmpty());
     }
 
+    /**
+     * POSITION AND ARC ARE DIFFERENT AXES, and the War Destroyer is the hull that proves it.
+     * All three of its option mounts carry an FA arc, so nothing on the drawing separates the
+     * wing pair from the centerline one — which is exactly why its sheet has to say "MOUNTS 'B'
+     * AND 'C' ARE WING MOUNTS" (R8.18, Module R2 p.70).
+     *
+     * <p>A reader counting FA labels would make this a three-mount centerline platform. A wing
+     * mount still takes no centerline-only weapon however far forward it shoots.
+     */
+    @Test
+    public void aWingMountFiringForwardIsStillAWingMount() {
+        Ship dw = hull("DW");
+        OptionMount wing = mount(dw, "B");
+
+        assertEquals("fixture: it fires forward like the centerline mount",
+                List.of("FA"), wing.getArcs());
+        assertEquals(OptionMount.Position.WING, wing.getPosition());
+
+        assertNotNull("centerline-only, whatever its arc",
+                OptionMountLoadout.validate(dw, wing, catalog.get("Hellbore"), 180));
+        assertNull("but an unrestricted weapon is fine there",
+                OptionMountLoadout.validate(dw, wing, catalog.get("Phaser-1"), 180));
+    }
+
     /** And a single-mount weapon still seats in one mount, untouched by any of this. */
     @Test
     public void aSingleMountWeaponStillTakesExactlyOneMount() {

@@ -1,0 +1,87 @@
+{
+  "faction": "Orion",
+  "type": "DW",
+  "typeName": "War Destroyer",
+  "line": "DW",
+  "name": "Sharp Practice",
+  "serviceYear": 174,
+  "sizeClass": 4,
+  "bpv": 80,
+  "commandRating": 5,
+  "turnMode": "A",
+  "moveCost": 0.5,
+  "breakdown": 6,
+  "bonusHets": 2,
+  "nimble": true,
+  "stealthBonus": 2,
+
+  "shields": [18, 18, 18, 16, 18, 18],
+
+  "hullBoxes": { "chull": 4, "cargo": 4 },
+
+  "power": {
+    "leftWarp": 8,
+    "rightWarp": 8,
+    "impulse": 2,
+    "battery": 2
+  },
+
+  "control": { "bridge": 1, "auxCon": 1, "controlMod": 1.0 },
+
+  "crewData": { "totalCrew": 24, "boardingParties": 12, "minCrew": 4 },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 0],
+    "sensor": [6, 5, 1, 0],
+    "scanner": [0, 1, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "rackFiringLimit": 3
+  },
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "A", "arcs": ["FA"] },
+    { "position": "WING",       "designator": "B", "arcs": ["FA"] },
+    { "position": "WING",       "designator": "C", "arcs": ["FA"] }
+  ],
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RX"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["RX"] }
+  ],
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "refits": [
+    {
+      "code": "O",
+      "name": "oakdisc refit",
+      "label": "OAKDISC",
+      "year": 174,
+      "bpv": 5,
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 174,
+      "bpv": 14,
+      "auxiliary": { "cloakCost": 8 }
+    }
+  ],
+
+  "note": "R8.18, Module R2 SSD p.70. The leanest Orion warship we have: 80 points, size 4, half an energy point per hex, and one box of almost everything - one bridge, one auxiliary control, two transporters, two tractors, two impulse, two batteries. NIMBLE SHIP is printed, so it is. ITS WING MOUNTS FIRE FORWARD, and that is the whole reason its sheet says 'MOUNTS B AND C ARE WING MOUNTS': all three option mounts carry an FA arc, so nothing on the drawing distinguishes the wing pair from the centerline one, and a reader counting FA labels would make this hull a three-mount centerline platform. POSITION AND ARC ARE DIFFERENT AXES and this is the sheet that proves it - B and C take no centerline-only weapon (no hellbore, no Plasma-G or -S) however far forward they shoot. No adjacency: A stands alone on the centerline and B and C sit on opposite wings, so nothing here can ever pair. Seven phasers using the two EXTENDED arcs, FX on the forward Ph-1 and RX on the rear Ph-3 pair; ArcUtils already defines both exactly as this sheet's legend does. Its tracks are FOUR steps - sensor 6/5/1/0, scanner 0/1/5/9, damage control 4/2/2/0 - the shortest in the fleet, where the HR has five and the BCH seven. NOT MODELLED: the Y170 plasma carronade and sabot refit (Module R10), the MINELAYER REFIT (R8.R1), and (R8.R3) for option mount firing arcs."
+}
