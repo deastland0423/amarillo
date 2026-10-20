@@ -1,0 +1,88 @@
+{
+  "faction": "Orion",
+  "type": "DWS",
+  "typeName": "War Destroyer Scout",
+  "line": "DW",
+  "name": "Long Look",
+  "serviceYear": 175,
+  "sizeClass": 4,
+  "bpv": 80,
+  "epv": 100,
+  "commandRating": 5,
+  "turnMode": "A",
+  "moveCost": 0.5,
+  "breakdown": 6,
+  "bonusHets": 2,
+  "nimble": true,
+  "stealthBonus": 2,
+
+  "shields": [18, 18, 18, 16, 18, 18],
+
+  "hullBoxes": { "chull": 4, "cargo": 4 },
+
+  "power": {
+    "leftWarp": 8,
+    "rightWarp": 8,
+    "impulse": 2,
+    "battery": 2
+  },
+
+  "control": { "bridge": 1, "auxCon": 1, "controlMod": 1.0 },
+
+  "crewData": { "totalCrew": 24, "boardingParties": 12, "minCrew": 4 },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 0],
+    "sensor": [6, 5, 1, 0],
+    "scanner": [0, 1, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "rackFiringLimit": 3
+  },
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "A", "arcs": ["FA"] }
+  ],
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RX"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["RX"] },
+    { "type": "ScoutChannel", "designator": "1", "dacHitLocation": "torp" },
+    { "type": "ScoutChannel", "designator": "2", "dacHitLocation": "torp" }
+  ],
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "refits": [
+    {
+      "code": "O",
+      "name": "oakdisc refit",
+      "label": "OAKDISC",
+      "year": 175,
+      "bpv": 5,
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 175,
+      "bpv": 14,
+      "auxiliary": { "cloakCost": 8 }
+    }
+  ],
+
+  "note": "R8.24, Module R2 SSD p.75. The War Destroyer with special sensors in its wing mounts, the same conversion the LRS makes of the LR (owner, 2026-10-20), and verified box by box against orion/dw.json rather than assumed from it: chull 4, cargo 4, two batteries, two transporters, two tractors, two impulse, one bridge, one auxiliary control, 8+8 warp, shields 18/18/18/16/18/18 including the odd 16 on the rear, all four tracks, and the same seven phasers on the same extended arcs - FX forward, RX aft. Mounts B and C, the two WING mounts that fired forward, are now SEN 1 and SEN 2; mount A survives alone on the centerline. A year later than the DW (Y175 against Y174), with both refits dated to match. Its sensors take TORP hits under G24.17, 'destroyed on the hits for the weapons they replaced' - they replaced option mounts, as the LRS's did. Point value prints EPV/BPV 100/80: like the LRS, the sensors cost economically and nothing in battle points. Carries the full SCOUT FUNCTIONS SUMMARY (G24.21-G24.29). NOT MODELLED: the Y170 plasma carronade (Module R10), the MINELAYER REFIT (R8.R1), and (R8.R3) for option mount firing arcs."
+}
