@@ -64,6 +64,43 @@ and `-r 400 -x -y -W -H` crops to count boxes; 600 dpi settles an awkward one.
 - **The Y170 plasma carronade and the sabot refit** (Module R10) are out of scope by the owner's
   call, 2026-10-20. Noted on both ship files and left unmodelled.
 
+## Plasma rack (FP10.0) — reloading is NOT built (found 2026-10-20)
+
+Firing is complete across all three tiers and has been since 2026-10-03. **Reloading is not
+built at all**, and nothing in the code says so, because every piece of state for it exists:
+`reloadSets` is tracked, exported to the DTO, doubled by the Y175 refit and saved across a game
+— and never consumed. `torpedoes` only ever decrements, at the two firing sites. Nobody outside
+the class calls `setReloadingThisTurn(true)`. The server's reload path (`stagePendingReload`,
+`ReloadStockpile`) is `DroneRack`-only. So a rack fires its four torpedoes and is dead weight
+for the rest of the game while the UI reports reload sets that cannot be spent.
+
+- **FP10.23 RELOAD MODE** — reloading takes the rack out of action for the whole turn, by the
+  same procedure as drone racks (FD2.42), and it may not fire in either mode that turn.
+- **FP10.31 RELOAD SUPPLY** — and this is the design content, not a counter: "A given rack can
+  use reloads nominally assigned to another rack", and "Plasma-Ds stored for use by fighters are
+  **interchangeable** with those stored for use by plasma racks." The supply is a SHARED POOL,
+  not a per-rack number. `PlasmaRack`'s own class header already asserts that sharing as fact
+  while the code keeps a private per-rack count, so the comment and the field disagree today.
+- **FP10.311** — handled exactly as drones; see J4.825 and FD2.44, both of which are built for
+  drones already, which is where the reuse should come from.
+- **FP10.33 UNLOADING** — a type-D can be unloaded, and an ACTIVATED torpedo switches itself off
+  when unloaded, needing fresh activation energy on its next rack. Cheap, but easy to miss.
+- **FP10.313** — some bases use a multiple-magazine version with no reloads at all, the reloads
+  living in the extra magazines (FD3.87, FD3.46). Matters because the Orion BS has a plasma-rack
+  refit.
+
+Two smaller ones from the same read:
+
+- **FP10.13 aegis steps are deferred**, documented honestly at `PlasmaRack.boltRefusal`. Note
+  that FP10.22's "one means per impulse" only starts to bite once they exist.
+- **FP10.243 is enforced but uncited.** `Ship.countsAgainstRackLimit` already counts a
+  `PlasmaRack`, so FD4.4's three-rack cap covers plasma racks — exactly what FP10.243 says ("An
+  Orion ship would require OAKDISC fire control to use more than three plasma racks"). The
+  behaviour is right and no rule number marks it, which in this codebase is how a built rule
+  comes to look unbuilt.
+
+FP10.244 (PFs) is moot: there are no PFs in the tree.
+
 ## Ready to start
 
 Each of these was named by an earlier session as the next sensible slice in its area, with the
