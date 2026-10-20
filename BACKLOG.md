@@ -19,38 +19,37 @@ something does not exist is the kind that rots quietest.
 
 ---
 
-## Orion ship data — the Advanced Missions book is ENTERED (2026-10-20)
+## Orion ship data — the hulls are ENTERED (2026-10-20)
 
-All six hulls from PDF pages 140-145 (printed 139-144) are in `data/factions/orion/`: CA and LR
-refitted, SAL, SLV, OFT and BR entered. **Reading rules, settled while doing it** — point value
-prints **EPV/BPV** for a converted trader and a single number for a warship; a stippled box is a
-PLUS-refit box and the sheet says so in a legend with a swatch, so a sheet with neither has no
-plus refit and every box counts; the purple tints are a counting aid in groups of five and mean
-nothing; `OPT-FA` or `FA OPT` is a centerline mount and a bare `OPT` by a wing is a wing mount;
-breakdown is the LOWEST breaking roll ("4-6" = 4); "NO HET BONUS" means `bonusHets: 0`. Render
-with `pdftoppm.exe -f N -l N -r 150 -png` for layout and `-r 400 -x -y -W -H` crops to count
-boxes; 600 dpi settles an awkward one.
+All six Advanced Missions hulls (PDF 140-145, printed 139-144) plus the CR from the Basic Set
+book (PDF 49, printed 47) are in `data/factions/orion/`. **Reading rules, settled while doing
+it** — point value prints **EPV/BPV** for a converted trader and a single number for a warship; a
+**stippled** box is a PLUS-refit box and the sheet says so in a legend with a swatch, so a sheet
+with neither has no plus refit and every box counts; the purple tints are a counting aid in
+groups of five and mean nothing; a lone `L` or `R` beside a phaser pair **is an arc component**,
+but only where the sheet prints one — the BR prints them and the CR does not, so the BR's rear
+Ph-3 are `RA+L`/`RA+R` and the CR's are a bare `RA`; `OPT-FA` or `FA OPT` is a centerline mount
+and a bare `OPT` by a wing is a wing mount; breakdown is the LOWEST breaking roll ("4-6" = 4);
+"NO HET BONUS" means `bonusHets: 0`. Render with `pdftoppm.exe -f N -l N -r 150 -png` for layout
+and `-r 400 -x -y -W -H` crops to count boxes; 600 dpi settles an awkward one.
 
 **What is left here:**
 
-- **The CR's rear Ph-3 want a recheck against its sheet.** The arc reading is settled (owner,
-  2026-10-20): the lone `L` or `R` printed beside a phaser pair **is an arc component**, so
-  `PH-1-FA` + `L` is `["FA","L"]` and `PH-3-RA` + `R` is `["RA","R"]`. The BR and the CA agree
-  with that. `cr.json` is the odd one out — its forward Ph-1 read `["FA","L"]` but its rear Ph-3
-  read a bare `["RA"]`, which is only right if its sheet prints no letter beside them. Its sheet
-  is in the **Basic Set** SSD book, not the Advanced Missions one, so it was never re-read.
-- **The MINELAYER REFIT (R8.R1) on the BR**, cited on its sheet and not entered. Its text is in
-  neither the Master Rulebook nor the SSD book's text layer, so it needs the owner or a module.
-  Two things the Master Rulebook does say about it: its racks go in the **shuttle bays** and are
-  limited to **one mine per turn per BAY, not per box** (M9.21), and a ship given mine racks this
-  way is **not thereby a minesweeper** (M9.16) — which is a real distinction now that `MineRole`
-  exists.
+- **The MINELAYER REFIT (R8.R1)**, cited on both the BR's and the CR's sheets and entered on
+  neither. Its text is in neither the Master Rulebook nor either SSD book's text layer, so it
+  needs the owner or a module. Two things the Master Rulebook does say about it: its racks go in
+  the **shuttle bays** and are limited to **one mine per turn per BAY, not per box** (M9.21), and
+  a ship given mine racks this way is **not thereby a minesweeper** (M9.16) — a real distinction
+  now that `MineRole` exists.
 - **Does FD4.4's three-rack cap bind the Orion BASE STATION?** The rule says "Orion *ships*", and
   `bs.json` is the one Orion with option mounts that is not a ship, so it is deliberately left
-  without `rackFiringLimit` rather than given one on the strength of a note. Every Orion ship now
-  carries it (the CR was the last, 2026-10-20).
-- **The CR has no refits at all** — not even OAKDISC, which every other Orion ship has. Its sheet
-  is in the Basic Set SSD book, not this one, so it was never read for refits.
+  without `rackFiringLimit` rather than given one on the strength of a note. Every Orion **ship**
+  now carries it.
+- **Three things no static field can hold**, because they depend on what goes into the option
+  mounts, noted on the BR's and CR's sheets and modelled on neither: DERFACS free in Y168 if a
+  disruptor of range 30+ is fitted; the Y175 reload bonus (the BR gains one reload, the CR
+  DOUBLES them — so it is per-hull, not a shared rule); and the Y170 plasma carronade and sabot
+  refit, both Module R10. These want the option-mount loadout to exist first.
 
 ## Ready to start
 

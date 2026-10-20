@@ -14,6 +14,7 @@
   "commandRating": 6,
   "nimble": true,
   "stealthBonus": 2,
+  "note": "R8.2, Basic Set SSD p.47. The CR is the one Orion whose sheet is in the Basic Set rather than the Advanced Missions book, which is why its refits went unentered while every other Orion got them. Point value prints a single 92 - a warship, not a converted trader. Cloak cost prints 10/2; the 2 applies only to a ship with no warp engines, so cloakCost is 10. SHIELDS: this sheet DOES carry the stipple legend (SHADED BOXES ARE ADDED BY THE PLUS REFIT) with its swatch, so the stippled boxes are refit boxes and the plain ones are the base - 18/16/12/12/12/16 counted plain, 24/24/20/20/20/24 counted whole. Its four forward Ph-1 print FA with L or R beside them and so read FA+L and FA+R, but its two rear Ph-3 print a BARE RA with no letter at all, which is why they are a plain RA where the BR's are RA+L and RA+R - the sheets differ, so the files do. NOT MODELLED, all loadout-dependent so no static field can hold them: DERFACS free in Y168 if a disruptor of range 30+ is fitted; reloads for drone or plasma racks in the option mounts DOUBLED in Y175 (the BR says one extra, this one says doubled); the Y170 plasma carronade and the sabot refit, both Module R10. The MINELAYER REFIT (R8.R1) is cited here as on the BR and is likewise unentered. Its sheet also prints hit-and-run target boxes for DERFACS and for the cloak, which we do not model.",
   "tokenArt": "orion/cr.png",
 
   "shields": [18, 16, 12, 12, 12, 16],
@@ -58,6 +59,34 @@
     "boardingParties": 12,
     "minCrew": 4
   },
+
+  "refits": [
+    {
+      "code": "O",
+      "name": "oakdisc refit",
+      "label": "OAKDISC",
+      "year": 127,
+      "bpv": 5,
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 155,
+      "bpv": 18,
+      "auxiliary": { "cloakCost": 10 }
+    },
+    {
+      "code": "+",
+      "name": "+ refit",
+      "label": "Plus Refit",
+      "year": 169,
+      "bpv": 8,
+      "shields": [24, 24, 20, 20, 20, 24]
+    }
+  ],
 
   "weapons": [
     { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
