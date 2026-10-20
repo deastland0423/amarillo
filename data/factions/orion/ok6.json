@@ -1,0 +1,83 @@
+{
+  "faction": "Orion",
+  "type": "OK6",
+  "typeName": "OK6 Cruiser",
+  "line": "CA",
+  "name": "Conquest",
+  "serviceYear": 165,
+  "sizeClass": 3,
+  "bpv": 130,
+  "commandRating": 8,
+  "turnMode": "B",
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "canDoubleEngines": false,
+
+  "shields": [30, 22, 22, 22, 22, 22],
+
+  "hullBoxes": { "fhull": 5, "ahull": 7 },
+
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "impulse": 4,
+    "apr": 3,
+    "battery": 5
+  },
+
+  "control": { "bridge": 2, "auxCon": 2, "emergency": 1, "controlMod": 1.0 },
+
+  "crewData": { "totalCrew": 42, "boardingParties": 16, "minCrew": 4 },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 7,
+    "tractors": 3,
+    "rackFiringLimit": 3
+  },
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "E", "arcs": ["FA"] },
+    { "position": "WING",       "designator": "F", "arcs": ["LS"] },
+    { "position": "WING",       "designator": "G", "arcs": ["RS"] }
+  ],
+
+  "weapons": [
+    { "type": "Disruptor", "designator": "A", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor", "designator": "B", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor", "designator": "C", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor", "designator": "D", "range": 30, "arcs": ["FA"] },
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "7", "arcs": ["R", "RR"] },
+    { "type": "Phaser2", "designator": "8", "arcs": ["R", "RR"] }
+  ],
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"] }
+  ],
+
+  "refits": [
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 165,
+      "bpv": 20,
+      "auxiliary": { "cloakCost": 20 }
+    }
+  ],
+
+  "note": "R8.15, Module R2 SSD p.68, the OPC Conquest. A captured Klingon D6 with its forward boom cut off and an Orion cruiser nose grafted on, and the data reads exactly like that seam. FROM THE D6, unchanged and cross-checked against klingon/d6.json: rear hull 7, both warp engines at 15, turn mode B, breakdown 5, bridge 2 with auxiliary control 2 and an emergency bridge, excess damage 4, and the HET bonus of ONE (owner, 2026-10-20) rather than the two every true Orion carries - it keeps its original manoeuvring along with its engines. FROM THE ORION YARD: a forward hull of 5 where the D6 had 4, seven transporters where the D6 had five, and shields 30/22/22/22/22/22 instead of the D6's 30/22/15/13/15/22 - the rear arcs are much tougher. IT HAS NO LABORATORIES AT ALL, where the D6 has four: the science boom is the part they cut off, and a 130-point cruiser with no labs is the conversion showing up in the stat line. ITS OPTION MOUNTS ARE LETTERED E, F AND G because the four disruptors took A through D - the first hull in the data whose mounts do not start at A, which nothing assumes. Disruptors are range 30 (owner). NO ECM BONUS, stated in the data table, so stealthBonus is deliberately absent; and THIS SHIP CANNOT DOUBLE ANY OF ITS POWER SYSTEMS, the G15.2 exception the OFT also takes. Its cloak refit is printed and priced, beside the note that HISTORICALLY THIS SHIP NEVER RECEIVED A CLOAKING DEVICE - legal, and nobody ever bought it. NOT MODELLED: 'THIS SHIP CANNOT REPAIR ITS SECTIONS', which we have nowhere to put; the MINELAYER REFIT (R8.R1); and (R8.R3) for option mount firing arcs."
+}

@@ -22,7 +22,7 @@ something does not exist is the kind that rots quietest.
 ## Orion ship data — MODULE R2 IS NOW ON DISK (2026-10-20)
 
 `data/ssd/Module_R2_SSD.pdf` arrived late on 2026-10-20 and its Orion section starts at printed
-page 67 (PDF 68). The **DBR** (R8.14, p.67) and the **BCH** (R8.17, p.69) are entered. The master ship chart in the Master Annex File
+page 67 (PDF 68). The **DBR** (R8.14, p.67), **OK6** (R8.15, p.68) and **BCH** (R8.17, p.69) are entered. The master ship chart in the Master Annex File
 lists these other R2 Orions, none of them entered — the chart's last two columns are the source
 book and the R8.x number, so "R2 22" means Module R2, rule R8.22:
 
@@ -35,7 +35,6 @@ book and the R8.x number, so "R2 22" means Module R2, rule R8.22:
 | HR   | R8.20 | 108 | size 3, move 0.75 |
 | LRS  | R8.23 | 88/68 | light raider scout |
 | MR   | R8.21 | 110 | size 3 |
-| OK6  | R8.15 | 130 | **captured Klingon** cruiser in Orion service |
 
 The contents page lists the Orion section in full: DBR 67, OK6 68, BCH 69, DW 70, HR 71, MR 72,
 AR 73, LRS 74, DWS 75, DBP 76. Note **DBP is a PF tender**, and PFs are not modelled at all, so

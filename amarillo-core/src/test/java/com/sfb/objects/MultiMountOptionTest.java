@@ -212,6 +212,26 @@ public class MultiMountOptionTest {
         assertTrue(refusal, refusal.contains("G15.43"));
     }
 
+    /**
+     * Mounts need not start at A. The OK6's are lettered E, F and G, because its four captured
+     * Klingon disruptors took A through D — so a designator is a name and never an index.
+     * Nothing assumed otherwise, and this is the hull that proves it rather than leaving it to
+     * the first one that would have broken.
+     */
+    @Test
+    public void mountsNeedNotStartAtA() {
+        Ship ok6 = hull("OK6");
+
+        assertEquals(List.of("E", "F", "G"), ok6.getOptionMounts().stream()
+                .map(OptionMount::getDesignator).toList());
+
+        Weapon phaser = OptionMountLoadout.equip(ok6, catalog, "E", "Phaser-1", 180);
+
+        assertSame(phaser, mount(ok6, "E").getWeapon());
+        assertEquals("OPT-E", phaser.getDesignator());
+        assertTrue("and the wings are untouched", mount(ok6, "F").isEmpty());
+    }
+
     /** And a single-mount weapon still seats in one mount, untouched by any of this. */
     @Test
     public void aSingleMountWeaponStillTakesExactlyOneMount() {
