@@ -1,6 +1,7 @@
 package com.sfb;
 
 import com.sfb.objects.Ship;
+import com.sfb.objects.ShipLibrary;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.OrionShips;
 import com.sfb.systemgroups.Energy;
@@ -104,6 +105,31 @@ public class OrionEngineDoublingTest {
         freighter.allocateEnergy(e);
         assertEquals("flagged-off ship gets no doubling boost",
                 base, freighter.getPowerSystems().getTotalAvailablePower());
+    }
+
+    /**
+     * The OK6's sheet does not say it cannot double its ENGINES — it says it "CANNOT DOUBLE ANY
+     * OF ITS POWER SYSTEMS", which is a wider claim than the OFT's "cannot double its engine
+     * power". Impulse is a power system, and the test above only ever blocked WARP.
+     *
+     * <p>It is gated correctly: {@code allocateEnergy} asks {@code isAnyEngineDoubled()}, which
+     * counts impulse, so a flagged-off hull never reaches {@code applyDoubling} at all. That was
+     * true by implementation and pinned by nothing, which is how it would have broken the day
+     * someone split the warp and impulse gates.
+     */
+    @Test
+    public void theOk6CannotDoubleItsImpulseEither() {
+        ShipLibrary.loadAllSpecs("../data/factions");
+        Ship ok6 = ShipLibrary.createShip(ShipLibrary.get("Orion", "OK6"));
+        assertFalse("fixture: the sheet denies it every power system", ok6.canDoubleEngines());
+
+        int base = ok6.getPowerSystems().getTotalAvailablePower();
+        Energy impulseOnly = new Energy();
+        impulseOnly.setDoubleImpulse(true);
+        ok6.allocateEnergy(impulseOnly);
+
+        assertEquals("impulse is a power system too",
+                base, ok6.getPowerSystems().getTotalAvailablePower());
     }
 
     @Test
