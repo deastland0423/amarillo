@@ -25,7 +25,7 @@
     "battery": 3
   },
 
-  "control": { "bridge": 2, "auxCon": 1, "controlMod": 1.0, "oakdisc": false },
+  "control": { "bridge": 2, "auxCon": 1, "controlMod": 1.0 },
 
   "crewData": { "totalCrew": 36, "boardingParties": 20, "minCrew": 4 },
 
