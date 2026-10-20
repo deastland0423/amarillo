@@ -578,7 +578,10 @@ public final class FighterArming {
             int actionsPerTorpedo = kind == com.sfb.properties.PlasmaType.K
                     ? HALF_ACTIONS_PER_DRONE_SPACE / 2    // FP13.32: half an action for a type-K
                     : HALF_ACTIONS_PER_DRONE_SPACE;
-            if (store.plasmaCount(kind) <= 0)
+            // plasmaAvailable, not plasmaCount: FP10.31 lets a type-D come from the plasma
+            // racks' hold once this supply is dry, and counting only what is here would refuse
+            // a refill the rule allows.
+            if (store.plasmaAvailable(kind) <= 0)
                 return new Load(0, 0, box.getShuttle() == null ? null
                         : box.getShuttle().getName() + ": no type-" + kind
                                 + " torpedoes in the stores, ready rack not refilled (J4.825)");

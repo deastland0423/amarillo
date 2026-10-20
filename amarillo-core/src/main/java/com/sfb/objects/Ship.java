@@ -1634,6 +1634,16 @@ public class Ship extends Unit implements DroneController {
 			plasmaReloadStore = com.sfb.systemgroups.PlasmaReloadStore.of(getWeapons());
 			plasmaStoreWeapons = getWeapons();
 		}
+		// FP10.31's interchangeability, tied both ways here because this is the one place that
+		// holds both ends: the racks' hold and the fighters' supply. Re-tied on every call
+		// rather than once, since either side can arrive later than the other - a carrier's
+		// store is built from the hull while a plasma rack can be bought into an option mount
+		// at setup, long after.
+		com.sfb.systemgroups.DroneStore fighterSupply = getShuttles() == null ? null
+				: getShuttles().getDroneStore();
+		plasmaReloadStore.attachFighterSupply(fighterSupply);
+		if (fighterSupply != null)
+			fighterSupply.attachRackSupply(plasmaReloadStore);
 		return plasmaReloadStore;
 	}
 

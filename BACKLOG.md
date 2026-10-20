@@ -80,10 +80,12 @@ increased), and `cleanUp` lands it at 8C exactly as `DroneRack` does. Saved and 
 plotted from the EA dialog's "Plasma Reloads" panel, and the DTO reports the hold once for the
 ship rather than once per rack. What is left:
 
-- **FP10.31's fighter interchangeability** — type-Ds stored for fighters (`DroneStore`,
-  `ReadyRack`) are interchangeable with the rack supply. Deliberately NOT built: the owner chose
-  two stores mirroring the drone side's `ReloadStockpile`/`DroneStore` split, with transfer as a
-  later step.
+- **FP10.31 interchangeability is BUILT as a FALLBACK** (owner, 2026-10-20: "Pull from the
+  normal place for each. Only when the normal resource is out, do you pull from the other one").
+  Each store draws on its own first and reaches across only when dry, so nobody is asked to
+  choose. What is NOT built is the rule's "at the player's option" — a player cannot choose to
+  spare their own hold and draw from the other while both have stock. That needs a UI and an
+  intent, and the fallback covers every case where it would change the outcome today.
 - **FP10.311** — handled exactly as drones; see J4.825 and FD2.44, both built for drones
   already, which is where the reuse should come from.
 - **FP10.33 UNLOADING** — a type-D can be unloaded, and an ACTIVATED torpedo switches itself off

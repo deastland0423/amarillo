@@ -39,7 +39,14 @@ public class PlasmaRackReloadTest {
     public void setUp() {
         clock = new TurnTracker();
         ship = new Ship();
-        ship.init(new java.util.HashMap<>(com.sfb.samples.FederationShips.getFedCa()));
+        java.util.Map<String, Object> values =
+                new java.util.HashMap<>(com.sfb.samples.FederationShips.getFedCa());
+        // A fighter drone store on the hull, so Ship ties the two holds together itself (FP10.31)
+        // rather than a test reaching in — plasmaReloadStore() re-ties on every call, so a
+        // hand-attached store would be overwritten by the next one, as it was when this was
+        // first written.
+        values.put("dronestoragespaces", 20);
+        ship.init(values);
         ship.setName("Testbed");
         rackOne = mount("PL-D 1");
         rackTwo = mount("PL-D 2");
@@ -92,6 +99,17 @@ public class PlasmaRackReloadTest {
     private void endTurn() {
         rackOne.cleanUp();
         rackTwo.cleanUp();
+    }
+
+    /**
+     * The ship's fighter supply, with the two holds tied together as Ship does it. Asking for
+     * the rack hold is what ties them, so this goes through that accessor on purpose.
+     */
+    private com.sfb.systemgroups.DroneStore fighterSupply() {
+        ship.plasmaReloadStore();
+        com.sfb.systemgroups.DroneStore store = ship.getShuttles().getDroneStore();
+        assertNotNull("fixture: the hull declares drone storage spaces", store);
+        return store;
     }
 
     /** Plasma racks count against the ship's pool; nothing else on this hull does. */
@@ -280,6 +298,70 @@ public class PlasmaRackReloadTest {
 
         assertEquals("the torpedoes already spent are still spent",
                 heldBefore, restored.plasmaReloadStore().held());
+    }
+
+    // ---------------------------------------------------------------- FP10.31 interchangeability
+
+    /**
+     * FP10.31: "Plasma-Ds stored for use by fighters are interchangeable with those stored for
+     * use by plasma racks." Owner's reading, 2026-10-20: each draws on its OWN store first and
+     * reaches for the other only when its own is dry. So this is a fallback, not a merged pool,
+     * and nobody is asked to choose.
+     */
+    @Test
+    public void aRackFallsBackOnTheFightersSupplyOnlyWhenItsOwnHoldIsDry() {
+        com.sfb.systemgroups.DroneStore fighters = fighterSupply();
+        fighters.stockPlasmaDs(4);
+
+        // Own hold first: empty it, and the fighters' supply is untouched.
+        PlasmaReloadStore hold = ship.plasmaReloadStore();
+        int own = hold.held();
+        assertEquals("fixture: the racks have their own supply", own, hold.take(own));
+        assertEquals("the fighters were not touched", 4, fighters.plasmaDCount());
+
+        // Now it is dry, so the next draw reaches across.
+        assertEquals(2, hold.take(2));
+        assertEquals("two came out of the fighters' supply", 2, fighters.plasmaDCount());
+    }
+
+    /** And the other way: a fighter's supply falls back on the racks' hold. */
+    @Test
+    public void theFightersSupplyFallsBackOnTheRackHold() {
+        com.sfb.systemgroups.DroneStore fighters = fighterSupply();
+        assertEquals("fixture: the fighters have nothing of their own", 0,
+                fighters.plasmaDCount());
+
+        int rackHeldBefore = ship.plasmaReloadStore().held();
+        assertTrue("a torpedo comes from the racks' hold",
+                fighters.takePlasma(com.sfb.properties.PlasmaType.D));
+
+        assertEquals(rackHeldBefore - 1, ship.plasmaReloadStore().held());
+    }
+
+    /**
+     * The fallback must not bounce. Both stores implement the supply interface and hold each
+     * other, so a draw neither can serve has to end rather than ricochet — which is why a
+     * fallback is only ever asked through the own-stock-only method.
+     */
+    @Test
+    public void twoEmptyStoresDoNotBounceTheDrawBetweenThem() {
+        com.sfb.systemgroups.DroneStore fighters = fighterSupply();
+        PlasmaReloadStore hold = ship.plasmaReloadStore();
+        hold.take(hold.held());                         // both now empty
+
+        assertEquals("nothing to be had, and it says so rather than hanging", 0, hold.take(2));
+        assertFalse(fighters.takePlasma(com.sfb.properties.PlasmaType.D));
+    }
+
+    /** A type-K has no rack hold to borrow from: the rack holds type-Ds only (FP10.11). */
+    @Test
+    public void onlyTheTypeDFallsBack() {
+        com.sfb.systemgroups.DroneStore fighters = fighterSupply();
+
+        assertFalse("a type-K cannot come out of a plasma rack's hold",
+                fighters.takePlasma(com.sfb.properties.PlasmaType.K));
+        assertEquals("and the hold is untouched", ship.plasmaReloadStore().capacity(),
+                ship.plasmaReloadStore().held());
     }
 
     /** Two racks plotting against a hold that can only fill one: the hold is never overdrawn. */

@@ -40,7 +40,7 @@ import com.sfb.weapons.Weapon;
  * only, which mirrors the split the drone side already has between {@code ReloadStockpile} and
  * {@code DroneStore}. See BACKLOG.
  */
-public final class PlasmaReloadStore {
+public final class PlasmaReloadStore implements PlasmaDSupply {
 
     /**
      * Re-read for its racks on every call rather than captured, so a rack destroyed mid-battle
@@ -50,6 +50,12 @@ public final class PlasmaReloadStore {
 
     /** The one thing worth recording: how many torpedoes have left the hold. */
     private int drawn = 0;
+
+    /**
+     * FP10.31: the fighters' supply, drawn on only once this hold is dry. Null on a ship with no
+     * fighter stores, which is most of the hulls that carry racks.
+     */
+    private PlasmaDSupply fighterSupply;
 
     private PlasmaReloadStore(Weapons weapons) {
         this.weapons = weapons;
@@ -86,6 +92,34 @@ public final class PlasmaReloadStore {
      * pool is only counted when the reload completes). The first to complete is served.
      */
     public int take(int wanted) {
+        int taken = takePlasmaDHere(wanted);
+        // FP10.31: "Plasma-Ds stored for use by fighters are interchangeable with those stored
+        // for use by plasma racks." A rack empties its own hold first and only then reaches into
+        // the fighters' supply — the owner's reading, 2026-10-20, and the reason these are two
+        // stores rather than one pool. Asked through takePlasmaDHere so the fighters' store
+        // cannot fall back into this one and go round for ever.
+        if (taken < wanted && fighterSupply != null)
+            taken += fighterSupply.takePlasmaDHere(wanted - taken);
+        return taken;
+    }
+
+    /** Point this hold at the fighters' supply to fall back on (FP10.31). */
+    public void attachFighterSupply(PlasmaDSupply supply) {
+        this.fighterSupply = supply != this ? supply : null;
+    }
+
+    /** What a rack can draw in all: this hold, plus whatever the fighters can spare. */
+    public int available() {
+        return held() + (fighterSupply != null ? fighterSupply.plasmaDHeldHere() : 0);
+    }
+
+    @Override
+    public int plasmaDHeldHere() {
+        return held();
+    }
+
+    @Override
+    public int takePlasmaDHere(int wanted) {
         int taken = Math.min(Math.max(0, wanted), held());
         drawn += taken;
         return taken;

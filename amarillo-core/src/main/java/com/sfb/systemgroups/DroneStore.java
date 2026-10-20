@@ -36,13 +36,19 @@ import com.sfb.weapons.DroneRail;
  * explosion. So this pool is deliberately invisible to chain reactions (D12.0) — there is no
  * hook here for {@code DamageResolver} to find, and that is the rule, not an omission.
  */
-public class DroneStore {
+public class DroneStore implements PlasmaDSupply {
 
     /** Spaces this carrier's supply runs to (J4.7), racks and loaded fighters included. */
     private final double capacitySpaces;
 
     /** The part of that supply still in the hold. */
     private final List<Drone> reserve = new ArrayList<>();
+
+    /**
+     * FP10.31: the plasma racks' hold, drawn on only once this supply is out of type-Ds. Null on
+     * a carrier whose ship mounts no plasma racks, which is nearly all of them.
+     */
+    private PlasmaDSupply rackSupply;
 
     public DroneStore(double capacitySpaces) {
         this.capacitySpaces = Math.max(0, capacitySpaces);
@@ -139,13 +145,55 @@ public class DroneStore {
         return room;
     }
 
-    /** Take one torpedo of this type out, or false if the hold has not the space for it. */
+    /**
+     * Take one torpedo of this type out, or false if there is none to be had.
+     *
+     * <p>FP10.31: a type-D falls back on the plasma racks' hold once this supply is dry —
+     * "Plasma-Ds stored for use by fighters are interchangeable with those stored for use by
+     * plasma racks". Only the type-D does: a type-K or type-F has no rack hold to borrow from,
+     * and the rack hold holds nothing else (FP10.11).
+     */
     public boolean takePlasma(com.sfb.properties.PlasmaType type) {
         double cost = spacesPerTorpedo(type);
-        if (plasmaSpaces < cost)
-            return false;
-        plasmaSpaces -= cost;
-        return true;
+        if (plasmaSpaces >= cost) {
+            plasmaSpaces -= cost;
+            return true;
+        }
+        if (type == com.sfb.properties.PlasmaType.D && rackSupply != null)
+            return rackSupply.takePlasmaDHere(1) == 1;
+        return false;
+    }
+
+    /** Point this supply at the plasma racks' hold to fall back on (FP10.31). */
+    public void attachRackSupply(PlasmaDSupply supply) {
+        this.rackSupply = supply != this ? supply : null;
+    }
+
+    /**
+     * Torpedoes of this type a fighter can actually be given: this hold, plus the racks' hold
+     * where the rule allows reaching into it.
+     */
+    public int plasmaAvailable(com.sfb.properties.PlasmaType type) {
+        int here = plasmaCount(type);
+        if (type == com.sfb.properties.PlasmaType.D && rackSupply != null)
+            here += rackSupply.plasmaDHeldHere();
+        return here;
+    }
+
+    @Override
+    public int plasmaDHeldHere() {
+        return plasmaCount(com.sfb.properties.PlasmaType.D);
+    }
+
+    @Override
+    public int takePlasmaDHere(int wanted) {
+        int taken = 0;
+        double cost = spacesPerTorpedo(com.sfb.properties.PlasmaType.D);
+        while (taken < wanted && plasmaSpaces >= cost) {
+            plasmaSpaces -= cost;
+            taken++;
+        }
+        return taken;
     }
 
     /** Put one torpedo of this type back - it never left the ship. */
