@@ -23,7 +23,7 @@ something does not exist is the kind that rots quietest.
 
 `data/ssd/Module_R2_SSD.pdf` arrived late on 2026-10-20 and its Orion section starts at printed
 page 67 (PDF 68). The **DBR** (R8.14, p.67), **OK6** (R8.15, p.68), **BCH** (R8.17, p.69), **DW** (R8.18, p.70),
-**HR** (R8.20, p.71) and **AR** (R8.22, p.73) are entered. **A sheet that is silent about adjacency means the mounts ARE adjacent**
+**HR** (R8.20, p.71), **MR** (R8.21, p.72) and **AR** (R8.22, p.73) are entered. **A sheet that is silent about adjacency means the mounts ARE adjacent**
 (owner, 2026-10-20): the DBR prints its denial in the optional-weapons box precisely because it
 is the exception, so silence describes the normal case. The same reading settles `nimble`, which
 the DBR asserts and the BR denies — a sheet printing neither is not nimble. The master ship chart in the Master Annex File
@@ -35,11 +35,15 @@ book and the R8.x number, so "R2 22" means Module R2, rule R8.22:
 | DBP  | R8.25 | 110 | the DBR's variant, 6 boarding parties where the DBR has 12 |
 | DWS  | R8.24 | 100/80 | a converted trader, so EPV/BPV |
 | LRS  | R8.23 | 88/68 | light raider scout |
-| MR   | R8.21 | 110 | size 3 |
 
 The contents page lists the Orion section in full: DBR 67, OK6 68, BCH 69, DW 70, HR 71, MR 72,
 AR 73, LRS 74, DWS 75, DBP 76. Note **DBP is a PF tender**, and PFs are not modelled at all, so
 it is the one to leave until last.
+
+**Read the FD4.4 note at full resolution.** The MR's appears to say a maximum of FOUR drones
+per turn at thumbnail size, which would make it the only exception to the three-rack cap in the
+fleet; at 400 dpi it plainly reads THREE. Any sheet whose numbers differ from the house pattern
+deserves the crop before the claim.
 
 Reading one takes about one exchange with the owner — the DBR needed two questions (whether the
 lettered warp box counts as power, and the crew asterisk).

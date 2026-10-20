@@ -1,0 +1,89 @@
+{
+  "faction": "Orion",
+  "type": "MR",
+  "typeName": "Medium Raider",
+  "line": "CW",
+  "name": "Fair Warning",
+  "serviceYear": 168,
+  "sizeClass": 3,
+  "bpv": 110,
+  "commandRating": 6,
+  "turnMode": "A",
+  "moveCost": 0.6666667,
+  "breakdown": 6,
+  "bonusHets": 2,
+  "nimble": true,
+  "stealthBonus": 2,
+
+  "shields": [24, 24, 20, 20, 20, 24],
+
+  "hullBoxes": { "chull": 5, "cargo": 5 },
+
+  "power": {
+    "leftWarp": 12,
+    "rightWarp": 12,
+    "impulse": 3,
+    "battery": 3
+  },
+
+  "control": { "bridge": 2, "auxCon": 1, "controlMod": 1.0 },
+
+  "crewData": { "totalCrew": 20, "boardingParties": 12, "minCrew": 4 },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 0],
+    "sensor": [6, 5, 1, 0],
+    "scanner": [0, 1, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 2,
+    "rackFiringLimit": 3
+  },
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "A", "arcs": ["FA"] },
+    { "position": "CENTERLINE", "designator": "B", "arcs": ["FA"] },
+    { "position": "WING",       "designator": "C", "arcs": ["LS"] },
+    { "position": "WING",       "designator": "D", "arcs": ["RS"] }
+  ],
+
+  "adjacentMounts": [["A", "B"]],
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RA"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RA"] }
+  ],
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "refits": [
+    {
+      "code": "O",
+      "name": "oakdisc refit",
+      "label": "OAKDISC",
+      "year": 168,
+      "bpv": 10,
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 168,
+      "bpv": 18,
+      "auxiliary": { "cloakCost": 12 }
+    }
+  ],
+
+  "note": "R8.21, Module R2 SSD p.72, titled 'Orion Medium Raider Cruiser' on the sheet. A war cruiser (owner's call on the line) and the most heavily engined Orion for its size: 12+12 warp on a 110-point size-3 hull, where the AR at 100 points carries 10+10 and the BR at 115 carries 12+12. It spends that on engines rather than guns - only six phasers, four Ph-1 forward and two bare-RA Ph-3 aft, where the AR and BR both mount eight. NIMBLE SHIP is printed on it. ITS TRACKS ARE FOUR STEPS, matching the DW rather than the six-step AR: sensor 6/5/1/0, scanner 0/1/5/9, damage control 4/2/2/0. No laboratories. Two centerline mounts, declared adjacent under the silence rule, plus one on each wing. A NOTE ON READING: at thumbnail resolution its FD4.4 line appears to say a maximum of FOUR drones per turn, which would have made it the only exception to the three-rack cap in the fleet; at full resolution it plainly reads THREE, like every other Orion. The cap is standard here. NOT MODELLED: the Y170 plasma carronade and sabot refit (Module R10), the MINELAYER REFIT (R8.R1), and (R8.R3) for option mount firing arcs."
+}
