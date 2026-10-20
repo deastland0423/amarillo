@@ -1,0 +1,92 @@
+{
+  "faction": "Orion",
+  "type": "LRS",
+  "typeName": "Light Raider Scout",
+  "line": "FF",
+  "name": "Weather Eye",
+  "serviceYear": 150,
+  "sizeClass": 4,
+  "bpv": 68,
+  "epv": 88,
+  "commandRating": 3,
+  "turnMode": "AA",
+  "moveCost": 0.3333333,
+  "breakdown": 6,
+  "bonusHets": 2,
+  "nimble": true,
+  "stealthBonus": 2,
+
+  "shields": [15, 15, 15, 15, 15, 15],
+
+  "hullBoxes": { "chull": 3, "cargo": 3 },
+
+  "power": {
+    "leftWarp": 5,
+    "rightWarp": 5,
+    "impulse": 2,
+    "battery": 3
+  },
+
+  "control": { "bridge": 1, "auxCon": 1, "controlMod": 1.0 },
+
+  "crewData": { "totalCrew": 12, "boardingParties": 8, "minCrew": 3 },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 0],
+    "sensor": [6, 5, 1, 0],
+    "scanner": [0, 1, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "rackFiringLimit": 3
+  },
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "A", "arcs": ["FA"] }
+  ],
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FULL"] },
+    { "type": "ScoutChannel", "designator": "1", "dacHitLocation": "torp" },
+    { "type": "ScoutChannel", "designator": "2", "dacHitLocation": "torp" }
+  ],
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "refits": [
+    {
+      "code": "O",
+      "name": "oakdisc refit",
+      "label": "OAKDISC",
+      "year": 150,
+      "bpv": 5,
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 150,
+      "bpv": 12,
+      "auxiliary": { "cloakCost": 6 }
+    },
+    {
+      "code": "+",
+      "name": "+ refit",
+      "label": "Plus Refit",
+      "year": 169,
+      "bpv": 5,
+      "shields": [20, 20, 20, 20, 20, 20]
+    }
+  ],
+
+  "note": "R8.23, Module R2 SSD p.74. THE LIGHT RAIDER WITH SENSORS IN ITS WING MOUNTS (owner, 2026-10-20), and the data bears that out box for box: chull 3, cargo 3, three batteries, two transporters, two tractors, one bridge, one auxiliary control, 5+5 warp, two impulse, three 360-degree Ph-1, shields 15 rising to 20 on the plus refit, tracks 6/5/1/0 and 0/1/5/9 and 4/2/2/0 - every one identical to orion/lr.json. What changed is that mounts B and C, the two wing mounts, are now SEN 1 and SEN 2, leaving the single centerline mount A. It is a LATER ship for it: Y150 against the LR's Y129, with its OAKDISC and cloak refits both dated Y150 rather than Y129 and Y155. ITS SENSORS ARE DESTROYED ON TORPEDO HITS, not phaser hits, and G24.17 explains why rather than making it a quirk: 'Special sensors are destroyed on the hits for the weapons they replaced, or as specified by the ship description.' These replaced option mounts. The Federation base's channels are declared on phaser hits for the same reason read the other way, which is why dacHitLocation is per-weapon data and not a constant. Point value prints EPV/BPV 88/68: the sensors cost economically and nothing in battle points. Carries the full SCOUT FUNCTIONS SUMMARY (G24.21-G24.29), all of which the engine already implements. NOT MODELLED: the Y170 plasma carronade (Module R10), the MINELAYER REFIT (R8.R1), and (R8.R3) for option mount firing arcs."
+}
