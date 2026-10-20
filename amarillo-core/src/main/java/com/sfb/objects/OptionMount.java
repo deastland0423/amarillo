@@ -41,4 +41,30 @@ public class OptionMount {
     public String getOptionName()   { return optionName; }
     public void setOptionName(String n) { this.optionName = n; }
     public boolean isEmpty()        { return weapon == null; }
+
+    /**
+     * True when this mount holds the far half of a weapon seated on a neighbour (G15.4).
+     *
+     * <h2>Occupied, not empty</h2>
+     * A Plasma-G needs "two adjacent centerline optional mounts" (Annex #8B), so it consumes
+     * both. Both therefore hold the SAME weapon object — one of them as the primary, the other
+     * as a continuation — and {@link #isEmpty()} is false on both, which is what stops a second
+     * weapon being seated in the half that looks free.
+     *
+     * <h2>What the continuation does NOT carry</h2>
+     * The BPV and the option name sit on the primary alone. A two-mount weapon is one purchase,
+     * and anything summing {@link #getBpvCost()} across a hull's mounts would otherwise charge
+     * for it twice.
+     */
+    private boolean continuation;
+
+    public boolean isContinuation() { return continuation; }
+
+    /** Seat the far half of a neighbour's weapon here. */
+    public void setContinuationOf(Weapon w) {
+        this.weapon = w;
+        this.continuation = true;
+        this.bpvCost = 0;
+        this.optionName = null;
+    }
 }

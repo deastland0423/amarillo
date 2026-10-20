@@ -55,9 +55,53 @@ public final class OptionMountLoadout {
             return entry.name + " is not available until Y" + entry.yearAvailable
                     + " (this battle is Y" + year + ")";
         }
-        if (entry.mountsRequired > 1) {
-            return entry.name + " requires " + entry.mountsRequired
-                    + " adjacent centerline mounts (multi-mount weapons not yet supported)";
+        if (entry.mountsRequired > 1 && seatFor(ship, mount, entry) == null) {
+            return entry.name + " needs " + entry.mountsRequired
+                    + " adjacent " + mount.getPosition().name().toLowerCase()
+                    + " mounts, and " + mount.getDesignator()
+                    + " has no free run of that many beside it (G15.4)";
+        }
+        return null;
+    }
+
+    /**
+     * The mounts a weapon would occupy, starting from the one the player picked, or null if it
+     * will not fit (G15.4).
+     *
+     * <h2>A window within one run</h2>
+     * Adjacency is declared on the hull as runs of CONSECUTIVE mounts, so a two-mount weapon
+     * wants two neighbours inside a single run. The Battle Raider's row of three is the case
+     * that makes this more than a pair test: A-B-C seats a two-mount weapon on A+B or on B+C,
+     * and never on A+C, because B lies between them.
+     *
+     * <p>Every mount in the window must be free and must allow the weapon's position, so a
+     * player who picks B gets whichever side of it is actually open.
+     */
+    static java.util.List<OptionMount> seatFor(Ship ship, OptionMount mount, OptionCatalogEntry entry) {
+        int wanted = Math.max(1, entry.mountsRequired);
+        if (wanted == 1)
+            return java.util.List.of(mount);
+        for (java.util.List<String> run : ship.getAdjacentMountRuns()) {
+            int at = run.indexOf(mount.getDesignator());
+            if (at < 0)
+                continue;
+            // Every window of the right length that covers the chosen mount, nearest first.
+            for (int start = Math.max(0, at - wanted + 1); start + wanted <= run.size(); start++) {
+                if (start > at)
+                    break;
+                java.util.List<OptionMount> seat = new java.util.ArrayList<>();
+                for (int i = start; i < start + wanted; i++) {
+                    OptionMount m = findMount(ship, run.get(i));
+                    if (m == null || !m.isEmpty()
+                            || !entry.allowedInPosition(m.getPosition().name())) {
+                        seat = null;
+                        break;
+                    }
+                    seat.add(m);
+                }
+                if (seat != null)
+                    return seat;
+            }
         }
         return null;
     }
@@ -78,11 +122,23 @@ public final class OptionMountLoadout {
         if (reason != null) {
             throw new IllegalArgumentException(reason);
         }
-        Weapon weapon = entry.buildWeapon(mount.getArcs());
-        weapon.setDesignator("OPT-" + mount.getDesignator());
-        mount.setWeapon(weapon);
-        mount.setBpvCost(entry.cost);
-        mount.setOptionName(entry.name);
+        java.util.List<OptionMount> seat = seatFor(ship, mount, entry);
+        OptionMount primary = seat.get(0);
+        Weapon weapon = entry.buildWeapon(primary.getArcs());
+        // Named for every mount it fills, so "OPT-A+B" reads as one weapon in two boxes rather
+        // than as a weapon that lost half of itself.
+        StringBuilder designator = new StringBuilder("OPT-");
+        for (int i = 0; i < seat.size(); i++)
+            designator.append(i == 0 ? "" : "+").append(seat.get(i).getDesignator());
+        weapon.setDesignator(designator.toString());
+        primary.setWeapon(weapon);
+        primary.setBpvCost(entry.cost);
+        primary.setOptionName(entry.name);
+        // The far halves hold the SAME weapon, so neither looks free, and carry no BPV of their
+        // own: one weapon is one purchase however many boxes it fills.
+        for (int i = 1; i < seat.size(); i++)
+            seat.get(i).setContinuationOf(weapon);
+        // Added ONCE whatever it spans. A weapon in the list twice fires twice.
         ship.getWeapons().addWeapon(weapon);
         applyY175ToANewlyMountedRack(ship, weapon, year);
         // Annex #8B, the Y168 DERFACS grant. Stated once, on Ship, and asked here for the same

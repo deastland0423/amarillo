@@ -155,11 +155,22 @@ groundwork already in place.
   A-C. Declared on the Orion CA; the SLV deliberately declares none. Two data guards: every
   designator a run names must be a mount the hull has, and no mount may appear in two runs.
 
-  **What is left is the LOADOUT side.** `OptionMountLoadout.validate` still refuses
-  `mountsRequired > 1` outright, and `equip` fills one mount. Still to settle: how a consumed
-  PARTNER mount is represented, since a two-mount weapon occupies both but lives in one —
-  probably the partner carrying the same `optionName` with a null weapon, so the UI can grey it
-  and nothing double-counts its BPV.
+  **The LOADOUT side is now BUILT TOO (2026-10-20), so this whole item is DONE.** All eight
+  two-mount options can be fitted. `OptionMountLoadout.seatFor` finds a window of consecutive
+  mounts inside one declared run that covers the mount the player picked, every mount in it free
+  and position-legal; `equip` seats the weapon on all of them.
+
+  The partner question is settled, and NOT the way the guess below expected: the far half holds
+  the SAME weapon object, marked `isContinuation()`, so it reads as occupied rather than empty —
+  which is what stops a second weapon being seated in the half that looks free. A null weapon
+  would have left it looking available. BPV and option name stay on the primary, because one
+  weapon is one purchase however many boxes it fills, and the weapon is added to the ship's
+  weapon list ONCE: a list holding it twice would fire it twice (mutation-checked).
+
+  Still open here: **a two-mount weapon cannot be UNSEATED**, because nothing unseats a
+  one-mount weapon either — there is no remove path at all, only equip. And `OptionMount.Position`
+  still has no WYN hull-side value, so the Plasma-G's "or two adjacent WYN hull side mounts" has
+  nowhere to live.
 
   **The old note read:** `OptionMount` carries `position`, `designator` and
   `arcs`, and nothing saying which mounts neighbour which. It cannot be inferred from the count:
