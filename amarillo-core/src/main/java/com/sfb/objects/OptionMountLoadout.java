@@ -85,6 +85,10 @@ public final class OptionMountLoadout {
         mount.setOptionName(entry.name);
         ship.getWeapons().addWeapon(weapon);
         applyY175ToANewlyMountedRack(ship, weapon, year);
+        // Annex #8B, the Y168 DERFACS grant. Stated once, on Ship, and asked here for the same
+        // timing reason as the Y175 rules above: a disruptor bought into a mount is built after
+        // the year pass has run.
+        ship.applyOrionDerfacs(year);
         return weapon;
     }
 

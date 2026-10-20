@@ -149,6 +149,13 @@ public class ScenarioLoader {
             applyYearUpgrades(ship, faction == null ? "" : faction, year, spec);
         applyEsgCapacitors(ship, year);
         applyFusionHolding(ship, year);
+        // Annex #8B: "Orion disruptors with ranges more than 22 include DERFACS from Y168."
+        // A year rule like the two above, not a refit. It finds nothing on an Orion built
+        // today, because every Orion disruptor arrives through an option mount and mounts are
+        // filled later, in applyCoi - OptionMountLoadout.equip runs the same rule there. It is
+        // here for a hull that declares a disruptor in its own weapons, which is where a reader
+        // will look for it.
+        ship.applyOrionDerfacs(year);
         applyUimAvailability(ship, year);
     }
 

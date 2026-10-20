@@ -45,13 +45,17 @@ and `-r 400 -x -y -W -H` crops to count boxes; 600 dpi settles an awkward one.
   `bs.json` is the one Orion with option mounts that is not a ship, so it is deliberately left
   without `rackFiringLimit` rather than given one on the strength of a note. Every Orion **ship**
   now carries it.
-- **DERFACS free from Y168 with a disruptor of range 30+, still unbuilt.** It is NOT a hull
-  fact: Annex #8B states it on the weapon, and `data/reference/orion_option_mounts.json` already
-  records it as free text on the Disruptor-30 and Disruptor-40 rows ("includes DERFACS from
-  Y168; UIM from Y166 (5 pts)"). So it wants structure on `OptionCatalogEntry` — a
-  `grantsDerfacsFromYear` — applied by `OptionMountLoadout.equip`, where the Y175 rules now
-  live. Nothing hull-specific to enter. The **UIM half of that same note is a separate and
-  bigger job**: it is a purchasable add-on at 5 points for range-22+, not a grant.
+- **The UIM half of the disruptor note is still open.** The same Annex #8B rows that grant
+  DERFACS also say "UIM from Y166 (5 pts)" for range-22-and-up. That one is a PURCHASABLE
+  add-on, not a grant, so it is a different shape of job from the DERFACS rule built on
+  2026-10-20 — it needs a place in the COI spend, not a year pass.
+- **A DERFACS ship's fire preview is wrong, in the web tier.** Core resolves disruptor fire on
+  the DERFACS hit chart (`DamageResolver`), but `hasDerfacs` never reaches the DTO and
+  `weaponDamageTables.ts` holds only `DISRUPTOR_HIT_CHART`, so the client shows the standard
+  numbers. This is NOT new — every Klingon D7 with its DERFACS refit, and the Orion and Kzinti
+  bases, have always previewed wrongly — but Orions can now reach it, so it is likelier to be
+  seen. It is the same failure the comment beside it records for ECM: "a player was shown one
+  number and shot with another." Needs a DTO field, a second chart, and the wiring between.
 - **The annex's "Plasma-D Rack" row carries no `weaponSpec`**, so it cannot be equipped and the
   validator refuses it with "no weapon implementation". That was true when the catalogue was
   written and is not any more — `WeaponFactory` has built `PlasmaRack` (FP10.0) since, and

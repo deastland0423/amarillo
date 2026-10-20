@@ -2773,6 +2773,54 @@ public class Ship extends Unit implements DroneController {
 		return this.derfacs;
 	}
 
+	/** Annex #8B: a disruptor longer-ranged than this brings DERFACS with it. */
+	public static final int DERFACS_DISRUPTOR_RANGE = 22;
+
+	/** Annex #8B: the year from which it does. */
+	public static final int DERFACS_YEAR = 168;
+
+	/**
+	 * Annex #8B: "Orion disruptors with ranges more than 22 include DERFACS from Y168."
+	 *
+	 * <h2>Why a year rule and not a declared field</h2>
+	 * It reads like {@code applyFusionHolding} and the ESG capacitors — automatic at a year, no
+	 * BPV, conditional on what the ship is carrying — and NOT like a refit. It cannot be a
+	 * declared {@code auxiliary.derfacs} on an Orion hull, because whether the ship qualifies
+	 * depends on what its owner drops into an option mount at setup. Declaring it would hand
+	 * DERFACS to an Orion who bought phasers.
+	 *
+	 * <h2>The test is the range, not a list of models</h2>
+	 * "More than 22" is written as such rather than as {@code 30 or 40}, so a Disruptor-40
+	 * qualifies by the same clause, and so would any longer one. The two SSDs that print this
+	 * rule say "a range of 30 or more", which selects the same set given the models that exist —
+	 * the annex's wording is the general one, so it is the one encoded.
+	 *
+	 * <h2>Called twice, stating the rule once</h2>
+	 * {@code ScenarioLoader.outfitForYear} runs it with the other year rules, which catches a
+	 * disruptor declared in a hull's own weapons. {@code OptionMountLoadout.equip} runs it again
+	 * when a disruptor is bought into a mount, because mounts are filled after that pass. Today
+	 * every Orion disruptor arrives the second way — no Orion hull declares one — but the rule
+	 * is about the weapon, not about how it got there.
+	 *
+	 * <p>D23.12 lets a damaged disruptor be repaired as a shorter-ranged model. That does not
+	 * take the DERFACS away: this installs the system and nothing here removes it, which matches
+	 * a system that only a hit-and-run raid can destroy.
+	 *
+	 * @return true if this call installed it.
+	 */
+	public boolean applyOrionDerfacs(int year) {
+		if (year < DERFACS_YEAR || getFaction() != com.sfb.properties.Faction.Orion
+				|| derfacs != null)
+			return false;
+		for (com.sfb.weapons.Weapon w : getWeapons().fetchAllWeapons())
+			if (w instanceof com.sfb.weapons.Disruptor disruptor
+					&& disruptor.getDisruptorRange() > DERFACS_DISRUPTOR_RANGE) {
+				derfacs = new com.sfb.systemgroups.DERFACS(this);
+				return true;
+			}
+		return false;
+	}
+
 	/// UIM ///
 
 	/**
