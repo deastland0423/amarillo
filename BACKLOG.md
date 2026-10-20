@@ -33,13 +33,12 @@ boxes; 600 dpi settles an awkward one.
 
 **What is left here:**
 
-- **A PHASER ARC QUESTION, and it reaches back into hulls already entered.** The BR's boxes are
-  labelled `PH-1-FA` and `PH-3-RA` with a lone `L` or `R` printed beside each pair. Two readings:
-  the letter is an arc component (so `["FA","L"]`), or it only marks which side of the hull the
-  pair is drawn on (so `["FA"]`). `ca.json` and `cr.json` already take the first reading for
-  their forward Ph-1, and `cr.json` takes the second for its rear Ph-3 — so the data currently
-  holds both. **The BR is entered with the bare arcs** pending an answer, and whichever way it
-  goes, the CA, CR and LR want the same check.
+- **The CR's rear Ph-3 want a recheck against its sheet.** The arc reading is settled (owner,
+  2026-10-20): the lone `L` or `R` printed beside a phaser pair **is an arc component**, so
+  `PH-1-FA` + `L` is `["FA","L"]` and `PH-3-RA` + `R` is `["RA","R"]`. The BR and the CA agree
+  with that. `cr.json` is the odd one out — its forward Ph-1 read `["FA","L"]` but its rear Ph-3
+  read a bare `["RA"]`, which is only right if its sheet prints no letter beside them. Its sheet
+  is in the **Basic Set** SSD book, not the Advanced Missions one, so it was never re-read.
 - **The MINELAYER REFIT (R8.R1) on the BR**, cited on its sheet and not entered. Its text is in
   neither the Master Rulebook nor the SSD book's text layer, so it needs the owner or a module.
   Two things the Master Rulebook does say about it: its racks go in the **shuttle bays** and are
