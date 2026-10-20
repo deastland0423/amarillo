@@ -45,11 +45,20 @@ and `-r 400 -x -y -W -H` crops to count boxes; 600 dpi settles an awkward one.
   `bs.json` is the one Orion with option mounts that is not a ship, so it is deliberately left
   without `rackFiringLimit` rather than given one on the strength of a note. Every Orion **ship**
   now carries it.
-- **Three things no static field can hold**, because they depend on what goes into the option
-  mounts, noted on the BR's and CR's sheets and modelled on neither: DERFACS free in Y168 if a
-  disruptor of range 30+ is fitted; the Y175 reload bonus (the BR gains one reload, the CR
-  DOUBLES them — so it is per-hull, not a shared rule); and the Y170 plasma carronade and sabot
-  refit, both Module R10. These want the option-mount loadout to exist first.
+- **DERFACS free from Y168 with a disruptor of range 30+, still unbuilt.** It is NOT a hull
+  fact: Annex #8B states it on the weapon, and `data/reference/orion_option_mounts.json` already
+  records it as free text on the Disruptor-30 and Disruptor-40 rows ("includes DERFACS from
+  Y168; UIM from Y166 (5 pts)"). So it wants structure on `OptionCatalogEntry` — a
+  `grantsDerfacsFromYear` — applied by `OptionMountLoadout.equip`, where the Y175 rules now
+  live. Nothing hull-specific to enter. The **UIM half of that same note is a separate and
+  bigger job**: it is a purchasable add-on at 5 points for range-22+, not a grant.
+- **The annex's "Plasma-D Rack" row carries no `weaponSpec`**, so it cannot be equipped and the
+  validator refuses it with "no weapon implementation". That was true when the catalogue was
+  written and is not any more — `WeaponFactory` has built `PlasmaRack` (FP10.0) since, and
+  FP10.15 covers the Orion ones. Filling the row in is one line, and until it is, no Orion can
+  actually buy the plasma rack its own SSD talks about.
+- **The Y170 plasma carronade and the sabot refit** (Module R10) are out of scope by the owner's
+  call, 2026-10-20. Noted on both ship files and left unmodelled.
 
 ## Ready to start
 

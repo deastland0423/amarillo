@@ -1013,6 +1013,34 @@ public class ScenarioLoader {
                 }
                 break;
 
+            case "ORION":
+                // Every Orion drone rack gains a reload set in Y175. Both the BR's and the CR's
+                // sheets print it, in different decades' words: the BR "GAIN ONE ADDITIONAL
+                // RELOAD", the CR "ARE DOUBLED". Those are the same rule — when the CR's sheet
+                // was written the Basic Set had only type-A racks, which carry a single set, so
+                // +1 WAS doubling (owner, 2026-10-20). The operation is +1, and reading the CR
+                // literally would have given a type-C rack twice what it is owed.
+                //
+                // Unlike every branch above, this one deliberately does NOT consult
+                // handledRacks. That filter exists so a hull's declared rack TYPE is not
+                // overwritten by a faction default; a reload count is a different axis. The
+                // Orion CA is the proof: it is the one Orion hull with a y175Upgrades block, it
+                // names both racks for a TYPE_C upgrade, and filtering here would silently cost
+                // it the reload set this rule gives it — the same shape of bug the comment
+                // above records costing the Federation NCD two sets.
+                //
+                // Order matters and is already right: the per-ship block ran above, and
+                // upgradeRackType resets the count to the new type's base, so a +1 applied here
+                // lands on top of the upgraded type rather than on a count about to be reset.
+                //
+                // Plasma racks are NOT touched here. They get the same +1 from the universal
+                // FP10.312 rule at the top of this method, one set becoming two; adding Orion's
+                // on top would make three, which is more than either sheet grants.
+                for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+                    if (w instanceof DroneRack rack)
+                        rack.addReloadSets(1);
+                break;
+
             default:
                 break;
         }

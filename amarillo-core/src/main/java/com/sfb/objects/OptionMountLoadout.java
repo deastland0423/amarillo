@@ -84,7 +84,39 @@ public final class OptionMountLoadout {
         mount.setBpvCost(entry.cost);
         mount.setOptionName(entry.name);
         ship.getWeapons().addWeapon(weapon);
+        applyY175ToANewlyMountedRack(ship, weapon, year);
         return weapon;
+    }
+
+    /**
+     * The Y175 reload rules, for a rack that did not exist when they last ran.
+     *
+     * <h2>Why this is here and not in {@code ScenarioLoader.applyYearUpgrades}</h2>
+     * It IS there — and that pass cannot see these racks. A ship is built and outfitted for its
+     * year first, and option mounts are filled afterwards, in {@code applyCoi}; a rack placed in
+     * a mount is therefore created long after every Y175 rule has already run and gone. Equipping
+     * is the only door such a rack comes through, so the rules are reapplied at the door.
+     *
+     * <p>Two rules, and only one of them is about Orions:
+     * <ul>
+     *   <li><b>FP10.312</b> gives every plasma rack a second set of reloads in Y175, on any hull
+     *       of any empire. A plasma rack in an Orion mount was quietly missing it.</li>
+     *   <li>An <b>Orion</b> drone rack gains one reload set in Y175, which is what the BR's and
+     *       CR's sheets print for racks in their option mounts.</li>
+     * </ul>
+     *
+     * <p>Nothing is applied twice: a rack reached by the pass in {@code applyYearUpgrades} is one
+     * already on the hull, and a rack reached here did not exist then.
+     */
+    private static void applyY175ToANewlyMountedRack(Ship ship, Weapon weapon, int year) {
+        if (year < 175)
+            return;
+        if (weapon instanceof com.sfb.weapons.PlasmaRack plasmaRack) {
+            plasmaRack.applyY175Refit();                       // FP10.312, every empire
+        } else if (weapon instanceof com.sfb.weapons.DroneRack droneRack
+                && ship.getFaction() == com.sfb.properties.Faction.Orion) {
+            droneRack.addReloadSets(1);                        // the Orion rule, owner 2026-10-20
+        }
     }
 
     // --- Name-keyed convenience for callers that hold the catalog (server, tests) ---
