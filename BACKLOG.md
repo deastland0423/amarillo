@@ -19,39 +19,41 @@ something does not exist is the kind that rots quietest.
 
 ---
 
-## Orion ship data — MODULE R2 IS NOW ON DISK (2026-10-20)
+## Orion ship data — MODULE R2 IS ENTERED BAR ONE (2026-10-20)
 
-`data/ssd/Module_R2_SSD.pdf` arrived late on 2026-10-20 and its Orion section starts at printed
-page 67 (PDF 68). The **DBR** (R8.14, p.67), **OK6** (R8.15, p.68), **BCH** (R8.17, p.69), **DW** (R8.18, p.70),
-**HR** (R8.20, p.71), **MR** (R8.21, p.72), **AR** (R8.22, p.73) and **LRS** (R8.23,
-p.74) are entered. **The LRS is the LR with special sensors in its wing mounts, and the DWS is the DW the same
-way** (owner, 2026-10-20) — both verified box by box against the hull they convert, not assumed
-from it. Their EPV/BPV split is the tell: the sensors cost economically and nothing in battle
-points.
+`data/ssd/Module_R2_SSD.pdf` arrived on 2026-10-20. Its Orion section runs printed pages 67-76
+(PDF 68-77), and **nine of the ten hulls are in**: DBR 67, OK6 68, BCH 69, DW 70, HR 71, MR 72,
+AR 73, LRS 74, DWS 75.
 
-**Only the DBP (R8.25, p.76) is left**, and it is a PF TENDER. PFs (K1.x) are not modelled at
-all, so it needs that whole system first and should be left until last. **A sheet that is silent about adjacency means the mounts ARE adjacent**
-(owner, 2026-10-20): the DBR prints its denial in the optional-weapons box precisely because it
-is the exception, so silence describes the normal case. The same reading settles `nimble`, which
-the DBR asserts and the BR denies — a sheet printing neither is not nimble. The master ship chart in the Master Annex File
-lists these other R2 Orions, none of them entered — the chart's last two columns are the source
-book and the R8.x number, so "R2 22" means Module R2, rule R8.22:
+**Only the DBP (R8.25, p.76) is left, and it is a PF TENDER.** PFs (K1.x) are not modelled at
+all, so it waits on that whole system rather than on a reading. The chart gives it 110 BPV and
+6 boarding parties where the DBR has 12.
 
-| Type | Rule | BPV | Notes from the chart |
-|------|------|-----|----------------------|
-| DBP  | R8.25 | 110 | the DBR's variant, 6 boarding parties where the DBR has 12 |
+### What reading these taught, for the next book
 
-The contents page lists the Orion section in full: DBR 67, OK6 68, BCH 69, DW 70, HR 71, MR 72,
-AR 73, LRS 74, DWS 75, DBP 76. Note **DBP is a PF tender**, and PFs are not modelled at all, so
-it is the one to leave until last.
+- **A silent sheet describes the NORMAL case** (owner, 2026-10-20). The DBR prints "MOUNTS A, B,
+  AND C ARE NOT CENTERLINE ADJACENT" because it is the exception; the BR prints "IT IS NOT
+  NIMBLE" where the DBR prints "NIMBLE SHIP". So absence means mounts ARE adjacent and the ship
+  is NOT nimble.
+- **Read any apparent exception at full resolution before believing it.** The MR's FD4.4 note
+  looks like "a maximum of FOUR drones per turn" at thumbnail size, which would have made it the
+  only exception in the fleet to the three-rack cap. At 400 dpi it plainly reads THREE. An
+  apparent exception is the most interesting thing on a page and so the easiest to believe.
+- **Position and arc are different axes.** The DW's three option mounts all carry FA arcs, and
+  only its printed note ("MOUNTS B AND C ARE WING MOUNTS") says two of them are wing mounts.
+  Counting FA labels would have made an 80-point destroyer the best multi-mount platform in the
+  fleet.
+- **Tracks are per hull and must not be padded to a house shape.** Four steps on the DW, MR and
+  DWS; five on the HR and SLV; six on the AR and BR; seven on the BCH.
+- **A variant can be checked against the hull it converts.** The LRS is the LR and the DWS is
+  the DW, each with special sensors in the wing mounts; the OK6 is a Klingon D6 forward of its
+  boom. In all three cases `klingon/d6.json`, `orion/lr.json` and `orion/dw.json` confirmed the
+  numbers the yard left alone — the best verification available, and worth seeking out.
+- **Sensors take the hits of what they replaced** (G24.17), so `dacHitLocation` is per weapon.
+  The column name is `torp`, never `torpedo`; `DacHitLocationVocabularyTest` now enforces that.
 
-**Read the FD4.4 note at full resolution.** The MR's appears to say a maximum of FOUR drones
-per turn at thumbnail size, which would make it the only exception to the three-rack cap in the
-fleet; at 400 dpi it plainly reads THREE. Any sheet whose numbers differ from the house pattern
-deserves the crop before the claim.
-
-Reading one takes about one exchange with the owner — the DBR needed two questions (whether the
-lettered warp box counts as power, and the crew asterisk).
+Reading one hull takes about one exchange with the owner, for the handful of things a render
+cannot settle: a line code, a ruling on silence, and occasionally a box whose fill is ambiguous.
 
 ## Orion ship data — the Basic Set and Advanced Missions hulls are ENTERED (2026-10-20)
 
