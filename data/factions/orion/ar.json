@@ -1,0 +1,92 @@
+{
+  "faction": "Orion",
+  "type": "AR",
+  "typeName": "Attack Raider",
+  "line": "CL",
+  "name": "Smash and Grab",
+  "serviceYear": 166,
+  "sizeClass": 3,
+  "bpv": 100,
+  "commandRating": 6,
+  "turnMode": "A",
+  "moveCost": 0.6666667,
+  "breakdown": 6,
+  "bonusHets": 2,
+  "stealthBonus": 2,
+
+  "shields": [30, 30, 24, 24, 24, 30],
+
+  "hullBoxes": { "chull": 6, "cargo": 6 },
+
+  "power": {
+    "leftWarp": 10,
+    "rightWarp": 10,
+    "impulse": 3,
+    "battery": 4
+  },
+
+  "control": { "bridge": 1, "auxCon": 2, "controlMod": 1.0 },
+
+  "crewData": { "totalCrew": 26, "boardingParties": 16, "minCrew": 4 },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "labs": 2,
+    "transporters": 3,
+    "tractors": 4,
+    "rackFiringLimit": 3
+  },
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "A", "arcs": ["FA"] },
+    { "position": "CENTERLINE", "designator": "B", "arcs": ["FA"] },
+    { "position": "CENTERLINE", "designator": "C", "arcs": ["FA"] },
+    { "position": "WING",       "designator": "D", "arcs": ["LS"] },
+    { "position": "WING",       "designator": "E", "arcs": ["RS"] }
+  ],
+
+  "adjacentMounts": [["A", "B", "C"]],
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RA", "L"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RA", "L"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["RA", "R"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["RA", "R"] }
+  ],
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"] }
+  ],
+
+  "refits": [
+    {
+      "code": "O",
+      "name": "oakdisc refit",
+      "label": "OAKDISC",
+      "year": 166,
+      "bpv": 10,
+      "control": { "controlMod": 2.0 },
+      "auxiliary": { "rackFiringLimit": null }
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 166,
+      "bpv": 15,
+      "auxiliary": { "cloakCost": 13 }
+    }
+  ],
+
+  "note": "R8.22, Module R2 SSD p.73. A light cruiser (owner's call on the line) and the Battle Raider's smaller sibling: identical shields at 30/30/24/24/24/30, the same five option mounts, the same eight phasers in the same arcs, two years earlier and 15 points cheaper. Where it differs is below decks - one bridge box to the BR's two, 10+10 warp against 12+12, three impulse against four, and no lab advantage. ITS THREE CENTERLINE MOUNTS ARE ONE RUN (owner, 2026-10-20), so a two-mount weapon seats on A+B or B+C and never A+C. The sheet says nothing either way, and that silence is the point: the DBR prints 'MOUNTS A, B, AND C ARE NOT CENTERLINE ADJACENT' in this very box because it is the exception, so a sheet that stays quiet is describing the normal case. NOT NIMBLE, also by the owner's ruling on silence - the DBR prints 'NIMBLE SHIP' and the BR prints 'IT IS NOT NIMBLE', and this one prints neither. Its Y175 note reads 'ARE DOUBLED', the older wording for the +1 every Orion rack gains. Unlike the BCH and OK6 it CAN land on planets, by aerodynamic, gravity or powered systems, with the crash landing bonus (P2.43). NOT MODELLED: the Y170 plasma carronade and sabot refit (Module R10), the MINELAYER REFIT (R8.R1), and (R8.R3) for option mount firing arcs."
+}

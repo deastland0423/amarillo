@@ -22,13 +22,16 @@ something does not exist is the kind that rots quietest.
 ## Orion ship data — MODULE R2 IS NOW ON DISK (2026-10-20)
 
 `data/ssd/Module_R2_SSD.pdf` arrived late on 2026-10-20 and its Orion section starts at printed
-page 67 (PDF 68). The **DBR** (R8.14, p.67), **OK6** (R8.15, p.68) and **BCH** (R8.17, p.69) are entered. The master ship chart in the Master Annex File
+page 67 (PDF 68). The **DBR** (R8.14, p.67), **OK6** (R8.15, p.68), **BCH** (R8.17, p.69) and **AR** (R8.22,
+p.73) are entered. **A sheet that is silent about adjacency means the mounts ARE adjacent**
+(owner, 2026-10-20): the DBR prints its denial in the optional-weapons box precisely because it
+is the exception, so silence describes the normal case. The same reading settles `nimble`, which
+the DBR asserts and the BR denies — a sheet printing neither is not nimble. The master ship chart in the Master Annex File
 lists these other R2 Orions, none of them entered — the chart's last two columns are the source
 book and the R8.x number, so "R2 22" means Module R2, rule R8.22:
 
 | Type | Rule | BPV | Notes from the chart |
 |------|------|-----|----------------------|
-| AR   | R8.22 | 100 | size 3, move 0.67 |
 | DBP  | R8.25 | 110 | the DBR's variant, 6 boarding parties where the DBR has 12 |
 | DW   | R8.18 | 80  | war destroyer, size 4, move 0.50 |
 | DWS  | R8.24 | 100/80 | a converted trader, so EPV/BPV |
