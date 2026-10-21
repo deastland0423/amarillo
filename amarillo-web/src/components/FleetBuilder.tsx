@@ -910,7 +910,10 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                     the honest state of an Orion bought bare. */}
                 {(() => {
                   const hull = hullMounts[mountKey(entry.faction, entry.type)];
-                  if (!hull || hull.optionMounts.length === 0) return null;
+                  // An empty slot rather than nothing: the row is a grid, and a missing child
+                  // would slide the remove button into the mounts column.
+                  if (!hull || hull.optionMounts.length === 0)
+                    return <span className="fb-mounts-slot" />;
                   const filled = hull.optionMounts
                     .filter(m => entry.optionMounts?.[m.designator]).length;
                   return (
