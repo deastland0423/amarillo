@@ -142,6 +142,29 @@ Two smaller ones from the same read:
 
 FP10.244 (PFs) is moot: there are no PFs in the tree.
 
+## Orion option mounts and refits — BUILT 2026-10-20/21, what is left
+
+Mounts and refits are now bought where the ship is bought (G15.415). See the memory note
+`project_option_mount_shipyard` for the design and the two rules that catch people.
+
+**Left:**
+- **`ShipDto` does not expose option mounts**, so the SSD popup cannot show an Orion's fitted
+  weapons although the fleet builder can. Adding it means classifying the field in
+  `ShipDtoPrivacyTest`; the fitted weapon already appears in the public weapons list, so hiding
+  the mount it sits in would conceal nothing.
+- **Nothing has been looked at in a browser.** The fleet-builder mount panel, the cartel
+  dropdown, the quota line and the roster column widths are verified only by tsc/lint/build and
+  the test suites. The roster grid gained a seventh column; its widths are a guess.
+- **G15.42's non-weapon options** — batteries, APR, labs, cargo, tractors, transporters, repair,
+  hull, barracks — are listed in the catalogue with no `weaponSpec`, so they cannot be equipped.
+  "None of the non-weapon options changes the BPV of the ship," so they need a different seat
+  from a weapon, not just a spec.
+- **FP10.31's "at the player's option"**: a player cannot choose to spare their own hold and
+  draw from the other while both have stock. The fallback covers every case where it changes the
+  outcome today.
+- **Named Orion variants** would still be nice for the ones history named (a CA+ reads better
+  than "CA with the Plus refit"), but nothing needs them now that unnamed combinations resolve.
+
 ## Ready to start
 
 Each of these was named by an earlier session as the next sensible slice in its area, with the
