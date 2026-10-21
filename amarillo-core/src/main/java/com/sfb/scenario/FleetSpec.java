@@ -51,6 +51,19 @@ public class FleetSpec {
     /** The points agreed for this side (S8.11), including Commander's Options (S8.12). */
     public int budget;
 
+    /**
+     * The Orion cartel this force flies for (G15.44, R8.1), or null for a fleet that is not
+     * Orion or has not said.
+     *
+     * <h2>On the fleet, because the quota is on the force</h2>
+     * G15.44: "The limits below apply to the entire Orion battle force, as otherwise no ship
+     * would have enough option mounts to have a 10% availability weapon." G15.441 then splits
+     * the force's mounts 70/20/10 across home, operating-zone and any empire. A per-ship cartel
+     * could not express that; a fleet IS the battle force, so it is asked here and carried to
+     * {@code SideSpec.cartel} when the fleet takes the field.
+     */
+    public String cartel;
+
     /** The name of the ship leading it (S8.21). */
     public String flagship;
 
@@ -70,6 +83,25 @@ public class FleetSpec {
         public String name;
         /** Points spent on Commander's Option items (S3.2). */
         public double coiSpend;
+
+        /**
+         * Orion option-mount choices bought with the ship (G15.4), by mount designator → Annex
+         * #8B option name. The same shape as {@code ScenarioSpec.ShipSetup.optionMounts} and
+         * {@code CoiLoadout.optionMounts}: one record of one fact, in whichever hand bought it.
+         *
+         * <h2>Why a field, when refits are not one</h2>
+         * A refit is recorded by TYPE — the builder resolves the ticked refits to a variant hull
+         * and stores that hull, so a plus-refitted LR is simply an "LR+". A loadout cannot
+         * follow it: the BCH has four mounts against a catalogue of seventy-four, and no
+         * catalogue of variant types could hold the combinations.
+         *
+         * <h2>Bought, not chosen on the day</h2>
+         * G15.415 puts a mount change in a shipyard "taking several weeks or months", so the
+         * loadout is part of the purchase and belongs in the saved fleet. It is also part of the
+         * PRICE: G15.411 adds each option's cost to the ship's combat and economic values alike,
+         * which is why {@code FleetValidator.costOf} must read the effective BPV.
+         */
+        public java.util.Map<String, String> optionMounts = new java.util.LinkedHashMap<>();
     }
 
     /** The empire a ship entry belongs to, falling back to the force's first. */

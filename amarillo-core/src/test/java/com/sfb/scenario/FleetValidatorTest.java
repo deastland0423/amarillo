@@ -149,13 +149,13 @@ public class FleetValidatorTest {
         scout.getWeapons().addWeapon(c);
 
         assertTrue(FleetValidator.isScout(scout));
-        assertEquals("bought at its economic value", 120, FleetValidator.costOf(scout));
+        assertEquals("bought at its economic value", 120, FleetValidator.costOf(scout), 1e-9);
         assertEquals("even as the only ship in the force",
-                120, FleetValidator.fleetCost(List.of(scout)));
+                120, FleetValidator.fleetCost(List.of(scout)), 1e-9);
 
         Ship consort = ship("Consort", 100, 4, 5);
         assertEquals("fleet total uses the economic value",
-                220, FleetValidator.fleetCost(List.of(scout, consort)));
+                220, FleetValidator.fleetCost(List.of(scout, consort)), 1e-9);
     }
 
     // ---- S8.6 mixed allied forces ----
@@ -249,7 +249,7 @@ public class FleetValidatorTest {
         Ship flag = ship("Flagship", 100, 3, 4);
         flag.setCoiSpend(12.5);
 
-        assertEquals(100, FleetValidator.fleetCost(List.of(flag)));
+        assertEquals(100, FleetValidator.fleetCost(List.of(flag)), 1e-9);
         assertEquals(112.5, FleetValidator.totalCost(List.of(flag)), 0.001);
     }
 
@@ -290,7 +290,7 @@ public class FleetValidatorTest {
         c.setDacHitLocaiton("torp");
         scout.getWeapons().addWeapon(c);
 
-        assertEquals("bought at 120", 120, FleetValidator.costOf(scout));
+        assertEquals("bought at 120", 120, FleetValidator.costOf(scout), 1e-9);
         assertEquals("but options are 20 percent of the 100 it fights at",
                 20.0, FleetValidator.coiAllowance(scout), 0.001);
     }

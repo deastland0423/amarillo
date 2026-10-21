@@ -61,8 +61,8 @@ public class CarrierPriceByYearTest {
 
     @Test
     public void aCarrierCostsMoreInALaterYear() {
-        int early = FleetValidator.costOf(cvsInFleetOf(170));
-        int late  = FleetValidator.costOf(cvsInFleetOf(183));
+        double early = FleetValidator.costOf(cvsInFleetOf(170));
+        double late  = FleetValidator.costOf(cvsInFleetOf(183));
 
         assertTrue("a TADSC group must cost more than an AAS group: Y170=" + early
                 + " Y183=" + late, late > early);
@@ -78,12 +78,12 @@ public class CarrierPriceByYearTest {
     @Test
     public void theKzintiCvsIsPricedAcrossItsFighterEras() {
         assertEquals("Y170, eleven AAS at 6 and an AAS-E at 8, on a 169 hull", 243,
-                FleetValidator.costOf(cvsInFleetOf(170)));
-        assertEquals("Y173, HAAS", 267, FleetValidator.costOf(cvsInFleetOf(173)));
+                FleetValidator.costOf(cvsInFleetOf(170)), 1e-9);
+        assertEquals("Y173, HAAS", 267, FleetValidator.costOf(cvsInFleetOf(173)), 1e-9);
         assertEquals("Y177, TAAS, plus the Y175 rack refit at 6", 285,
-                FleetValidator.costOf(cvsInFleetOf(177)));
-        assertEquals("Y180, TADS, plus the refit", 309, FleetValidator.costOf(cvsInFleetOf(180)));
-        assertEquals("Y183, TADSC, plus the refit", 321, FleetValidator.costOf(cvsInFleetOf(183)));
+                FleetValidator.costOf(cvsInFleetOf(177)), 1e-9);
+        assertEquals("Y180, TADS, plus the refit", 309, FleetValidator.costOf(cvsInFleetOf(180)), 1e-9);
+        assertEquals("Y183, TADSC, plus the refit", 321, FleetValidator.costOf(cvsInFleetOf(183)), 1e-9);
     }
 
     /**
@@ -113,7 +113,7 @@ public class CarrierPriceByYearTest {
         Ship atService = cvsInFleetOf(170);   // the CVS entered service in Y170
 
         assertEquals("undated must match the ship's own service year",
-                FleetValidator.costOf(atService), FleetValidator.costOf(undated));
+                FleetValidator.costOf(atService), FleetValidator.costOf(undated), 1e-9);
         assertTrue("and that is not an empty bay",
                 FleetValidator.carriedFighterBpv(undated) > 0);
     }
@@ -141,15 +141,15 @@ public class CarrierPriceByYearTest {
         spec.ships.add(entry);
 
         spec.year = 170;
-        int early = FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0));
+        double early = FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0));
         spec.year = 174;
-        int stillEarly = FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0));
+        double stillEarly = FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0));
         spec.year = 183;
-        int late = FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0));
+        double late = FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0));
 
         assertEquals("no fighters and no refit crossed, so nothing for the date to change",
-                early, stillEarly);
-        assertEquals("the bare hull", 135, early);
-        assertEquals("plus the Y175 rack refit the BC declares", 139, late);
+                early, stillEarly, 1e-9);
+        assertEquals("the bare hull", 135, early, 1e-9);
+        assertEquals("plus the Y175 rack refit the BC declares", 139, late, 1e-9);
     }
 }

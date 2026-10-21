@@ -158,6 +158,27 @@ public class ScenarioSpec {
         public int          weaponStatus;   // 0–3 per S4.1
         public List<String> refits;         // refit codes applied to this ship, e.g. "plus", "awr"
         /**
+         * Orion option-mount choices the SCENARIO fixes (G15.4), by mount designator → Annex #8B
+         * option name. Same shape as {@code CoiLoadout.optionMounts}, deliberately: one record
+         * of one fact, differing only in who wrote it.
+         *
+         * <h2>Who is the shipyard</h2>
+         * G15.415 — "Optional weapons cannot be changed without a shipyard overhaul taking
+         * several weeks or months" — makes a loadout part of what the ship IS, not a choice made
+         * on the morning of the battle. So it is filled by whoever bought the ship:
+         * <ul>
+         *   <li>the FLEET, when the side brought its own ({@code SideSpec.bringYourOwn});</li>
+         *   <li>the SCENARIO, here, when the scenario listed the ship;</li>
+         *   <li>the PLAYER at COI, when neither said — a scenario that leaves this empty has
+         *       delegated the shipyard to its players, which is a legitimate thing to write.</li>
+         * </ul>
+         * The precedence needs no arbiter: whatever is filled here is equipped at build, and
+         * {@code OptionMountLoadout.validate} refuses a mount that is already filled, so a COI
+         * submission cannot overwrite it. A scenario may fill SOME mounts and leave the rest
+         * open, and the COI form will offer exactly the ones it left.
+         */
+        public java.util.Map<String, String> optionMounts = new java.util.LinkedHashMap<>();
+        /**
          * R1.14: the NAME of the planet this unit is built on, matching a {@link TerrainSetup}'s
          * name. Set only for a ground base.
          * <p>

@@ -162,7 +162,7 @@ class FleetValidationEndpointTest {
 
         assertEquals(Boolean.TRUE, body.get("legal"), body.toString());
         assertEquals(2, body.get("shipCount"));
-        assertTrue((Integer) body.get("cost") > 0, body.toString());
+        assertTrue(((Number) body.get("cost")).doubleValue() > 0, body.toString());
     }
 
     @Test
@@ -192,7 +192,8 @@ class FleetValidationEndpointTest {
 
         assertEquals(2, one.get("shipCount"));
         assertEquals(3, two.get("shipCount"));
-        assertTrue((Integer) two.get("cost") > (Integer) one.get("cost"),
+        assertTrue(((Number) two.get("cost")).doubleValue()
+                        > ((Number) one.get("cost")).doubleValue(),
                 "a second DD must cost something: " + one.get("cost") + " then " + two.get("cost"));
     }
 }

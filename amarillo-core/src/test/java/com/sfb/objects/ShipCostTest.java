@@ -48,7 +48,7 @@ public class ShipCostTest {
         for (ShipSpec spec : ShipLibrary.all()) {
             Ship ship = ShipLibrary.createShip(spec);
             checked++;
-            int cost = FleetValidator.costOf(ship);
+            double cost = FleetValidator.costOf(ship);
             if (cost <= 0)
                 free.add(spec.faction + "/" + spec.type + " costs " + cost
                         + " (bpv " + spec.bpv + (FleetValidator.isScout(ship)
@@ -77,7 +77,7 @@ public class ShipCostTest {
             assertTrue(hull[1] + " should be a scout for this test to mean anything",
                     FleetValidator.isScout(ship));
             assertEquals(hull[1] + " lists one BPV, so economic equals combat",
-                    Integer.parseInt(hull[2]), FleetValidator.costOf(ship));
+                    Integer.parseInt(hull[2]), FleetValidator.costOf(ship), 1e-9);
         }
     }
 
@@ -91,6 +91,6 @@ public class ShipCostTest {
 
         Ship ship = ShipLibrary.createShip(spec);
         assertEquals("G24.35: bought at the economic value, not the combat one",
-                spec.epv, FleetValidator.costOf(ship));
+                spec.epv, FleetValidator.costOf(ship), 1e-9);
     }
 }

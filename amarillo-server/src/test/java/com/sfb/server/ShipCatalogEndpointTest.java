@@ -89,7 +89,10 @@ class ShipCatalogEndpointTest {
         Map<String, Object> cv = find("Kzinti", "CV");
 
         assertTrue((Integer) cv.get("fighterBpv") > 0, cv.toString());
-        assertEquals((Integer) cv.get("bpv") + (Integer) cv.get("fighterBpv"), cv.get("cost"));
+        // cost is a double since G15.411's option-mount deltas are fractional (a Phaser-2 is
+        // -0.25), so it is compared as a number rather than by boxed identity.
+        assertEquals((Integer) cv.get("bpv") + (Integer) cv.get("fighterBpv"),
+                ((Number) cv.get("cost")).doubleValue(), 1e-9);
         assertEquals(Boolean.TRUE, cv.get("requiresEscort"));
     }
 
@@ -113,7 +116,8 @@ class ShipCatalogEndpointTest {
         assertTrue((Integer) late.get("fighterBpv") > (Integer) early.get("fighterBpv"),
                 "TADSC cost more than AAS: " + early.get("fighterBpv")
                         + " -> " + late.get("fighterBpv"));
-        assertTrue((Integer) late.get("cost") > (Integer) early.get("cost"),
+        assertTrue(((Number) late.get("cost")).doubleValue()
+                        > ((Number) early.get("cost")).doubleValue(),
                 "so the shelf price rises: " + early.get("cost") + " -> " + late.get("cost"));
         assertTrue((Double) late.get("coiAllowance") > (Double) early.get("coiAllowance"),
                 "and S3.211's allowance with it");
@@ -136,7 +140,7 @@ class ShipCatalogEndpointTest {
         Map<String, Object> sc = find("Federation", "SC");
 
         assertEquals(Boolean.TRUE, sc.get("isScout"));
-        assertTrue((Integer) sc.get("cost") > (Integer) sc.get("bpv"),
+        assertTrue(((Number) sc.get("cost")).doubleValue() > (Integer) sc.get("bpv"),
                 "economic value should exceed the combat BPV: " + sc);
     }
 

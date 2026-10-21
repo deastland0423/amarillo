@@ -158,9 +158,23 @@ public final class FleetValidator {
      * VICTORY value: alone it is scored at its combat BPV (G24.351), while alongside non-scouts
      * the combat value is ignored and the economic one serves for both (G24.352).
      */
-    public static int costOf(Ship ship) {
+    public static double costOf(Ship ship) {
         int hull = isScout(ship) ? ship.getEconomicBpv() : ship.getBpv();
-        return hull + carriedFighterBpv(ship);
+        // G15.411: an Orion option mount "adjusts the BPV of the ship by the stated amount",
+        // and for a divided BPV the increase goes on BOTH values - "if a Slaver took special
+        // sensors (+10 BPV points each) in both of its option mounts its BPV would be 103/80".
+        // So a filled mount is part of what the ship COSTS, and a budget that read the bare
+        // hull let an Orion force grow after it had been declared legal. Returns a double
+        // because the deltas are fractional: a Phaser-2 is -0.25.
+        return hull + optionMountCost(ship) + carriedFighterBpv(ship);
+    }
+
+    /** What this ship's filled option mounts add to its price (G15.411); 0 for everyone else. */
+    public static double optionMountCost(Ship ship) {
+        double total = 0;
+        for (com.sfb.objects.OptionMount mount : ship.getOptionMounts())
+            total += mount.getBpvCost();
+        return total;
     }
 
     /**
@@ -197,9 +211,14 @@ public final class FleetValidator {
         return CoiBudget.carriedFighterBpv(ship);
     }
 
-    /** What the whole force costs to buy. */
-    public static int fleetCost(List<Ship> ships) {
-        return ships.stream().mapToInt(FleetValidator::costOf).sum();
+    /**
+     * What the whole force costs to buy.
+     * <p>
+     * A double since G15.411's option-mount deltas are fractional — a Phaser-2 in an Orion mount
+     * is -0.25 — and rounding each ship before summing would lose a point across four mounts.
+     */
+    public static double fleetCost(List<Ship> ships) {
+        return ships.stream().mapToDouble(FleetValidator::costOf).sum();
     }
 
     private static void checkBudget(Fleet fleet, List<Violation> out) {

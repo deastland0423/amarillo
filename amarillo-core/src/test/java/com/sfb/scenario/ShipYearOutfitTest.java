@@ -121,10 +121,10 @@ public class ShipYearOutfitTest {
 
         spec.year = 174;
         assertEquals("as built", 119,
-                FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0)));
+                FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0)), 1e-9);
         spec.year = 176;
         assertEquals("with the Y175 refit it will actually fight with", 123,
-                FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0)));
+                FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0)), 1e-9);
 
         Ship viaLoader = FleetLoader.resolve(spec).ships().get(0);
         assertEquals("and its racks match a directly outfitted hull",

@@ -92,8 +92,44 @@ public class ScenarioLoader {
         // fact about the hull in that year, and it must follow the fighter re-seat so it arms the
         // craft the carrier ends up with.
         outfitForYear(ship, faction, year, shipSpec);
+        // The loadout the SHIPYARD fixed (G15.4), before weapon status so a mounted weapon is
+        // armed with the rest, and after outfitForYear so the year rules are already in place -
+        // equip reapplies the ones a later-built weapon would otherwise miss.
+        equipDeclaredMounts(ship, setup.optionMounts, year);
         applyWeaponStatus(ship, setup.weaponStatus);
         return ship;
+    }
+
+    /**
+     * Fill the option mounts somebody has already paid for (G15.4).
+     *
+     * <h2>Why this is not the COI step</h2>
+     * G15.415: "Optional weapons cannot be changed without a shipyard overhaul taking several
+     * weeks or months." A loadout is part of what the ship IS, so it arrives with the ship —
+     * from a saved fleet, or from the scenario that listed it. What the COI step still does is
+     * fill mounts NOBODY has bought, which is a scenario delegating the shipyard to its players.
+     *
+     * <p>Nothing arbitrates between the two: {@code validate} refuses a mount that is already
+     * filled, so a COI submission simply cannot overwrite what is here.
+     *
+     * <p>An illegal or unknown choice is NOTED on the ship and skipped rather than thrown. A
+     * scenario or a fleet saved under one year's rules may be played under another, and losing
+     * the whole battle to one unavailable weapon helps nobody.
+     */
+    static void equipDeclaredMounts(Ship ship, java.util.Map<String, String> choices, int year) {
+        if (choices == null || choices.isEmpty())
+            return;
+        com.sfb.objects.OptionMountCatalog catalog =
+                com.sfb.objects.OptionMountCatalog.loadDefault();
+        for (java.util.Map.Entry<String, String> choice : choices.entrySet()) {
+            try {
+                com.sfb.objects.OptionMountLoadout.equip(
+                        ship, catalog, choice.getKey(), choice.getValue(), year);
+            } catch (IllegalArgumentException e) {
+                note(ship, "option mount " + choice.getKey() + " (" + choice.getValue()
+                        + ") — " + e.getMessage());
+            }
+        }
     }
 
     /**

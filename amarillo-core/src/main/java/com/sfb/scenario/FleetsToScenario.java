@@ -83,6 +83,9 @@ public final class FleetsToScenario {
             ScenarioSpec.SideSpec side = new ScenarioSpec.SideSpec();
             side.name = entries.get(i).team();
             side.bringYourOwn = true;
+            // G15.44's quota is on "the entire Orion battle force", and a fleet IS that force,
+            // so the cartel it was bought under comes with it.
+            side.cartel = entries.get(i).fleet().cartel;
             side.ships = new ArrayList<>();
             int column = columnFor(i, entries.size(), conditions.mapCols());
             side.deploymentZone = defaultZone(column, conditions.mapCols(), conditions.mapRows());
@@ -127,6 +130,10 @@ public final class FleetsToScenario {
                 side.faction = entry.fleet().factions.get(0);
             if (side.name == null || side.name.isBlank())
                 side.name = entry.team();
+            // The cartel the force was bought under (G15.44), unless the scenario insisted on
+            // one of its own — an authored battle may well say which cartel is raiding.
+            if (side.cartel == null || side.cartel.isBlank())
+                side.cartel = entry.fleet().cartel;
 
             // Ships the SCENARIO listed on this side survive the fleet being brought. A
             // bringYourOwn side means "the mobile force is brought", not "this side owns
@@ -213,6 +220,11 @@ public final class FleetsToScenario {
             setup.startSpeed = 16;   // Speed Max, the convention ScenarioSpec already uses
             setup.weaponStatus = conditions.weaponStatus();
             setup.refits = new ArrayList<>();
+            // The loadout the fleet BOUGHT travels with the ship (G15.4, G15.415). Copied
+            // rather than shared, so editing the saved fleet afterwards cannot reach into a
+            // battle already under way.
+            if (ship.optionMounts != null && !ship.optionMounts.isEmpty())
+                setup.optionMounts = new java.util.LinkedHashMap<>(ship.optionMounts);
             out.add(setup);
         }
         return out;
