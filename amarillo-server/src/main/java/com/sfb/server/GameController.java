@@ -355,8 +355,11 @@ public class GameController {
             return body;
         }
 
+        // The cartel comes with the fleet so G15.44's quota is judged here, at BUILD time, where
+        // the option mounts now exist. Dropping it left the quota reachable only at COI, which
+        // is after the force has been declared legal.
         com.sfb.scenario.FleetValidator.Fleet fleet = new com.sfb.scenario.FleetValidator.Fleet(
-                resolved.ships(), resolved.flagshipName(), spec.budget, spec.year);
+                resolved.ships(), resolved.flagshipName(), spec.budget, spec.year, spec.cartel);
         List<com.sfb.scenario.FleetValidator.Violation> violations =
                 com.sfb.scenario.FleetValidator.validate(fleet);
 

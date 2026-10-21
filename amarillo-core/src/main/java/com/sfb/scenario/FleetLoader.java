@@ -68,6 +68,11 @@ public final class FleetLoader {
             ship.setName(n == 1 ? wanted : wanted + " #" + n);
 
             com.sfb.scenario.ScenarioLoader.outfitForYear(ship, faction, spec.year, shipSpec);
+            // The loadout the fleet BOUGHT (G15.4, G15.415), fitted here so everything that
+            // prices or validates the fleet sees it. Without this the mounts existed only in the
+            // saved file and the budget check read a bare hull - which is the hole G15.411
+            // leaves open, since each option "adjusts the BPV of the ship by the stated amount".
+            com.sfb.scenario.ScenarioLoader.equipDeclaredMounts(ship, entry.optionMounts, spec.year);
 
             ship.setCoiSpend(entry.coiSpend);
             ships.add(ship);
@@ -86,6 +91,9 @@ public final class FleetLoader {
     /** The resolved fleet, ready to validate against the conditions the spec records. */
     public static FleetValidator.Fleet toFleet(FleetSpec spec) {
         Resolution r = resolve(spec);
-        return new FleetValidator.Fleet(r.ships(), r.flagshipName(), spec.budget, spec.year);
+        // The cartel travels with the force so the validator can check G15.44's quota at BUILD
+        // time, where the loadout now exists, rather than only at COI submission.
+        return new FleetValidator.Fleet(
+                r.ships(), r.flagshipName(), spec.budget, spec.year, spec.cartel);
     }
 }

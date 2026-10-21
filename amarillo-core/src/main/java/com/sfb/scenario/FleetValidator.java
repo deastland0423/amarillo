@@ -75,12 +75,24 @@ public final class FleetValidator {
         public final String flagshipName;
         public final int budget;    // points agreed for this side (S8.11)
         public final int year;      // the scenario date (S8.13)
+        /**
+         * The Orion cartel this force flies for (G15.44), or null for a force that is not Orion
+         * or has not said. On the FLEET because the quota is on the force: "The limits below
+         * apply to the entire Orion battle force, as otherwise no ship would have enough option
+         * mounts to have a 10% availability weapon."
+         */
+        public final String cartel;
 
         public Fleet(List<Ship> ships, String flagshipName, int budget, int year) {
+            this(ships, flagshipName, budget, year, null);
+        }
+
+        public Fleet(List<Ship> ships, String flagshipName, int budget, int year, String cartel) {
             this.ships = List.copyOf(ships);
             this.flagshipName = flagshipName;
             this.budget = budget;
             this.year = year;
+            this.cartel = cartel;
         }
 
         public Ship flagship() {
@@ -109,6 +121,7 @@ public final class FleetValidator {
         checkBattlecruisers(fleet, out);
         checkServiceYear(fleet, out);
         checkCarrierGroups(fleet, out);
+        checkCartelQuota(fleet, out);
         checkLeaders(fleet, out);
         checkShipCountGuideline(fleet, out);
         checkDistinctNames(fleet, out);
@@ -498,6 +511,40 @@ public final class FleetValidator {
      * And the other direction (S8.311): an escort in a fleet with no carrier to serve is not a
      * legal purchase.
      */
+    /**
+     * G15.44: an Orion force's option mounts must fit its cartel's access tiers.
+     *
+     * <h2>Why the whole force, and why not a filter</h2>
+     * "The limits below apply to the entire Orion battle force, as otherwise no ship would have
+     * enough option mounts to have a 10% availability weapon." G15.441 then splits those mounts
+     * 70% to the cartel's home empire, 20% to its operating zone and 10% to anyone.
+     *
+     * <p>That is why the option PICKER is not filtered by cartel anywhere: no single choice is
+     * legal or illegal on its own. A Klingon disruptor is fine until it is the eleventh one. The
+     * quota can only be judged on the selection as a whole, which is what this does — and what
+     * the COI form does for the other half of the problem.
+     *
+     * <h2>Checked at BUILD time, now that mounts are bought with the ship</h2>
+     * This used to be reachable only at COI submission, which was the only moment a loadout
+     * existed. A fleet that saved an illegal spread learned about it on the way into a battle.
+     */
+    private static void checkCartelQuota(Fleet fleet, List<Violation> out) {
+        if (fleet.cartel == null || fleet.cartel.isBlank())
+            return;
+        com.sfb.objects.OrionCartel cartel =
+                com.sfb.objects.OrionCartelTable.loadDefault().get(fleet.cartel);
+        if (cartel == null) {
+            out.add(new Violation("G15.44", Severity.ADVISORY,
+                    "Unknown Orion cartel '" + fleet.cartel + "' — no quota enforced", null));
+            return;
+        }
+        com.sfb.objects.CartelQuota.Result result = com.sfb.objects.CartelQuota.evaluate(
+                fleet.ships, cartel, com.sfb.objects.OptionMountCatalog.loadDefault());
+        if (!result.withinQuota)
+            for (String violation : result.violations)
+                out.add(new Violation("G15.44", Severity.ERROR, violation, null));
+    }
+
     private static void checkCarrierGroups(Fleet fleet, List<Violation> out) {
         List<Ship> carriers = fleet.ships.stream().filter(Ship::requiresEscort).toList();
         List<Ship> escorts = new ArrayList<>(fleet.ships.stream().filter(Ship::isEscort).toList());
