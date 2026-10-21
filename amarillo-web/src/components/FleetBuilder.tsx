@@ -206,6 +206,32 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
     }
   }, [spec.ships, spec.year, hullMounts, mountKey]);
 
+  /**
+   * Shelf rows for refit combinations nobody named a hull for (S3.24), resolved on demand.
+   *
+   * <p>The library registers the variants a hull was NAMED in — a D6 yields D6B, D6K, D6Bu — so
+   * those are buyable already. Sixteen of the seventeen Orion files name none, so OAKDISC, the
+   * cloak and the Plus refit could be ticked and never bought. Naming every combination is not
+   * the answer: the Orion CA has four refits and so fifteen combinations, and an OAKDISC-fitted
+   * CA has no canonical name to give it.
+   */
+  const [adhocRefits, setAdhocRefits] =
+    useState<Record<string, CatalogShip & { baseType: string; appliedRefits: string[] }>>({});
+  const refitsAsked = useRef(new Set<string>());
+
+  useEffect(() => {
+    for (const [famKey, codes] of Object.entries(refitChoice)) {
+      if (!codes || codes.length === 0) continue;
+      const cacheKey = `${famKey}@${spec.year}?${[...codes].sort().join(',')}`;
+      if (adhocRefits[cacheKey] || refitsAsked.current.has(cacheKey)) continue;
+      refitsAsked.current.add(cacheKey);
+      const slash = famKey.indexOf('/');
+      gameApi.hullWithRefits(famKey.slice(0, slash), famKey.slice(slash + 1), codes, spec.year)
+        .then(row => setAdhocRefits(p => ({ ...p, [cacheKey]: row })))
+        .catch(() => { /* leave it unbuyable; the shelf already says why */ });
+    }
+  }, [refitChoice, spec.year, adhocRefits]);
+
   /** Which roster row has its mount panel open, by index; -1 for none. */
   const [openMountRow, setOpenMountRow] = useState(-1);
 
@@ -362,7 +388,15 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
     }));
   }
 
-  function addShip(ship: CatalogShip) {
+  /**
+   * Buy a hull.
+   *
+   * <p>`baseType` and `refits` are given for a combination nobody NAMED a hull for (S3.24).
+   * RefitResolver synthesises a type for those — a CA with OAKDISC becomes "CAO" — and no such
+   * type is in the library, so the fleet records what was TICKED and the loader re-applies it.
+   * A named variant like D6B passes neither and is stored by its own type, as before.
+   */
+  function addShip(ship: CatalogShip, baseType?: string, refits?: string[]) {
     setSpec(s => ({
       ...s,
       // The first of a kind keeps the hull's own name; the rest are numbered. Two ships sharing a
@@ -370,9 +404,10 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
       // buying three F5s used to hand back an illegal fleet to be fixed by hand.
       ships: [...s.ships, {
         faction: ship.faction,
-        type: ship.type,
+        type: baseType ?? ship.type,
         name: nameForNewShip(ship.type, ship.name, s.ships.map(e => e.name ?? '')),
         coiSpend: 0,
+        ...(refits && refits.length > 0 ? { refits } : {}),
       }],
     }));
   }
@@ -692,8 +727,14 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                     // What this row currently buys. Null means the ticked combination was never
                     // fielded and so has no catalogue row — the Add button is disabled rather than
                     // quietly buying something else.
-                    const ship = resolveFamily(fam, chosen) ?? fam.base;
-                    const unavailable = resolveFamily(fam, chosen) == null;
+                    // What this row currently buys. A NAMED variant first — a D6B is a hull in
+                    // its own right — then the combination resolved on demand for the far more
+                    // common case that nobody named one (S3.24).
+                    const named = resolveFamily(fam, chosen);
+                    const adhoc = chosen.length === 0 ? undefined
+                      : adhocRefits[`${famKey}@${spec.year}?${[...chosen].sort().join(',')}`];
+                    const ship = named ?? adhoc ?? fam.base;
+                    const unavailable = named == null && adhoc == null && chosen.length > 0;
                     const offers = (fam.base.refitsAvailable ?? [])
                       // A refit cannot be fielded before it exists (S3.24).
                       .filter(o => o.year <= spec.year);
@@ -796,11 +837,13 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                       <button className="fb-shelf-buy"
                               disabled={unavailable}
                               title={unavailable
-                                ? 'That combination of refits was never fielded, so there is no '
-                                  + 'hull to buy yet (S3.24 would permit it)'
+                                ? 'Still working out what that combination costs'
                                 : `Add the ${ship.type} — ${ship.cost} points`}
                               aria-label={`Add the ${ship.type} for ${ship.cost} points`}
-                              onClick={() => addShip(ship)}>
+                              onClick={() => addShip(
+                                ship,
+                                adhoc && !named ? adhoc.baseType : undefined,
+                                adhoc && !named ? adhoc.appliedRefits : undefined)}>
                         {ship.cost}
                         {ship.fighterBpv > 0 && (
                           <span className="fb-hint"> ({ship.bpv}+{ship.fighterBpv})</span>

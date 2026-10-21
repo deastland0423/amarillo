@@ -158,97 +158,7 @@ public class GameController {
             if (factions != null && !factions.isEmpty()
                     && factions.stream().noneMatch(f -> f.equalsIgnoreCase(spec.faction)))
                 continue;
-            com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
-            // S8.131: the date decides which fighters a carrier flies, and S8.11 charges for
-            // them, so the shelf price is only honest once the complement matches the year the
-            // fleet is being built in. A year of 0 — nobody has picked a date yet — leaves the
-            // ship as its own service year built it, which is the right thing to show when
-            // browsing without a date rather than a guess at some house default.
-            //
-            // And the fighters are only one of five year-gated rules. outfitForYear runs them
-            // all, so the shelf quotes what FleetLoader will price and what the battle will
-            // field — a Y175 refitCost included, which 46 hulls and refits declare.
-            com.sfb.scenario.ScenarioLoader.outfitForYear(ship, spec.faction, year, spec);
-            Map<String, Object> row = new java.util.LinkedHashMap<>();
-            row.put("faction", spec.faction);
-            row.put("type", spec.type);
-            row.put("name", spec.name != null ? spec.name : "");
-            // The class written out — "Command Cruiser", "Heavy Carrier", "Galactic Survey Cruiser".
-            // Worth sending because it is NOT the line's display name on 305 of 355 hulls: a CC and a
-            // CVB both sit on the CA line under a "Heavy Cruiser" header, and a Fed CVA sits under
-            // "Dreadnought". The shelf showed the type code and the ship's own name, so what the hull
-            // actually IS was the one thing missing.
-            row.put("typeName", spec.typeName != null ? spec.typeName : "");
-            // REFITS (S3.24). A synthesised variant knows the hull it was built from and which
-            // refits made it, which is what lets the shelf show one row per HULL with its refits as
-            // a choice instead of one row per combination. Lyran's 71 hulls are 26 ships; the Klingon
-            // D7 is one ship with three switches, not four ships.
-            //
-            // Sent only on a variant, so a base hull's row is unchanged and a client that ignores
-            // these fields keeps working — which is how the shelf behaved through the migration.
-            if (spec.refitOf != null) {
-                row.put("refitOf", spec.refitOf);
-                row.put("appliedRefits", spec.appliedRefits);
-            }
-            // And on a BASE hull, what may be fitted to it: each refit's code, name, year and cost,
-            // so the shelf can offer "power pack, +9" rather than make a player decode "CWB".
-            if (spec.refits != null && !spec.refits.isEmpty()) {
-                List<Map<String, Object>> offers = new java.util.ArrayList<>();
-                for (com.sfb.objects.ShipSpec.RefitSpec r : spec.refits) {
-                    Map<String, Object> o = new java.util.LinkedHashMap<>();
-                    o.put("code", r.code);
-                    o.put("name", r.name != null ? r.name : r.code + " refit");
-                    // What to write on the button, when the hull cares. Null rather than "" so the
-                    // client's `??` fallback fires — an empty string is a label that says nothing.
-                    o.put("label", r.label);
-                    o.put("year", r.year);
-                    // The DECLARED flat cost. Not what the refit charges on this hull: a
-                    // convertPower refit (the Federation AWR) prices per reactor and declares 0
-                    // here, and its real cost changes with what else is ticked — the CA's + refit
-                    // installs two more APRs for AWR to convert. The shelf therefore quotes the
-                    // difference between the two resolved variants and ignores this. Kept because
-                    // it is what the DATA says, and a flat-cost refit agrees with it.
-                    o.put("bpv", r.bpv);
-                    o.put("requires", r.requires != null ? r.requires : List.of());
-                    offers.add(o);
-                }
-                row.put("refitsAvailable", offers);
-            }
-            row.put("line", spec.line != null ? spec.line : "");
-            row.put("lineName", com.sfb.objects.ShipLineCatalog.nameOf(spec.line));
-            // The shelf groups by line and orders those groups by the CATALOGUE's order
-            // (biggest warship down to smallest, then civilians), not alphabetically.
-            row.put("lineOrder", com.sfb.objects.ShipLineCatalog.orderOf(spec.line));
-            row.put("lineCivilian", com.sfb.objects.ShipLineCatalog.isCivilian(spec.line));
-            // An OUTER grouping where an empire has generations worth telling apart (Romulan
-            // Eagle/Kestrel/Hawk). Null on every ship that declares none, which is almost all
-            // of them, and the shelf then groups by line alone exactly as before.
-            if (spec.series != null && !spec.series.isBlank()) {
-                row.put("series", spec.series);
-                row.put("seriesName", com.sfb.objects.ShipLineCatalog.seriesNameOf(spec.series));
-                row.put("seriesOrder", com.sfb.objects.ShipLineCatalog.seriesOrderOf(spec.series));
-                com.sfb.objects.ShipLineCatalog.Series meta =
-                        com.sfb.objects.ShipLineCatalog.series(spec.series);
-                if (meta != null && !meta.about.isBlank())
-                    row.put("seriesAbout", meta.about);
-            }
-            row.put("sizeClass", spec.sizeClass);
-            row.put("serviceYear", spec.serviceYear);
-            row.put("commandRating", spec.commandRating);
-            row.put("bpv", spec.bpv);
-            row.put("fighterBpv", com.sfb.scenario.FleetValidator.carriedFighterBpv(ship));
-            row.put("cost", com.sfb.scenario.FleetValidator.costOf(ship));
-            row.put("coiAllowance", com.sfb.scenario.FleetValidator.coiAllowance(ship));
-            // J4.61/J4.62 capability: "CAPABLE" flies its own fighters, "CASUAL" only services
-            // other ships', null is neither. Deliberately NOT the same question as requiresEscort,
-            // which is S8.315 fleet legality — the shelf's carrier filter wants capability, and the
-            // escort obligation is a separate flag it must not be confused with.
-            row.put("carrierClass", spec.carrierClass);
-            row.put("isScout", ship.isScout());
-            row.put("isLeader", spec.isLeader);
-            row.put("isEscort", spec.isEscort);
-            row.put("requiresEscort", spec.requiresEscort);
-            row.put("isBCH", spec.isBCH);
+            Map<String, Object> row = catalogRow(spec, year);
             out.add(row);
         }
         out.sort((a, b) -> {
@@ -279,6 +189,109 @@ public class GameController {
      * carrier flies, so the same hull honestly shows a different air wing in Y168 and Y180, and a
      * buyer cannot otherwise discover that before paying for it.
      */
+
+    /**
+     * One shelf row for a hull, priced for a year.
+     *
+     * <p>Extracted from the catalogue loop so a hull with refits applied on the fly can be
+     * described the same way. A combination nobody NAMED - an Orion CA with OAKDISC, say - has
+     * no row in the library, and the builder still has to show what it costs before anyone
+     * buys it. Two row builders would be two prices.
+     */
+    private Map<String, Object> catalogRow(com.sfb.objects.ShipSpec spec, int year) {
+        com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
+        // S8.131: the date decides which fighters a carrier flies, and S8.11 charges for
+        // them, so the shelf price is only honest once the complement matches the year the
+        // fleet is being built in. A year of 0 — nobody has picked a date yet — leaves the
+        // ship as its own service year built it, which is the right thing to show when
+        // browsing without a date rather than a guess at some house default.
+        //
+        // And the fighters are only one of five year-gated rules. outfitForYear runs them
+        // all, so the shelf quotes what FleetLoader will price and what the battle will
+        // field — a Y175 refitCost included, which 46 hulls and refits declare.
+        com.sfb.scenario.ScenarioLoader.outfitForYear(ship, spec.faction, year, spec);
+        Map<String, Object> row = new java.util.LinkedHashMap<>();
+        row.put("faction", spec.faction);
+        row.put("type", spec.type);
+        row.put("name", spec.name != null ? spec.name : "");
+        // The class written out — "Command Cruiser", "Heavy Carrier", "Galactic Survey Cruiser".
+        // Worth sending because it is NOT the line's display name on 305 of 355 hulls: a CC and a
+        // CVB both sit on the CA line under a "Heavy Cruiser" header, and a Fed CVA sits under
+        // "Dreadnought". The shelf showed the type code and the ship's own name, so what the hull
+        // actually IS was the one thing missing.
+        row.put("typeName", spec.typeName != null ? spec.typeName : "");
+        // REFITS (S3.24). A synthesised variant knows the hull it was built from and which
+        // refits made it, which is what lets the shelf show one row per HULL with its refits as
+        // a choice instead of one row per combination. Lyran's 71 hulls are 26 ships; the Klingon
+        // D7 is one ship with three switches, not four ships.
+        //
+        // Sent only on a variant, so a base hull's row is unchanged and a client that ignores
+        // these fields keeps working — which is how the shelf behaved through the migration.
+        if (spec.refitOf != null) {
+            row.put("refitOf", spec.refitOf);
+            row.put("appliedRefits", spec.appliedRefits);
+        }
+        // And on a BASE hull, what may be fitted to it: each refit's code, name, year and cost,
+        // so the shelf can offer "power pack, +9" rather than make a player decode "CWB".
+        if (spec.refits != null && !spec.refits.isEmpty()) {
+            List<Map<String, Object>> offers = new java.util.ArrayList<>();
+            for (com.sfb.objects.ShipSpec.RefitSpec r : spec.refits) {
+                Map<String, Object> o = new java.util.LinkedHashMap<>();
+                o.put("code", r.code);
+                o.put("name", r.name != null ? r.name : r.code + " refit");
+                // What to write on the button, when the hull cares. Null rather than "" so the
+                // client's `??` fallback fires — an empty string is a label that says nothing.
+                o.put("label", r.label);
+                o.put("year", r.year);
+                // The DECLARED flat cost. Not what the refit charges on this hull: a
+                // convertPower refit (the Federation AWR) prices per reactor and declares 0
+                // here, and its real cost changes with what else is ticked — the CA's + refit
+                // installs two more APRs for AWR to convert. The shelf therefore quotes the
+                // difference between the two resolved variants and ignores this. Kept because
+                // it is what the DATA says, and a flat-cost refit agrees with it.
+                o.put("bpv", r.bpv);
+                o.put("requires", r.requires != null ? r.requires : List.of());
+                offers.add(o);
+            }
+            row.put("refitsAvailable", offers);
+        }
+        row.put("line", spec.line != null ? spec.line : "");
+        row.put("lineName", com.sfb.objects.ShipLineCatalog.nameOf(spec.line));
+        // The shelf groups by line and orders those groups by the CATALOGUE's order
+        // (biggest warship down to smallest, then civilians), not alphabetically.
+        row.put("lineOrder", com.sfb.objects.ShipLineCatalog.orderOf(spec.line));
+        row.put("lineCivilian", com.sfb.objects.ShipLineCatalog.isCivilian(spec.line));
+        // An OUTER grouping where an empire has generations worth telling apart (Romulan
+        // Eagle/Kestrel/Hawk). Null on every ship that declares none, which is almost all
+        // of them, and the shelf then groups by line alone exactly as before.
+        if (spec.series != null && !spec.series.isBlank()) {
+            row.put("series", spec.series);
+            row.put("seriesName", com.sfb.objects.ShipLineCatalog.seriesNameOf(spec.series));
+            row.put("seriesOrder", com.sfb.objects.ShipLineCatalog.seriesOrderOf(spec.series));
+            com.sfb.objects.ShipLineCatalog.Series meta =
+                    com.sfb.objects.ShipLineCatalog.series(spec.series);
+            if (meta != null && !meta.about.isBlank())
+                row.put("seriesAbout", meta.about);
+        }
+        row.put("sizeClass", spec.sizeClass);
+        row.put("serviceYear", spec.serviceYear);
+        row.put("commandRating", spec.commandRating);
+        row.put("bpv", spec.bpv);
+        row.put("fighterBpv", com.sfb.scenario.FleetValidator.carriedFighterBpv(ship));
+        row.put("cost", com.sfb.scenario.FleetValidator.costOf(ship));
+        row.put("coiAllowance", com.sfb.scenario.FleetValidator.coiAllowance(ship));
+        // J4.61/J4.62 capability: "CAPABLE" flies its own fighters, "CASUAL" only services
+        // other ships', null is neither. Deliberately NOT the same question as requiresEscort,
+        // which is S8.315 fleet legality — the shelf's carrier filter wants capability, and the
+        // escort obligation is a separate flag it must not be confused with.
+        row.put("carrierClass", spec.carrierClass);
+        row.put("isScout", ship.isScout());
+        row.put("isLeader", spec.isLeader);
+        row.put("isEscort", spec.isEscort);
+        row.put("requiresEscort", spec.requiresEscort);
+        row.put("isBCH", spec.isBCH);
+        return row;
+    }
     /**
      * The option mounts a hull has, and what may legally go in each, for a given year (G15.4).
      *
@@ -293,6 +306,46 @@ public class GameController {
      * eleventh one. The empires each option comes from are returned instead, and the caller
      * tiers and totals them across the fleet — which is what {@code CartelQuota} does on submit.
      */
+    /**
+     * A hull with refits applied on the fly, described as a shelf row (S3.24).
+     *
+     * <h2>Why the catalogue cannot answer</h2>
+     * The library registers the variants a hull was NAMED in — a Klingon D6 yields D6B, D6K,
+     * D6Bu — so those are buyable by name. A combination nobody named is not: 16 of the 17 Orion
+     * files declare their refits as switches and name no variant at all, so OAKDISC, the cloak
+     * and the Plus refit could be ticked and never bought. S3.24 makes the combination legal;
+     * only the catalogue was silent.
+     *
+     * <p>Naming every combination is not the fix. The Orion CA has four refits, so fifteen
+     * combinations, and unlike a D6B an OAKDISC-fitted CA has no canonical type name to give it.
+     * Resolving on demand answers for every faction's unnamed combinations at once.
+     */
+    @GetMapping("/ships/{faction}/{type}/refit")
+    public ResponseEntity<?> shipWithRefits(
+            @PathVariable String faction,
+            @PathVariable String type,
+            @RequestParam(name = "codes", required = false, defaultValue = "") String codes,
+            @RequestParam(name = "year", required = false, defaultValue = "0") int year) {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        com.sfb.objects.ShipSpec base = com.sfb.objects.ShipLibrary.get(faction, type);
+        if (base == null)
+            return ResponseEntity.notFound().build();
+
+        List<String> wanted = new ArrayList<>();
+        for (String code : codes.split(","))
+            if (!code.isBlank())
+                wanted.add(code.trim());
+
+        com.sfb.objects.ShipSpec resolved =
+                wanted.isEmpty() ? base : com.sfb.objects.RefitResolver.apply(base, wanted);
+        Map<String, Object> row = catalogRow(resolved, year);
+        // The BASE type and the codes, so a fleet records what was ticked rather than a type
+        // name that does not exist. FleetLoader re-applies them when the fleet is resolved.
+        row.put("baseType", base.type);
+        row.put("appliedRefits", wanted);
+        return ResponseEntity.ok(row);
+    }
+
     @GetMapping("/ships/{faction}/{type}/option-mounts")
     public ResponseEntity<?> shipOptionMounts(
             @PathVariable String faction,

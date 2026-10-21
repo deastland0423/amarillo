@@ -72,6 +72,11 @@ public class ScenarioLoader {
                     + faction + "/" + setup.type + " — ship skipped");
             return null;
         }
+        // Refits the scenario asked for that nobody named a hull after (S3.24). This field has
+        // been written by FleetsToScenario since it was added and read by nothing, so a fleet's
+        // refits reached a battle only when they happened to name a variant type.
+        if (setup.refits != null && !setup.refits.isEmpty())
+            shipSpec = com.sfb.objects.RefitResolver.apply(shipSpec, setup.refits);
         Ship ship = ShipLibrary.createShip(shipSpec);
         ship.setName(setup.shipName);
         ship.getShuttles().prefixShuttleNames(setup.shipName);

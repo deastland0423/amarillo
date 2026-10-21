@@ -219,7 +219,9 @@ public final class FleetsToScenario {
             setup.startHeading = spot != null ? spot.heading() : fallbackHeading;
             setup.startSpeed = 16;   // Speed Max, the convention ScenarioSpec already uses
             setup.weaponStatus = conditions.weaponStatus();
-            setup.refits = new ArrayList<>();
+            // What the fleet ticked, carried rather than dropped. Until ScenarioLoader learned
+            // to read this field it was written here and never used.
+            setup.refits = ship.refits == null ? new ArrayList<>() : new ArrayList<>(ship.refits);
             // The loadout the fleet BOUGHT travels with the ship (G15.4, G15.415). Copied
             // rather than shared, so editing the saved fleet afterwards cannot reach into a
             // battle already under way.

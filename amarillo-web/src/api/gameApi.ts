@@ -905,6 +905,18 @@ export const gameApi = {
    * G15.441's quota is on the whole force, so no single option is legal or illegal alone - the
    * producing empires come back instead, for ./cartelQuota to tier.
    */
+  /**
+   * A hull with refits applied on the fly (S3.24), as a shelf row. For combinations nobody
+   * NAMED a hull for — most Orion refits — which the catalogue cannot list and which a fleet
+   * therefore records as base type plus codes.
+   */
+  hullWithRefits(faction: string, type: string, codes: string[], year: number)
+      : Promise<CatalogShip & { baseType: string; appliedRefits: string[] }> {
+    return request(
+      `/api/games/ships/${encodeURIComponent(faction)}/${encodeURIComponent(type)}`
+      + `/refit?codes=${encodeURIComponent(codes.join(','))}&year=${year}`);
+  },
+
   hullOptionMounts(faction: string, type: string, year: number): Promise<HullOptionMounts> {
     return request(
       `/api/games/ships/${encodeURIComponent(faction)}/${encodeURIComponent(type)}`

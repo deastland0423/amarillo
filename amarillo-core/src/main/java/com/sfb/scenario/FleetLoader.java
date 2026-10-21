@@ -46,6 +46,10 @@ public final class FleetLoader {
                 unknown.add(faction + " " + entry.type);
                 continue;
             }
+            // Refits the player ticked that nobody ever named a hull for (S3.24). A named
+            // variant arrives as its own type and carries no codes, so this is a no-op for it.
+            if (entry.refits != null && !entry.refits.isEmpty())
+                shipSpec = com.sfb.objects.RefitResolver.apply(shipSpec, entry.refits);
             Ship ship = ShipLibrary.createShip(shipSpec);
             // S8.131: the fleet's date decides which fighters a carrier has, and S8.11 charges
             // for them, so the complement must be re-seated BEFORE anything prices the ship.

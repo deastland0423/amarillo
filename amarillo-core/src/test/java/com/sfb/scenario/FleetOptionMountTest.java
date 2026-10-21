@@ -98,6 +98,51 @@ public class FleetOptionMountTest {
                         .noneMatch(v -> "G15.44".equals(v.rule)));
     }
 
+
+    // ---------------------------------------------------------------- unnamed refit combinations
+
+    /**
+     * S3.24: a refit combination nobody NAMED a hull for is still legal, and must still be
+     * buyable. Sixteen of the seventeen Orion files declare their refits as switches and name no
+     * variant, so OAKDISC could be ticked in the builder and never bought.
+     */
+    @Test
+    public void aFleetCanTickARefitNobodyNamedAHullFor() {
+        FleetSpec.ShipEntry entry = orion("CA", "Refitted");
+        entry.refits.add("O");
+        FleetSpec spec = fleetOf(null, entry);
+
+        Ship refitted = FleetLoader.resolve(spec).ships().get(0);
+        Ship plain = FleetLoader.resolve(fleetOf(null, orion("CA", "Plain"))).ships().get(0);
+
+        assertEquals("OAKDISC doubles the sensor rating for seeking weapons (FD4.5)",
+                plain.getSpecialFunctions().getControlLimit() * 2,
+                refitted.getSpecialFunctions().getControlLimit());
+    }
+
+    /** And it is paid for: a refit raises the BPV, so the budget sees it (S3.24). */
+    @Test
+    public void aTickedRefitIsPaidFor() {
+        FleetSpec.ShipEntry plain = orion("CA", "Plain");
+        FleetSpec.ShipEntry refitted = orion("CA", "Refitted");
+        refitted.refits.add("O");
+
+        double bare = FleetValidator.costOf(FleetLoader.resolve(fleetOf(null, plain)).ships().get(0));
+        double withRefit =
+                FleetValidator.costOf(FleetLoader.resolve(fleetOf(null, refitted)).ships().get(0));
+
+        assertEquals("the CA's OAKDISC refit is +15", 15.0, withRefit - bare, 1e-9);
+    }
+
+    /** A hull bought by its NAMED variant type carries no codes and is untouched by this. */
+    @Test
+    public void anamedVariantStillWorksUnchanged() {
+        FleetSpec spec = fleetOf(null, orion("CA", "ByName"));
+
+        assertTrue("no refits ticked", spec.ships.get(0).refits.isEmpty());
+        assertNotNull(FleetLoader.resolve(spec).ships().get(0));
+    }
+
     // ---------------------------------------------------------------- the cartel quota
 
     /**

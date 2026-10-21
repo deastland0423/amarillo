@@ -85,6 +85,24 @@ public class FleetSpec {
         public double coiSpend;
 
         /**
+         * Refit codes ticked for this ship (S3.24), applied to {@link #type} when the fleet
+         * resolves — e.g. type "CA" with refits ["O", "+"].
+         *
+         * <h2>Why, when a refitted hull can also be a TYPE</h2>
+         * A refit that someone NAMED is a hull in its own right: a Klingon D6 with the B refit
+         * is a D6B, and the library registers it. Most refits were never named. Sixteen of the
+         * seventeen Orion files declare their refits as switches and name no variant, so OAKDISC
+         * and the cloak could be ticked in the builder and never bought — the combination is
+         * legal under S3.24 and only the catalogue was silent.
+         *
+         * <p>Naming them is not the answer: the Orion CA has four refits, so fifteen
+         * combinations, and an OAKDISC-fitted CA has no canonical name to give it. So the fleet
+         * records what was TICKED and the loader applies it, exactly as it does for option
+         * mounts — and a hull bought by its named type simply carries no codes here.
+         */
+        public java.util.List<String> refits = new java.util.ArrayList<>();
+
+        /**
          * Orion option-mount choices bought with the ship (G15.4), by mount designator → Annex
          * #8B option name. The same shape as {@code ScenarioSpec.ShipSetup.optionMounts} and
          * {@code CoiLoadout.optionMounts}: one record of one fact, in whichever hand bought it.
