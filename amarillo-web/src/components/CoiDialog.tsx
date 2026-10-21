@@ -2,7 +2,7 @@ import { Fragment, useState, useEffect } from 'react';
 import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiDroneRack, Cartel } from '../api/gameApi';
 import { gameApi } from '../api/gameApi';
 import { Stepper } from './Stepper';
-import { tierFor, quotaOf } from './cartelQuota';
+import { tierFor, quotaOf, describeCartel } from './cartelQuota';
 import type { Tier, Quota } from './cartelQuota';
 
 // G15.44's tiers and quota live in ./cartelQuota, shared with the fleet builder: a loadout is
@@ -911,7 +911,7 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
                       onChange={e => setCartelChoice(prev => ({ ...prev, [side.faction]: e.target.value }))}>
                       <option value="">(none — no quota)</option>
                       {cartels.map(c => (
-                        <option key={c.name} value={c.name}>{c.name} — home {c.home}</option>
+                        <option key={c.name} value={c.name}>{describeCartel(c)}</option>
                       ))}
                     </select>
                   )}

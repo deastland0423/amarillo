@@ -66,3 +66,21 @@ export function describeQuota(q: Quota, cartel: Cartel | undefined): string {
   return `${q.op}/${q.opCap} operating-zone, ${q.outUsed}/${q.outCap} outside`
        + (q.within ? '' : ' — over quota (G15.44)');
 }
+
+/**
+ * How a cartel reads in a picker, e.g. "Daven — Klingon + (Hydran, Lyran, Kzinti, Federation,
+ * LDR)": the home empire, then the operating zone in parentheses.
+ *
+ * <p>The operating zone belongs on the label because the home empire alone does not tell a
+ * player what a cartel can field: Lion's Heart and Penzance are both Federation (photons), but
+ * one reaches into Kzinti space for drones and the other into Romulan space for plasma, and
+ * G15.441 lets 20% of the force's mounts come from there.
+ *
+ * <p>The home empire is dropped from the zone list when the data repeats it (Dragon's operating
+ * zone is "Federation", its own home). Home access is already unlimited, so echoing it would
+ * advertise a reach the cartel does not have.
+ */
+export function describeCartel(c: Cartel): string {
+  const zone = c.operatingZone.filter(e => e !== c.home);
+  return `${c.name} — ${c.home}` + (zone.length ? ` + (${zone.join(', ')})` : '');
+}
