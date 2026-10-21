@@ -148,9 +148,13 @@ Mounts and refits are now bought where the ship is bought (G15.415). See the mem
 `project_option_mount_shipyard` for the design and the two rules that catch people.
 
 **Left:**
-- **`ShipDto` does not expose option mounts**, so the SSD popup cannot show an Orion's fitted
-  weapons although the fleet builder can. Adding it means classifying the field in
-  `ShipDtoPrivacyTest`; the fitted weapon already appears in the public weapons list, so hiding
+- **`ShipDto` does not expose the option MOUNTS** — the empty ones. This line used to say the
+  SSD popup "cannot show an Orion's fitted weapons", and that was wrong: a fitted weapon is a
+  weapon on the ship, so it reaches the panel like any other, captioned "Disruptor-30 OPT-A"
+  and drawn in its own arc. `OrionOptionMountDtoTest` pins that, in a running game, after the
+  claim went unchecked. What is genuinely missing is the mount a player left EMPTY: the SSD
+  sheet prints an empty OPT box and the panel prints nothing at all. Adding it means
+  classifying the field in `ShipDtoPrivacyTest`; the fitted weapon is already public, so hiding
   the mount it sits in would conceal nothing.
 - **Nothing has been looked at in a browser.** The fleet-builder mount panel, the cartel
   dropdown, the quota line and the roster column widths are verified only by tsc/lint/build and
