@@ -168,13 +168,10 @@ Mounts and refits are now bought where the ship is bought (G15.415). See the mem
   — see `withoutACartelNoQuotaIsEnforced`, which deliberately says a force that has not declared
   is not second-guessed. A hand-edited JSON or a direct API call still produces the state.
   Making it a real guarantee means flipping that test and possibly invalidating saved fleets.
-- **G15.442 — the Cluster Cartel is MIS-TIERED.** The rule: Cluster "treats Kzinti, Lyran, and
-  Klingon space as 'Home' territory (90% of weapons)" with the other 10% from anywhere, and the
-  WYNs are under the same restriction. `orion_cartels.json` files those three as Cluster's
-  OPERATING zone, so they are capped at 20% and a legal Cluster fleet reads illegal. The fix
-  looks like data, not logic: our 70/20/10 is implemented as "home unlimited, operating <= 20%,
-  outside <= 10%", so G15.442 is the same shape with an empty operating zone and a multi-empire
-  home. `OrionCartel.home` is a single `String` today.
+- **G15.442 — DONE 2026-10-21.** `OrionCartel.home` is a `List<String>`; the Cluster carries
+  four home empires and an empty operating zone, and `CartelQuota` did not change at all. The
+  caps "operating <= 20%, outside <= 10%" already restate G15.441's 70/20/10, so an empty zone
+  yields 90/10 out of the same arithmetic — the exception is a SHAPE, not a branch.
 - **G15.445 — the technology lag is not implemented.** A cartel cannot use a system until two
   years after its home empire fields it, three after an operating-zone empire, five after anyone
   else. Options are gated on the weapon's own `yearAvailable` only, so an Orion can field a
@@ -182,6 +179,14 @@ Mounts and refits are now bought where the ship is bought (G15.415). See the mem
 - **The PPD has no weapon class**, so its Annex #8B row stays recipe-less and unbuyable
   (confirmed by the owner 2026-10-21). `OptionMountTranslationTest` uses it as the example of an
   honestly-unimplemented option and will fail the day that changes.
+- **R8.R3's wing arc CHOICE has no way to reach core.** `OptionMountLoadout.equip` takes a
+  `WingArc`, because the rule lets a wing disruptor or fusion beam bear FA *or* outboard
+  "depending on the taste of the Orion player" — one ship may carry one of each. But
+  `FleetSpec.ShipEntry`, `ScenarioSpec.ShipSetup` and `CoiLoadout` all record a mount as
+  designator -> option NAME, so there is nowhere to put the choice and neither picker offers it.
+  Every wing disruptor and fusion beam silently gets FORWARD. Closing it means a parallel map in
+  all three places and a small control in both pickers, shown only for those two weapons in a
+  wing mount.
 - **G15.42's non-weapon options** — batteries, APR, labs, cargo, tractors, transporters, repair,
   hull, barracks — are listed in the catalogue with no `weaponSpec`, so they cannot be equipped.
   "None of the non-weapon options changes the BPV of the ship," so they need a different seat
@@ -218,15 +223,19 @@ groundwork already in place.
   - **`OptionMount.Position` has no WYN hull-side value.** A Plasma-G is legal in two adjacent
     hull-side mounts and illegal in two adjacent wing mounts, so hull-side cannot be squeezed
     into WING. No WYN ship is in the data, so nothing is wrong today.
-  - **The swivel data question, unresolved.** The swivel plasma entries cost MORE (2 vs 1, 7 vs
-    4) yet carry the more CONSTRAINED `weaponSpec` — `launchDirections: ["FA"]` where the
-    no-swivel entry has none. Either absent means "inherits the mount's arc" and the swivel
-    entry is redundant, or the two are transposed and an Orion is paying extra for the worse
-    weapon. Read Annex #8B before trusting either.
-  - **Both ESGs and the PPD were never checked against #8B for POSITION.** All four plasma
-    entries turned out centerline-only, so "either position" on these three looks more like an
-    unfilled field than a statement. (The ESG's missing *recipe* was fixed 2026-10-21; its
-    `positions` were not revisited.)
+  - **The swivel question — ANSWERED 2026-10-21, and it was worse than transposed.**
+    `WeaponFactory` derives a plasma launcher's launch directions from its arc (D2.34) and a
+    stated list wins, so `launchDirections: ["FA"]` pinned the swivel torpedo to the FIXED
+    one's single direction and cancelled what it cost +1 for. R8.R3 says the difference is the
+    ARC: FA against FP, one launch direction against D2.34's three. The override is gone and
+    `swivel` is stated instead. Removing it exposed a second bug beneath — the derivation read
+    `ws.arcs`, null on a catalogue option because an option's arcs come from the MOUNT, so
+    every option-mount plasma had derived ZERO launch directions.
+  - **The PPD's position — SETTLED.** R8.R3: "Hellbore, PPD: Not Allowed" in wing mounts, so it
+    is `positions: ["CENTERLINE"]` like the Hellbore. **The ESGs are still open**, narrowly:
+    R8.R3's wing table assigns ARCS, and an ESG has none (it generates a field, G23.0), so its
+    absence from that table is not evidence either way. Both ESG rows still permit either
+    position.
 
 - **R1.32 Base Augmentation Modules.** Module R1 SSD book p.78, not yet read. All nine Base
   Stations declare the fighter, hangar and PF modules out of their baseline, so this is what
