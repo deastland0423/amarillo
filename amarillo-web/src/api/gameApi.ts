@@ -606,8 +606,15 @@ export const gameApi = {
    * date decide which fighters a carrier flies, so the bays come back with a different air wing in
    * Y168 and Y183.
    */
-  shipDetail(faction: string, type: string, year?: number): Promise<ShipObject> {
-    const query = year && year > 0 ? `?year=${year}` : '';
+  /**
+   * One hull in full. `codes` carries refits for a combination nobody named a hull for (S3.24):
+   * the caller sends the BASE type and what it ticked, because "CAO" is not a library type.
+   */
+  shipDetail(faction: string, type: string, year?: number, codes?: string[]): Promise<ShipObject> {
+    const parts: string[] = [];
+    if (year && year > 0) parts.push(`year=${year}`);
+    if (codes && codes.length > 0) parts.push(`codes=${encodeURIComponent(codes.join(','))}`);
+    const query = parts.length > 0 ? `?${parts.join('&')}` : '';
     return request(`/api/games/ships/${encodeURIComponent(faction)}`
       + `/${encodeURIComponent(type)}${query}`);
   },

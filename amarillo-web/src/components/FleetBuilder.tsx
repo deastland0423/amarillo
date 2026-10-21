@@ -1,12 +1,12 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gameApi } from '../api/gameApi';
-import { familiesOf, matchesSearch, resolveFamily, toggleRefit } from './shelfFamilies';
+import { familiesOf, matchesSearch, resolveFamily, toggleRefit, variantOf } from './shelfFamilies';
 import { isGeneratedName, nameForNewShip } from './fleetNaming';
 import type {
   CatalogShip, Cartel, FleetSpec, FleetSummary, FleetValidation, FleetViolation,
   HullOptionMounts,
 } from '../api/gameApi';
-import { tierFor, quotaOf, describeQuota } from './cartelQuota';
+import { tierFor, quotaOf, describeQuota, describeCartel } from './cartelQuota';
 import type { Tier } from './cartelQuota';
 import type { ShipObject } from '../types/gameState';
 import SsdPanel from './SsdPanel';
@@ -215,22 +215,30 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
    * the answer: the Orion CA has four refits and so fifteen combinations, and an OAKDISC-fitted
    * CA has no canonical name to give it.
    */
-  const [adhocRefits, setAdhocRefits] =
-    useState<Record<string, CatalogShip & { baseType: string; appliedRefits: string[] }>>({});
+  type AdhocHull = CatalogShip & { baseType: string; appliedRefits: string[] };
+  /** null means the server was asked and refused: that combination really cannot be built. */
+  const [adhocRefits, setAdhocRefits] = useState<Record<string, AdhocHull | null>>({});
   const refitsAsked = useRef(new Set<string>());
+
+  const refitKey = useCallback(
+    (famKey: string, codes: string[]) =>
+      `${famKey}@${spec.year}?${[...codes].sort().join(',')}`,
+    [spec.year]);
 
   useEffect(() => {
     for (const [famKey, codes] of Object.entries(refitChoice)) {
       if (!codes || codes.length === 0) continue;
-      const cacheKey = `${famKey}@${spec.year}?${[...codes].sort().join(',')}`;
-      if (adhocRefits[cacheKey] || refitsAsked.current.has(cacheKey)) continue;
+      const cacheKey = refitKey(famKey, codes);
+      if (cacheKey in adhocRefits || refitsAsked.current.has(cacheKey)) continue;
       refitsAsked.current.add(cacheKey);
       const slash = famKey.indexOf('/');
       gameApi.hullWithRefits(famKey.slice(0, slash), famKey.slice(slash + 1), codes, spec.year)
         .then(row => setAdhocRefits(p => ({ ...p, [cacheKey]: row })))
-        .catch(() => { /* leave it unbuyable; the shelf already says why */ });
+        // Record the refusal. An unresolved combination and an impossible one look identical
+        // on the shelf otherwise, and the chip would go on offering a hull that cannot exist.
+        .catch(() => setAdhocRefits(p => ({ ...p, [cacheKey]: null })));
     }
-  }, [refitChoice, spec.year, adhocRefits]);
+  }, [refitChoice, spec.year, adhocRefits, refitKey]);
 
   /** Which roster row has its mount panel open, by index; -1 for none. */
   const [openMountRow, setOpenMountRow] = useState(-1);
@@ -422,11 +430,16 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
    * The fleet's year goes with the request because S8.131 makes it decide a carrier's air wing, so
    * the bays shown are the ones this fleet would actually fly.
    */
-  function inspect(ship: CatalogShip) {
+  function inspect(ship: CatalogShip, adhoc?: { baseType: string; appliedRefits: string[] }) {
     setViewing(ship);
     setViewShip(null);
     setViewError('');
-    gameApi.shipDetail(ship.faction, ship.type, spec.year)
+    // An UNNAMED refit combination is fetched the way it is bought: base type plus the codes.
+    // Its own type — "CAO" for an OAKDISC-fitted Orion CA — is synthesised and not in the
+    // library, so asking for it by name 404s and the viewer could not open the ship the shelf
+    // was offering. See GameController.shipDetail.
+    gameApi.shipDetail(ship.faction, adhoc?.baseType ?? ship.type,
+                       spec.year, adhoc?.appliedRefits)
       .then(setViewShip)
       .catch(e => setViewError(e instanceof Error ? e.message : String(e)));
   }
@@ -608,9 +621,7 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                     onChange={e => setSpec(s => ({ ...s, cartel: e.target.value || undefined }))}>
               <option value="">(none declared)</option>
               {cartels.map(c => (
-                <option key={c.name} value={c.name}>
-                  {c.name} — home {c.home}
-                </option>
+                <option key={c.name} value={c.name}>{describeCartel(c)}</option>
               ))}
             </select>
           </label>
@@ -730,11 +741,19 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                     // What this row currently buys. A NAMED variant first — a D6B is a hull in
                     // its own right — then the combination resolved on demand for the far more
                     // common case that nobody named one (S3.24).
-                    const named = resolveFamily(fam, chosen);
-                    const adhoc = chosen.length === 0 ? undefined
-                      : adhocRefits[`${famKey}@${spec.year}?${[...chosen].sort().join(',')}`];
-                    const ship = named ?? adhoc ?? fam.base;
-                    const unavailable = named == null && adhoc == null && chosen.length > 0;
+                    // What a set of ticks buys — a named variant, a resolved one, null for a
+                    // combination the server refused, or undefined while it is still being
+                    // asked. shelfFamilies.variantOf has the three answers and why they differ.
+                    const variantFor = (codes: string[]) =>
+                      variantOf(fam, codes, adhocRefits, cs => refitKey(famKey, cs));
+                    const bought = variantFor(chosen);
+                    const ship = bought ?? fam.base;
+                    const unavailable = bought == null;
+                    // A fleet records an UNNAMED combination as its base type plus the codes
+                    // ticked — "CAO" is not a library type — so the buy needs to know which of
+                    // the two kinds of answer it got. A named variant is bought by its own name.
+                    const adhoc = chosen.length > 0 && !resolveFamily(fam, chosen)
+                      ? adhocRefits[refitKey(famKey, chosen)] : null;
                     const offers = (fam.base.refitsAvailable ?? [])
                       // A refit cannot be fielded before it exists (S3.24).
                       .filter(o => o.year <= spec.year);
@@ -770,8 +789,10 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                           // arrives on top of B, so offering it alone would offer a ship that does
                           // not exist. See shelfFamilies.toggleRefit.
                           const withNeeds = toggleRefit(chosen, o.code, o.requires);
-                          const other = resolveFamily(fam, withNeeds);
-                          const buildable = other != null;
+                          const other = variantFor(withNeeds);
+                          // Only a refusal we have actually heard disables the chip; a
+                          // combination still being resolved stays clickable.
+                          const buildable = other !== null;
                           /**
                            * What this refit costs ON THIS HULL, given everything else ticked —
                            * the difference between the two resolved variants, not the flat `bpv`
@@ -790,6 +811,8 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                            */
                           const delta = other == null ? o.bpv
                             : on ? ship.cost - other.cost : other.cost - ship.cost;
+                          // Un-ticking back to the bare hull needs no server round trip, so the
+                          // price of a lone refit is exact the moment it is on.
                           const label = o.label || o.name.replace(/ refit$/, '');
                           /**
                            * Refits this click would drag in that are not ticked yet.
@@ -820,7 +843,9 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                                         + (pulledNames.length > 0
                                           ? ` (includes the ${pulledNames.join(' and ')} it requires)`
                                           : '')
-                                      : `${o.name} was never fielded in this combination`}
+                                      : other === null
+                                        ? `${o.name} was never fielded in this combination`
+                                        : `Working out what ${o.name} costs on this hull…`}
                                     onClick={() => setRefitChoice(prev =>
                                       ({ ...prev, [famKey]: withNeeds }))}>
                               {label}
@@ -836,14 +861,16 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                           the eye lands on after reading them, and it quotes what it will charge. */}
                       <button className="fb-shelf-buy"
                               disabled={unavailable}
-                              title={unavailable
-                                ? 'Still working out what that combination costs'
-                                : `Add the ${ship.type} — ${ship.cost} points`}
+                              title={bought === null
+                                ? 'That combination was never fielded'
+                                : unavailable
+                                  ? 'Still working out what that combination costs'
+                                  : `Add the ${ship.type} — ${ship.cost} points`}
                               aria-label={`Add the ${ship.type} for ${ship.cost} points`}
                               onClick={() => addShip(
                                 ship,
-                                adhoc && !named ? adhoc.baseType : undefined,
-                                adhoc && !named ? adhoc.appliedRefits : undefined)}>
+                                adhoc ? adhoc.baseType : undefined,
+                                adhoc ? adhoc.appliedRefits : undefined)}>
                         {ship.cost}
                         {ship.fighterBpv > 0 && (
                           <span className="fb-hint"> ({ship.bpv}+{ship.fighterBpv})</span>
@@ -852,7 +879,7 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                       <button className="fb-shelf-inspect"
                               title={`View the ${ship.type} — arcs, shields and armament`}
                               aria-label={`View the ${ship.type}`}
-                              onClick={() => inspect(ship)}>i</button>
+                              onClick={() => inspect(ship, adhoc ?? undefined)}>i</button>
                     </div>
                   );})}
                 </div>

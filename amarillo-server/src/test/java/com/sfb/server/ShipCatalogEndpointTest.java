@@ -182,7 +182,12 @@ class ShipCatalogEndpointTest {
     // ------------------------------------------------------------------ the ship viewer
 
     private com.sfb.dto.GameStateDto.ShipDto detail(String faction, String type, int year) {
-        Object body = new GameController(null, null).shipDetail(faction, type, year).getBody();
+        return detail(faction, type, "", year);
+    }
+
+    private com.sfb.dto.GameStateDto.ShipDto detail(
+            String faction, String type, String codes, int year) {
+        Object body = new GameController(null, null).shipDetail(faction, type, codes, year).getBody();
         assertInstanceOf(com.sfb.dto.GameStateDto.ShipDto.class, body,
                 faction + " " + type + " did not come back as a ship");
         return (com.sfb.dto.GameStateDto.ShipDto) body;
@@ -334,9 +339,9 @@ class ShipCatalogEndpointTest {
     @Test
     void anUnknownHullIsNotFound() {
         assertEquals(404, new GameController(null, null)
-                .shipDetail("Federation", "NOPE", 0).getStatusCode().value());
+                .shipDetail("Federation", "NOPE", "", 0).getStatusCode().value());
         assertEquals(404, new GameController(null, null)
-                .shipDetail("Atlantean", "CA", 0).getStatusCode().value());
+                .shipDetail("Atlantean", "CA", "", 0).getStatusCode().value());
     }
 
     // ------------------------------------------------------------------ refits (S3.24)
@@ -449,4 +454,34 @@ class ShipCatalogEndpointTest {
         assertTrue(mounts.isEmpty(), "a Federation CA has no option mounts");
     }
 
+    // ------------------------------------- viewing a combination nobody named a hull for
+
+    /**
+     * The (i) button on a shelf row that has refits ticked. Sixteen of the seventeen Orion files
+     * name no variant, so an OAKDISC-fitted CA is a synthesised "CAO" — not a library type. The
+     * viewer asked for it by that name and got a 404, so the one hull the shelf was offering was
+     * the one hull a buyer could not look at. It is fetched the way it is bought: base + codes.
+     */
+    @Test
+    void theViewerOpensARefitCombinationThatHasNoNameOfItsOwn() {
+        com.sfb.dto.GameStateDto.ShipDto oakdisc = detail("Orion", "CA", "O", 180);
+
+        assertEquals("CAO", oakdisc.shipType, "the synthesised type comes back on the ship");
+    }
+
+    /** And the refit is actually ON it — FD4.5 doubles the rating for seeking weapons. */
+    @Test
+    void theViewedCombinationCarriesWhatTheRefitDoes() {
+        double plain = detail("Orion", "CA", "", 180).controlLimit;
+        double refitted = detail("Orion", "CA", "O", 180).controlLimit;
+
+        assertEquals(plain * 2, refitted, 1e-9,
+                "OAKDISC doubles the control rating (FD4.5), so the viewer must show the doubled one");
+    }
+
+    /** No codes is the bare hull, exactly as before — the parameter is additive. */
+    @Test
+    void askingWithoutCodesIsUnchanged() {
+        assertEquals(detail("Orion", "CA", 180).shipType, detail("Orion", "CA", "", 180).shipType);
+    }
 }

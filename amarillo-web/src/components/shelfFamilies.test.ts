@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CatalogShip } from '../api/gameApi';
-import { familiesOf, matchesSearch, resolveFamily, toggleRefit } from './shelfFamilies';
+import { familiesOf, matchesSearch, resolveFamily, toggleRefit, variantOf } from './shelfFamilies';
 
 /** Only the fields the grouping reads; the rest of CatalogShip is irrelevant here. */
 function hull(type: string, extra: Partial<CatalogShip> = {}): CatalogShip {
@@ -190,5 +190,42 @@ describe('matchesSearch', () => {
       Pick<CatalogShip, 'type' | 'typeName' | 'lineName'>;
     expect(matchesSearch(bare, 'DN')).toBe(true);
     expect(matchesSearch(bare, 'cruiser')).toBe(false);
+  });
+});
+
+describe('variantOf', () => {
+  /** The Orion case: a hull whose refits are declared as switches, with no variant named. */
+  const CA = hull('CA', { faction: 'Orion' });
+  const orion = { base: CA, variants: [] };
+  const key = (codes: string[]) => 'Orion/CA@180?' + [...codes].sort().join(',');
+
+  /**
+   * THE REGRESSION. An unnamed combination nobody has asked about yet is UNKNOWN, not refused.
+   * Reading it as refused disabled every Orion refit chip — and the disabled chip was the only
+   * thing that would have asked, so the answer never came. Undefined must stay distinct.
+   */
+  it('says undefined, not null, for a combination nobody has resolved yet', () => {
+    expect(variantOf(orion, ['O'], {}, key)).toBeUndefined();
+  });
+
+  it('hands back the hull the server resolved', () => {
+    const CAO = variant('CAO', 'CA', ['O']);
+    expect(variantOf(orion, ['O'], { [key(['O'])]: CAO }, key)).toBe(CAO);
+  });
+
+  /** A refusal we have actually heard is the one answer that means "cannot be built". */
+  it('says null once the server has refused that combination', () => {
+    expect(variantOf(orion, ['O'], { [key(['O'])]: null }, key)).toBeNull();
+  });
+
+  /** A named variant needs no server at all — a D6B is a hull in its own right. */
+  it('prefers a named variant and never consults the cache', () => {
+    const fam = { base: D6, variants: [D6B] };
+    expect(variantOf(fam, ['B'], {}, () => { throw new Error('should not ask'); })).toBe(D6B);
+  });
+
+  /** No ticks is the bare hull, which is always buyable. */
+  it('gives the bare hull when nothing is ticked', () => {
+    expect(variantOf(orion, [], {}, key)).toBe(CA);
   });
 });

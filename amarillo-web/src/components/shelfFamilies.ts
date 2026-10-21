@@ -72,6 +72,33 @@ export function resolveFamily(fam: HullFamily, codes: string[]): CatalogShip | n
 }
 
 /**
+ * The hull a set of ticks buys, across BOTH ways a combination can be known.
+ *
+ * Three answers, and the difference between two of them is the whole point:
+ *
+ * - a `CatalogShip` — history named this combination (a D6B), or the server resolved it (S3.24);
+ * - `null` — the server was asked and refused: this combination cannot be built;
+ * - `undefined` — nobody has asked yet.
+ *
+ * The shelf once had only `resolveFamily`, whose null meant "not NAMED", and read that as
+ * unbuildable. Sixteen of the seventeen Orion files name no variant, so every Orion refit chip was
+ * disabled — which prevented the tick that is the only thing that asks the server. A deadlock that
+ * showed up as a tooltip saying the combination was never fielded, about combinations that were
+ * fine. An unknown must stay clickable; only a refusal we have actually heard disables anything.
+ */
+export function variantOf(
+  fam: HullFamily,
+  codes: string[],
+  adhoc: Record<string, CatalogShip | null>,
+  keyFor: (codes: string[]) => string,
+): CatalogShip | null | undefined {
+  const byName = resolveFamily(fam, codes);
+  if (byName) return byName;
+  const key = keyFor(codes);
+  return key in adhoc ? adhoc[key] : undefined;
+}
+
+/**
  * Ticking a refit also ticks what it requires.
  *
  * The Klingon K refit arrives on top of the B refit — a D6K has B's shields as well as its own

@@ -390,6 +390,7 @@ public class GameController {
     public ResponseEntity<?> shipDetail(
             @PathVariable String faction,
             @PathVariable String type,
+            @RequestParam(name = "codes", required = false, defaultValue = "") String codes,
             @RequestParam(name = "year", required = false, defaultValue = "0") int year) {
         com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
         try {
@@ -399,9 +400,20 @@ public class GameController {
             System.err.println("Ship lines unavailable: " + e.getMessage());
         }
 
-        com.sfb.objects.ShipSpec spec = com.sfb.objects.ShipLibrary.get(faction, type);
-        if (spec == null)
+        com.sfb.objects.ShipSpec base = com.sfb.objects.ShipLibrary.get(faction, type);
+        if (base == null)
             return ResponseEntity.notFound().build();
+
+        // Refit codes to apply on top, for a combination nobody NAMED a hull for (S3.24). The
+        // shelf can buy those now, so the viewer has to be able to SHOW them: an OAKDISC-fitted
+        // Orion CA is a "CAO", which is not a library type, and the (i) button 404ed on it. The
+        // caller sends the BASE type plus the codes it ticked, exactly as it does when buying.
+        List<String> refitCodes = new ArrayList<>();
+        for (String code : codes.split(","))
+            if (!code.isBlank())
+                refitCodes.add(code.trim());
+        com.sfb.objects.ShipSpec spec = refitCodes.isEmpty() ? base
+                : com.sfb.objects.RefitResolver.apply(base, refitCodes);
 
         com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
         // Every year-gated rule, not just the fighters. The viewer showed a Federation NCD at
