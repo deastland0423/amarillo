@@ -179,14 +179,6 @@ Mounts and refits are now bought where the ship is bought (G15.415). See the mem
 - **The PPD has no weapon class**, so its Annex #8B row stays recipe-less and unbuyable
   (confirmed by the owner 2026-10-21). `OptionMountTranslationTest` uses it as the example of an
   honestly-unimplemented option and will fail the day that changes.
-- **R8.R3's wing arc CHOICE has no way to reach core.** `OptionMountLoadout.equip` takes a
-  `WingArc`, because the rule lets a wing disruptor or fusion beam bear FA *or* outboard
-  "depending on the taste of the Orion player" — one ship may carry one of each. But
-  `FleetSpec.ShipEntry`, `ScenarioSpec.ShipSetup` and `CoiLoadout` all record a mount as
-  designator -> option NAME, so there is nowhere to put the choice and neither picker offers it.
-  Every wing disruptor and fusion beam silently gets FORWARD. Closing it means a parallel map in
-  all three places and a small control in both pickers, shown only for those two weapons in a
-  wing mount.
 - **G15.42's non-weapon options** — batteries, APR, labs, cargo, tractors, transporters, repair,
   hull, barracks — are listed in the catalogue with no `weaponSpec`, so they cannot be equipped.
   "None of the non-weapon options changes the BPV of the ship," so they need a different seat
