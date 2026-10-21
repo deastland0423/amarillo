@@ -267,4 +267,55 @@ public class MultiMountOptionTest {
         assertTrue("B is left alone", mount(ca, "B").isEmpty());
         assertEquals("OPT-A", phaser.getDesignator());
     }
+
+    // ---------------------------------------------------------------- ESGs (G23.0)
+
+    /**
+     * An Orion can actually buy an ESG. Annex #8B asterisks both ESG rows, but neither carried a
+     * weaponSpec, so `isBuildableWeapon` called them unimplemented and no picker ever offered
+     * them — while the ESG class itself had been complete for weeks. The catalogue was the gap.
+     */
+    @Test
+    public void anOrionCanMountAnEsgAcrossTwoCenterlineMounts() {
+        Ship ca = hull("CA");
+
+        Weapon esg = OptionMountLoadout.equip(ca, catalog, "A", "ESG", 180);
+
+        assertTrue("an ESG option must build an ESG", esg instanceof com.sfb.weapons.ESG);
+        assertSame("it fills both halves of the pair", esg, mount(ca, "B").getWeapon());
+        assertEquals("and is one weapon on the ship", 1, weaponsNamed(ca, esg));
+    }
+
+    /**
+     * G23.24: the capacitor holds 7 and releases 1-5. On a Lyran hull the YEAR fits it; in an
+     * option mount it is BOUGHT, which is the whole difference between the annex's two rows
+     * (0 and +1). So the row chosen has to be the generator you get.
+     */
+    @Test
+    public void theAnnexsTwoEsgRowsAreTwoDifferentGenerators() {
+        com.sfb.weapons.ESG withCapacitor =
+                (com.sfb.weapons.ESG) OptionMountLoadout.equip(hull("CA"), catalog, "A", "ESG", 180);
+        com.sfb.weapons.ESG without = (com.sfb.weapons.ESG) OptionMountLoadout.equip(
+                hull("CA"), catalog, "A", "ESG without capacitor", 180);
+
+        assertTrue("the +1 row buys a capacitor", withCapacitor.hasCapacitor());
+        assertFalse("the 0 row does not", without.hasCapacitor());
+    }
+
+    /**
+     * A capacitor cannot be bought before capacitors exist (G23.24, Y167). Not printed in Annex
+     * #8B — the catalogue row says so and carries the reasoning.
+     */
+    @Test
+    public void theCapacitorEsgIsNotSoldBeforeY167() {
+        Ship ca = hull("CA");
+
+        String refusal = OptionMountLoadout.validate(
+                ca, mount(ca, "A"), catalog.get("ESG"), 160);
+
+        assertNotNull("a Y160 Orion cannot buy a capacitor", refusal);
+        assertNull("but the plain generator is still for sale",
+                OptionMountLoadout.validate(
+                        ca, mount(ca, "A"), catalog.get("ESG without capacitor"), 160));
+    }
 }

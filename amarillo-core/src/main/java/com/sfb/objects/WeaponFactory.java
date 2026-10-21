@@ -177,10 +177,15 @@ public final class WeaponFactory {
                 return ch;
             }
             case "ESG": {
-                // ESG has no firing arc — it generates a field (G23.0). Slice 1:
-                // no capacitor; the with-capacitor variant is a later slice.
+                // ESG has no firing arc — it generates a field (G23.0).
                 com.sfb.weapons.ESG esg = new com.sfb.weapons.ESG();
                 esg.setDesignator(ws.designator);
+                // Stated only where the capacitor is BOUGHT rather than granted by the year:
+                // an Orion option mount, where Annex #8B sells the two as separate rows. Left
+                // unstated on a ship's own ESGs, applyEsgCapacitors fits them from Y167 — and
+                // must keep deciding, or 26 Lyran files would each repeat one shared rule.
+                if (ws.hasCapacitor != null)
+                    esg.setHasCapacitor(ws.hasCapacitor);
                 return esg;
             }
             // ---- Fighter-borne weapons (J4.8x) ----

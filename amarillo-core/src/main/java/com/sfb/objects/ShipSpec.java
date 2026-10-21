@@ -879,6 +879,17 @@ public class ShipSpec {
         public String addType;
         /** For ScoutChannel: DAC hit location of the weapon it replaced (G24.17), e.g. "torp", "phaser". */
         public String dacHitLocation;
+        /**
+         * For ESGs: whether this generator has a capacitor (G23.24), holding 7 and releasing
+         * 1-5 instead of holding 5 and releasing all of it.
+         *
+         * <p>A Boolean, not a boolean, so "not stated" is sayable. On a Lyran hull nothing
+         * states it and the YEAR decides — `applyEsgCapacitors` fits them from Y167 and refunds
+         * the ones withheld before that. An Orion option mount is the exception: Annex #8B
+         * prices "ESG without capacitor" at 0 and "ESG" at +1, so there it is bought, not
+         * granted, and the recipe says which was bought.
+         */
+        public Boolean hasCapacitor;
     }
 
     // -------------------------------------------------------------------------

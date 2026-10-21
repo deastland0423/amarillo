@@ -88,9 +88,27 @@ public class OptionMountTranslationTest {
 
     @Test
     public void unimplementedWeapon_reportsUnbuildable() throws Exception {
-        // Ion Cannon / ESG are real weapons with no class yet — honestly null,
-        // not a silently-wrong substitute.
+        // A real weapon with no class yet is honestly null, not a silently-wrong substitute.
+        // The PPD is the current example; the ESG used to be one and is not any more, which is
+        // what this test is for — it fails the day a recipe arrives, and that is the day someone
+        // should be looking at whether the option is now buyable.
         assertFalse(catalog().get("Ion Cannon").isBuildableWeapon());
-        assertFalse(catalog().get("ESG").isBuildableWeapon());
+        assertFalse(catalog().get("PPD").isBuildableWeapon());
+    }
+
+    /**
+     * The ESG left that list on 2026-10-21. The weapon class had been complete for weeks (G23.0,
+     * 55 tests); only the Annex #8B rows lacked a recipe, so no Orion could buy one. Annex #8B
+     * sells two of them and they are two different generators (G23.24).
+     */
+    @Test
+    public void bothEsgRowsBuildTheGeneratorTheyName() throws Exception {
+        com.sfb.weapons.ESG withCapacitor =
+                (com.sfb.weapons.ESG) catalog().get("ESG").buildWeapon(List.of("FA"));
+        com.sfb.weapons.ESG without = (com.sfb.weapons.ESG)
+                catalog().get("ESG without capacitor").buildWeapon(List.of("FA"));
+
+        assertTrue(withCapacitor.hasCapacitor());
+        assertFalse(without.hasCapacitor());
     }
 }
