@@ -938,7 +938,13 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
                 </div>
                 {chosenCartel && (
                   <div className="coi-note" style={{ color: q.within ? undefined : '#f85149' }}>
-                    Operating {q.op}/{q.opCap} · Outside {q.outUsed}/{q.outCap}
+                    {/* A cartel with no operating zone has no such pool; the Cluster's four home
+                        empires and empty zone are G15.442, not an omission. */}
+                    {cartelsByName[chosenCartel]?.operatingZone
+                        .some(e => !cartelsByName[chosenCartel].home.includes(e)) && (
+                      <>Operating {q.op}/{q.opCap} · </>
+                    )}
+                    Outside {q.outUsed}/{q.outCap}
                     {' '}— of {q.total} option mounts (home &amp; universal unlimited)
                   </div>
                 )}

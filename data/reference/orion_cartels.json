@@ -1,17 +1,18 @@
 {
-  "source": "Orion cartel territories (G15.44) — cartel Home Territory + Operating Zone, provided by user 2026-08-01.",
-  "note": "A cartel has UNLIMITED access to option weapons produced in its Home empire; up to 20% of the fleet's option mounts may draw from Operating-Zone empires; up to 10% from any other (Outside) empire. Empire names are canonical: Federation, Klingon, Kzinti, Lyran, LDR, Hydran, Romulan, Gorn, ISC, WYN. NOTE: 'Dragon' is listed with Operating Zone = Federation (same as its Home) — flagged for confirmation; as written it simply has no operating zone beyond its home.",
+  "source": "Orion cartel territories (G15.44) — cartel Home Territory + Operating Zone, provided by user 2026-08-01. Cluster corrected to G15.442 on 2026-10-21.",
+  "note": "A cartel has UNLIMITED access to option weapons produced in a Home empire; up to 20% of the force's option mounts may draw from Operating-Zone empires; up to 10% from any other (Outside) empire (G15.441). That is enforced as 'home unlimited, operating <= 20%, outside <= 10%', which is the same statement because the three shares sum to 100 — and it is why G15.442's exception needs no special case, only a different shape: see Cluster. Empire names are canonical: Federation, Klingon, Kzinti, Lyran, LDR, Hydran, Romulan, Gorn, ISC, WYN. NOTE: 'Dragon' is listed with Operating Zone = Federation (same as its Home) — flagged for confirmation; as written it simply has no operating zone beyond its home.",
   "cartels": [
-    { "name": "Cluster",      "home": "WYN",        "operatingZone": ["Kzinti", "Lyran", "Klingon"] },
-    { "name": "Daven",        "home": "Klingon",    "operatingZone": ["Hydran", "Lyran", "Kzinti", "Federation", "LDR"] },
-    { "name": "Hamilcar",     "home": "Klingon",    "operatingZone": ["Hydran", "Federation"] },
-    { "name": "Lion's Heart", "home": "Federation", "operatingZone": ["Kzinti"] },
-    { "name": "Pharoh",       "home": "Federation", "operatingZone": ["Klingon", "Romulan"] },
-    { "name": "Dragon",       "home": "Federation", "operatingZone": ["Federation"] },
-    { "name": "Penzance",     "home": "Federation", "operatingZone": ["Romulan"] },
-    { "name": "Stardust",     "home": "Gorn",       "operatingZone": ["Federation", "Romulan"] },
-    { "name": "Omega",        "home": "Gorn",       "operatingZone": ["ISC"] },
-    { "name": "Kublai",       "home": "ISC",        "operatingZone": ["Gorn", "Romulan"] },
-    { "name": "Cirentus-Ta",  "home": "Romulan",    "operatingZone": ["ISC"] }
+    { "name": "Cluster",      "home": ["WYN", "Kzinti", "Lyran", "Klingon"], "operatingZone": [],
+      "notes": "G15.442, the protected shipyard: the Cluster treats Kzinti, Lyran and Klingon space as HOME territory (90% of weapons) and takes the other 10% from anywhere. So those three are home empires rather than an operating zone, and the zone is empty — which, with outside capped at 10%, yields 90/10 out of the ordinary arithmetic. 'The WYNs are under the same restrictions as the Cluster Cartel.'" },
+    { "name": "Daven",        "home": ["Klingon"],    "operatingZone": ["Hydran", "Lyran", "Kzinti", "Federation", "LDR"] },
+    { "name": "Hamilcar",     "home": ["Klingon"],    "operatingZone": ["Hydran", "Federation"] },
+    { "name": "Lion's Heart", "home": ["Federation"], "operatingZone": ["Kzinti"] },
+    { "name": "Pharoh",       "home": ["Federation"], "operatingZone": ["Klingon", "Romulan"] },
+    { "name": "Dragon",       "home": ["Federation"], "operatingZone": ["Federation"] },
+    { "name": "Penzance",     "home": ["Federation"], "operatingZone": ["Romulan"] },
+    { "name": "Stardust",     "home": ["Gorn"],       "operatingZone": ["Federation", "Romulan"] },
+    { "name": "Omega",        "home": ["Gorn"],       "operatingZone": ["ISC"] },
+    { "name": "Kublai",       "home": ["ISC"],        "operatingZone": ["Gorn", "Romulan"] },
+    { "name": "Cirentus-Ta",  "home": ["Romulan"],    "operatingZone": ["ISC"] }
   ]
 }

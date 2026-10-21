@@ -24,7 +24,7 @@ export function tierFor(empires: string[] | null | undefined, cartel: Cartel | u
   if (!empires || empires.length === 0 || !cartel) return 'UNIVERSAL';
   let best: Tier = 'OUTSIDE';
   for (const e of empires) {
-    if (e === cartel.home) return 'HOME';
+    if (cartel.home.includes(e)) return 'HOME';
     if (cartel.operatingZone.includes(e)) best = 'OPERATING';
   }
   return best;
@@ -63,8 +63,13 @@ export function quotaOf(totalMounts: number, tiers: Tier[], cartel: Cartel | und
 /** How a quota reads to a player, e.g. "2/1 operating-zone, 0/1 outside — over quota". */
 export function describeQuota(q: Quota, cartel: Cartel | undefined): string {
   if (!cartel || !q.hasMounts) return '';
-  return `${q.op}/${q.opCap} operating-zone, ${q.outUsed}/${q.outCap} outside`
-       + (q.within ? '' : ' — over quota (G15.44)');
+  // A cartel with no operating zone has no such pool to report, and saying "0/2 operating-zone"
+  // forever would advertise one. The Cluster is that case: G15.442 gives it four home empires
+  // and none to operate in.
+  const parts = cartel.operatingZone.some(e => !cartel.home.includes(e))
+    ? [`${q.op}/${q.opCap} operating-zone`] : [];
+  parts.push(`${q.outUsed}/${q.outCap} outside`);
+  return parts.join(', ') + (q.within ? '' : ' — over quota (G15.44)');
 }
 
 /**
@@ -76,11 +81,17 @@ export function describeQuota(q: Quota, cartel: Cartel | undefined): string {
  * one reaches into Kzinti space for drones and the other into Romulan space for plasma, and
  * G15.441 lets 20% of the force's mounts come from there.
  *
- * <p>The home empire is dropped from the zone list when the data repeats it (Dragon's operating
+ * <p>A home empire is dropped from the zone list when the data repeats it (Dragon's operating
  * zone is "Federation", its own home). Home access is already unlimited, so echoing it would
  * advertise a reach the cartel does not have.
+ *
+ * <p>Only the FIRST home empire is named. One cartel has more than one — the Cluster, whose
+ * G15.442 shipyard puts Kzinti, Lyran and Klingon space at home alongside the WYN — and listing
+ * all four would make the one odd row dominate a list of ten. "Cluster — WYN" is what a player
+ * calls it; the extra reach shows up where it is acted on, as the "home" tier badge beside a
+ * Klingon weapon in the mount panel.
  */
 export function describeCartel(c: Cartel): string {
-  const zone = c.operatingZone.filter(e => e !== c.home);
-  return `${c.name} — ${c.home}` + (zone.length ? ` + (${zone.join(', ')})` : '');
+  const zone = c.operatingZone.filter(e => !c.home.includes(e));
+  return `${c.name} — ${c.home[0] ?? '—'}` + (zone.length ? ` + (${zone.join(', ')})` : '');
 }

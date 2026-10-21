@@ -438,7 +438,12 @@ export interface CoiOptionChoice {
 
 export interface Cartel {
   name:          string;
-  home:          string;
+  /**
+   * The empires whose weapons the cartel draws on without limit. Usually one (G15.441); the
+   * Cluster has four and no operating zone, which is how G15.442's 90/10 falls out of the
+   * ordinary caps rather than needing a rule of its own. @see OrionCartel
+   */
+  home:          string[];
   operatingZone: string[];
 }
 
