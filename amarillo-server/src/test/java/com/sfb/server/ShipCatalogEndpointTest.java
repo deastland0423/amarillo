@@ -442,6 +442,52 @@ class ShipCatalogEndpointTest {
                 "each option carries its producing empires for the cartel tiering");
     }
 
+    /**
+     * The adjacency runs, without which a picker cannot say WHICH second mount a two-mount
+     * option eats. Annex #8B marks eight options with an asterisk; core seats them correctly,
+     * but the picker went on offering the mount they were about to fill, and a choice made there
+     * was dropped at load with nothing said. Order within a run is meaningful: on an A-B-C row a
+     * weapon seats on A+B or B+C and never on A+C.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void theMountListingCarriesTheHullsAdjacencyRuns() {
+        Map<String, Object> body = (Map<String, Object>) new GameController(null, null)
+                .shipOptionMounts("Orion", "CA", 180).getBody();
+        assertNotNull(body);
+
+        List<List<String>> runs = (List<List<String>>) body.get("adjacentRuns");
+        assertNotNull(runs, "a picker cannot seat a two-mount option without these");
+        assertTrue(runs.stream().anyMatch(r -> r.size() >= 2
+                        && r.indexOf("B") == r.indexOf("A") + 1),
+                "the CA's centerline pair must appear as one consecutive run");
+    }
+
+    /** And each option says how many mounts it fills, which is the asterisk itself. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void eachOptionSaysHowManyMountsItFills() {
+        Map<String, Object> body = (Map<String, Object>) new GameController(null, null)
+                .shipOptionMounts("Orion", "CA", 180).getBody();
+        List<Map<String, Object>> mounts = (List<Map<String, Object>>) body.get("optionMounts");
+        List<Map<String, Object>> legal = (List<Map<String, Object>>) mounts.stream()
+                .filter(m -> "A".equals(m.get("designator"))).findFirst().orElseThrow()
+                .get("legalOptions");
+
+        // A Plasma-G, not an ESG: the annex asterisks both, but only the plasma entries carry a
+        // weaponSpec, so an ESG is listed NA by `isBuildableWeapon` and never reaches a picker.
+        Map<String, Object> plasma = legal.stream()
+                .filter(o -> "Plasma-G Torp (No Swivel)".equals(o.get("name"))).findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "a Plasma-G should be legal in the CA's centerline mount A"));
+        assertEquals(2, plasma.get("mountsRequired"),
+                "a Plasma-G fills two adjacent mounts (Annex #8B)");
+
+        Map<String, Object> phaser = legal.stream()
+                .filter(o -> "Phaser-1".equals(o.get("name"))).findFirst().orElseThrow();
+        assertEquals(1, phaser.get("mountsRequired"), "and an ordinary weapon fills one");
+    }
+
     /** A hull with no mounts answers with an empty list rather than a 404. */
     @Test
     void aHullWithoutOptionMountsListsNone() {

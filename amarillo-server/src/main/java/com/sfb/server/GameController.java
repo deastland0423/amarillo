@@ -383,6 +383,13 @@ public class GameController {
         body.put("faction", spec.faction);
         body.put("type", spec.type);
         body.put("optionMounts", mounts);
+        // The hull's runs of CONSECUTIVE mounts, which is what an asterisked option in Annex #8B
+        // needs two of: the ESGs, the four plasma-G/S entries, the PPD and the SFG each fill two
+        // adjacent mounts. Without the runs a picker cannot say WHICH second mount a choice eats
+        // — on the Battle Raider's A-B-C, picking B takes A or C depending on what is free — so
+        // it offered a mount that was about to be occupied. Order is meaningful; a run is not a
+        // set (Ship.mountsAreAdjacent).
+        body.put("adjacentRuns", ship.getAdjacentMountRuns());
         return ResponseEntity.ok(body);
     }
 
@@ -1455,6 +1462,10 @@ public class GameController {
                                     opt.put("name", e.name);
                                     opt.put("cost", e.cost);
                                     opt.put("empires", e.empires);  // null = universal (cartel-exempt)
+                                    // Annex #8B's asterisk: two ADJACENT mounts. Omitted here
+                                    // until now, so the COI form could offer the mount an ESG
+                                    // was about to eat — the same hole the fleet builder had.
+                                    opt.put("mountsRequired", e.mountsRequired);
                                     legal.add(opt);
                                 }
                             }
@@ -1462,6 +1473,9 @@ public class GameController {
                             mounts.add(mo);
                         }
                         s.put("optionMounts", mounts);
+                        // The runs of consecutive mounts, which is what decides WHICH second
+                        // mount a two-mount option fills. See the option-mounts endpoint.
+                        s.put("adjacentMountRuns", ship.getAdjacentMountRuns());
                     }
 
                     // Commander's options budget (S3.2), on S3.211's basis — which includes the

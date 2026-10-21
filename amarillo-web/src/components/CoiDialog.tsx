@@ -3,6 +3,7 @@ import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiDroneRac
 import { gameApi } from '../api/gameApi';
 import { Stepper } from './Stepper';
 import { tierFor, quotaOf, describeCartel } from './cartelQuota';
+import { seatAll } from './optionMountSeating';
 import type { Tier, Quota } from './cartelQuota';
 
 // G15.44's tiers and quota live in ./cartelQuota, shared with the fleet builder: a loadout is
@@ -203,6 +204,15 @@ function ShipCoiPanel({
   }
 
   // Running BPV delta from the chosen option mounts (Annex #8B; informational).
+  /** What this ship's mounts hold once the choices are seated (G15.4). */
+  const seat = seatAll(
+    ship.adjacentMountRuns ?? [],
+    coi.optionMounts,
+    (designator, name) => (ship.optionMounts ?? [])
+      .find(m => m.designator === designator)?.legalOptions.find(o => o.name === name),
+    (designator, name) => (ship.optionMounts ?? [])
+      .some(m => m.designator === designator && m.legalOptions.some(o => o.name === name)));
+
   const optionBpvDelta = (ship.optionMounts ?? []).reduce((sum, m) => {
     const sel = coi.optionMounts[m.designator];
     if (!sel) return sum;
@@ -486,6 +496,11 @@ function ShipCoiPanel({
           </div>
           {ship.optionMounts!.map(m => {
             const selected = coi.optionMounts[m.designator] ?? '';
+            // The far half of a two-mount option chosen in a neighbouring mount (Annex #8B's
+            // asterisk). Same rule and same module as the fleet builder's picker, so the two
+            // places a loadout is chosen cannot disagree about what a choice occupies.
+            const held = seat.get(m.designator);
+            const continuation = held != null && !held.primary;
             return (
               <div key={m.designator} className="coi-row">
                 <label className="coi-label">
@@ -493,6 +508,10 @@ function ShipCoiPanel({
                 </label>
                 {m.currentOption != null ? (
                   <span className="coi-note">{m.currentOption} (fixed)</span>
+                ) : continuation ? (
+                  <span className="coi-note">
+                    {held.option} — second mount, chosen in {held.chosenAt}
+                  </span>
                 ) : (
                   <select value={selected}
                     onChange={e => setOptionMount(m.designator, e.target.value)}>
@@ -500,6 +519,7 @@ function ShipCoiPanel({
                     {m.legalOptions.map(o => (
                       <option key={o.name} value={o.name}>
                         {o.name}{o.cost !== 0 ? ` (${o.cost > 0 ? '+' : ''}${o.cost} BPV)` : ''}
+                        {(o.mountsRequired ?? 1) > 1 ? ' — 2 mounts' : ''}
                       </option>
                     ))}
                   </select>

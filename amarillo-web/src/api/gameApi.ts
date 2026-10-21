@@ -253,6 +253,15 @@ export interface FleetShipEntry {
    * G15.411 adds each option's cost to the ship's BPV.
    */
   optionMounts?: Record<string, string>;
+  /**
+   * Refit codes ticked on the BASE type (S3.24), for a combination nobody named a hull for — a
+   * CR bought with the Plus refit is {type: "CR", refits: ["+"]}, because "CR+" is synthesised
+   * by RefitResolver and is not a library type. `FleetSpec.ShipEntry.refits` on the server.
+   *
+   * <p>Declared late: `addShip` wrote the field through a spread, which skips the excess
+   * property check, so TypeScript never knew about a field the wire has carried all along.
+   */
+  refits?: string[];
 }
 
 /** The saved fleet: what is posted to validate, and what lands in data/fleets. */
@@ -418,6 +427,13 @@ export interface CoiOptionChoice {
   name: string;
   cost: number;   // BPV delta (Annex #8B); may be negative/fractional
   empires?: string[] | null;   // producing empires; null/absent = universal (cartel-exempt, G15.44)
+  /**
+   * How many ADJACENT mounts this option fills — Annex #8B's asterisk, which marks both ESGs,
+   * the four plasma-G/S entries, the PPD and the stasis field generator. Absent means one.
+   * The server has sent it since the endpoint was written; nothing read it until the picker
+   * started greying out the mount a two-mount weapon eats.
+   */
+  mountsRequired?: number;
 }
 
 export interface Cartel {
@@ -449,6 +465,13 @@ export interface HullOptionMounts {
     arcs:           string[];
     legalOptions:   CoiOptionChoice[];
   }[];
+  /**
+   * The hull's runs of CONSECUTIVE option mounts (G15.4). An Annex #8B option marked with an
+   * asterisk — the ESGs, the plasma-G/S entries, the PPD, the SFG — fills TWO adjacent mounts,
+   * and which second mount it eats depends on what is free: on the Battle Raider's ["A","B","C"]
+   * a weapon chosen at B takes A or C. Order is meaningful; a run is not a set.
+   */
+  adjacentRuns?: string[][];
 }
 
 export interface CoiShipData {
@@ -500,6 +523,8 @@ export interface CoiShipData {
   convertibleShuttles: { name: string; types: string[] }[];
   maxPreparedShuttles: number;        // WS2=1, WS3=2, else 0
   optionMounts?:       CoiOptionMount[];  // Orion only (G15.4)
+  /** Runs of CONSECUTIVE option mounts, for the two-mount options (G15.4). @see HullOptionMounts */
+  adjacentMountRuns?:  string[][];
 }
 
 export interface CoiSideData {

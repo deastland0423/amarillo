@@ -2808,3 +2808,25 @@ h3 {
   position: static;
   margin-top: 0;
 }
+
+/* A mount panel opened before the force has a cartel. G15.44 makes the cartel decide what is
+   available at all, so the pickers are closed rather than offering choices nobody can field. */
+.fb-mount-blocked {
+  margin: 0.4rem 0 0.2rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #30363d;
+  border-left: 3px solid #f0c040;
+  border-radius: 4px;
+  background: #1c2128;
+  color: #c9d1d9;
+  font-size: 0.8rem;
+}
+
+/* The far half of a two-mount option (Annex #8B's asterisk): filled by a weapon chosen in the
+   neighbouring mount, so it shows what holds it instead of a picker it cannot honour. */
+.fb-mount-held {
+  color: #8b949e;
+  font-size: 0.85rem;
+  font-style: italic;
+  padding: 0.3rem 0;
+}

@@ -7,6 +7,7 @@ import type {
   HullOptionMounts,
 } from '../api/gameApi';
 import { tierFor, quotaOf, describeQuota, describeCartel } from './cartelQuota';
+import { seatAll } from './optionMountSeating';
 import type { Tier } from './cartelQuota';
 import type { ShipObject } from '../types/gameState';
 import SsdPanel from './SsdPanel';
@@ -226,7 +227,14 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
     [spec.year]);
 
   useEffect(() => {
-    for (const [famKey, codes] of Object.entries(refitChoice)) {
+    // Both the shelf rows being considered and the ships already bought. A roster entry records
+    // its BASE type plus codes — "CR" + ["+"] — so without resolving it too, the row could only
+    // ever print the bare hull it was built from.
+    const wanted: [string, string[]][] = Object.entries(refitChoice);
+    for (const entry of spec.ships)
+      if (entry.refits && entry.refits.length > 0)
+        wanted.push([`${entry.faction}/${entry.type}`, entry.refits]);
+    for (const [famKey, codes] of wanted) {
       if (!codes || codes.length === 0) continue;
       const cacheKey = refitKey(famKey, codes);
       if (cacheKey in adhocRefits || refitsAsked.current.has(cacheKey)) continue;
@@ -238,7 +246,58 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
         // on the shelf otherwise, and the chip would go on offering a hull that cannot exist.
         .catch(() => setAdhocRefits(p => ({ ...p, [cacheKey]: null })));
     }
-  }, [refitChoice, spec.year, adhocRefits, refitKey]);
+  }, [refitChoice, spec.ships, spec.year, adhocRefits, refitKey]);
+
+  /**
+   * Declaring, changing or withdrawing the force's cartel.
+   *
+   * <p>Withdrawing it is the case with teeth. Disabling the pickers keeps a cartel-less fleet
+   * from FITTING a mount, but it does not stop one that already fitted some from going back to
+   * "(none declared)" and keeping them — which is the exact state the gate exists to prevent:
+   * weapons chosen under nobody's availability (G15.44). So the mounts go with the cartel, and
+   * because that discards work the player did, it is asked rather than done quietly.
+   *
+   * <p>CHANGING cartel does not clear anything. The picks stay and may now be over quota, which
+   * the readout under the roster says plainly — a player retargeting a force wants to see what
+   * no longer fits, not to start again.
+   */
+  const chooseCartel = useCallback((name: string) => {
+    const fitted = (ships: FleetSpec['ships']) =>
+      ships.reduce((n, sh) => n + Object.keys(sh.optionMounts ?? {}).length, 0);
+    setSpec(s => {
+      if (name) return { ...s, cartel: name };
+      const count = fitted(s.ships);
+      if (count > 0 && !window.confirm(
+            `Clearing the cartel empties ${count} option mount`
+            + `${count === 1 ? '' : 's'}: what may go in one depends on the cartel the ship`
+            + ` operates under (G15.44). Continue?`))
+        return s;
+      return {
+        ...s,
+        cartel: undefined,
+        ships: s.ships.map(sh => ({ ...sh, optionMounts: {} })),
+      };
+    });
+  }, []);
+
+  /**
+   * What a ship's mounts are actually holding, choices seated (G15.4).
+   *
+   * <p>An option marked with an asterisk in Annex #8B fills TWO adjacent mounts, so a choice and
+   * a mount are not the same thing. `optionMountSeating` applies the same window rule the server
+   * does, over the hull's adjacency runs; the legality test is the server's own per-mount
+   * `legalOptions` list rather than a second copy of G15.43.
+   */
+  const seatOf = useCallback(
+    (hull: HullOptionMounts, chosen: Record<string, string>) => {
+      const legalIn = (designator: string, name: string) =>
+        hull.optionMounts.some(m => m.designator === designator
+          && m.legalOptions.some(o => o.name === name));
+      const optionFor = (designator: string, name: string) =>
+        hull.optionMounts.find(m => m.designator === designator)
+          ?.legalOptions.find(o => o.name === name);
+      return seatAll(hull.adjacentRuns ?? [], chosen, optionFor, legalIn);
+    }, []);
 
   /** Which roster row has its mount panel open, by index; -1 for none. */
   const [openMountRow, setOpenMountRow] = useState(-1);
@@ -618,7 +677,7 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
           <label className="fb-field">
             <span>Cartel <span className="fb-hint">(G15.44 — sets what its mounts may carry)</span></span>
             <select value={spec.cartel ?? ''}
-                    onChange={e => setSpec(s => ({ ...s, cartel: e.target.value || undefined }))}>
+                    onChange={e => chooseCartel(e.target.value)}>
               <option value="">(none declared)</option>
               {cartels.map(c => (
                 <option key={c.name} value={c.name}>{describeCartel(c)}</option>
@@ -897,7 +956,20 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
           )}
 
           {spec.ships.map((entry, i) => {
-            const ship = lookup(entry.faction, entry.type);
+            /**
+             * The hull this row IS, refits included.
+             *
+             * An entry records the base type and the codes ticked, because an unnamed
+             * combination has no type of its own to record (S3.24). So a CR bought with the
+             * Plus refit is stored as "CR" + ["+"], and a row that printed `entry.type` showed
+             * "CR" — and priced it as a bare CR, understating the row against a total the
+             * server had computed WITH the refit. A named variant resolves straight from the
+             * catalogue as before; only the unnamed ones need the resolver.
+             */
+            const refitted = entry.refits && entry.refits.length > 0
+              ? adhocRefits[refitKey(`${entry.faction}/${entry.type}`, entry.refits)]
+              : undefined;
+            const ship = refitted ?? lookup(entry.faction, entry.type);
             const isFlagship = spec.flagship === entry.name;
             const canCommand = (ship?.commandRating ?? 0) > 0;
             // What the validator says about THIS ship. Worst severity wins the marker's colour:
@@ -920,7 +992,11 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                     : 'This ship has no command rating and cannot lead a fleet (S8.21)'}
                   disabled={!canCommand}
                   onClick={() => setSpec(s => ({ ...s, flagship: entry.name }))}>★</button>
-                <span className="fb-shelf-type">{entry.type}</span>
+                <span className="fb-shelf-type"
+                      title={entry.refits && entry.refits.length > 0
+                        ? `${entry.type} with the ${entry.refits.join(', ')} refit`
+                          + `${entry.refits.length === 1 ? '' : 's'} (S3.24)`
+                        : undefined}>{ship?.type ?? entry.type}</span>
                 <input className="fb-ship-name" value={entry.name ?? ''}
                        onChange={e => renameShip(i, e.target.value)} />
                 <span className="fb-shelf-cost">{ship?.cost ?? '?'}</span>
@@ -941,12 +1017,17 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                   // would slide the remove button into the mounts column.
                   if (!hull || hull.optionMounts.length === 0)
                     return <span className="fb-mounts-slot" />;
-                  const filled = hull.optionMounts
-                    .filter(m => entry.optionMounts?.[m.designator]).length;
+                  // OCCUPIED mounts, not choices made. An ESG is one choice filling two mounts
+                  // (Annex #8B's asterisk), so counting the choices read "mounts 1/4" on a CA
+                  // with nothing left to sell.
+                  const filled = seatOf(hull, entry.optionMounts ?? {}).size;
                   return (
                     <button className={filled === hull.optionMounts.length
                               ? 'fb-mounts fb-mounts-full' : 'fb-mounts'}
-                            title="Option mounts (G15.4) — bought with the ship"
+                            title={cartel
+                              ? 'Option mounts (G15.4) — bought with the ship'
+                              : 'Pick a cartel first: what an option mount may carry depends'
+                                + ' on which cartel the ship operates under (G15.44)'}
                             onClick={() => setOpenMountRow(openMountRow === i ? -1 : i)}>
                       mounts {filled}/{hull.optionMounts.length}
                     </button>
@@ -965,25 +1046,51 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                     Option mounts are bought with the ship and cannot be changed without a
                     shipyard (G15.415). Their cost counts against the budget (G15.411).
                   </div>
-                  {hull.optionMounts.map(m => {
+                  {/* G15.44 opens "which weapons are available depends on which cartel (R8.1)
+                      the ship is operating under", so a cartel is a PRECONDITION for fitting a
+                      mount, not a score kept afterwards. Undeclared, the pickers are closed and
+                      the fleet is bought generic — every mount open for whoever fields it. */}
+                  {!cartel && (
+                    <div className="fb-mount-blocked">
+                      Pick a cartel above to fit these mounts. What may go in one depends on the
+                      cartel the ship operates under (G15.44) — until then this is a generic
+                      hull, sold with its mounts open.
+                    </div>
+                  )}
+                  {(() => {
+                  const seat = seatOf(hull, entry.optionMounts ?? {});
+                  return hull.optionMounts.map(m => {
                     const chosen = entry.optionMounts?.[m.designator] ?? '';
                     const opt = m.legalOptions.find(o => o.name === chosen);
                     const tier = tierFor(opt?.empires, cartel);
+                    /* The far half of a two-mount weapon chosen elsewhere. It is FILLED — core
+                       seats the weapon on both and marks this one a continuation — so offering
+                       it a list of its own invited a choice the loader would silently drop. */
+                    const held = seat.get(m.designator);
+                    const continuation = held != null && !held.primary;
                     return (
                       <label key={m.designator} className="fb-mount-row">
                         <span className="fb-mount-id">
                           {m.designator} <span className="fb-hint">{m.position.toLowerCase()}</span>
                         </span>
-                        <select value={chosen}
+                        {continuation ? (
+                          <span className="fb-mount-held">
+                            {held.option} <span className="fb-hint">
+                              (second mount, chosen in {held.chosenAt})</span>
+                          </span>
+                        ) : (
+                        <select value={chosen} disabled={!cartel}
                                 onChange={e => setMount(i, m.designator, e.target.value)}>
                           <option value="">(empty)</option>
                           {m.legalOptions.map(o => (
                             <option key={o.name} value={o.name}>
                               {o.name}{o.cost ? ` (${o.cost > 0 ? '+' : ''}${o.cost})` : ''}
+                              {(o.mountsRequired ?? 1) > 1 ? ' — 2 mounts' : ''}
                             </option>
                           ))}
                         </select>
-                        {chosen && cartel && (
+                        )}
+                        {chosen && cartel && !continuation && (
                           <span className={tier === 'OUTSIDE' ? 'fb-tier fb-tier-outside'
                                   : tier === 'OPERATING' ? 'fb-tier fb-tier-operating'
                                   : 'fb-tier'}>
@@ -992,7 +1099,8 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                         )}
                       </label>
                     );
-                  })}
+                  });
+                  })()}
                 </div>
               )}
               </Fragment>
