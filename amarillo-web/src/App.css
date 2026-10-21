@@ -1845,6 +1845,11 @@ h3 {
 .fb-saved { color: #56d364; font-size: 0.85rem; }
 
 .fb-btn {
+  /* The global `button { flex: 1 }` above is the .button-row idiom: buttons that share a row's
+     width equally. A fleet-builder button is a toolbar button, sized to its label — left greedy,
+     "New fleet" wrapped to two lines and the list's Open/Delete grew to 800px each. */
+  flex: 0 0 auto;
+  white-space: nowrap;
   background: #21262d;
   color: #e6edf3;
   border: 1px solid #30363d;
@@ -1853,6 +1858,8 @@ h3 {
   font-size: 0.85rem;
   cursor: pointer;
 }
+/* ...except in a .button-row, where sharing the width is the whole point (DeploymentPanel). */
+.button-row .fb-btn { flex: 1; }
 .fb-btn:hover:not(:disabled) { border-color: #6e7681; }
 .fb-btn:disabled { opacity: 0.5; cursor: default; }
 .fb-btn-primary { background: #f0c040; color: #0d1117; border-color: #f0c040; font-weight: 600; }
@@ -1860,27 +1867,33 @@ h3 {
 
 /* --- the saved list --- */
 
-.fb-fleet-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.fb-fleet-list { display: flex; flex-direction: column; gap: 0.35rem; }
+/* Named areas, not auto-placement. Grid places definite-row items BEFORE auto-placed ones, so
+   `grid-row: 1 / span 2` on the actions claimed column 1 and pushed the fleet's own name to the
+   right of its buttons. Naming every area says the intent once and leaves nothing to infer. */
 .fb-fleet-row {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 0.25rem 1rem;
+  grid-template-areas: "name actions"
+                       "meta actions";
+  gap: 0.15rem 1rem;
+  align-items: center;
   background: #161b22;
   border: 1px solid #30363d;
   border-radius: 8px;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.75rem;
 }
-.fb-fleet-main { display: flex; align-items: center; gap: 0.6rem; }
+.fb-fleet-main { grid-area: name; display: flex; align-items: baseline; gap: 0.6rem; }
 .fb-fleet-name { font-weight: 600; }
 .fb-fleet-meta {
-  grid-column: 1;
+  grid-area: meta;
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.9rem;
   color: #8b949e;
   font-size: 0.8rem;
 }
-.fb-fleet-actions { grid-row: 1 / span 2; align-self: center; display: flex; gap: 0.4rem; }
+.fb-fleet-actions { grid-area: actions; align-self: center; display: flex; gap: 0.4rem; }
 
 .fb-legal   { color: #56d364; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
 .fb-illegal { color: #f85149; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
