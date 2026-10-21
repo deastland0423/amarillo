@@ -279,6 +279,60 @@ public class GameController {
      * carrier flies, so the same hull honestly shows a different air wing in Y168 and Y180, and a
      * buyer cannot otherwise discover that before paying for it.
      */
+    /**
+     * The option mounts a hull has, and what may legally go in each, for a given year (G15.4).
+     *
+     * <h2>Why this exists beside the COI form's own listing</h2>
+     * The COI form asks the same question of a ship already in a battle. The FLEET BUILDER has
+     * to ask it of a hull on the shelf, before any game exists — G15.415 makes a loadout part of
+     * the purchase, so the choice is made while buying.
+     *
+     * <h2>Not filtered by cartel, deliberately</h2>
+     * G15.441 splits the FORCE's mounts 70/20/10 across home, operating zone and anyone, so no
+     * single option is legal or illegal on its own: a Klingon disruptor is fine until it is the
+     * eleventh one. The empires each option comes from are returned instead, and the caller
+     * tiers and totals them across the fleet — which is what {@code CartelQuota} does on submit.
+     */
+    @GetMapping("/ships/{faction}/{type}/option-mounts")
+    public ResponseEntity<?> shipOptionMounts(
+            @PathVariable String faction,
+            @PathVariable String type,
+            @RequestParam(name = "year", required = false, defaultValue = "0") int year) {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        com.sfb.objects.ShipSpec spec = com.sfb.objects.ShipLibrary.get(faction, type);
+        if (spec == null)
+            return ResponseEntity.notFound().build();
+
+        com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
+        com.sfb.objects.OptionMountCatalog catalog =
+                com.sfb.objects.OptionMountCatalog.loadDefault();
+        List<Map<String, Object>> mounts = new ArrayList<>();
+        for (com.sfb.objects.OptionMount m : ship.getOptionMounts()) {
+            Map<String, Object> mo = new java.util.LinkedHashMap<>();
+            mo.put("designator", m.getDesignator());
+            mo.put("position", m.getPosition().name());
+            mo.put("arcs", m.getArcs());
+            List<Map<String, Object>> legal = new ArrayList<>();
+            for (com.sfb.objects.OptionCatalogEntry e : catalog.all()) {
+                if (com.sfb.objects.OptionMountLoadout.validate(ship, m, e, year) != null)
+                    continue;
+                Map<String, Object> opt = new java.util.LinkedHashMap<>();
+                opt.put("name", e.name);
+                opt.put("cost", e.cost);
+                opt.put("empires", e.empires);   // null/empty = universal, cartel-exempt
+                opt.put("mountsRequired", e.mountsRequired);
+                legal.add(opt);
+            }
+            mo.put("legalOptions", legal);
+            mounts.add(mo);
+        }
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("faction", spec.faction);
+        body.put("type", spec.type);
+        body.put("optionMounts", mounts);
+        return ResponseEntity.ok(body);
+    }
+
     @GetMapping("/ships/{faction}/{type}")
     public ResponseEntity<?> shipDetail(
             @PathVariable String faction,

@@ -2,27 +2,13 @@ import { Fragment, useState, useEffect } from 'react';
 import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiDroneRack, Cartel } from '../api/gameApi';
 import { gameApi } from '../api/gameApi';
 import { Stepper } from './Stepper';
+import { tierFor, quotaOf } from './cartelQuota';
+import type { Tier, Quota } from './cartelQuota';
 
-type Tier = 'HOME' | 'OPERATING' | 'OUTSIDE' | 'UNIVERSAL';
-
-/** Access tier of an option's producing empires under a cartel (mirrors OrionCartel.accessForAny). */
-function tierFor(empires: string[] | null | undefined, cartel: Cartel | undefined): Tier {
-  if (!empires || empires.length === 0 || !cartel) return 'UNIVERSAL';
-  let best: Tier = 'OUTSIDE';
-  for (const e of empires) {
-    if (e === cartel.home) return 'HOME';
-    if (cartel.operatingZone.includes(e)) best = 'OPERATING';
-  }
-  return best;
-}
-
-interface SideQuota {
-  hasMounts: boolean;
-  total:     number;
-  op:        number;  outUsed:  number;
-  opCap:     number;  outCap:   number;
-  within:    boolean;
-}
+// G15.44's tiers and quota live in ./cartelQuota, shared with the fleet builder: a loadout is
+// chosen wherever the ship is BOUGHT (G15.415), which is both places, and two copies of this
+// arithmetic would be two answers waiting to disagree with the server's.
+type SideQuota = Quota;
 
 /** Fleet cartel quota (G15.44): % of ALL option mounts, round to nearest, independent pools. */
 function computeSideQuota(
@@ -30,7 +16,8 @@ function computeSideQuota(
   cartel:  Cartel | undefined,
   optionSel: (shipName: string) => Record<string, string>,
 ): SideQuota {
-  let total = 0, op = 0, outUsed = 0;
+  let total = 0;
+  const tiers: Tier[] = [];
   for (const ship of side.ships) {
     const mounts = ship.optionMounts ?? [];
     total += mounts.length;
@@ -38,19 +25,10 @@ function computeSideQuota(
     for (const m of mounts) {
       const chosen = sel[m.designator];
       if (!chosen) continue;
-      const opt = m.legalOptions.find(o => o.name === chosen);
-      const tier = tierFor(opt?.empires, cartel);
-      if (tier === 'OPERATING') op++;
-      else if (tier === 'OUTSIDE') outUsed++;
+      tiers.push(tierFor(m.legalOptions.find(o => o.name === chosen)?.empires, cartel));
     }
   }
-  const opCap  = Math.round(total * 0.20);
-  const outCap = Math.round(total * 0.10);
-  return {
-    hasMounts: total > 0,
-    total, op, outUsed, opCap, outCap,
-    within: !cartel || (op <= opCap && outUsed <= outCap),
-  };
+  return quotaOf(total, tiers, cartel);
 }
 
 interface Props {

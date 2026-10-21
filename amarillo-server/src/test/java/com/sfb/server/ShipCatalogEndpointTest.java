@@ -410,4 +410,43 @@ class ShipCatalogEndpointTest {
                 .filter(r -> type.equals(r.get("type")))
                 .findFirst().orElse(null);
     }
+    /**
+     * G15.4: the fleet builder has to ask what fits a hull BEFORE any game exists, because
+     * G15.415 makes the loadout part of the purchase. The Orion BCH is the sharpest case — four
+     * centreline mounts in one adjacency run.
+     */
+    @Test
+    void anOrionHullListsItsOptionMountsAndWhatFitsThem() {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) new GameController(null, null)
+                .shipOptionMounts("Orion", "BCH", 180).getBody();
+        assertNotNull(body);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> mounts = (List<Map<String, Object>>) body.get("optionMounts");
+        assertEquals(4, mounts.size(), "the BCH has four mounts: " + mounts);
+        assertEquals("CENTERLINE", mounts.get(0).get("position"));
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> legal =
+                (List<Map<String, Object>>) mounts.get(0).get("legalOptions");
+        assertFalse(legal.isEmpty(), "something must fit a centreline mount");
+        // The empires are returned rather than filtered, because G15.441's quota is on the FORCE
+        // and no single pick can be judged alone.
+        assertTrue(legal.stream().anyMatch(o -> o.containsKey("empires")),
+                "each option carries its producing empires for the cartel tiering");
+    }
+
+    /** A hull with no mounts answers with an empty list rather than a 404. */
+    @Test
+    void aHullWithoutOptionMountsListsNone() {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) new GameController(null, null)
+                .shipOptionMounts("Federation", "CA", 180).getBody();
+        assertNotNull(body);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> mounts = (List<Map<String, Object>>) body.get("optionMounts");
+        assertTrue(mounts.isEmpty(), "a Federation CA has no option mounts");
+    }
+
 }

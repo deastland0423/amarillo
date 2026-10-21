@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gameApi } from '../api/gameApi';
 import { familiesOf, matchesSearch, resolveFamily, toggleRefit } from './shelfFamilies';
 import { isGeneratedName, nameForNewShip } from './fleetNaming';
 import type {
-  CatalogShip, FleetSpec, FleetSummary, FleetValidation, FleetViolation,
+  CatalogShip, Cartel, FleetSpec, FleetSummary, FleetValidation, FleetViolation,
+  HullOptionMounts,
 } from '../api/gameApi';
+import { tierFor, quotaOf, describeQuota } from './cartelQuota';
+import type { Tier } from './cartelQuota';
 import type { ShipObject } from '../types/gameState';
 import SsdPanel from './SsdPanel';
 
@@ -170,6 +173,76 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
    * Empty or absent means the base hull, which is what the shelf showed before any of this.
    */
   const [refitChoice, setRefitChoice] = useState<Record<string, string[]>>({});
+
+  // --- Orion option mounts (G15.4) -----------------------------------------------------------
+  // G15.415 puts a mount change in a shipyard "taking several weeks or months", so the loadout
+  // is bought WITH the ship and belongs here rather than in the COI form. The COI form keeps its
+  // own picker for scenarios that delegate the shipyard to their players.
+  const [cartels, setCartels] = useState<Cartel[]>([]);
+  useEffect(() => { gameApi.listCartels().then(setCartels).catch(() => {}); }, []);
+  const cartel = cartels.find(c => c.name === spec.cartel);
+
+  /** What fits each hull's mounts this year, cached by hull and year; empty for most ships. */
+  const [hullMounts, setHullMounts] = useState<Record<string, HullOptionMounts>>({});
+  const mountsAsked = useRef(new Set<string>());
+  const mountKey = useCallback(
+    (faction: string | undefined, type: string) =>
+      `${faction || spec.factions[0] || ''}/${type}@${spec.year}`,
+    [spec.factions, spec.year]);
+
+  useEffect(() => {
+    for (const entry of spec.ships) {
+      const key = mountKey(entry.faction, entry.type);
+      if (hullMounts[key] || mountsAsked.current.has(key)) continue;
+      mountsAsked.current.add(key);
+      const [who, rest] = [key.slice(0, key.indexOf('/')), key.slice(key.indexOf('/') + 1)];
+      const type = rest.slice(0, rest.lastIndexOf('@'));
+      gameApi.hullOptionMounts(who, type, spec.year)
+        .then(d => setHullMounts(p => ({ ...p, [key]: d })))
+        // A hull the server cannot answer for is simply a hull with no mounts, which is almost
+        // all of them. Recording the empty answer stops the builder asking again every render.
+        .catch(() => setHullMounts(p => ({
+          ...p, [key]: { faction: who, type, optionMounts: [] } })));
+    }
+  }, [spec.ships, spec.year, hullMounts, mountKey]);
+
+  /** Which roster row has its mount panel open, by index; -1 for none. */
+  const [openMountRow, setOpenMountRow] = useState(-1);
+
+  const setMount = useCallback((index: number, designator: string, option: string) => {
+    setSpec(s => ({
+      ...s,
+      ships: s.ships.map((sh, i) => {
+        if (i !== index) return sh;
+        const mounts = { ...(sh.optionMounts ?? {}) };
+        if (option) mounts[designator] = option;
+        else delete mounts[designator];
+        return { ...sh, optionMounts: mounts };
+      }),
+    }));
+  }, []);
+
+  /**
+   * G15.44's quota across the whole force — "The limits below apply to the entire Orion battle
+   * force" — so it is counted here and not per ship. Mirrors CartelQuota on the server through
+   * the shared ./cartelQuota, so the builder and the validator cannot disagree.
+   */
+  const quota = useMemo(() => {
+    let total = 0;
+    const tiers: Tier[] = [];
+    for (const entry of spec.ships) {
+      const hull = hullMounts[mountKey(entry.faction, entry.type)];
+      if (!hull) continue;
+      total += hull.optionMounts.length;
+      for (const m of hull.optionMounts) {
+        const chosen = entry.optionMounts?.[m.designator];
+        if (!chosen) continue;
+        tiers.push(tierFor(
+          m.legalOptions.find(o => o.name === chosen)?.empires, cartel));
+      }
+    }
+    return quotaOf(total, tiers, cartel);
+  }, [spec.ships, hullMounts, cartel, mountKey]);
 
   /** The shelf: the chosen empires, in service by the scenario date (S8.131). */
 
@@ -490,6 +563,23 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
           <input type="number" value={spec.budget}
                  onChange={e => setSpec(s => ({ ...s, budget: Number(e.target.value) || 0 }))} />
         </label>
+        {/* The cartel the force flies for (G15.44, R8.1). On the FLEET, not the ship, because
+            the quota is on the force: "The limits below apply to the entire Orion battle
+            force." Offered only to a force that includes Orions. */}
+        {spec.factions.includes('Orion') && (
+          <label className="fb-field">
+            <span>Cartel <span className="fb-hint">(G15.44 — sets what its mounts may carry)</span></span>
+            <select value={spec.cartel ?? ''}
+                    onChange={e => setSpec(s => ({ ...s, cartel: e.target.value || undefined }))}>
+              <option value="">(none declared)</option>
+              {cartels.map(c => (
+                <option key={c.name} value={c.name}>
+                  {c.name} — home {c.home}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       <div className="fb-field">
@@ -747,9 +837,10 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
             // Still carrying the name the builder made up for it. Not a fault — the fleet is
             // legal — so this is the quietest mark on the row, and it yields to a real one.
             const unnamed = isGeneratedName(entry.type, entry.name);
+            const hull = hullMounts[mountKey(entry.faction, entry.type)];
             return (
-              <div key={i}
-                   className={'fb-fleet-ship'
+              <Fragment key={i}>
+              <div className={'fb-fleet-ship'
                      + (faults.length === 0 ? (unnamed ? ' fb-fleet-ship-unnamed' : '')
                        : hasError ? ' fb-fleet-ship-error' : ' fb-fleet-ship-warn')}>
                 <button
@@ -771,8 +862,67 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                         : faults.map(v => (v.rule ? v.rule + ': ' : '') + v.message).join('\n')}>
                   {faults.length === 0 ? '' : hasError ? '✗' : '⚠'}
                 </span>
+                {/* Option mounts, for the hulls that have them (G15.4). The count is the
+                    affordance: a BCH reading "mounts 0/4" is visibly unfinished, which is
+                    the honest state of an Orion bought bare. */}
+                {(() => {
+                  const hull = hullMounts[mountKey(entry.faction, entry.type)];
+                  if (!hull || hull.optionMounts.length === 0) return null;
+                  const filled = hull.optionMounts
+                    .filter(m => entry.optionMounts?.[m.designator]).length;
+                  return (
+                    <button className={filled === hull.optionMounts.length
+                              ? 'fb-mounts fb-mounts-full' : 'fb-mounts'}
+                            title="Option mounts (G15.4) — bought with the ship"
+                            onClick={() => setOpenMountRow(openMountRow === i ? -1 : i)}>
+                      mounts {filled}/{hull.optionMounts.length}
+                    </button>
+                  );
+                })()}
                 <button className="fb-remove" title="Remove" onClick={() => removeShip(i)}>×</button>
               </div>
+
+              {/* One row per mount. The options are NOT filtered by cartel: G15.441's quota is
+                  on the whole force, so no single pick is legal or illegal alone — a Klingon
+                  disruptor is fine until it is the eleventh one. Each shows its tier and price
+                  instead, and the force total is read off below the roster. */}
+              {openMountRow === i && hull && hull.optionMounts.length > 0 && (
+                <div className="fb-mount-panel">
+                  <div className="fb-hint">
+                    Option mounts are bought with the ship and cannot be changed without a
+                    shipyard (G15.415). Their cost counts against the budget (G15.411).
+                  </div>
+                  {hull.optionMounts.map(m => {
+                    const chosen = entry.optionMounts?.[m.designator] ?? '';
+                    const opt = m.legalOptions.find(o => o.name === chosen);
+                    const tier = tierFor(opt?.empires, cartel);
+                    return (
+                      <label key={m.designator} className="fb-mount-row">
+                        <span className="fb-mount-id">
+                          {m.designator} <span className="fb-hint">{m.position.toLowerCase()}</span>
+                        </span>
+                        <select value={chosen}
+                                onChange={e => setMount(i, m.designator, e.target.value)}>
+                          <option value="">(empty)</option>
+                          {m.legalOptions.map(o => (
+                            <option key={o.name} value={o.name}>
+                              {o.name}{o.cost ? ` (${o.cost > 0 ? '+' : ''}${o.cost})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        {chosen && cartel && (
+                          <span className={tier === 'OUTSIDE' ? 'fb-tier fb-tier-outside'
+                                  : tier === 'OPERATING' ? 'fb-tier fb-tier-operating'
+                                  : 'fb-tier'}>
+                            {tier.toLowerCase()}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+              </Fragment>
             );
           })}
 
@@ -780,6 +930,20 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
               Deliberately NOT a violation: the fleet is legal, and the validator's list is for
               fleet-construction rules. Mixing a suggestion about names into it would make that
               list a mixed bag of "this is illegal" and "you might prefer". */}
+          {/* G15.44's quota, across the FORCE rather than per ship, because that is how the
+              rule is written: "The limits below apply to the entire Orion battle force, as
+              otherwise no ship would have enough option mounts to have a 10% availability
+              weapon." The server checks the same sum through CartelQuota when the fleet is
+              validated, so this is a readout and not the gate. */}
+          {cartel && quota.hasMounts && (
+            <p className={quota.within ? 'fb-quota' : 'fb-quota fb-quota-over'}>
+              {cartel.name}: {describeQuota(quota, cartel)}
+              {' '}<span className="fb-hint">
+                of {quota.total} mount{quota.total === 1 ? '' : 's'}
+              </span>
+            </p>
+          )}
+
           {generatedNames > 0 && (
             <p className="fb-unnamed-hint">
               {generatedNames === 1

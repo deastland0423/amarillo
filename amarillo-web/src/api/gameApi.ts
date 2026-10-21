@@ -246,6 +246,13 @@ export interface FleetShipEntry {
   type:      string;
   name?:     string;   // blank means the ship file's own name
   coiSpend?: number;
+  /**
+   * Orion option-mount choices bought with the ship (G15.4), mount designator → Annex #8B name.
+   * G15.415 puts a mount change in a shipyard "taking several weeks or months", so the loadout
+   * is part of the purchase and is saved with the fleet — and is part of the PRICE, since
+   * G15.411 adds each option's cost to the ship's BPV.
+   */
+  optionMounts?: Record<string, string>;
 }
 
 /** The saved fleet: what is posted to validate, and what lands in data/fleets. */
@@ -257,6 +264,11 @@ export interface FleetSpec {
   year:      number;
   budget:    number;
   flagship?: string;
+  /**
+   * The Orion cartel this force flies for (G15.44, R8.1). On the FLEET because the quota is on
+   * the force: "The limits below apply to the entire Orion battle force."
+   */
+  cartel?:   string;
   ships:     FleetShipEntry[];
   updated?:  string;
 }
@@ -420,6 +432,23 @@ export interface CoiOptionMount {
   arcs:          string[];
   currentOption: string | null;  // pre-filled weapon name, if any
   legalOptions:  CoiOptionChoice[];
+}
+
+/**
+ * A hull's option mounts as the FLEET BUILDER needs them (G15.4): asked of a hull on the shelf,
+ * before any game exists, because G15.415 makes the loadout part of the purchase.
+ *
+ * Same shape as CoiOptionMount minus currentOption, which only a ship in a battle has.
+ */
+export interface HullOptionMounts {
+  faction:      string;
+  type:         string;
+  optionMounts: {
+    designator:     string;
+    position:       string;   // "CENTERLINE" | "WING"
+    arcs:           string[];
+    legalOptions:   CoiOptionChoice[];
+  }[];
 }
 
 export interface CoiShipData {
@@ -869,6 +898,17 @@ export const gameApi = {
 
   getCoiData(scenarioId: string): Promise<CoiSideData[]> {
     return request(`/api/games/scenarios/${scenarioId}/coi-data`);
+  },
+
+  /**
+   * What fits each of a hull's option mounts in a given year (G15.4). NOT filtered by cartel:
+   * G15.441's quota is on the whole force, so no single option is legal or illegal alone - the
+   * producing empires come back instead, for ./cartelQuota to tier.
+   */
+  hullOptionMounts(faction: string, type: string, year: number): Promise<HullOptionMounts> {
+    return request(
+      `/api/games/ships/${encodeURIComponent(faction)}/${encodeURIComponent(type)}`
+      + `/option-mounts?year=${year}`);
   },
 
   listCartels(): Promise<Cartel[]> {
