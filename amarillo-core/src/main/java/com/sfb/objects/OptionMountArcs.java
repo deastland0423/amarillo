@@ -84,6 +84,41 @@ public final class OptionMountArcs {
         return List.of(left ? "LS" : "RS");
     }
 
+    /**
+     * The arcs R8.R3 lets the player pick between for this option in this mount, in order, or an
+     * EMPTY list when the rule leaves no choice.
+     *
+     * <p>Only a disruptor or a fusion beam in a WING mount has one. Returning the arc LABELS
+     * rather than the enum lets a picker show what it is actually choosing — "FA" or "L + LF" —
+     * without a second copy of R8.R3 in the view, and the list is ordered to match
+     * {@link WingArc#values()} so position N is choice N.
+     */
+    public static List<String> arcChoiceLabels(OptionCatalogEntry entry, OptionMount mount) {
+        if (!hasArcChoice(entry, mount))
+            return List.of();
+        return List.of(
+                String.join(" + ", arcsFor(entry, mount, WingArc.FORWARD)),
+                String.join(" + ", arcsFor(entry, mount, WingArc.OUTBOARD)));
+    }
+
+    /** Whether R8.R3 leaves this option's arc in this mount up to the player. */
+    public static boolean hasArcChoice(OptionCatalogEntry entry, OptionMount mount) {
+        if (mount.getPosition() != OptionMount.Position.WING || entry.weaponSpec == null)
+            return false;
+        String kind = entry.weaponSpec.type;
+        return "Disruptor".equals(kind) || "Fusion".equals(kind);
+    }
+
+    /** The choice named by a stored string, tolerant of nulls and anything unrecognised. */
+    public static WingArc parse(String name) {
+        if (name == null)
+            return null;
+        for (WingArc a : WingArc.values())
+            if (a.name().equalsIgnoreCase(name.trim()))
+                return a;
+        return null;
+    }
+
     /** True if this wing mount is the LEFT one, read off the arc its sheet prints. */
     static boolean isLeftMount(OptionMount mount) {
         for (String arc : mount.getArcs()) {

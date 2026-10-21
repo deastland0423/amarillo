@@ -2830,3 +2830,10 @@ h3 {
   font-style: italic;
   padding: 0.3rem 0;
 }
+
+/* R8.R3's wing arc choice, beside the option it belongs to. Narrow: it holds an arc label
+   ("FA", "L + LF"), not a weapon name. */
+.fb-mount-arc {
+  max-width: 7rem;
+  font-size: 0.8rem;
+}

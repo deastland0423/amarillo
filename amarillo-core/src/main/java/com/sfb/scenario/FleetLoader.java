@@ -76,7 +76,8 @@ public final class FleetLoader {
             // prices or validates the fleet sees it. Without this the mounts existed only in the
             // saved file and the budget check read a bare hull - which is the hole G15.411
             // leaves open, since each option "adjusts the BPV of the ship by the stated amount".
-            com.sfb.scenario.ScenarioLoader.equipDeclaredMounts(ship, entry.optionMounts, spec.year);
+            com.sfb.scenario.ScenarioLoader.equipDeclaredMounts(
+                    ship, entry.optionMounts, entry.optionMountArcs, spec.year);
 
             ship.setCoiSpend(entry.coiSpend);
             ships.add(ship);

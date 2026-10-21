@@ -253,6 +253,8 @@ export interface FleetShipEntry {
    * G15.411 adds each option's cost to the ship's BPV.
    */
   optionMounts?: Record<string, string>;
+  /** R8.R3's wing arc per mount: designator → "FORWARD" | "OUTBOARD". Absent means FORWARD. */
+  optionMountArcs?: Record<string, string>;
   /**
    * Refit codes ticked on the BASE type (S3.24), for a combination nobody named a hull for — a
    * CR bought with the Plus refit is {type: "CR", refits: ["+"]}, because "CR+" is synthesised
@@ -434,6 +436,15 @@ export interface CoiOptionChoice {
    * started greying out the mount a two-mount weapon eats.
    */
   mountsRequired?: number;
+  /**
+   * R8.R3's wing arc choice, as the two ARC LABELS to pick between — e.g. ["FA", "L + LF"] for
+   * a disruptor in a left wing mount. Empty or absent wherever the rule leaves no choice, which
+   * is everywhere except a disruptor or fusion beam in a wing.
+   *
+   * <p>Labels rather than a flag, computed by core, so the picker shows what it is actually
+   * choosing without a second copy of the rule in the view. Index 0 is FORWARD, 1 is OUTBOARD.
+   */
+  arcChoices?: string[];
 }
 
 export interface Cartel {
@@ -562,6 +573,7 @@ export interface CoiSubmission {
     photonOverload?:       Record<string, number>;  // free WS-III overload energy per tube (S4.32)
     specialShuttlePrep?:   CoiShuttlePrepEntry[];
     optionMounts?:         Record<string, string>;  // mount designator → option name (G15.4)
+    optionMountArcs?:      Record<string, string>;  // designator → "FORWARD"|"OUTBOARD" (R8.R3)
     cartel?:               string;                   // the fleet's cartel, echoed per ship (G15.44)
   };
 }

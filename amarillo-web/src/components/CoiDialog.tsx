@@ -61,6 +61,7 @@ interface ShipCoi {
   antiDroneLoadouts:    Record<number, number>;     // rackIndex → anti-drone rounds (FD3.70)
   shuttlePrep:          Record<string, ShuttlePrep | null>; // shuttleName → prep or null (not selected)
   optionMounts:         Record<string, string>;     // mount designator → option name (G15.4)
+  optionMountArcs:      Record<string, string>;     // designator → "FORWARD"|"OUTBOARD" (R8.R3)
   /**
    * J4.621: which fighter model this ship's fighter facilities serve. '' means "not chosen",
    * which leaves the line's standard fighter — the server treats absent and unavailable the
@@ -83,6 +84,7 @@ function defaultShipCoi(): ShipCoi {
     antiDroneLoadouts:    {},
     shuttlePrep:          {},
     optionMounts:         {},
+    optionMountArcs:      {},
     fighterFacilityType:  '',
   };
 }
@@ -200,7 +202,19 @@ function ShipCoiPanel({
     const next = { ...coi.optionMounts };
     if (name) next[designator] = name;
     else delete next[designator];
-    onChange({ ...coi, optionMounts: next });
+    // The arc belonged to the weapon that was there (R8.R3), so it goes with it rather than
+    // silently applying to whatever is chosen next.
+    const arcs = { ...coi.optionMountArcs };
+    delete arcs[designator];
+    onChange({ ...coi, optionMounts: next, optionMountArcs: arcs });
+  }
+
+  /** R8.R3's wing arc for one mount — "the taste of the Orion player", so nothing derives it. */
+  function setOptionMountArc(designator: string, choice: string) {
+    const arcs = { ...coi.optionMountArcs };
+    if (choice) arcs[designator] = choice;
+    else delete arcs[designator];
+    onChange({ ...coi, optionMountArcs: arcs });
   }
 
   // Running BPV delta from the chosen option mounts (Annex #8B; informational).
@@ -524,6 +538,20 @@ function ShipCoiPanel({
                     ))}
                   </select>
                 )}
+                {/* R8.R3's arc choice, where the rule gives one. Same two labels as the fleet
+                    builder's, from core, so neither view carries a copy of the rule. */}
+                {m.currentOption == null && !continuation && (() => {
+                  const picked = m.legalOptions.find(o => o.name === selected);
+                  if ((picked?.arcChoices?.length ?? 0) !== 2) return null;
+                  return (
+                    <select value={coi.optionMountArcs[m.designator] ?? 'FORWARD'}
+                      title="R8.R3: a wing disruptor or fusion beam may bear either arc"
+                      onChange={e => setOptionMountArc(m.designator, e.target.value)}>
+                      <option value="FORWARD">{picked!.arcChoices![0]}</option>
+                      <option value="OUTBOARD">{picked!.arcChoices![1]}</option>
+                    </select>
+                  );
+                })()}
               </div>
             );
           })}
@@ -891,6 +919,8 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
         specialShuttlePrep:   shuttlePrep.length > 0 ? shuttlePrep : undefined,
         optionMounts:         Object.keys(coi.optionMounts).length > 0
                               ? coi.optionMounts : undefined,
+        optionMountArcs:      Object.keys(coi.optionMountArcs).length > 0
+                              ? coi.optionMountArcs : undefined,
         cartel:               shipCartel[shipName],
       };
     }

@@ -179,6 +179,16 @@ public class ScenarioSpec {
          */
         public java.util.Map<String, String> optionMounts = new java.util.LinkedHashMap<>();
         /**
+         * R8.R3's wing arc choice per mount: designator -> "FORWARD" or "OUTBOARD".
+         *
+         * <p>A disruptor or fusion beam in a WING option mount may bear FA or outboard
+         * (L + LF on the left, RF + R on the right) "depending on the taste of the Orion
+         * player" — one ship may carry one of each. Nothing derives it, so it is bought with
+         * the weapon like the weapon itself (G15.415). Absent or unrecognised means FORWARD,
+         * and it is ignored for any mount where R8.R3 leaves no choice.
+         */
+        public java.util.Map<String, String> optionMountArcs = new java.util.LinkedHashMap<>();
+        /**
          * R1.14: the NAME of the planet this unit is built on, matching a {@link TerrainSetup}'s
          * name. Set only for a ground base.
          * <p>

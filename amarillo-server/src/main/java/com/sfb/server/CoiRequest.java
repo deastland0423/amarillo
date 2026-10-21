@@ -51,6 +51,13 @@ public class CoiRequest {
     /** Orion option-mount choices (G15.4): mount designator → Annex #8B option name. */
     public Map<String, String> optionMounts = new LinkedHashMap<>();
 
+    /**
+     * R8.R3's wing arc choice: mount designator → "FORWARD" or "OUTBOARD". Only a disruptor or
+     * fusion beam in a wing mount has one — the rule leaves it to "the taste of the Orion
+     * player" — and anything else here is ignored. Absent means FORWARD.
+     */
+    public Map<String, String> optionMountArcs = new LinkedHashMap<>();
+
     /** The fleet's Orion cartel (G15.44), echoed on each ship's request; null if none. */
     public String cartel;
 
@@ -107,6 +114,10 @@ public class CoiRequest {
 
         if (optionMounts != null) {
             out.optionMounts.putAll(optionMounts);
+        }
+
+        if (optionMountArcs != null) {
+            out.optionMountArcs.putAll(optionMountArcs);
         }
 
         if (specialShuttlePrep != null) {

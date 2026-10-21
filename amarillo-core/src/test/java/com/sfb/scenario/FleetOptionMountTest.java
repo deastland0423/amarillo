@@ -197,4 +197,46 @@ public class FleetOptionMountTest {
                 .anyMatch(v -> "G15.44".equals(v.rule)
                         && v.severity == FleetValidator.Severity.ADVISORY));
     }
+
+    // ---------------------------------------------------------------- R8.R3's wing arc choice
+
+    /**
+     * R8.R3 lets a wing disruptor or fusion beam bear FA or outboard "depending on the taste of
+     * the Orion player", so a fleet records the taste along with the weapon. One ship may carry
+     * one of each, which is what makes it a per-MOUNT choice rather than a ship setting.
+     */
+    @Test
+    public void aFleetRecordsTheWingArcItChose() {
+        FleetSpec.ShipEntry entry = orion("CA", "Choosy", "C", "Disruptor-30", "D", "Fusion Beam");
+        entry.optionMountArcs.put("C", "OUTBOARD");
+        entry.optionMountArcs.put("D", "FORWARD");
+
+        Ship ship = FleetLoader.resolve(fleetOf(null, entry)).ships().get(0);
+
+        assertEquals("the left wing's outboard arc", "L + LF",
+                mount(ship, "C").getWeapon().getArcLabel());
+        assertEquals("and the right wing bearing forward", "FA",
+                mount(ship, "D").getWeapon().getArcLabel());
+    }
+
+    /** Said nothing, got FA — the arc R8.R3 lists first. A fleet saved before this still loads. */
+    @Test
+    public void anUnstatedWingArcIsForward() {
+        Ship ship = FleetLoader.resolve(
+                fleetOf(null, orion("CA", "Quiet", "C", "Disruptor-30"))).ships().get(0);
+
+        assertEquals("FA", mount(ship, "C").getWeapon().getArcLabel());
+    }
+
+    /** A choice against a mount R8.R3 gives no say over is ignored, not an error. */
+    @Test
+    public void anArcChoiceIsIgnoredWhereTheRuleLeavesNone() {
+        FleetSpec.ShipEntry entry = orion("CA", "Confused", "C", "Phaser-1");
+        entry.optionMountArcs.put("C", "OUTBOARD");
+
+        Ship ship = FleetLoader.resolve(fleetOf(null, entry)).ships().get(0);
+
+        assertEquals("a wing phaser bears its own side whatever was asked for",
+                "LS", mount(ship, "C").getWeapon().getArcLabel());
+    }
 }

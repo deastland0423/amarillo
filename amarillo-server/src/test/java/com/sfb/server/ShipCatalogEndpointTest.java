@@ -488,6 +488,60 @@ class ShipCatalogEndpointTest {
         assertEquals(1, phaser.get("mountsRequired"), "and an ordinary weapon fills one");
     }
 
+    /**
+     * R8.R3 leaves a WING disruptor's or fusion beam's arc to "the taste of the Orion player",
+     * so the picker has to offer it — and the server sends the two arc LABELS rather than a
+     * flag, so neither view needs a copy of the rule.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void aWingDisruptorOffersItsTwoArcs() {
+        Map<String, Object> body = (Map<String, Object>) new GameController(null, null)
+                .shipOptionMounts("Orion", "CA", 180).getBody();
+        List<Map<String, Object>> mounts = (List<Map<String, Object>>) body.get("optionMounts");
+
+        // C is the CA's LEFT wing mount, so outboard reads "L + LF".
+        List<Map<String, Object>> wing = (List<Map<String, Object>>) mounts.stream()
+                .filter(m -> "C".equals(m.get("designator"))).findFirst().orElseThrow()
+                .get("legalOptions");
+        Map<String, Object> disruptor = wing.stream()
+                .filter(o -> "Disruptor-30".equals(o.get("name"))).findFirst().orElseThrow();
+
+        assertEquals(List.of("FA", "L + LF"), disruptor.get("arcChoices"));
+    }
+
+    /** And offers nothing where the rule decides: a wing phaser bears LS, with no say in it. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void aWingPhaserOffersNoArcChoice() {
+        Map<String, Object> body = (Map<String, Object>) new GameController(null, null)
+                .shipOptionMounts("Orion", "CA", 180).getBody();
+        List<Map<String, Object>> mounts = (List<Map<String, Object>>) body.get("optionMounts");
+        List<Map<String, Object>> wing = (List<Map<String, Object>>) mounts.stream()
+                .filter(m -> "C".equals(m.get("designator"))).findFirst().orElseThrow()
+                .get("legalOptions");
+
+        assertEquals(List.of(), wing.stream()
+                .filter(o -> "Phaser-1".equals(o.get("name"))).findFirst().orElseThrow()
+                .get("arcChoices"));
+    }
+
+    /** Nor on the centerline, where R8.R3 says FA for everything that is not a rack. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void aCenterlineDisruptorOffersNoArcChoice() {
+        Map<String, Object> body = (Map<String, Object>) new GameController(null, null)
+                .shipOptionMounts("Orion", "CA", 180).getBody();
+        List<Map<String, Object>> mounts = (List<Map<String, Object>>) body.get("optionMounts");
+        List<Map<String, Object>> centre = (List<Map<String, Object>>) mounts.stream()
+                .filter(m -> "A".equals(m.get("designator"))).findFirst().orElseThrow()
+                .get("legalOptions");
+
+        assertEquals(List.of(), centre.stream()
+                .filter(o -> "Disruptor-30".equals(o.get("name"))).findFirst().orElseThrow()
+                .get("arcChoices"));
+    }
+
     /** A hull with no mounts answers with an empty list rather than a 404. */
     @Test
     void aHullWithoutOptionMountsListsNone() {

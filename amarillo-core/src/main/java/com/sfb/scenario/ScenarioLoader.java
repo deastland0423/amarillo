@@ -100,7 +100,7 @@ public class ScenarioLoader {
         // The loadout the SHIPYARD fixed (G15.4), before weapon status so a mounted weapon is
         // armed with the rest, and after outfitForYear so the year rules are already in place -
         // equip reapplies the ones a later-built weapon would otherwise miss.
-        equipDeclaredMounts(ship, setup.optionMounts, year);
+        equipDeclaredMounts(ship, setup.optionMounts, setup.optionMountArcs, year);
         applyWeaponStatus(ship, setup.weaponStatus);
         return ship;
     }
@@ -122,6 +122,16 @@ public class ScenarioLoader {
      * the whole battle to one unavailable weapon helps nobody.
      */
     static void equipDeclaredMounts(Ship ship, java.util.Map<String, String> choices, int year) {
+        equipDeclaredMounts(ship, choices, null, year);
+    }
+
+    /**
+     * @param arcs R8.R3's wing arc choice per mount, designator -> "FORWARD"/"OUTBOARD". Bought
+     *             with the weapon, because the rule leaves a wing disruptor or fusion beam's arc
+     *             to "the taste of the Orion player" and nothing derives it.
+     */
+    static void equipDeclaredMounts(Ship ship, java.util.Map<String, String> choices,
+            java.util.Map<String, String> arcs, int year) {
         if (choices == null || choices.isEmpty())
             return;
         com.sfb.objects.OptionMountCatalog catalog =
@@ -129,7 +139,9 @@ public class ScenarioLoader {
         for (java.util.Map.Entry<String, String> choice : choices.entrySet()) {
             try {
                 com.sfb.objects.OptionMountLoadout.equip(
-                        ship, catalog, choice.getKey(), choice.getValue(), year);
+                        ship, catalog, choice.getKey(), choice.getValue(), year,
+                        com.sfb.objects.OptionMountArcs.parse(
+                                arcs == null ? null : arcs.get(choice.getKey())));
             } catch (IllegalArgumentException e) {
                 note(ship, "option mount " + choice.getKey() + " (" + choice.getValue()
                         + ") — " + e.getMessage());
@@ -892,7 +904,10 @@ public class ScenarioLoader {
             com.sfb.objects.OptionMountCatalog catalog = com.sfb.objects.OptionMountCatalog.loadDefault();
             for (Map.Entry<String, String> entry : loadout.optionMounts.entrySet()) {
                 try {
-                    com.sfb.objects.OptionMountLoadout.equip(ship, catalog, entry.getKey(), entry.getValue(), spec.year);
+                    com.sfb.objects.OptionMountLoadout.equip(ship, catalog, entry.getKey(),
+                            entry.getValue(), spec.year,
+                            com.sfb.objects.OptionMountArcs.parse(
+                                    loadout.optionMountArcs.get(entry.getKey())));
                 } catch (IllegalArgumentException e) {
                     note(ship, "COI: option mount " + entry.getKey() + " ("
                             + entry.getValue() + ") — " + e.getMessage());

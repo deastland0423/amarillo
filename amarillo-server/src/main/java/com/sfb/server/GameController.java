@@ -374,6 +374,11 @@ public class GameController {
                 opt.put("cost", e.cost);
                 opt.put("empires", e.empires);   // null/empty = universal, cartel-exempt
                 opt.put("mountsRequired", e.mountsRequired);
+                // R8.R3 leaves a wing disruptor's or fusion beam's arc to the player, so the
+                // picker must offer it. The ARC LABELS, computed by core, so the view needs no
+                // copy of the rule: index 0 is FORWARD, index 1 is OUTBOARD.
+                opt.put("arcChoices",
+                        com.sfb.objects.OptionMountArcs.arcChoiceLabels(e, m));
                 legal.add(opt);
             }
             mo.put("legalOptions", legal);
@@ -1466,6 +1471,8 @@ public class GameController {
                                     // until now, so the COI form could offer the mount an ESG
                                     // was about to eat — the same hole the fleet builder had.
                                     opt.put("mountsRequired", e.mountsRequired);
+                                    opt.put("arcChoices",
+                                            com.sfb.objects.OptionMountArcs.arcChoiceLabels(e, m));
                                     legal.add(opt);
                                 }
                             }

@@ -310,7 +310,29 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
         const mounts = { ...(sh.optionMounts ?? {}) };
         if (option) mounts[designator] = option;
         else delete mounts[designator];
-        return { ...sh, optionMounts: mounts };
+        // The arc belonged to the weapon that was there (R8.R3), so it goes with it. Left
+        // behind, it would silently apply to whatever is chosen next.
+        const arcs = { ...(sh.optionMountArcs ?? {}) };
+        delete arcs[designator];
+        return { ...sh, optionMounts: mounts, optionMountArcs: arcs };
+      }),
+    }));
+  }, []);
+
+  /**
+   * R8.R3's wing arc for one mount. A disruptor or fusion beam in a wing mount may bear FA or
+   * outboard "depending on the taste of the Orion player", and nothing derives it — so it is
+   * bought with the weapon, like the weapon.
+   */
+  const setMountArc = useCallback((index: number, designator: string, choice: string) => {
+    setSpec(s => ({
+      ...s,
+      ships: s.ships.map((sh, i) => {
+        if (i !== index) return sh;
+        const arcs = { ...(sh.optionMountArcs ?? {}) };
+        if (choice) arcs[designator] = choice;
+        else delete arcs[designator];
+        return { ...sh, optionMountArcs: arcs };
       }),
     }));
   }, []);
@@ -1089,6 +1111,19 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                             </option>
                           ))}
                         </select>
+                        )}
+                        {/* R8.R3's choice, offered only where the rule gives one: a disruptor
+                            or fusion beam in a wing mount. The server sends the two arc LABELS,
+                            so this shows what it is choosing without knowing the rule. */}
+                        {!continuation && (opt?.arcChoices?.length ?? 0) === 2 && (
+                          <select className="fb-mount-arc"
+                                  title="R8.R3: a wing disruptor or fusion beam may bear either arc"
+                                  value={entry.optionMountArcs?.[m.designator] ?? 'FORWARD'}
+                                  disabled={!cartel}
+                                  onChange={e => setMountArc(i, m.designator, e.target.value)}>
+                            <option value="FORWARD">{opt!.arcChoices![0]}</option>
+                            <option value="OUTBOARD">{opt!.arcChoices![1]}</option>
+                          </select>
                         )}
                         {chosen && cartel && !continuation && (
                           <span className={tier === 'OUTSIDE' ? 'fb-tier fb-tier-outside'
