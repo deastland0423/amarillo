@@ -49,7 +49,7 @@ public final class WeaponFactory {
             return null;
         }
         List<String> resolved = (arcs == null || arcs.isEmpty()) ? List.of("FULL") : arcs;
-        Weapon w = build(ws, ArcUtils.calculateMask(resolved));
+        Weapon w = build(ws, ArcUtils.calculateMask(resolved), resolved);
         if (w != null) {
             w.setArcsFromJSON(resolved); // sets both bitmask and arcLabel
         }
@@ -58,9 +58,21 @@ public final class WeaponFactory {
 
     /** Build a weapon with a pre-computed arc bitmask. Returns null for an unknown recipe. */
     public static Weapon build(WeaponSpec ws, int arcMask) {
+        return build(ws, arcMask, null);
+    }
+
+    /**
+     * @param arcLabels the arcs this weapon is actually being given, when the caller knows them
+     *                  and the spec does not. An Orion option mount is the case: its weapon's
+     *                  arcs come from the MOUNT (R8.R3), so {@code ws.arcs} is null, and a
+     *                  plasma launcher that derived its launch directions from the spec got
+     *                  none at all (D2.34). Null everywhere else, where the spec states them.
+     */
+    public static Weapon build(WeaponSpec ws, int arcMask, List<String> arcLabels) {
         if (ws == null || ws.type == null) {
             return null;
         }
+        List<String> effectiveArcs = ws.arcs != null ? ws.arcs : arcLabels;
         switch (ws.type) {
             case "Phaser1": {
                 Phaser1 p = new Phaser1();
@@ -113,7 +125,7 @@ public final class WeaponFactory {
                 // found. See ArcUtils.plasmaLaunchDirections for what stating it used to cost.
                 pl.setLaunchDirections(ws.launchDirections != null && !ws.launchDirections.isEmpty()
                         ? ArcUtils.calculateMask(ws.launchDirections)
-                        : ArcUtils.plasmaLaunchDirections(ws.arcs));
+                        : ArcUtils.plasmaLaunchDirections(effectiveArcs));
                 return pl;
             }
             case "DroneRack": {

@@ -1,5 +1,6 @@
 package com.sfb;
 
+import com.sfb.objects.OptionCatalogEntry;
 import com.sfb.objects.OptionMountCatalog;
 import com.sfb.weapons.ADD;
 import com.sfb.weapons.Disruptor;
@@ -44,18 +45,37 @@ public class OptionMountTranslationTest {
                 30, ((Disruptor) w).getDisruptorRange());
     }
 
+    /**
+     * The swivel is the ARC, and the launch directions follow from it (D2.34).
+     *
+     * <p>This test used to assert that a no-swivel launcher had launch directions of ZERO, and
+     * that only the swivel entry had any. Both halves were artefacts. Zero meant "not derived":
+     * WeaponFactory derived them from {@code ws.arcs}, which is null on a catalogue option
+     * because an option's arcs come from the MOUNT — so every option-mount plasma got none, and
+     * the swivel row looked different only because it stated a {@code launchDirections}
+     * override. That override pinned the swivel torpedo to the FIXED one's directions,
+     * cancelling what it cost +1 for.
+     *
+     * <p>R8.R3 says what actually differs: a fixed torpedo in a centerline mount bears FA, a
+     * swivel one bears FP. One launch direction against D2.34's three.
+     */
     @Test
-    public void plasmaName_decodesTypeAndSwivel() throws Exception {
+    public void plasmaSwivelIsAnArc_andLaunchDirectionsFollowFromIt() throws Exception {
         OptionMountCatalog c = catalog();
 
-        Weapon noSwivel = c.get("Plasma-S Torp (No Swivel)").buildWeapon(List.of("FA"));
-        assertTrue(noSwivel instanceof PlasmaLauncher);
-        assertEquals(PlasmaType.S, ((PlasmaLauncher) noSwivel).getLauncherType());
-        assertEquals("no-swivel launcher has no swivel arc", 0,
-                ((PlasmaLauncher) noSwivel).getLaunchDirections());
+        OptionCatalogEntry fixed = c.get("Plasma-S Torp (No Swivel)");
+        OptionCatalogEntry swivel = c.get("Plasma-S Torp (Swivel)");
+        assertFalse("the fixed entry is not a swivel", fixed.swivel);
+        assertTrue("and the swivel entry says so in the catalogue", swivel.swivel);
 
-        Weapon swivel = c.get("Plasma-S Torp (Swivel)").buildWeapon(List.of("FA"));
-        assertTrue(((PlasmaLauncher) swivel).getLaunchDirections() != 0);
+        PlasmaLauncher onFa = (PlasmaLauncher) fixed.buildWeapon(List.of("FA"));
+        PlasmaLauncher onFp = (PlasmaLauncher) swivel.buildWeapon(List.of("FP"));
+        assertEquals(PlasmaType.S, onFa.getLauncherType());
+
+        assertEquals("a fixed launcher fires straight ahead and nowhere else",
+                1, Integer.bitCount(onFa.getLaunchDirections()));
+        assertEquals("a swivel launcher gets D2.34's three",
+                3, Integer.bitCount(onFp.getLaunchDirections()));
     }
 
     @Test

@@ -118,13 +118,28 @@ public final class OptionMountLoadout {
 
     /** Equip, gating option availability on the given battle/scenario year. */
     public static Weapon equip(Ship ship, OptionMount mount, OptionCatalogEntry entry, int year) {
+        return equip(ship, mount, entry, year, null);
+    }
+
+    /**
+     * Equip, with R8.R3's wing arc choice for a disruptor or fusion beam.
+     *
+     * @param wingArc null everywhere else, and for a player who did not choose — R8.R3 lets a
+     *                wing disruptor or fusion beam bear FA or outboard "depending on the taste
+     *                of the Orion player", so it is bought with the weapon and not derivable.
+     */
+    public static Weapon equip(Ship ship, OptionMount mount, OptionCatalogEntry entry, int year,
+            OptionMountArcs.WingArc wingArc) {
         String reason = validate(ship, mount, entry, year);
         if (reason != null) {
             throw new IllegalArgumentException(reason);
         }
         java.util.List<OptionMount> seat = seatFor(ship, mount, entry);
         OptionMount primary = seat.get(0);
-        Weapon weapon = entry.buildWeapon(primary.getArcs());
+        // R8.R3, not the mount's printed arc. The sheet can only draw the typical case, because
+        // what sits in an option mount is bought: a drone rack in a wing mount bears FULL where
+        // the sheet prints LS, and a Plasma-F bears LP.
+        Weapon weapon = entry.buildWeapon(OptionMountArcs.arcsFor(entry, primary, wingArc));
         // Named for every mount it fills, so "OPT-A+B" reads as one weapon in two boxes rather
         // than as a weapon that lost half of itself.
         StringBuilder designator = new StringBuilder("OPT-");
@@ -193,11 +208,18 @@ public final class OptionMountLoadout {
 
     public static Weapon equip(Ship ship, OptionMountCatalog catalog,
                                String mountDesignator, String optionName, int year) {
+        return equip(ship, catalog, mountDesignator, optionName, year, null);
+    }
+
+    /** By name, with R8.R3's wing arc choice. @see #equip(Ship, OptionMount, OptionCatalogEntry, int, OptionMountArcs.WingArc) */
+    public static Weapon equip(Ship ship, OptionMountCatalog catalog,
+                               String mountDesignator, String optionName, int year,
+                               OptionMountArcs.WingArc wingArc) {
         OptionMount mount = findMount(ship, mountDesignator);
         if (mount == null) {
             throw new IllegalArgumentException("no option mount '" + mountDesignator + "' on " + ship.getName());
         }
-        return equip(ship, mount, catalog.get(optionName), year);
+        return equip(ship, mount, catalog.get(optionName), year, wingArc);
     }
 
     private static OptionMount findMount(Ship ship, String designator) {

@@ -75,6 +75,18 @@ public class OptionCatalogEntry {
      */
     public WeaponSpec weaponSpec;
 
+    /**
+     * A swivel-mount plasma torpedo (R8.R3), which bears FP in a centerline option mount where a
+     * fixed one bears FA. That ARC is the whole difference the annex charges +1 for.
+     *
+     * <p>Stated, not read out of the option's name. It was expressed as a
+     * {@code launchDirections: ["FA"]} override for a while, which was worse than useless:
+     * WeaponFactory DERIVES a plasma launcher's launch directions from its arc (D2.34) and a
+     * stated list wins, so the override pinned the swivel torpedo to the fixed one's directions
+     * and cancelled exactly what it was bought for.
+     */
+    public boolean swivel;
+
     /** True if this option can be turned into a live weapon instance right now. */
     public boolean isBuildableWeapon() {
         return weaponSpec != null;
