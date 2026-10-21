@@ -156,9 +156,32 @@ Mounts and refits are now bought where the ship is bought (G15.415). See the mem
   sheet prints an empty OPT box and the panel prints nothing at all. Adding it means
   classifying the field in `ShipDtoPrivacyTest`; the fitted weapon is already public, so hiding
   the mount it sits in would conceal nothing.
-- **Nothing has been looked at in a browser.** The fleet-builder mount panel, the cartel
-  dropdown, the quota line and the roster column widths are verified only by tsc/lint/build and
-  the test suites. The roster grid gained a seventh column; its widths are a guess.
+- **Partly looked at in a browser now (2026-10-21).** The owner confirmed the fleets landing
+  page, the cartel dropdown, the refit chips and the roster. NOT yet seen: the mount panel
+  itself — the cartel gate, the disabled pickers, the "second mount, chosen in A" line and the
+  confirm that clears mounts when a cartel is withdrawn. `amarillo-web` has no jsdom or
+  testing-library, so no component behaviour is reachable from the suite; those are verified by
+  reading only.
+- **The cartel gate is CLIENT-SIDE ONLY.** The pickers refuse to fit a mount without a declared
+  cartel (G15.44: "which weapons are available depends on which cartel the ship is operating
+  under"), but `FleetValidator` raises nothing for a fleet carrying fitted mounts and no cartel
+  — see `withoutACartelNoQuotaIsEnforced`, which deliberately says a force that has not declared
+  is not second-guessed. A hand-edited JSON or a direct API call still produces the state.
+  Making it a real guarantee means flipping that test and possibly invalidating saved fleets.
+- **G15.442 — the Cluster Cartel is MIS-TIERED.** The rule: Cluster "treats Kzinti, Lyran, and
+  Klingon space as 'Home' territory (90% of weapons)" with the other 10% from anywhere, and the
+  WYNs are under the same restriction. `orion_cartels.json` files those three as Cluster's
+  OPERATING zone, so they are capped at 20% and a legal Cluster fleet reads illegal. The fix
+  looks like data, not logic: our 70/20/10 is implemented as "home unlimited, operating <= 20%,
+  outside <= 10%", so G15.442 is the same shape with an empty operating zone and a multi-empire
+  home. `OrionCartel.home` is a single `String` today.
+- **G15.445 — the technology lag is not implemented.** A cartel cannot use a system until two
+  years after its home empire fields it, three after an operating-zone empire, five after anyone
+  else. Options are gated on the weapon's own `yearAvailable` only, so an Orion can field a
+  weapon the year it appears anywhere.
+- **The PPD has no weapon class**, so its Annex #8B row stays recipe-less and unbuyable
+  (confirmed by the owner 2026-10-21). `OptionMountTranslationTest` uses it as the example of an
+  honestly-unimplemented option and will fail the day that changes.
 - **G15.42's non-weapon options** — batteries, APR, labs, cargo, tractors, transporters, repair,
   hull, barracks — are listed in the catalogue with no `weaponSpec`, so they cannot be equipped.
   "None of the non-weapon options changes the BPV of the ship," so they need a different seat
@@ -174,86 +197,36 @@ Mounts and refits are now bought where the ship is bought (G15.415). See the mem
 Each of these was named by an earlier session as the next sensible slice in its area, with the
 groundwork already in place.
 
-- **Orion multi-mount option weapons (G15.4) — UNBLOCKED 2026-10-20, and adjacency must be
-  DECLARED.** Eight catalogue options need two adjacent centerline mounts (`mountsRequired: 2`)
-  and `OptionMountLoadout.validate` refuses them outright today. The note that this "needs a
-  bigger Orion with >=2 adjacent centerline mounts" is out of date: the **CA** has had two
-  adjacent centerline mounts since it was entered, and the **SAL** now does too.
+- **Orion multi-mount option weapons (G15.4) — DONE.** Core 2026-10-20, both pickers
+  2026-10-21. `ShipSpec.adjacentMounts` declares runs per hull (`[["A","B"],["C","D"]]`);
+  adjacency means CONSECUTIVE within a run, so a row of three gives A-B and B-C but not A-C.
+  `OptionMountLoadout.seatFor` finds a window covering the chosen mount, every mount in it free
+  and position-legal, and `equip` seats the weapon on all of them: the far half holds the SAME
+  weapon object, marked `isContinuation()`, so it reads as occupied rather than empty. BPV and
+  option name stay on the primary — one weapon is one purchase however many boxes it fills — and
+  the weapon joins the ship's list ONCE (a list holding it twice would fire it twice).
 
-  **ADJACENCY IS INDEPENDENT OF POSITION** (owner, 2026-10-20): "option mounts can be adjacent
-  or not. You can have adjacent centerline or even adjacent wing mounts. Orion and WYN ships
-  have these and there are some weapons that can be mounted only on adjacent centerline or
-  adjacent wing mounts." So it is two separate facts about a pair — where the mounts are, and
-  whether they touch — not one.
+  The pickers know it too: the server sends the adjacency runs and `mountsRequired`, and
+  `optionMountSeating.ts` applies the same window rule for the fleet builder and the COI form.
+  Its position test is the server's own per-mount `legalOptions`, not a second copy of G15.43.
 
-  **The catalogue side already expresses the requirement.** `OptionCatalogEntry` carries
-  `positions` (defaulting to both CENTERLINE and WING) and `mountsRequired`, so "two adjacent
-  wing mounts" is `positions: ["WING"], mountsRequired: 2`. Six single-mount options already
-  restrict it — Hellbore, Aux Control, Barracks, Hull, Repair and Transporter are all
-  centerline-only, which is where the Battle Raider's "NO HELLBORES IN WING MOUNTS" note comes
-  from; that is Annex #8B speaking universally, not a quirk of the hull.
-
-  **Plasma-G corrected 2026-10-20** (owner, from Annex #8B): it "requires two adjacent
-  centerline optional mounts or two adjacent WYN hull side mounts", so both Plasma-G entries now
-  carry `positions: ["CENTERLINE"]` where they previously defaulted to permitting wing mounts.
-  **Plasma-S corrected the same day**: "two adjacent centerline mounts" plus "the normal
-  requirement of size class 3 or larger", so both entries now carry `positions: ["CENTERLINE"]`.
-  Its size rule was already right — `maxSizeClass: 3` with `sizeClass <= maxSizeClass`, since
-  size class counts UP as a hull gets smaller.
-
-  **Still unchecked against #8B: both ESGs and the PPD**, which still default to either
-  position. Given that all four plasma entries turned out centerline-only, the default of
-  "either" looks more like an unfilled field than a statement, so these three deserve the same
-  read rather than being trusted.
-
-  **A THIRD position exists and is not modelled: WYN HULL SIDE mounts.** `OptionMount.Position`
-  is CENTERLINE or WING only. No WYN ship is in the data, so nothing is wrong today, but the
-  enum will need a third value rather than squeezing hull-side into WING — a Plasma-G is legal
-  in two adjacent hull-side mounts and illegal in two adjacent wing mounts, so conflating them
-  would permit an illegal fit.
-
-  **The hull side is now BUILT (2026-10-20):** `ShipSpec.adjacentMounts` as runs
-  (`[["A","B"],["C","D"]]`), `Ship.getAdjacentMountRuns()` and `Ship.mountsAreAdjacent(a, b)`,
-  with adjacency meaning CONSECUTIVE within a run so a row of three gives A-B and B-C but not
-  A-C. Declared on the Orion CA; the SLV deliberately declares none. Two data guards: every
-  designator a run names must be a mount the hull has, and no mount may appear in two runs.
-
-  **The LOADOUT side is now BUILT TOO (2026-10-20), so this whole item is DONE.** All eight
-  two-mount options can be fitted. `OptionMountLoadout.seatFor` finds a window of consecutive
-  mounts inside one declared run that covers the mount the player picked, every mount in it free
-  and position-legal; `equip` seats the weapon on all of them.
-
-  The partner question is settled, and NOT the way the guess below expected: the far half holds
-  the SAME weapon object, marked `isContinuation()`, so it reads as occupied rather than empty —
-  which is what stops a second weapon being seated in the half that looks free. A null weapon
-  would have left it looking available. BPV and option name stay on the primary, because one
-  weapon is one purchase however many boxes it fills, and the weapon is added to the ship's
-  weapon list ONCE: a list holding it twice would fire it twice (mutation-checked).
-
-  Still open here: **a two-mount weapon cannot be UNSEATED**, because nothing unseats a
-  one-mount weapon either — there is no remove path at all, only equip. And `OptionMount.Position`
-  still has no WYN hull-side value, so the Plasma-G's "or two adjacent WYN hull side mounts" has
-  nowhere to live.
-
-  **The old note read:** `OptionMount` carries `position`, `designator` and
-  `arcs`, and nothing saying which mounts neighbour which. It cannot be inferred from the count:
-  the **CA** has two adjacent centerline mounts and the **SLV** has two that are NOT adjacent, so
-  `position == CENTERLINE && count >= 2` would wrongly admit a Plasma-G onto the Slaver.
-  Adjacency is a property of the sheet's layout and has to be declared per hull — probably as
-  pairs or groups on the hull (`"adjacentMounts": [["A","B"]]`) rather than a per-mount
-  `adjacentTo`, so the fact is stated once and cannot fall out of symmetry.
-
-  **What it unlocks: six of the eight.** Plasma-G and Plasma-S, swivel and no-swivel, are
-  buildable now (`PlasmaLauncher` with plasmaType G and S both exist; Plasma-S needs size <= 3
-  and Y170). **ESG and ESG-without-capacitor** are buildable too — the weapon class is fully
-  built (50 G23 clauses, 55 tests) and only lacks a `weaponSpec` recipe in the Orion catalogue,
-  which `project_esg` records as deliberately withheld "until multi-mount adjacency lands". PPD
-  is genuinely unimplemented, and the Stasis Field Generator is `available: false` anyway.
-
-  **One data question first:** the swivel variants cost MORE (2 vs 1, 7 vs 4) yet carry the more
-  constrained `weaponSpec` — `launchDirections: ["FA"]` where the no-swivel entry has none. Read
-  Annex #8B before building: either absent means "inherits the mount's arc" and the swivel entry
-  is merely redundant, or the data has the two transposed.
+  **Still open here:**
+  - **A two-mount weapon cannot be UNSEATED** — because nothing unseats a one-mount weapon
+    either. There is no remove path at all, only `equip`. The pickers work around it by
+    rebuilding the choice map, which is fine for a fleet being built and would not be for a
+    ship in play.
+  - **`OptionMount.Position` has no WYN hull-side value.** A Plasma-G is legal in two adjacent
+    hull-side mounts and illegal in two adjacent wing mounts, so hull-side cannot be squeezed
+    into WING. No WYN ship is in the data, so nothing is wrong today.
+  - **The swivel data question, unresolved.** The swivel plasma entries cost MORE (2 vs 1, 7 vs
+    4) yet carry the more CONSTRAINED `weaponSpec` — `launchDirections: ["FA"]` where the
+    no-swivel entry has none. Either absent means "inherits the mount's arc" and the swivel
+    entry is redundant, or the two are transposed and an Orion is paying extra for the worse
+    weapon. Read Annex #8B before trusting either.
+  - **Both ESGs and the PPD were never checked against #8B for POSITION.** All four plasma
+    entries turned out centerline-only, so "either position" on these three looks more like an
+    unfilled field than a statement. (The ESG's missing *recipe* was fixed 2026-10-21; its
+    `positions` were not revisited.)
 
 - **R1.32 Base Augmentation Modules.** Module R1 SSD book p.78, not yet read. All nine Base
   Stations declare the fighter, hangar and PF modules out of their baseline, so this is what
