@@ -3927,6 +3927,18 @@ public class Game {
     /**
      * Returns the current list of pending fire volleys (for the game-state DTO).
      */
+    /**
+     * Queue a volley for resolution at the end of the fire segment.
+     *
+     * <p>Package-private, like the resolvers that hold this list by reference: the public
+     * accessor below is deliberately unmodifiable so no caller outside {@code com.sfb} can
+     * inject damage. Weapons reach it through their firing path; this is the door for the ones
+     * whose damage is not built there, and for tests of the resolution itself.
+     */
+    void queueVolley(PendingVolley volley) {
+        pendingVolleys.add(volley);
+    }
+
     public List<PendingVolley> getPendingVolleys() {
         return Collections.unmodifiableList(pendingVolleys);
     }
@@ -5568,6 +5580,20 @@ public class Game {
         public final Unit target;
         public final int shieldNumber; // 0 for EPT enveloping seeker hits
         public final int totalDamage;
+        /**
+         * Damage per shield when ONE volley lands on more than one, shield number → points.
+         *
+         * <p>Null for the ordinary single-shield volley, which is almost everything. A PPD is
+         * the case it exists for: E11.35's splash spreads one pulse over two or three shields —
+         * 1+4+1 at range 4-10 — and E11.332 makes that "a single volley separate from other
+         * weapons (including other PPDs) and other pulses of that PPD". So it must not join the
+         * shield-group aggregation other fire goes through, and the bleed-through from all of
+         * its shields pools into ONE internal allocation rather than two or three.
+         *
+         * <p>Insertion-ordered, centre first, because the log reads better that way and the
+         * order is otherwise immaterial — the shields are damaged independently.
+         */
+        public final java.util.Map<Integer, Integer> shieldDamage;
         public final int envelopingHellboreDamage;
         public final boolean addHit;
         public final boolean fusionSuicideFired;
@@ -5601,6 +5627,37 @@ public class Game {
             this.fusionSuicideFired = fusionSuicideFired;
             this.attackerLog = attackerLog;
             this.envelopingTorp = envelopingTorp;
+            this.shieldDamage = null;
+        }
+
+        /**
+         * A volley that lands on several shields at once (E11.35's PPD splash).
+         *
+         * <p>{@code shieldNumber} and {@code totalDamage} stay populated — the facing shield and
+         * the sum — so every reader that only wants "where and how much" keeps working. What
+         * changes is that {@link #isSplash()} readers must not pool it with other fire.
+         */
+        public PendingVolley(String attackerName, Ship attackerShip, Unit target,
+                int facingShield, java.util.Map<Integer, Integer> shieldDamage,
+                String attackerLog) {
+            this.attackerName = attackerName;
+            this.attackerShip = attackerShip;
+            this.target = target;
+            this.shieldNumber = facingShield;
+            this.totalDamage = shieldDamage.values().stream().mapToInt(Integer::intValue).sum();
+            this.shieldDamage = new java.util.LinkedHashMap<>(shieldDamage);
+            this.envelopingHellboreDamage = 0;
+            this.addHit = false;
+            this.fusionSuicideFired = false;
+            this.attackerLog = attackerLog;
+            this.envelopingTorp = null;
+            this.feedbackDamage = 0;
+            this.feedbackShield = 1;
+        }
+
+        /** Whether this volley spreads over several shields and resolves on its own (E11.332). */
+        public boolean isSplash() {
+            return shieldDamage != null && shieldDamage.size() > 1;
         }
     }
 
