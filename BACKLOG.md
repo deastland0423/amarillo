@@ -176,9 +176,8 @@ Mounts and refits are now bought where the ship is bought (G15.415). See the mem
   years after its home empire fields it, three after an operating-zone empire, five after anyone
   else. Options are gated on the weapon's own `yearAvailable` only, so an Orion can field a
   weapon the year it appears anywhere.
-- **The PPD has no weapon class**, so its Annex #8B row stays recipe-less and unbuyable
-  (confirmed by the owner 2026-10-21). `OptionMountTranslationTest` uses it as the example of an
-  honestly-unimplemented option and will fail the day that changes.
+- ~~The PPD has no weapon class.~~ **BUILT 2026-10-22** — its Annex #8B row has a recipe, so an
+  Orion can buy one into two adjacent centerline mounts. See the PPD section below.
 - **G15.42's non-weapon options** — batteries, APR, labs, cargo, tractors, transporters, repair,
   hull, barracks — are listed in the catalogue with no `weaponSpec`, so they cannot be equipped.
   "None of the non-weapon options changes the BPV of the ship," so they need a different seat
@@ -188,6 +187,50 @@ Mounts and refits are now bought where the ship is bought (G15.415). See the mem
   outcome today.
 - **Named Orion variants** would still be nice for the ones history named (a CA+ reads better
   than "CA with the Plus refit"), but nothing needs them now that unnamed combinations resolve.
+
+## PPD (E11.0) — BUILT 2026-10-22, what is left
+
+The ISC's Plasmatic Pulsar Device. Core only: there is still no way to fire one from the UI.
+
+**What it does now.** Arms over two turns at 2-4 points (two points buys one pulse, E11.25);
+fires a run of up to four pulses over four impulses at one target it cannot change (E11.30);
+rolls 2d6 for a wave-lock each pulse until one takes, after which the rest score automatically
+(E11.331); spreads each pulse over two or three shields as ONE volley that resolves before all
+other fire (E11.35, E11.332); needs active fire control and a lock-on throughout and holds a
+seeking-weapon control channel while pulsing (E11.15, E11.151).
+
+**Two things that catch people, both pinned by tests:**
+- **The chart runs BACKWARDS.** Nothing inside range 4, strongest at 4-10, reaching 40. Every
+  other direct-fire table in the game runs the other way.
+- **Losing a wave-lock and BREAKING one are different.** E11.34 drops the lock and rolls again
+  on the pulses that remain; E11.54 ends the run and forbids a new roll. A weapon that treated
+  them alike would either never stop or never recover.
+
+**Left, in the order that matters:**
+- **No server or web surface.** `Game.firePpd` exists and nothing calls it outside tests. Until
+  this lands the weapon cannot be used in a game at all. This is the next slice.
+- **E11.6 OVERLOADS.** Refused rather than faked: `setOverload()` returns false and more than
+  four points in a turn is rejected, so the weapon is honest about not having them. E11.61-E11.65.
+- **E11.17 FLEET LIMIT** — ISC doctrine caps how many PPDs a force may field (four per ship plus
+  one per three ships, roughly). A force-construction rule, so it belongs with `FleetValidator`
+  beside the Orion cartel quota, not in the weapon.
+- **E11.16**: PPDs cannot be installed on ships smaller than size class 3. Nothing enforces it
+  for a hull that declares one in its own JSON (the Annex #8B option row does carry the bar).
+- **E11.39** general reinforcement against individual splash elements, **E11.38** narrow
+  salvoes, **E11.14** no non-violent combat.
+- **E11.4x INTERACTIONS, none built**: ESG (E11.41), web (E11.42), stasis (E11.43),
+  displacement (E11.44), plasma systems (E11.45), wild weasels (E11.46), cloaking devices
+  (E11.47), disengagement (E11.48), erratic manoeuvres (E11.49).
+
+**Deliberately parked by the owner (2026-10-22), not gaps to chase:**
+- **Stasis and displacement** (E11.43/E11.44/E11.545) — neither system is implemented and
+  neither is expected soon.
+- **Webs** (E11.42/E11.547) — no web or web caster exists, and no plan to add one.
+- **Andromedan power-absorber panels** (E11.354) — out of scope, as Andromedans are.
+
+**One real gap inside what IS built.** E11.312 rolls at the EFFECTIVE range and damages at the
+TRUE range. We pass ONE range for both, because nothing in the engine separates them. A scout or
+anything else shifting effective range would make the roll and the damage disagree.
 
 ## Ready to start
 
