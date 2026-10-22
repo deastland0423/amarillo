@@ -75,13 +75,19 @@ class PpdResolver {
             return Game.ActionResult.fail("A PPD cannot be fired with passive fire control (E11.152).");
         if (!firer.hasLockOn(target))
             return Game.ActionResult.fail("A PPD needs a lock-on to fire (E11.15).");
-        // E11.151: a pulsing PPD occupies a seeking-weapon control channel. Refused here rather
-        // than allowed to overflow, because the overflow procedure releases SEEKERS and "control
-        // of a PPD cannot be passed to another ship" — there would be nothing right to give up.
+        // E11.151: a pulsing PPD occupies a seeking-weapon control channel.
+        //
+        // Refused rather than allowed to overflow, and NOT because there is nothing to give up
+        // — a ship controlling six plasma torpedoes has six things it could give up, and
+        // Game.releaseSeekerControl and transferSeekerControl both exist for exactly that. It
+        // is refused because the overflow procedure is F3.532's INVOLUNTARY transfer: it would
+        // make a voluntary act of firing destroy a torpedo the player never chose to let go.
+        // Making room is the player's decision, so they make it first, and the message says so.
         if (firer.getControlUsed() >= firer.getControlCapacity())
             return Game.ActionResult.fail(
                     "No control channel free for the PPD (E11.151): " + firer.getControlUsed()
-                            + " of " + firer.getControlCapacity() + " in use.");
+                            + " of " + firer.getControlCapacity()
+                            + " in use. Release or transfer a seeking weapon to make room.");
 
         int range = MapUtils.getRange(firer, target);
         int damage;

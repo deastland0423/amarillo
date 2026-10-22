@@ -228,27 +228,54 @@ public class PpdFiringRunTest {
         assertEquals(before, firer.getControlUsed());
     }
 
+    /** Fill the hull's channels with seeking weapons it is guiding. */
+    private java.util.List<com.sfb.objects.Drone> fillChannelsWithSeekers() {
+        java.util.List<com.sfb.objects.Drone> drones = new java.util.ArrayList<>();
+        while (firer.getControlUsed() < firer.getControlCapacity()) {
+            com.sfb.objects.Drone drone = new com.sfb.objects.Drone();
+            drone.setName("Drone " + drones.size());
+            assertTrue("fixture: the hull should take another seeker",
+                    firer.acquireControl(drone));
+            drones.add(drone);
+        }
+        return drones;
+    }
+
     /**
-     * A device cannot be fired with every channel already spoken for. Refused rather than
-     * allowed to overflow: the overflow procedure releases SEEKERS, and "control of a PPD
-     * cannot be passed to another ship", so there would be nothing right to give up.
+     * A device cannot be fired with every channel already spoken for.
+     *
+     * <p>Refused rather than allowed to overflow — and NOT because there is nothing to give up.
+     * A ship guiding six plasma torpedoes has six things it could give up. It is refused
+     * because the overflow procedure is F3.532's INVOLUNTARY transfer, which would make the
+     * voluntary act of firing destroy a weapon the player never chose to let go.
      */
     @Test
     public void itCannotBeFiredWithNoChannelFree() {
-        // Fill every channel the hull has with pulsing devices.
-        for (int i = 0; i < firer.getControlCapacity(); i++) {
-            PPD extra = new PPD();
-            extra.setDesignator("x" + i);
-            extra.arm(4);
-            extra.arm(4);
-            firer.getWeapons().addWeapon(extra);
-            assertTrue("fixture: filler device " + i + " should fire",
-                    game.firePpd(firer, extra, target).isSuccess());
-        }
+        fillChannelsWithSeekers();
 
         Game.ActionResult result = game.firePpd(firer, ppd, target);
 
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage(), result.getMessage().contains("E11.151"));
+        assertTrue("and it says what to do about it: " + result.getMessage(),
+                result.getMessage().contains("Release or transfer"));
+    }
+
+    /**
+     * THE WAY OUT. Making room is the player's decision, and once they have made it the device
+     * fires. Without this the clause would be a dead end for any ship already guiding a full
+     * load of seeking weapons — which, for an ISC hull throwing plasma, is the normal case.
+     */
+    @Test
+    public void releasingASeekerMakesRoomForThePpd() {
+        java.util.List<com.sfb.objects.Drone> seekers = fillChannelsWithSeekers();
+        assertFalse("fixture: no room to start with",
+                game.firePpd(firer, ppd, target).isSuccess());
+
+        firer.releaseControl(seekers.get(0));
+
+        assertTrue("with a channel freed, the device fires",
+                game.firePpd(firer, ppd, target).isSuccess());
+        assertTrue(ppd.isPulsing());
     }
 }
