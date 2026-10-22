@@ -188,6 +188,28 @@ Mounts and refits are now bought where the ship is bought (G15.415). See the mem
 - **Named Orion variants** would still be nice for the ones history named (a CA+ reads better
   than "CA with the Plus refit"), but nothing needs them now that unnamed combinations resolve.
 
+## ISC rear-firing plasma (R13.1C) — BUILT 2026-10-22, one clause parked
+
+Most ISC ships carry type-F torpedoes aimed astern "to protect the ship from flank attacks or
+during retreats". They are not ordinary launchers pointed backwards, and `iscRearFiring` on the
+launcher is the anchor for the whole clause — one flag, because the rule states each restriction
+as a CONSEQUENCE of being rear-firing rather than as a property of its own.
+
+**Built:** no PPTs (folded into `canLaunchPseudo`, so every caller inherits the refusal); only
+ONE may fire at a size-class-4-or-larger ship per turn, tallied on the SHIP because the budget is
+per ship and not per launcher, with planetary bases on the restricted branch whatever their size.
+Fixed in direction three or five with no swivels needed no code: `ArcUtils` already derives a
+single launch direction from `L+LR` and from `R+RR` (D2.35).
+
+**Needs no code, and is NOT a gap.** "This defensive control system... cannot identify drones"
+disambiguates the phrase "fire-control system" for a reader; no plasma launcher in this engine
+identifies drones in the first place, so the clause is satisfied by absence (owner, 2026-10-22).
+Written down because a clause satisfied by absence looks exactly like one nobody got to.
+
+**Parked by the owner (2026-10-22) as a fiddly edge case:** any or all may fire at size-class-5
+or smaller units in a turn, but not two at the same target on the same impulse. Only bites when
+two rear torpedoes are thrown at one PF in a single impulse.
+
 ## PPD (E11.0) — BUILT 2026-10-22, what is left
 
 The ISC's Plasmatic Pulsar Device. Core only: there is still no way to fire one from the UI.
