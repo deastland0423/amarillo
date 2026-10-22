@@ -382,6 +382,31 @@ public class PpdTest {
         assertTrue("and the lock survives the approach", ppd.isWaveLocked());
     }
 
+    /**
+     * THE OTHER HALF OF E11.521, and the half that would break silently. "If the true range
+     * subsequently increases beyond the minimum while the weapon is still firing, it will cause
+     * damage during the impulses after the range increases."
+     *
+     * <p>So the myopic zone is a pause, not an ending: a target that dives inside range 4 and
+     * comes back out again is still held, and the pulses that remain score as if nothing had
+     * happened. A model that merely "kept the lock" without resuming damage would pass the test
+     * above and fail here.
+     */
+    @Test
+    public void damageResumesWhenTheTargetLeavesTheMyopicZone() throws Exception {
+        lockedWithPulsesLeft(10);
+        assertTrue("fixture: expected a lock", ppd.isWaveLocked());
+        assertTrue("fixture: expected at least two pulses to spend", ppd.pulsesRemaining() >= 2);
+
+        assertEquals("inside the zone it scores nothing", 0, ppd.pulse(2));
+        // The lock itself, not just the damage. Without this the test passes about five times
+        // in six against a device that DROPS the lock in the zone, because the pulse that
+        // follows simply re-rolls a hit at range 10 — which is not the same weapon at all.
+        assertTrue("the lock is held through the zone", ppd.isWaveLocked());
+
+        assertEquals("and the moment it is outside again it scores in full", 6, ppd.pulse(10));
+    }
+
     /** E11.362: shutting down loses every remaining pulse — there is no pausing (E11.333). */
     @Test
     public void shuttingDownEndsTheRun() throws Exception {
