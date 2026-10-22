@@ -5213,6 +5213,39 @@ public class Game {
         return com.sfb.utilities.LosUtils.blocked(a, b, planetSurfaceHexes);
     }
 
+    /**
+     * The planet or gas giant whose surface lies between two hexes, or null if none does.
+     *
+     * <p>{@link #losBlocked} answers whether sight is blocked; E11.546 needs to know by WHAT,
+     * because a PPD's wave-lock transfers onto the obstruction and starts damaging it. Each
+     * body is tested against its own footprint rather than the shared surface set, since the
+     * shared set cannot say which body a hex belongs to.
+     */
+    public Terrain blockingBody(Location a, Location b) {
+        if (planetSurfaceHexes.isEmpty() || a == null || b == null)
+            return null;
+        for (Terrain t : terrain) {
+            if (t.getTerrainType() != TerrainType.PLANET
+                    && t.getTerrainType() != TerrainType.GAS_GIANT)
+                continue;
+            java.util.Set<Location> surface = new java.util.HashSet<>();
+            Location c = t.getLocation();
+            int r = t.getRadius();
+            for (int col = c.getX() - r - 1; col <= c.getX() + r + 1; col++)
+                for (int row = c.getY() - r - 1; row <= c.getY() + r + 1; row++) {
+                    Location hex = new Location(col, row);
+                    int dist = com.sfb.utilities.MapUtils.getRange(c, hex);
+                    // Atmosphere never blocks sight (P2.321), so a large gas giant's outer
+                    // ring is excluded exactly as addTerrain excludes it.
+                    if (dist <= r && !(t.isLargeGasGiant() && dist == r))
+                        surface.add(hex);
+                }
+            if (com.sfb.utilities.LosUtils.blocked(a, b, surface))
+                return t;
+        }
+        return null;
+    }
+
     /** Fast-path guard: LOS sweeps are no-ops on maps without planetary surface. */
     boolean anyPlanetSurface() {
         return !planetSurfaceHexes.isEmpty();

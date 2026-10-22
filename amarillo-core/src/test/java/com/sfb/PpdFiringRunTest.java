@@ -278,4 +278,75 @@ public class PpdFiringRunTest {
                 game.firePpd(firer, ppd, target).isSuccess());
         assertTrue(ppd.isPulsing());
     }
+
+    // ------------------------------------------------------------------ E11.546
+
+    /**
+     * "The line of fire is blocked by a planet (P2.32) or other major object... In this case
+     * the wave locks onto the object and will damage it (if it can be damaged in the scenario
+     * rules) unless firing is stopped."
+     *
+     * <p>NOT a break. E11.54's other clauses end the run; this one drags it onto the
+     * obstruction and keeps pulsing. The beam has not lost anything — it has found something
+     * nearer, and the only way out is to shut the device down (E11.362).
+     */
+    @Test
+    public void aplanetInTheWayDragsTheWaveLockOntoItself() {
+        game.firePpd(firer, ppd, target);
+        assertEquals("fixture: a run is under way", 3, ppd.pulsesRemaining());
+
+        // A planet squarely between them: firer at (10,10), target at (10,20).
+        com.sfb.objects.Terrain planet = new com.sfb.objects.Terrain(
+                com.sfb.properties.TerrainType.PLANET, 10, 15, 1);
+        game.addTerrain(planet);
+
+        nextImpulse();
+
+        assertTrue("the run continues against the obstruction, not against nothing",
+                ppd.isPulsing() || planet.getTotalDamage() > 0);
+        assertEquals("and the game is still tracking it", 1, game.activePpdRunCount());
+    }
+
+    /** A scoring pulse damages the body it was dragged onto — centre element only (E11.353). */
+    @Test
+    public void adraggedRunDamagesThePlanet() {
+        com.sfb.objects.Terrain planet = new com.sfb.objects.Terrain(
+                com.sfb.properties.TerrainType.PLANET, 10, 15, 1);
+
+        for (int attempt = 0; attempt < 60 && planet.getTotalDamage() == 0; attempt++) {
+            if (!ppd.isPulsing()) {
+                // The lock-on has to be re-established each time, because the planet blocks
+                // line of sight and LockOnResolver drops the lock for it (P2.322). Without
+                // this the loop cannot retry at all: every firePpd after the first is refused
+                // for want of a lock-on, and the whole test rides on one run's dice.
+                firer.addLockOn(target);
+                ppd.arm(4);
+                ppd.arm(4);
+                assertTrue("fixture: the device should fire",
+                        game.firePpd(firer, ppd, target).isSuccess());
+                if (game.getTerrain().isEmpty())
+                    game.addTerrain(planet);
+            } else {
+                nextImpulse();
+            }
+        }
+
+        assertTrue("fixture: 50 runs without the planet taking a pulse",
+                planet.getTotalDamage() > 0);
+        assertEquals("a planet ignores the splash and takes the centre element (E11.353)",
+                4, planet.getTotalDamage() % 100);
+    }
+
+    /** Shutting down is the stated way out of an involuntary transfer (E11.546, E11.362). */
+    @Test
+    public void theWayOutOfADraggedRunIsToStopFiring() {
+        game.firePpd(firer, ppd, target);
+        game.addTerrain(new com.sfb.objects.Terrain(
+                com.sfb.properties.TerrainType.PLANET, 10, 15, 1));
+        nextImpulse();
+
+        ppd.shutDown();
+
+        assertFalse(ppd.isPulsing());
+    }
 }

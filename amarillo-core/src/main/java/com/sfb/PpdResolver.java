@@ -32,7 +32,17 @@ class PpdResolver {
     static class PpdRun {
         final Ship firer;
         final PPD device;
-        final Unit target;
+        /**
+         * NOT final, and E11.546 is the only reason.
+         *
+         * <p>E11.34 is emphatic that a PPD "cannot switch targets" — the run is tied to what it
+         * was fired at. The single exception is involuntary: when a planet or other major body
+         * comes between the two, "the wave locks onto the object and will damage it... unless
+         * firing is stopped". Nothing else may write this field.
+         */
+        com.sfb.objects.Marker target;
+        /** The body a wave-lock was dragged onto (E11.546), so it is announced only once. */
+        com.sfb.objects.Terrain lockedOntoBody;
 
         PpdRun(Ship firer, PPD device, Unit target) {
             this.firer = firer;
@@ -123,6 +133,15 @@ class PpdResolver {
                 it.remove();
                 continue;
             }
+            // E11.546 FIRST, because it is the specific rule for an obstructed line of fire
+            // and E11.549 is the general one. The engine already drops a lock-on when a planet
+            // comes between two ships (P2.322, LockOnResolver), so asking "has the lock gone?"
+            // before "has something come between?" would end every run a planet interrupted —
+            // the exact case E11.546 says continues, against the planet.
+            String transfer = transferToBlockingBody(run);
+            if (transfer != null)
+                log.add(transfer);
+
             String ended = reasonTheRunCannotContinue(run);
             if (ended != null) {
                 run.device.shutDown();
@@ -137,7 +156,9 @@ class PpdResolver {
             run.device.setEcmShift(currentShift(run));
             int damage = run.device.pulse(range);
             if (damage > 0)
-                log.add(queueSplash(run, range));
+                log.add(run.lockedOntoBody != null
+                        ? damageBlockingBody(run, range)
+                        : queueSplash(run, range));
             else
                 log.add("  " + run.firer.getName() + " PPD pulse — no wave-lock"
                         + (run.device.isPulsing() ? "" : " (run complete)"));
@@ -162,7 +183,12 @@ class PpdResolver {
             return "the target is no longer on the map";
         if (!run.firer.isActiveFireControl())
             return "active fire control lost (E11.15)";
-        if (!run.firer.hasLockOn(run.target))
+        // The lock-on requirement is against a UNIT. A run dragged onto a planet (E11.546) is
+        // no longer pointed at one, and nothing in the engine can hold a lock-on to terrain —
+        // the beam is on the obstruction whether the firer likes it or not, and E11.546 says
+        // the only way out is to stop firing.
+        if (run.lockedOntoBody == null && run.target instanceof Unit unit
+                && !run.firer.hasLockOn(unit))
             return "lock-on lost (E11.15)";
         // E11.541: out of arc or out of RANGE breaks the lock outright — unlike closing inside
         // range 4, which merely wastes the pulse (E11.312, E11.521).
@@ -176,6 +202,33 @@ class PpdResolver {
         if (!run.device.isFunctional())
             return "the PPD box was destroyed (E11.544)";
         return null;
+    }
+
+    /**
+     * E11.546: a planet or other major body has come between the firer and the target.
+     *
+     * <p>"In this case the wave locks onto the object and will damage it (if it can be damaged
+     * in the scenario rules) unless firing is stopped." So this is NOT a break — the run keeps
+     * going, against the obstruction, and the only way out is for the player to shut the device
+     * down (E11.362). The lock itself is kept: the beam has not lost anything, it has been
+     * dragged onto something nearer.
+     *
+     * @return a line to log when the transfer happens, else null
+     */
+    private String transferToBlockingBody(PpdRun run) {
+        if (run.lockedOntoBody != null)
+            return null;                        // already dragged onto it; announce once
+        com.sfb.objects.Terrain body = game.blockingBody(
+                run.firer.getLocation(), run.target.getLocation());
+        if (body == null)
+            return null;
+
+        String was = run.target.getName();
+        run.lockedOntoBody = body;
+        run.target = body;
+        return "  " + run.firer.getName() + " PPD wave-lock drags onto "
+                + body.getTerrainType() + " between it and " + was
+                + " — it will damage that instead unless firing stops (E11.546)";
     }
 
     /** Whether the device still bears on its target (D2.0, E11.541). */
@@ -205,12 +258,34 @@ class PpdResolver {
      * case. A ship that has merely lost its shields still takes the full splash, as the rule is
      * careful to say.
      */
+    /**
+     * Damage the body a wave-lock was dragged onto (E11.546, E11.353).
+     *
+     * <p>E11.353 puts planets among the targets that "ignore the splash effect and use only the
+     * central number", so an obstruction takes the centre element and nothing spreads. Applied
+     * straight to the body rather than queued as a volley: a PendingVolley targets a Unit, and
+     * terrain is a Marker with its own per-side damage track.
+     */
+    private String damageBlockingBody(PpdRun run, int range) {
+        int damage = PpdSplash.centreOnly(range);
+        com.sfb.objects.Terrain body = run.lockedOntoBody;
+        java.util.Set<Integer> faces = MapUtils.visiblePlanetSides(
+                body.getLocation(), run.firer.getLocation());
+        // The face the beam arrives on. Lowest-numbered visible side when several are, which is
+        // the same reproducible tie-break the splash uses for equal shields.
+        int side = faces.isEmpty() ? 1 : java.util.Collections.min(faces);
+        body.addDamage(side, damage);
+        return "  " + run.firer.getName() + " PPD pulse strikes the "
+                + body.getTerrainType() + " for " + damage + " on side " + side
+                + " (E11.546, centre element only per E11.353)";
+    }
+
     private String queueSplash(PpdRun run, int range) {
         String who = run.firer.getName();
         if (!(run.target instanceof Ship targetShip)) {
             int centre = PpdSplash.centreOnly(range);
             pendingVolleys.add(new Game.PendingVolley(
-                    who, run.firer, run.target, 0, centre, 0, false, false, "", null));
+                    who, run.firer, (Unit) run.target, 0, centre, 0, false, false, "", null));
             return "  " + who + " PPD pulse hits " + run.target.getName()
                     + " for " + centre + " (no shields to splash across, E11.353)";
         }
