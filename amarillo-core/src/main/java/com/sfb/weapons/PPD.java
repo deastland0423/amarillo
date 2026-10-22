@@ -134,6 +134,36 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
         return energy == HOLDING_COST;
     }
 
+    /**
+     * Add energy to a charge that is already complete and being held (E11.25, E11.63).
+     *
+     * <p>A different operation from an arming turn, and the rules treat it as one. E11.25 brings
+     * an UNDERLOADED charge up "by holding it for an additional turn and allocating more
+     * energy"; E11.63 overloads a HELD one the same way, "in addition to the holding energy".
+     * Both are the same act — more energy onto a charge that already exists — and what makes it
+     * an overload is the TOTAL passing what a standard full charge costs.
+     *
+     * <p>That reading is what reproduces the rule's own numbers. A held full charge (eight
+     * points, four pulses) plus four is twelve, which is E11.61's overload at six pulses; plus
+     * two is ten, which is E11.612's "only one additional pulse" at five. A half-charge of four
+     * topped up by four is eight — a plain full charge, no overload, exactly as E11.25 intends.
+     *
+     * @return false if the amount buys nothing, leaving the charge untouched
+     */
+    public boolean addEnergyToHeldCharge(int points) {
+        if (!armed)
+            return false;
+        if (points < ENERGY_PER_PULSE || points % ENERGY_PER_PULSE != 0)
+            return false;
+        int total = armingEnergy + points;
+        if (total > ENERGY_PER_PULSE * MAX_PULSES_OVERLOADED)
+            return false;
+        armingEnergy = total;
+        if (total > ENERGY_PER_PULSE * MAX_PULSES)
+            overloaded = true;
+        return true;
+    }
+
     /** How many pulses the current charge will fire (E11.25, E11.61). */
     public int pulsesCharged() {
         return Math.min(maxPulses(), armingEnergy / ENERGY_PER_PULSE);
@@ -313,10 +343,39 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
             return;
         }
         int points = (int) Math.floor(energy);
-        if (armed && points == HOLDING_COST)
-            return;                       // held for another turn, charge unchanged
-        if (!arm(points))
-            reset();                      // an amount the rule does not allow buys nothing
+
+        if (!armed) {
+            if (!arm(points))
+                reset();                  // an amount the rule does not allow buys nothing
+            return;
+        }
+
+        // An ARMED charge. The first two points are the holding cost (E11.22) and anything
+        // beyond them is further arming energy — E11.25 topping up an underloaded charge, or
+        // E11.63 overloading a held one, "in addition to the holding energy".
+        if (points < HOLDING_COST) {
+            reset();                      // holding not paid, so the charge is lost (E1.24)
+            return;
+        }
+        int extra = points - HOLDING_COST;
+        // An extra amount the rule does not allow buys nothing — but the holding cost WAS paid,
+        // so the charge survives. It used to be discarded here, which punished a player for
+        // following E11.63 by destroying two turns of arming.
+        if (extra > 0)
+            addEnergyToHeldCharge(extra);
+    }
+
+    /**
+     * E11.62/E11.63: an overload cannot be held, so one still armed at the end of the turn is
+     * ejected — "the PPD must be fired or ejected by the end of the turn".
+     *
+     * <p>A standard charge is untouched: it may be held for as long as the holding cost is paid.
+     */
+    @Override
+    public void cleanUp() {
+        if (armed && overloaded)
+            reset();
+        super.cleanUp();
     }
 
     /**

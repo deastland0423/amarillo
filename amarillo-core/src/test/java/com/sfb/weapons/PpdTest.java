@@ -424,6 +424,107 @@ public class PpdTest {
         assertEquals("and the charge is unchanged", 4, ppd.pulsesCharged());
     }
 
+    // ------------------------------------------------------- E11.63, overloading a held charge
+
+    /**
+     * E11.63: "Held PPDs can also be overloaded by allocating overload energy during Energy
+     * Allocation, but this energy would be in addition to the holding energy."
+     *
+     * <p>Two to hold and four more on top of a complete charge: eight points becomes twelve,
+     * which is exactly E11.61's overload at six pulses.
+     */
+    @Test
+    public void aheldChargeCanBeOverloadedAtAllocation() {
+        fullCharge();
+
+        ppd.applyAllocationEnergy(6.0, null);   // 2 holding + 4 overload
+
+        assertTrue(ppd.isArmed());
+        assertTrue(ppd.isOverloaded());
+        assertEquals(6, ppd.pulsesCharged());
+        assertEquals("and it pays the eight-hex reach for them", 8, ppd.getMaxRange());
+    }
+
+    /** Two of those points buys the one extra pulse of E11.612 rather than two. */
+    @Test
+    public void asmallerTopUpBuysProportionallyFewerPulses() {
+        fullCharge();
+
+        ppd.applyAllocationEnergy(4.0, null);   // 2 holding + 2 overload
+
+        assertTrue(ppd.isOverloaded());
+        assertEquals(5, ppd.pulsesCharged());
+    }
+
+    /**
+     * THE REGRESSION. An amount the rule cannot spend used to DESTROY the charge: a player
+     * following E11.63 and allocating holding plus a full eight points of overload lost two
+     * turns of arming to it. The holding cost was paid, so the charge survives untouched.
+     */
+    @Test
+    public void anUnspendableTopUpDoesNotDestroyTheCharge() {
+        fullCharge();
+
+        ppd.applyAllocationEnergy(10.0, null);  // 2 holding + 8, more than an overload can hold
+
+        assertTrue("the charge is still there", ppd.isArmed());
+        assertEquals("and unchanged", 4, ppd.pulsesCharged());
+        assertFalse(ppd.isOverloaded());
+    }
+
+    /**
+     * E11.25's other route to the same place: an UNDERLOADED charge held for another turn with
+     * more energy comes up to strength, and that is not an overload.
+     */
+    @Test
+    public void aheldUnderloadedChargeCanBeBroughtUp() {
+        ppd.arm(2);
+        ppd.arm(2);
+        assertEquals("fixture: two pulses", 2, ppd.pulsesCharged());
+
+        ppd.applyAllocationEnergy(6.0, null);   // 2 holding + 4 arming
+
+        assertEquals("a plain full charge now", 4, ppd.pulsesCharged());
+        assertFalse("and not an overload — eight points is what a full charge costs",
+                ppd.isOverloaded());
+    }
+
+    /** Failing to pay the holding cost loses the charge, as it always did (E1.24, E11.22). */
+    @Test
+    public void notPayingTheHoldingCostStillLosesTheCharge() {
+        fullCharge();
+
+        ppd.applyAllocationEnergy(1.0, null);
+
+        assertFalse(ppd.isArmed());
+    }
+
+    /**
+     * E11.62/E11.63: an overload cannot be held, so one still armed at the end of the turn is
+     * ejected — "the PPD must be fired or ejected by the end of the turn".
+     */
+    @Test
+    public void anUnfiredOverloadIsEjectedAtEndOfTurn() {
+        ppd.arm(4);
+        ppd.arm(8);
+        assertTrue("fixture: an overload is armed", ppd.isArmed());
+
+        ppd.cleanUp();
+
+        assertFalse("it could not be held, so it is gone", ppd.isArmed());
+    }
+
+    /** A standard charge survives the turn boundary, since it CAN be held. */
+    @Test
+    public void anUnfiredStandardChargeSurvivesTheTurn() {
+        fullCharge();
+
+        ppd.cleanUp();
+
+        assertTrue(ppd.isArmed());
+        assertEquals(4, ppd.pulsesCharged());
+    }
+
     /** E11.6: overload is not built, so the device refuses to be put in that mode. */
     @Test
     public void overloadIsRefusedRatherThanFaked() {
