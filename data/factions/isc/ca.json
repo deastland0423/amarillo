@@ -123,7 +123,7 @@
       "label": "Plasma-F",
       "year": 179,
       "bpv": 12,
-      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE ALL PLASMA-F TORPEDOES. These are R13.1C's REAR-FIRING torpedoes: fixed, firing in direction three or five, no swivels, no PPTs, on a separate defensive fire control that cannot identify drones, and only ONE may fire at a size-class-4-or-larger ship per turn. None of those restrictions is implemented yet; the launchers are identifiable by their L+LR and R+RR arcs, which is what D2.35 keys on.",
+      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE ALL PLASMA-F TORPEDOES. R13.1C's REAR-FIRING torpedoes, flagged iscRearFiring, which is the anchor for the whole clause. BUILT: no PPTs; only ONE may fire at a size-class-4-or-larger ship per turn (ground bases count as size 4+ whatever their size); fixed in direction three or five with no swivels, which needs no code because ArcUtils derives a single launch direction from L+LR and from R+RR. NEEDS NO CODE: 'cannot identify drones' disambiguates the phrase 'fire-control system' for a reader, and no plasma launcher identifies drones in the first place (owner, 2026-10-22). STILL OPEN: two of them may not fire at the same target on the same impulse.",
       "addWeapons": [
         { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
         { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },

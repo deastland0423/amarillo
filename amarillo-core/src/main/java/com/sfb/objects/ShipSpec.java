@@ -902,6 +902,12 @@ public class ShipSpec {
          * <p>ONE flag for all of it, because the rule states each restriction as a consequence
          * of being rear-firing rather than as a property in its own right. A second field for
          * "no pseudos" could disagree with this one; derived, it cannot.
+         *
+         * <p>One clause of R13.1C needs NO code and should not be mistaken for a gap: the
+         * defensive fire control "cannot identify drones". That phrase is there to stop a
+         * reader assuming the words "fire-control system" grant the ordinary powers of one —
+         * and no plasma launcher in this engine identifies drones anyway, so the clause is
+         * already satisfied by absence (owner, 2026-10-22).
          */
         public boolean iscRearFiring;
     }
