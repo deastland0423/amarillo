@@ -890,6 +890,20 @@ public class ShipSpec {
          * granted, and the recipe says which was bought.
          */
         public Boolean hasCapacitor;
+        /**
+         * R13.1C: an ISC REAR-FIRING plasma torpedo, and the anchor for that whole clause.
+         *
+         * <p>Most ISC ships carry a few type-F torpedoes aimed astern "to protect the ship from
+         * flank attacks or during retreats". They are not ordinary launchers pointed backwards:
+         * they carry no pseudo torpedoes, answer to a separate defensive fire control that
+         * cannot identify drones, and only ONE of them may fire at a size-class-4-or-larger
+         * ship in a turn however many the ship has.
+         *
+         * <p>ONE flag for all of it, because the rule states each restriction as a consequence
+         * of being rear-firing rather than as a property in its own right. A second field for
+         * "no pseudos" could disagree with this one; derived, it cannot.
+         */
+        public boolean iscRearFiring;
     }
 
     // -------------------------------------------------------------------------

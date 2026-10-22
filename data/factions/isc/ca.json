@@ -52,7 +52,7 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "admin", "admin", "admin", "admin"] }
+    { "shuttles": ["admin", "admin", "admin", "admin", "admin", "admin"], "balconyPositions": 2 }
   ],
 
   "crewData": {
@@ -125,12 +125,12 @@
       "bpv": 12,
       "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE ALL PLASMA-F TORPEDOES. These are R13.1C's REAR-FIRING torpedoes: fixed, firing in direction three or five, no swivels, no PPTs, on a separate defensive fire control that cannot identify drones, and only ONE may fire at a size-class-4-or-larger ship per turn. None of those restrictions is implemented yet; the launchers are identifiable by their L+LR and R+RR arcs, which is what D2.35 keys on.",
       "addWeapons": [
-        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["L", "LR"] },
-        { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "arcs": ["L", "LR"] },
-        { "type": "PlasmaLauncher", "designator": "F", "plasmaType": "F", "arcs": ["L", "LR"] },
-        { "type": "PlasmaLauncher", "designator": "G", "plasmaType": "F", "arcs": ["R", "RR"] },
-        { "type": "PlasmaLauncher", "designator": "H", "plasmaType": "F", "arcs": ["R", "RR"] },
-        { "type": "PlasmaLauncher", "designator": "J", "plasmaType": "F", "arcs": ["R", "RR"] }
+        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "F", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "G", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "H", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "J", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] }
       ]
     }
   ]

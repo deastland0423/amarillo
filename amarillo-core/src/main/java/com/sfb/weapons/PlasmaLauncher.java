@@ -86,6 +86,19 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 		return this.launcherType;
 	}
 
+	/**
+	 * R13.1C: an ISC rear-firing torpedo. @see com.sfb.objects.ShipSpec.WeaponSpec#iscRearFiring
+	 */
+	private boolean iscRearFiring;
+
+	public boolean isIscRearFiring() {
+		return iscRearFiring;
+	}
+
+	public void setIscRearFiring(boolean iscRearFiring) {
+		this.iscRearFiring = iscRearFiring;
+	}
+
 	public boolean isPseudoPlasmaReady() {
 		return pseudoPlasmaReady;
 	}
@@ -96,6 +109,11 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 	 * already fired this impulse (can't launch both in the same impulse).
 	 */
 	public boolean canLaunchPseudo() {
+		// R13.1C: "These rear-firing torpedoes do not have PPTs." Asked here rather than at the
+		// launch path, because launchPseudo() already funnels through this method — so the
+		// refusal reaches every caller without any of them having to know about the ISC.
+		if (iscRearFiring)
+			return false;
 		if (!pseudoPlasmaReady)
 			return false;
 		int currentImpulse = clock.getImpulse();

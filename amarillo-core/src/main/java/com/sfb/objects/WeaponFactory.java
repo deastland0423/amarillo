@@ -123,6 +123,7 @@ public final class WeaponFactory {
                 // has no say. A file may still state it — nothing in the data does any more —
                 // and a stated list wins, so an exception remains expressible if one is ever
                 // found. See ArcUtils.plasmaLaunchDirections for what stating it used to cost.
+                pl.setIscRearFiring(ws.iscRearFiring);   // R13.1C
                 pl.setLaunchDirections(ws.launchDirections != null && !ws.launchDirections.isEmpty()
                         ? ArcUtils.calculateMask(ws.launchDirections)
                         : ArcUtils.plasmaLaunchDirections(effectiveArcs));

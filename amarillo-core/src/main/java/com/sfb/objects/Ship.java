@@ -2614,6 +2614,24 @@ public class Ship extends Unit implements DroneController {
 	 * PPD already knows it is pulsing; a second tally would be a second answer, and the run
 	 * ends on an impulse boundary where nothing would think to decrement it.
 	 */
+	/**
+	 * The turn on which this ship last fired an ISC rear-firing torpedo at a size-class-4 or
+	 * larger target (R13.1C), or -1. One per ship per turn, so the tally belongs to the SHIP
+	 * and not to any one launcher — a cruiser with six of them still gets one shot at another
+	 * cruiser, while any or all may fire at PFs.
+	 *
+	 * <p>Needs no save hook: saves happen at turn boundaries, where this has already lapsed.
+	 */
+	private int iscRearPlasmaAtShipTurn = -1;
+
+	public boolean hasFiredIscRearPlasmaAtShipThisTurn(int currentTurn) {
+		return iscRearPlasmaAtShipTurn == currentTurn;
+	}
+
+	public void recordIscRearPlasmaAtShip(int currentTurn) {
+		this.iscRearPlasmaAtShipTurn = currentTurn;
+	}
+
 	public int getControlUsed() {
 		return this.specialFunctions.getControlUsed() + pulsingPpdCount();
 	}

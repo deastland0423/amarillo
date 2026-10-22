@@ -41,6 +41,12 @@ public class BalconyPositionTest {
     public void loadData() throws Exception {
         ShipLibrary.loadAllSpecs("../data/factions");
         ShuttleCatalog.loadDefault("../data");
+        // The Gorn sweep below asks ShipLineCatalog.isCivilian to leave the Q-ships out of a
+        // test about warships. Without this it answers false for everything, and the sweep
+        // reported the L-Q and S-Q as warships missing a balcony — but only when this class ran
+        // ALONE, because in a full suite some other test had already loaded the catalogue. A
+        // test that passes because of its neighbours is not passing.
+        com.sfb.objects.ShipLineCatalog.loadDefault("../data");
     }
 
     private static Shuttle shuttle(String name) {
@@ -277,7 +283,8 @@ public class BalconyPositionTest {
                 "Federation CVA",   // six on each fighter bay, none on the admin bay
                 "Klingon C8V",      // stacked bays; four on the lower one
                 "Klingon D7V",      // R3.44: "LOWER BAY HAS FOUR BALCONY POSITIONS (J1.53)"
-                "Romulan K7V");     // stacked bays on a converted K7; four on the lower
+                "Romulan K7V",      // stacked bays on a converted K7; four on the lower
+                "ISC CA");          // R13.6: "TWO BALCONY (J1.53) POSITIONS" on its one bay
 
         for (ShipSpec spec : ShipLibrary.all()) {
             if ("Gorn".equals(spec.faction))

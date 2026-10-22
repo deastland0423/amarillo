@@ -1039,6 +1039,40 @@ class LaunchCoordinator {
                 weapon, fastLoad, facing);
     }
 
+
+    /**
+     * R13.1C's firing limit for ISC rear-firing torpedoes, or null if this launch is allowed.
+     *
+     * <p>"Each ship can fire only one of its rear-firing torpedoes at a size-class-4 (or larger)
+     * ship each turn. The 1/4-turn firing limit applies when firing at ships and does not apply
+     * to or restrict firing at size-class-5 or smaller units (except for planetary bases, which
+     * are always under the size 4+ restrictions regardless of their size)."
+     *
+     * <p>So the split is at the size class, not at the weapon: a ship with six of them may empty
+     * all six at PFs in a turn and still fire only ONE at a cruiser. The budget is therefore per
+     * SHIP, which is why the tally lives on the launcher's owner rather than on the launcher.
+     *
+     * <p>A ballistic course has no unit to size up. Ground bases are the rule's own exception —
+     * "planetary bases... are always under the size 4+ restrictions" — so a course aimed at one
+     * takes the restricted branch.
+     */
+    private ActionResult iscRearFiringBlock(Ship launcher, Unit target, BallisticCourse course,
+            PlasmaLauncher weapon) {
+        if (!weapon.isIscRearFiring())
+            return null;
+        boolean restricted = course != null
+                ? course.isGroundAttack()                 // a planetary base (P2.713)
+                : target != null && target.getSizeClass() <= 4;
+        if (!restricted)
+            return null;
+        if (launcher.hasFiredIscRearPlasmaAtShipThisTurn(game.getCurrentTurn()))
+            return ActionResult.fail(launcher.getName()
+                    + " has already fired a rear-firing torpedo at a size-class-4 or larger"
+                    + " target this turn (R13.1C)");
+        launcher.recordIscRearPlasmaAtShip(game.getCurrentTurn());
+        return null;
+    }
+
     private ActionResult launchPlasma(Ship launcher, Unit target, BallisticCourse course,
             PlasmaLauncher weapon, boolean fastLoad, int facing) {
         Location aim = course != null ? course.getTargetHex()
@@ -1070,6 +1104,9 @@ class LaunchCoordinator {
         }
         if (!weapon.isArmed())
             return ActionResult.fail(weapon.getName() + " is not armed");
+        ActionResult rearBlock = iscRearFiringBlock(launcher, target, course, weapon);
+        if (rearBlock != null)
+            return rearBlock;
         // TWO different constraints, and they are not the same arc.
         //
         // The TARGET must lie in the launcher's firing arc: a plasma launcher has one, unlike
