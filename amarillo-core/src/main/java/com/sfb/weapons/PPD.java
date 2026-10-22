@@ -49,11 +49,23 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
     public static final int HOLDING_COST = 2;
     /** E11.312: "The weapon cannot be fired if the true range is three or less." */
     public static final int MINIMUM_RANGE = 4;
+    /** E11.61: eight points on the second turn of arming buys six pulses instead of four. */
+    public static final int OVERLOAD_ENERGY = 8;
+    /** E11.61: "the weapon fires six pulses over six impulses rather than four over four." */
+    public static final int MAX_PULSES_OVERLOADED = 6;
+    /** E11.64: "The maximum true range for an overloaded PPD is eight hexes." */
+    public static final int OVERLOAD_MAX_RANGE = 8;
 
     // ---- arming state -------------------------------------------------------
     private int armingTurn = 0;      // consecutive turns energy has been added
     private int armingEnergy = 0;    // total points in the current charge
     private boolean armed = false;
+    /**
+     * E11.6. Determined by the ENERGY, never declared: more than four points on the second turn
+     * of arming makes it an overload, and E11.65 keeps it one "even though it will have fewer
+     * total pulses" than a full charge. So there is nothing to keep in step with the energy.
+     */
+    private boolean overloaded = false;
 
     // ---- firing state -------------------------------------------------------
     private int pulsesRemaining = 0;
@@ -88,12 +100,19 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
      */
     @Override
     public boolean arm(int energy) {
-        if (energy < ENERGY_PER_PULSE || energy > ENERGY_PER_TURN || energy % ENERGY_PER_PULSE != 0)
+        // E11.611: "No more than four points of energy can be allocated on the first turn."
+        int ceiling = armingTurn == 0 ? ENERGY_PER_TURN : OVERLOAD_ENERGY;
+        if (energy < ENERGY_PER_PULSE || energy > ceiling || energy % ENERGY_PER_PULSE != 0)
             return false;
+        // E11.61/E11.65: more than a normal turn's worth on a later turn IS the overload, and
+        // stays one however few pulses it ends up with (E11.612's six points buys just one
+        // extra). Latched, because a third turn at two points does not undo it.
+        if (energy > ENERGY_PER_TURN)
+            overloaded = true;
         // E11.23: a device still pulsing is mid-firing, not mid-arming. Arming energy for the
         // NEXT charge may be allocated while an earlier firing run is still resolving (the
         // worked example in E11.23 does exactly that), so this checks the charge, not the run.
-        if (armingEnergy + energy > ENERGY_PER_PULSE * MAX_PULSES)
+        if (armingEnergy + energy > ENERGY_PER_PULSE * maxPulses())
             return false;
         armingEnergy += energy;
         armingTurn++;
@@ -109,12 +128,37 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
     public boolean hold(int energy) throws WeaponUnarmedException {
         if (!armed)
             throw new WeaponUnarmedException("PPD has no charge to hold.");
+        // E11.62: "Overloaded PPDs cannot be held."
+        if (overloaded)
+            return false;
         return energy == HOLDING_COST;
     }
 
-    /** How many pulses the current charge will fire (E11.25). */
+    /** How many pulses the current charge will fire (E11.25, E11.61). */
     public int pulsesCharged() {
-        return Math.min(MAX_PULSES, armingEnergy / ENERGY_PER_PULSE);
+        return Math.min(maxPulses(), armingEnergy / ENERGY_PER_PULSE);
+    }
+
+    /** Four pulses normally, six overloaded (E11.61). */
+    private int maxPulses() {
+        return overloaded ? MAX_PULSES_OVERLOADED : MAX_PULSES;
+    }
+
+    /** Whether this charge is an overload (E11.6), which the energy decides and nothing else. */
+    public boolean isOverloaded() {
+        return overloaded;
+    }
+
+    /**
+     * E11.64: an overloaded PPD reaches eight hexes, not forty.
+     *
+     * <p>A severe trade for the two extra pulses, and the reason it is a tactical choice rather
+     * than a free upgrade — it gives up the long reach the whole weapon exists for. E11.541
+     * reads this too, so a target that runs past eight breaks the lock outright.
+     */
+    @Override
+    public int getMaxRange() {
+        return overloaded ? OVERLOAD_MAX_RANGE : super.getMaxRange();
     }
 
     @Override public int energyToArm() { return ENERGY_PER_TURN; }
@@ -122,7 +166,10 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
     @Override public int getArmingTurn() { return armingTurn; }
     @Override public boolean isArmed() { return armed; }
     @Override public void setArmed(boolean armed) { this.armed = armed; }
-    @Override public WeaponArmingType getArmingType() { return WeaponArmingType.STANDARD; }
+    @Override
+    public WeaponArmingType getArmingType() {
+        return overloaded ? WeaponArmingType.OVERLOAD : WeaponArmingType.STANDARD;
+    }
 
     @Override
     public void setArmingTurn(int turn) {
@@ -159,6 +206,7 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
         pulsesRemaining = pulsesCharged();
         waveLocked = false;
         // The charge is spent the moment it is fired; what remains is the run, not the charge.
+        // `overloaded` stays set until the run ends, because getMaxRange() answers for the run.
         armed = false;
         armingEnergy = 0;
         armingTurn = 0;
@@ -248,6 +296,7 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
     public void shutDown() {
         pulsesRemaining = 0;
         waveLocked = false;
+        overloaded = false;
     }
 
     /**
@@ -282,6 +331,7 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
         armed = false;
         armingEnergy = 0;
         armingTurn = 0;
+        overloaded = false;
     }
 
     /**
@@ -289,8 +339,13 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
      * so standard is the only mode it will accept, and the other two refuse rather than
      * silently arming something this class would then fire at the wrong strength.
      */
-    @Override public boolean setStandard() { return true; }
-    @Override public boolean setOverload() { return false; }
+    @Override public boolean setStandard() { return !overloaded; }
+    /**
+     * Overload is possible (E11.6) but is not a mode you switch into: it is what allocating more
+     * than four points on a later arming turn MEANS. Saying so here changes nothing, which is
+     * why this reports the state rather than setting it.
+     */
+    @Override public boolean setOverload() { return overloaded; }
     @Override public boolean setSpecial()  { return false; }
 
     @Override

@@ -100,16 +100,116 @@ public class PpdTest {
         assertEquals(4, ppd.pulsesCharged());
     }
 
-    /**
-     * E11.65: more than four points in a turn is an OVERLOAD, which is not implemented. Refused
-     * rather than accepted, because accepting it would build a charge this class then fires at
-     * the wrong strength.
-     */
+    /** E11.611: "No more than four points of energy can be allocated on the first turn." */
     @Test
-    public void moreThanFourPointsInATurnIsRefused() {
+    public void moreThanFourPointsOnTheFirstTurnIsRefused() {
         assertFalse(ppd.arm(6));
         assertFalse("and the charge is untouched", ppd.isArmed());
         assertEquals(0, ppd.pulsesCharged());
+    }
+
+    // ------------------------------------------------------------------ overloads (E11.6)
+
+    /**
+     * E11.61: eight points on the second turn instead of four. "The damage is not increased;
+     * instead, the weapon fires six pulses over six impulses rather than four over four."
+     */
+    @Test
+    public void anOverloadBuysPulsesNotDamage() {
+        assertTrue(ppd.arm(4));
+        assertTrue("eight points is legal on the SECOND turn", ppd.arm(8));
+
+        assertTrue(ppd.isOverloaded());
+        assertEquals("six pulses, not four", 6, ppd.pulsesCharged());
+        assertEquals("and the chart is untouched — damage is unchanged",
+                6, PpdSplash.totalDamage(7));
+    }
+
+    /**
+     * E11.64: "The maximum true range for an overloaded PPD is eight hexes." A severe trade for
+     * the two extra pulses — it gives up the long reach the weapon exists for.
+     */
+    @Test
+    public void anOverloadedDeviceReachesOnlyEightHexes() {
+        ppd.arm(4);
+        ppd.arm(8);
+
+        assertEquals(8, ppd.getMaxRange());
+        try {
+            ppd.fire(10);
+            fail("an overloaded PPD cannot reach ten hexes");
+        } catch (TargetOutOfRangeException expected) {
+            // E11.64
+        } catch (WeaponUnarmedException e) {
+            fail("the device was armed: " + e.getMessage());
+        }
+    }
+
+    /** And still fires inside that reach, so the restriction is a range bound, not a block. */
+    @Test
+    public void anOverloadedDeviceFiresWithinEight() throws Exception {
+        ppd.arm(4);
+        ppd.arm(8);
+
+        ppd.fire(7);
+
+        assertTrue(ppd.isPulsing());
+        assertEquals("five pulses still owed of six", 5, ppd.pulsesRemaining());
+    }
+
+    /** E11.612: six points on the second turn is an "underloaded overload" — one extra pulse. */
+    @Test
+    public void anUnderloadedOverloadGainsOnlyOnePulse() {
+        ppd.arm(4);
+        assertTrue(ppd.arm(6));
+
+        assertTrue(ppd.isOverloaded());
+        assertEquals(5, ppd.pulsesCharged());
+    }
+
+    /**
+     * E11.65: "If the PPD was not fully loaded on the first turn, adding more than four points
+     * of energy on the second turn is still treated as an overloaded weapon, even though it
+     * will have fewer total pulses." Two plus six is four pulses — no more than a standard
+     * charge — and still an overload, with the eight-hex reach that costs.
+     */
+    @Test
+    public void anOverloadStaysOneEvenWithFewerPulsesThanStandard() {
+        ppd.arm(2);
+        assertTrue(ppd.arm(6));
+
+        assertEquals("the same four pulses a standard charge gets", 4, ppd.pulsesCharged());
+        assertTrue("but it is an overload all the same", ppd.isOverloaded());
+        assertEquals("and pays the eight-hex reach for nothing", 8, ppd.getMaxRange());
+    }
+
+    /** E11.62: "Overloaded PPDs cannot be held." */
+    @Test
+    public void anOverloadCannotBeHeld() throws Exception {
+        ppd.arm(4);
+        ppd.arm(8);
+
+        assertFalse("an overload must be fired or lost", ppd.hold(2));
+    }
+
+    /** A standard charge still can be, so the refusal is about the overload and not holding. */
+    @Test
+    public void astandardChargeStillHolds() throws Exception {
+        fullCharge();
+
+        assertTrue(ppd.hold(2));
+    }
+
+    /** The arming type reports what the energy made it, rather than a mode somebody set. */
+    @Test
+    public void theArmingTypeFollowsTheEnergy() {
+        fullCharge();
+        assertEquals(com.sfb.properties.WeaponArmingType.STANDARD, ppd.getArmingType());
+
+        PPD other = new PPD();
+        other.arm(4);
+        other.arm(8);
+        assertEquals(com.sfb.properties.WeaponArmingType.OVERLOAD, other.getArmingType());
     }
 
     /** A pulse costs exactly two points, so an odd allocation buys nothing. */
