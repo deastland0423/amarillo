@@ -330,4 +330,26 @@ public class PpdTest {
         assertTrue(ppd.setStandard());
         assertFalse(ppd.setOverload());
     }
+
+    // ------------------------------------------------------------------ from ship data
+
+    /**
+     * THE GAP THAT MADE THE WEAPON UNUSABLE. Until WeaponFactory had a case for it, a PPD could
+     * only be built in Java — so no ship file could declare one, which meant no ISC hull could
+     * be entered at all. Every other test in this class constructs the device directly and
+     * would have passed throughout.
+     */
+    @Test
+    public void ashipFileCanDeclareAPpd() {
+        com.sfb.objects.ShipSpec.WeaponSpec spec = new com.sfb.objects.ShipSpec.WeaponSpec();
+        spec.type = "PPD";
+        spec.designator = "1";
+
+        com.sfb.weapons.Weapon built = com.sfb.objects.WeaponFactory.build(
+                spec, java.util.List.of("FA"));
+
+        assertTrue("a PPD recipe must build a PPD", built instanceof PPD);
+        assertEquals("1", built.getDesignator());
+        assertEquals("drone", built.getDacHitLocaiton());
+    }
 }

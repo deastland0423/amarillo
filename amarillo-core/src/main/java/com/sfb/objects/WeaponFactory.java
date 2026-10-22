@@ -166,6 +166,15 @@ public final class WeaponFactory {
                 f.setDesignator(ws.designator);
                 return f;
             }
+            case "PPD": {
+                // E11.0. No arc of its own beyond the mount's: the splash spreads over the
+                // TARGET's shields (E11.35), which is a property of where the pulse lands
+                // rather than of where the device points. See PpdSplash.
+                com.sfb.weapons.PPD ppd = new com.sfb.weapons.PPD();
+                ppd.setArcs(arcMask);
+                ppd.setDesignator(ws.designator);
+                return ppd;
+            }
             case "Hellbore": {
                 Hellbore h = new Hellbore();
                 h.setArcs(arcMask);

@@ -59,7 +59,7 @@
     { "name": "Plasma-S Torp (Swivel)", "positions": ["CENTERLINE"], "empires": ["Gorn", "Romulan", "ISC"], "cost": 7, "mountsRequired": 2, "maxSizeClass": 3, "yearAvailable": 170, "swivel": true, "weaponSpec": { "type": "PlasmaLauncher", "plasmaType": "S" } },
     { "name": "Plasma Vortex Launcher", "available": false, "notes": "never allowed on Orion mounts" },
     { "name": "Plasma-V Torpedo Launcher", "available": false, "notes": "never allowed on Orion mounts" },
-    { "name": "PPD", "empires": ["ISC"], "cost": 12, "mountsRequired": 2, "maxSizeClass": 3, "yearAvailable": 165, "positions": ["CENTERLINE"] },
+    { "name": "PPD", "empires": ["ISC"], "cost": 12, "mountsRequired": 2, "maxSizeClass": 3, "yearAvailable": 165, "positions": ["CENTERLINE"], "weaponSpec": { "type": "PPD" } },
     { "name": "Probe Launcher", "cost": 0 },
     { "name": "Prospecting Cannon", "cost": -1, "notes": "120-degree firing arc" },
     { "name": "Quantum Cannon", "cost": 0.25 },

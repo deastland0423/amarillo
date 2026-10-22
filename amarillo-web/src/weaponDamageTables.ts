@@ -92,6 +92,21 @@ export const HELLBORE_DF_DMG    = [10, 8, 7, 6, 5, 4, 2]   as const;
 export const HELLBORE_OVLD_ENV  = [30,30,25,22,22,19,19,19,19] as const; // indexed by range 0–8
 export const HELLBORE_OVLD_DF   = [15,15,12,11,11, 9, 9, 9, 9] as const;
 
+// ── PPD (E11.32; 2d6 roll for wave-lock, range-band lookup) ──────────────────
+// Mirrors PpdSplash.java. NOTE THE DIRECTION: unlike every other chart here, the PPD does
+// NOTHING inside range 4, peaks at 4-10 and still reaches 40. A preview that assumed "closer
+// is better" would read this exactly backwards.
+// Band edges: [0]=0-3 (dead), [1]=4-10, [2]=11-15, [3]=16-20, [4]=21-25, [5]=26-30, [6]=31-40
+export const PPD_BANDS      = [[0,3],[4,10],[11,15],[16,20],[21,25],[26,30],[31,40]] as const;
+export const PPD_HIT_NUMS   = [0, 9, 8, 7, 6, 5, 4] as const; // 0 = cannot score at that range
+export const PPD_TOTAL_DMG  = [0, 6, 5, 4, 3, 2, 1] as const; // statistical total, never one hit
+// Splash as [centre, stronger adjacent, weaker adjacent] — E11.352. The trailing zero follows
+// whichever neighbour is WEAKER at the time, so it is not a fixed side.
+export const PPD_SPLASH     = [[0,0,0],[4,1,1],[3,1,1],[2,1,1],[1,1,1],[1,1,0],[1,0,0]] as const;
+// Alternate row, used when the line of fire runs along a hex side (E11.351): two shields, the
+// odd point to the stronger. Same totals as above.
+export const PPD_ALT        = [[0,0],[3,3],[3,2],[2,2],[2,1],[1,1],[1,0]] as const;
+
 // ── Plasma Bolt ──────────────────────────────────────────────────────────────
 // Strength-by-range tables, mirroring PlasmaTorpedo.java PLASMA_X_DAMAGE_BY_RANGE
 // Index = range (hexes). Bolt damage = table[range] / 2.

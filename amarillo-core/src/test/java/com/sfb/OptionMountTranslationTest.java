@@ -109,11 +109,12 @@ public class OptionMountTranslationTest {
     @Test
     public void unimplementedWeapon_reportsUnbuildable() throws Exception {
         // A real weapon with no class yet is honestly null, not a silently-wrong substitute.
-        // The PPD is the current example; the ESG used to be one and is not any more, which is
-        // what this test is for — it fails the day a recipe arrives, and that is the day someone
-        // should be looking at whether the option is now buyable.
+        // The Ion and Nova Cannon are the current examples. The ESG and then the PPD each left
+        // this list once their class existed, which is what the test is FOR — it fails the day
+        // a recipe arrives, and that is the day someone should check whether the option is now
+        // buyable. Both times it caught exactly that.
         assertFalse(catalog().get("Ion Cannon").isBuildableWeapon());
-        assertFalse(catalog().get("PPD").isBuildableWeapon());
+        assertFalse(catalog().get("Nova Cannon").isBuildableWeapon());
     }
 
     /**
@@ -121,6 +122,14 @@ public class OptionMountTranslationTest {
      * 55 tests); only the Annex #8B rows lacked a recipe, so no Orion could buy one. Annex #8B
      * sells two of them and they are two different generators (G23.24).
      */
+    /** And the PPD left it on 2026-10-22, once WeaponFactory could build one (E11.0). */
+    @Test
+    public void thePpdRowBuildsAPulsarDevice() throws Exception {
+        Weapon w = catalog().get("PPD").buildWeapon(List.of("FA"));
+
+        assertTrue(w instanceof com.sfb.weapons.PPD);
+    }
+
     @Test
     public void bothEsgRowsBuildTheGeneratorTheyName() throws Exception {
         com.sfb.weapons.ESG withCapacitor =
