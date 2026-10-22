@@ -132,6 +132,9 @@ class PpdResolver {
             }
 
             int range = MapUtils.getRange(run.firer, run.target);
+            // E11.53: the shift the pulse faces now, which PPD compares against the one its
+            // wave-lock was taken at. Set the same way every other weapon's is.
+            run.device.setEcmShift(currentShift(run));
             int damage = run.device.pulse(range);
             if (damage > 0)
                 log.add(queueSplash(run, range));
@@ -161,7 +164,37 @@ class PpdResolver {
             return "active fire control lost (E11.15)";
         if (!run.firer.hasLockOn(run.target))
             return "lock-on lost (E11.15)";
+        // E11.541: out of arc or out of RANGE breaks the lock outright — unlike closing inside
+        // range 4, which merely wastes the pulse (E11.312, E11.521).
+        int range = MapUtils.getRange(run.firer, run.target);
+        if (range > run.device.getMaxRange())
+            return "the target is beyond PPD range (E11.541)";
+        if (!bearsOnTarget(run))
+            return "the target has moved out of arc (E11.541)";
+        // E11.544: the device itself is gone. E11.542 (target destroyed) arrives as the target
+        // leaving play, which the location check above already catches.
+        if (!run.device.isFunctional())
+            return "the PPD box was destroyed (E11.544)";
         return null;
+    }
+
+    /** Whether the device still bears on its target (D2.0, E11.541). */
+    private boolean bearsOnTarget(PpdRun run) {
+        int trueBearing = MapUtils.getBearing(
+                run.firer.getLocation(), run.target.getLocation());
+        return run.device.inArc(MapUtils.getRelativeBearing(trueBearing, run.firer.getFacing()));
+    }
+
+    /**
+     * The electronic warfare shift this pulse faces (E11.53).
+     *
+     * <p>Only the shift matters, not the raw ECM: the rule's own example has a target add two
+     * ECM points without changing the shift and draw no new roll for it.
+     */
+    private int currentShift(PpdRun run) {
+        com.sfb.properties.EwBreakdown ew = game.ewAgainst(run.firer, run.target);
+        int eccm = run.firer.getEccmAllocated() + run.firer.getLentEccm();
+        return Game.netEcmShift(ew.total() - eccm);
     }
 
     /**

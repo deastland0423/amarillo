@@ -331,6 +331,80 @@ public class PpdTest {
         assertFalse(ppd.setOverload());
     }
 
+    // ------------------------------------------------------------------ E11.53
+
+    /**
+     * "If the number of electronic warfare shifts changes in favor of the target (D6.35), the
+     * firing ship must roll again for a wave-lock."
+     *
+     * <p>A locked run that meets a worse shift stops being automatic: the lock is dropped and
+     * that pulse has to roll like the first one did.
+     */
+    @Test
+    public void aworseEwShiftForcesAnotherRoll() throws Exception {
+        lockedWithPulsesLeft(10);
+        assertEquals("fixture: locked at no shift", 0, ppd.lockedAtShift());
+
+        ppd.setEcmShift(2);
+        ppd.pulse(10);
+
+        // Whether the re-roll succeeds is 2d6; what matters is that it was not automatic.
+        assertTrue("the lock was re-rolled, not assumed",
+                !ppd.isWaveLocked() || ppd.lockedAtShift() == 2);
+    }
+
+    /**
+     * THE DISTINCTION THE RULE'S EXAMPLE IS ABOUT. Four net ECM rising to six is still two
+     * shifts, so there is no new roll — it is the SHIFT that matters, not the points. Modelled
+     * by comparing shifts, so a change that does not move the shift cannot reach this code.
+     */
+    @Test
+    public void anUnchangedShiftCostsNothing() throws Exception {
+        ppd.setEcmShift(1);
+        lockedWithPulsesLeft(10);
+        assertEquals(1, ppd.lockedAtShift());
+
+        ppd.setEcmShift(1);
+
+        assertEquals("still automatic at the same shift", 6, ppd.pulse(10));
+        assertTrue(ppd.isWaveLocked());
+    }
+
+    /** And an improvement for the FIRING ship forces nothing either — only the target's favour. */
+    @Test
+    public void abetterShiftForTheFirerCostsNothing() throws Exception {
+        ppd.setEcmShift(2);
+        lockedWithPulsesLeft(10);
+        assertEquals(2, ppd.lockedAtShift());
+
+        ppd.setEcmShift(0);
+
+        assertEquals("a friendlier shift does not disturb the lock", 6, ppd.pulse(10));
+        assertTrue(ppd.isWaveLocked());
+    }
+
+    // ------------------------------------------------------------------ E11.54 vs E11.34
+
+    /**
+     * The two kinds of losing a lock, which must not be confused.
+     *
+     * <p>E11.34: conditions changed, so roll again on the pulses that remain — the run lives.
+     * E11.54: "the wave-lock is broken and all subsequent pulses are lost. Do not roll for a
+     * new wave-lock" — the run is over. A weapon that treated them alike would either never
+     * stop or never recover.
+     */
+    @Test
+    public void losingALockAndBreakingOneAreDifferentThings() throws Exception {
+        lockedWithPulsesLeft(10);
+        ppd.loseWaveLock();
+        assertFalse(ppd.isWaveLocked());
+        assertTrue("E11.34 leaves the run alive to roll again", ppd.isPulsing());
+
+        lockedWithPulsesLeft(10);
+        ppd.shutDown();
+        assertFalse("E11.54 ends it outright", ppd.isPulsing());
+    }
+
     // ------------------------------------------------------------------ from ship data
 
     /**

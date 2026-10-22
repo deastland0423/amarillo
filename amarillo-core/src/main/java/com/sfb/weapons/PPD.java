@@ -58,6 +58,15 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
     // ---- firing state -------------------------------------------------------
     private int pulsesRemaining = 0;
     private boolean waveLocked = false;
+    /**
+     * The EW shift the current wave-lock was achieved at (E11.53).
+     *
+     * <p>SHIFTS, not ECM points, and that distinction is the rule: the worked example has a
+     * target go from four net ECM to six and roll again for nothing, "as there is no change in
+     * the EW level". Only a change in the TARGET's favour forces a new roll — an improvement
+     * for the firing ship forces none.
+     */
+    private int lockedAtShift = 0;
 
     public PPD() {
         setDacHitLocaiton("drone");   // E11.12: PPDs are destroyed on "drone" hits
@@ -177,6 +186,12 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
         if (range < MINIMUM_RANGE || range > getMaxRange())
             return 0;
 
+        // E11.53: the electronic warfare shift has moved in the target's favour since the lock
+        // was taken, so it must be rolled for again. Strictly greater — an unchanged shift
+        // costs nothing, and one that has improved for the firer costs nothing either.
+        if (waveLocked && getEcmShift() > lockedAtShift)
+            waveLocked = false;
+
         if (!waveLocked) {
             int roll = new DiceRoller().rollTwoDice();
             setLastRoll(roll);
@@ -184,6 +199,7 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
             if (hitNumber == 0 || roll + getEcmShift() > hitNumber)
                 return 0;                       // E11.331: this pulse is lost, the run goes on
             waveLocked = true;
+            lockedAtShift = getEcmShift();
         }
         return PpdSplash.totalDamage(range);
     }
@@ -211,9 +227,23 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
         waveLocked = false;
     }
 
+    /** The EW shift this run's wave-lock was taken at (E11.53); meaningless when not locked. */
+    public int lockedAtShift() {
+        return lockedAtShift;
+    }
+
     /**
-     * E11.362: the owning player shuts the device down. Every remaining pulse is lost; the rule
-     * is explicit that you cannot skip one pulse and resume (E11.333).
+     * End the run outright: every remaining pulse is lost and no new wave-lock is rolled for.
+     *
+     * <p>Two rules land here and they have the same effect. E11.362/E11.548 is the owning player
+     * ceasing fire, and you cannot skip one pulse and resume (E11.333). E11.54 is the
+     * involuntary half — target destroyed, out of arc, out of range, the PPD box shot off — and
+     * it is explicit: "the wave-lock is broken and all subsequent pulses are lost. Do not roll
+     * for a new wave-lock."
+     *
+     * <p>That is the distinction {@link #loseWaveLock()} does NOT share: E11.53's conditions
+     * drop the lock but leave the run alive to roll again (E11.34). Confusing the two would
+     * make a weapon that either never stops or never recovers.
      */
     public void shutDown() {
         pulsesRemaining = 0;
