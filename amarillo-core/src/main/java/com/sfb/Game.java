@@ -155,6 +155,14 @@ public class Game {
     private final Set<com.sfb.objects.shuttles.Shuttle> movedShuttlesThisImpulse = new HashSet<>();
     private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
     private final List<PendingVolley> pendingVolleys = new ArrayList<>();
+    /**
+     * PPD firing runs still resolving (E11.30). A PPD fires once and then pulses over the next
+     * three impulses, so unlike every other direct-fire weapon it has state that outlives the
+     * impulse it was fired in. Declared here with the other pending lists and handed to
+     * {@link PpdResolver} by reference.
+     */
+    private final List<PpdResolver.PpdRun> activePpdRuns = new ArrayList<>();
+    private final PpdResolver ppdResolver = new PpdResolver(this, activePpdRuns, pendingVolleys);
     private final SeekerMover seekerMover = new SeekerMover(this, seekers, activeShuttles, pendingVolleys,
             prevLocations);
     private final ShuttleMover shuttleMover = new ShuttleMover(this, activeShuttles, prevLocations);
@@ -1070,6 +1078,9 @@ public class Game {
                 break;
             case ACTIVITY:
                 currentPhase = ImpulsePhase.DIRECT_FIRE;
+                // E11.31: a PPD already pulsing resolves "before any other fire by that side",
+                // so its pulses land on the way INTO the segment, before anything is declared.
+                log.addAll(ppdResolver.pulseActiveRuns());
                 break;
             case DIRECT_FIRE:
                 if (!pendingVolleys.isEmpty()) {
@@ -3736,6 +3747,27 @@ public class Game {
         if (currentPhase != ImpulsePhase.INITIAL_ACTIVITY)
             return ActionResult.fail("Tractor rotation is only allowed during the Initial Activity Phase (G7.7)");
         return tractorResolver.rotateTractored(holder, targetName, destCol, destRow);
+    }
+
+    /**
+     * Fire a PPD at a target (E11.3), starting a run that pulses for three more impulses.
+     *
+     * <p>Separate from {@link #fireWeapons} because the sequence treats it separately: a PPD is
+     * fired "before any other fire by that side" (E11.31) and its volleys resolve before
+     * everything else (E11.332). The run then continues on its own, in the direct-fire phase of
+     * each following impulse, whether or not anyone fires again.
+     */
+    public ActionResult firePpd(Ship firer, com.sfb.weapons.PPD device, Unit target) {
+        if (currentPhase != ImpulsePhase.DIRECT_FIRE)
+            return ActionResult.fail("PPDs are fired in the Direct-Fire Weapons Segment.");
+        // The result carries the pulse's own log line; the caller surfaces it, as it does for
+        // every other firing action. advancePhase's log is a local, not a field.
+        return ppdResolver.fire(firer, device, target);
+    }
+
+    /** PPD runs still pulsing (E11.30) — read-only; the resolver owns the list. */
+    public int activePpdRunCount() {
+        return activePpdRuns.size();
     }
 
     public int getShieldNumber(Marker attacker, Ship target) {

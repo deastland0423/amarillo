@@ -159,4 +159,39 @@ public class SplashVolleyTest {
         assertEquals("two pulses, two allocations", 2,
                 log.split("BLEED-THROUGH", -1).length - 1);
     }
+
+    // ------------------------------------------------------------------ it resolves FIRST
+
+    /**
+     * E11.332 and Annex #2 6D2: "These PPD volleys are resolved before hellbores and other
+     * direct-fire weapons."
+     *
+     * <h2>Why the order is not bookkeeping</h2>
+     * The TOTAL that gets through a single shield is the same whichever volley hits it first —
+     * a shield absorbs what it can either way. What changes is how that total is DIVIDED
+     * between the two allocations, and each allocation runs the DAC separately, so the
+     * internals differ.
+     *
+     * <p>Here the #3 shield has one point left and the neighbours none. Resolving the splash
+     * first, its three elements meet 1/0/0 and pool to 5, leaving 2 for the volley behind it.
+     * The other way round, the ordinary volley eats the last shield point and the splash pools
+     * to 6 against a bare hull. Two different pairs of DAC runs from the same damage.
+     */
+    @Test
+    public void aSplashVolleyResolvesBeforeOrdinaryFire() {
+        target.getShields().setShieldValue(3, 1);
+        target.getShields().setShieldValue(2, 0);
+        target.getShields().setShieldValue(4, 0);
+
+        splash(hits(3, 4, 2, 1, 4, 1));
+        game.queueVolley(new Game.PendingVolley(
+                "USS Phaserboat", attacker, target, 3, 2, 0, false, false, "", null));
+
+        String log = String.join("\n", resolve());
+
+        assertTrue("the splash should meet the shield while it still has its point\n" + log,
+                log.contains("BLEED-THROUGH: 5"));
+        assertTrue("and the ordinary volley should find it already gone\n" + log,
+                log.contains("BLEED-THROUGH: 2"));
+    }
 }

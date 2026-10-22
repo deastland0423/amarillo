@@ -1131,6 +1131,39 @@ class DamageResolver {
                 g.hellboreDamages.add(pv.envelopingHellboreDamage);
         }
 
+        // SPLASH VOLLEYS FIRST (E11.332, Annex #2 6D2). "These PPD volleys are resolved
+        // before hellbores and other direct-fire weapons" — and it is not bookkeeping: shield
+        // damage lands before the next volley reads that shield, so a PPD going first means
+        // everything after it faces a weaker shield. That is why the Annex sequences it.
+        //
+        // Each shield absorbs on its own, and what gets through them POOLS into one internal
+        // allocation — E11.332's "single volley". Three allocations would run the DAC three
+        // times for one pulse and give a different answer.
+        for (PendingVolley pv : splashVolleys) {
+            Ship target = (Ship) pv.target;
+            StringBuilder pvLog = new StringBuilder("  " + target.getName() + "  splash hit"
+                    + (pv.attackerName != null ? " from " + pv.attackerName : "") + "\n");
+            int pooled = 0;
+            for (java.util.Map.Entry<Integer, Integer> hit : pv.shieldDamage.entrySet()) {
+                if (hit.getValue() <= 0)
+                    continue;
+                int bleed = target.damageShield(hit.getKey(), hit.getValue());
+                pvLog.append("  shield #").append(hit.getKey()).append("  takes ")
+                        .append(hit.getValue())
+                        .append(bleed > 0 ? "  (" + bleed + " through)" : "  — holds")
+                        .append("\n");
+                pooled += bleed;
+            }
+            if (pooled > 0) {
+                pvLog.append("  BLEED-THROUGH: ").append(pooled)
+                        .append(" (resolves at end of segment)\n");
+                pendingInternalDamage.add(new PendingDamage(target, pooled, pv.attackerShip));
+            } else {
+                pvLog.append("  shields hold — no damage penetrates\n");
+            }
+            log.add(pvLog.toString());
+        }
+
         // Apply each group: combined shield damage → single bleed-through chain
         for (ShieldGroup g : groups) {
             Ship target = (Ship) g.target;
@@ -1160,34 +1193,6 @@ class DamageResolver {
                     g.pvLog.append(line).append("\n");
             }
             log.add(g.pvLog.toString());
-        }
-
-        // Splash volleys: each shield absorbs on its own, and what gets through them POOLS
-        // into one internal allocation — E11.332's "single volley". Three allocations would
-        // run the DAC three times for one pulse and give a different answer.
-        for (PendingVolley pv : splashVolleys) {
-            Ship target = (Ship) pv.target;
-            StringBuilder pvLog = new StringBuilder("  " + target.getName() + "  splash hit"
-                    + (pv.attackerName != null ? " from " + pv.attackerName : "") + "\n");
-            int pooled = 0;
-            for (java.util.Map.Entry<Integer, Integer> hit : pv.shieldDamage.entrySet()) {
-                if (hit.getValue() <= 0)
-                    continue;
-                int bleed = target.damageShield(hit.getKey(), hit.getValue());
-                pvLog.append("  shield #").append(hit.getKey()).append("  takes ")
-                        .append(hit.getValue())
-                        .append(bleed > 0 ? "  (" + bleed + " through)" : "  — holds")
-                        .append("\n");
-                pooled += bleed;
-            }
-            if (pooled > 0) {
-                pvLog.append("  BLEED-THROUGH: ").append(pooled)
-                        .append(" (resolves at end of segment)\n");
-                pendingInternalDamage.add(new PendingDamage(target, pooled, pv.attackerShip));
-            } else {
-                pvLog.append("  shields hold — no damage penetrates\n");
-            }
-            log.add(pvLog.toString());
         }
 
         // EPT volleys: spread damage across all 6 shields (always separate)
