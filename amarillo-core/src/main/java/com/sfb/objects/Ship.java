@@ -2601,8 +2601,35 @@ public class Ship extends Unit implements DroneController {
 		return this.specialFunctions.getControlLimit();
 	}
 
+	/**
+	 * Control channels in use, seekers and otherwise.
+	 *
+	 * <p>E11.151: "Each active PPD (those still pulsing) counts against the limit of seeking
+	 * weapons being controlled by the ship (F3.216)... A PPD is not, in any way, a seeking
+	 * weapon other than requiring a seeking weapon control channel." So a heavy ISC hull
+	 * pulsing four devices has four fewer channels for drones, which is a real cost of firing
+	 * them and the reason the rule is there.
+	 *
+	 * <p>DERIVED from the weapons rather than counted into a field as seekers are. A pulsing
+	 * PPD already knows it is pulsing; a second tally would be a second answer, and the run
+	 * ends on an impulse boundary where nothing would think to decrement it.
+	 */
 	public int getControlUsed() {
-		return this.specialFunctions.getControlUsed();
+		return this.specialFunctions.getControlUsed() + pulsingPpdCount();
+	}
+
+	/**
+	 * PPDs on this ship with a firing run still under way (E11.151).
+	 *
+	 * <p>Deliberately NOT reduced by G24.22 or G24.23: the same clause exempts a PPD from both,
+	 * so a scout's attentions change nothing about the channel it holds.
+	 */
+	public int pulsingPpdCount() {
+		int count = 0;
+		for (com.sfb.weapons.Weapon w : getWeapons().fetchAllWeapons())
+			if (w instanceof com.sfb.weapons.PPD ppd && ppd.isPulsing())
+				count++;
+		return count;
 	}
 
 	/**
@@ -2613,6 +2640,10 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public boolean acquireControl(Seeker seeker) {
 		if (isEmEffective())
+			return false;
+		// A pulsing PPD is holding a channel this seeker cannot have (E11.151). SpecialFunctions
+		// counts only seekers, so the PPDs are checked here, where they are visible.
+		if (getControlUsed() >= getControlCapacity())
 			return false;
 		return this.specialFunctions.acquireControl(seeker);
 	}

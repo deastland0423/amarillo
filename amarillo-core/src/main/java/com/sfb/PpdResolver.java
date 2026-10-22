@@ -75,6 +75,13 @@ class PpdResolver {
             return Game.ActionResult.fail("A PPD cannot be fired with passive fire control (E11.152).");
         if (!firer.hasLockOn(target))
             return Game.ActionResult.fail("A PPD needs a lock-on to fire (E11.15).");
+        // E11.151: a pulsing PPD occupies a seeking-weapon control channel. Refused here rather
+        // than allowed to overflow, because the overflow procedure releases SEEKERS and "control
+        // of a PPD cannot be passed to another ship" — there would be nothing right to give up.
+        if (firer.getControlUsed() >= firer.getControlCapacity())
+            return Game.ActionResult.fail(
+                    "No control channel free for the PPD (E11.151): " + firer.getControlUsed()
+                            + " of " + firer.getControlCapacity() + " in use.");
 
         int range = MapUtils.getRange(firer, target);
         int damage;

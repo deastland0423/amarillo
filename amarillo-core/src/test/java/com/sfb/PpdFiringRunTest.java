@@ -194,4 +194,61 @@ public class PpdFiringRunTest {
         assertFalse(result.isSuccess());
         assertFalse(ppd.isPulsing());
     }
+
+    // ------------------------------------------------------------------ E11.151
+
+    /**
+     * "Each active PPD (those still pulsing) counts against the limit of seeking weapons being
+     * controlled by the ship (F3.216)... A PPD is not, in any way, a seeking weapon other than
+     * requiring a seeking weapon control channel."
+     *
+     * <p>A real cost of firing: a heavy ISC hull pulsing four devices has four fewer channels
+     * for drones, which is the whole point of the clause.
+     */
+    @Test
+    public void apulsingPpdHoldsAControlChannel() {
+        int before = firer.getControlUsed();
+
+        game.firePpd(firer, ppd, target);
+
+        assertEquals("the run holds a channel while it lasts", before + 1, firer.getControlUsed());
+    }
+
+    /** And gives it back when the run ends, without anything having to remember to. */
+    @Test
+    public void thechannelComesBackWhenTheRunEnds() {
+        int before = firer.getControlUsed();
+        game.firePpd(firer, ppd, target);
+
+        nextImpulse();
+        nextImpulse();
+        nextImpulse();
+
+        assertFalse("fixture: the run should be over", ppd.isPulsing());
+        assertEquals(before, firer.getControlUsed());
+    }
+
+    /**
+     * A device cannot be fired with every channel already spoken for. Refused rather than
+     * allowed to overflow: the overflow procedure releases SEEKERS, and "control of a PPD
+     * cannot be passed to another ship", so there would be nothing right to give up.
+     */
+    @Test
+    public void itCannotBeFiredWithNoChannelFree() {
+        // Fill every channel the hull has with pulsing devices.
+        for (int i = 0; i < firer.getControlCapacity(); i++) {
+            PPD extra = new PPD();
+            extra.setDesignator("x" + i);
+            extra.arm(4);
+            extra.arm(4);
+            firer.getWeapons().addWeapon(extra);
+            assertTrue("fixture: filler device " + i + " should fire",
+                    game.firePpd(firer, extra, target).isSuccess());
+        }
+
+        Game.ActionResult result = game.firePpd(firer, ppd, target);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage(), result.getMessage().contains("E11.151"));
+    }
 }
