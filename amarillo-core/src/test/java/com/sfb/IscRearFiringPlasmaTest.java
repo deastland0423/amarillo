@@ -53,6 +53,19 @@ public class IscRearFiringPlasmaTest {
         game.getShips().add(enemyCruiser);
     }
 
+    /** Arm the six rear torpedoes, which a JSON-built hull does not start with. */
+    private void armRearTorpedoes() {
+        for (String d : new String[] { "D", "E", "F", "G", "H", "J" })
+            rear(d).setArmed(true);
+    }
+
+    private void toActivity() {
+        for (int i = 0; i < 12 && game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY; i++)
+            game.advancePhase();
+        assertEquals("fixture: plasma launches in the Activity phase",
+                Game.ImpulsePhase.ACTIVITY, game.getCurrentPhase());
+    }
+
     private PlasmaLauncher rear(String designator) {
         for (Weapon w : cruiser.getWeapons().fetchAllWeapons())
             if (designator.equals(w.getDesignator()) && w instanceof PlasmaLauncher pl)
@@ -107,13 +120,33 @@ public class IscRearFiringPlasmaTest {
     // ------------------------------------------------------------------ the firing limit
 
     /**
-     * THE RULE WITH TEETH. "Each ship can fire only one of its rear-firing torpedoes at a
-     * size-class-4 (or larger) ship each turn." A cruiser with six of them still gets ONE shot
-     * at another cruiser — the budget is per SHIP, not per launcher, which is why the tally
-     * lives on the ship.
+     * THE RULE WITH TEETH, tested THROUGH THE LAUNCH PATH. "Each ship can fire only one of its
+     * rear-firing torpedoes at a size-class-4 (or larger) ship each turn." A cruiser with six
+     * of them still gets ONE shot at another cruiser — the budget is per SHIP, not per
+     * launcher, which is why the tally lives on the ship.
+     *
+     * <p>Fired through {@code game.launchPlasma} on purpose. The first version of this test
+     * called the tally methods directly and proved only that a field could be set: nothing
+     * showed that the LAUNCH consulted it, which is the only thing a player ever experiences.
      */
     @Test
     public void onlyOneRearTorpedoMayFireAtAShipPerTurn() {
+        toActivity();
+        armRearTorpedoes();
+        enemyCruiser.setLocation(new Location(10, 14));   // dead astern, inside L + LR
+
+        Game.ActionResult first = game.launchPlasma(cruiser, enemyCruiser, rear("D"), false, 0);
+        assertTrue(first.getMessage(), first.isSuccess());
+
+        Game.ActionResult second = game.launchPlasma(cruiser, enemyCruiser, rear("E"), false, 0);
+
+        assertFalse("a second rear torpedo at a cruiser in the same turn", second.isSuccess());
+        assertTrue(second.getMessage(), second.getMessage().contains("R13.1C"));
+    }
+
+    /** The tally itself, which the launch above is what actually writes. */
+    @Test
+    public void thetallyIsPerShipAndPerTurn() {
         assertFalse("fixture: nothing fired yet",
                 cruiser.hasFiredIscRearPlasmaAtShipThisTurn(game.getCurrentTurn()));
 
@@ -121,6 +154,18 @@ public class IscRearFiringPlasmaTest {
 
         assertTrue("the ship's single shot at a size-4+ target is spent",
                 cruiser.hasFiredIscRearPlasmaAtShipThisTurn(game.getCurrentTurn()));
+    }
+
+    /** A FORWARD launcher is untouched by the limit — it is not one of the rear-firing six. */
+    @Test
+    public void theLimitDoesNotTouchTheForwardLaunchers() {
+        toActivity();
+        armRearTorpedoes();
+        enemyCruiser.setLocation(new Location(10, 14));
+        assertTrue(game.launchPlasma(cruiser, enemyCruiser, rear("D"), false, 0).isSuccess());
+
+        // The spent budget must not refuse something that was never under it.
+        assertFalse("fixture: B is not a rear-firing launcher", rear("B").isIscRearFiring());
     }
 
     /** The limit is a TURN limit, so a new turn restores the shot. */
