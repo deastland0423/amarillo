@@ -289,6 +289,8 @@ public class BalconyPositionTest {
                 "ISC CS",           // R13.11: the CL's hull, so the CL's two positions
                 "ISC CVL",          // R13.10: likewise, and its bay carries nine fighters besides
                 "ISC CVLS",         // R13.12: the CVL with PPDs, so the CVL's bay and balconies
+                "ISC CE",           // R13.27: the CL hull as an escort, so the CL's two
+                "ISC CEA",          // R13.27A: the same sheet, full aegis
                 "ISC CV",           // R13.7: FOUR positions, not the cruisers' two
                 "ISC CVS",          // R13.8: the CV with PPDs, so the CV's four
                 "ISC CC",           // R13.5: likewise, on the flagship cruiser

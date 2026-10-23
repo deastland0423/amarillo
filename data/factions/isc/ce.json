@@ -1,0 +1,87 @@
+{
+  "faction": "ISC",
+  "type": "CE",
+  "typeName": "Escort Cruiser",
+  "line": "CL",
+  "name": "CSS Bulwark",
+  "serviceYear": 172,
+  "bpv": 129,
+  "turnMode": "C",
+  "sizeClass": 3,
+  "moveCost": 0.6666667,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 6,
+  "isEscort": true,
+  "carrierClass": "CASUAL",
+  "aegis": "LIMITED",
+  "tokenArt": "isc/ce.png",
+  "note": "R13.27, Captain's Module R4 SSD p.67 (PDF p.68). The Light Cruiser turned escort, and the cruiser-weight member of a set: FFE/FFA on the frigate hull, DE/DEA on the destroyer, CE/CEA here, each a pair of one sheet with two ship data tables. Validated box by box 2026-10-23 and the chassis is the CL's entire: shields 30/24/20/20/20/24, F hull 4, rear hull 8, warp 12 a side, impulse 4, APR 4, batteries 4, bridge 2, emergency 2, aux 2, transporters 4, tractors 4, labs 4, one probe launcher, excess damage 5, turn mode C, command rating 6, and every damage track. NOTE WHAT THE ESCORT CONVERSION DID NOT COST: the CVL, converting the same hull to a carrier, gives up a battery and an APR; this one keeps all four of each. Crew 34 (three columns of ten and a fourth of four) against the CL's 36, boarding parties 10 against 12. ARMAMENT: FOUR PLASMA-D RACKS, 1 and 2 to port with 3 and 4 to starboard, where the CL carries two plasma-G at FP - and the phaser fit is rearranged rather than reduced, two at FH, two each on the forward quarters, two 360s and four phaser-3s. Four shuttle boxes with TWO marked as ready racks, the same arrangement as the DE and the same G33.43 shape. SHEET NOTE: 'AS A CARRIER ESCORT, THIS SHIP HAS DECK CREWS AND READY RACKS TO SERVICE THE FIGHTERS OF THE CARRIER. IT HAS NO FIGHTERS OF ITS OWN', so the fighters block names a LINE and no counts. Two balcony positions (J1.53), as the CL has. Aegis sits on the hull from Y172 and the sheet's +0 Y175 refit is not modelled, for the reason it is absent from the FFE and DE too: with the aegis already there it would change nothing, and a refit that changes nothing is refused. The Y180 Sabot refit (+4.5) is absent as elsewhere: FP11.0 is in Module R10, out of scope.",
+
+  "shields": [30, 24, 20, 20, 20, 24],
+
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 8
+  },
+
+  "power": {
+    "leftWarp": 12,
+    "rightWarp": 12,
+    "impulse": 4,
+    "apr": 4,
+    "battery": 4
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 4,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"], "balconyPositions": 2,
+      "fighterFacilities": 2, "fighters": { "line": "isc-fighter" } }
+  ],
+
+  "crewData": {
+    "totalCrew": 34,
+    "boardingParties": 10,
+    "deckCrews": 2,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "11", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["RS"] },
+    { "type": "PlasmaRack", "designator": "1", "arcs": ["LS"] },
+    { "type": "PlasmaRack", "designator": "2", "arcs": ["LS"] },
+    { "type": "PlasmaRack", "designator": "3", "arcs": ["RS"] },
+    { "type": "PlasmaRack", "designator": "4", "arcs": ["RS"] }
+  ]
+}
