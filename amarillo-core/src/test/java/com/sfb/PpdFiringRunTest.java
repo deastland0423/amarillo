@@ -769,7 +769,12 @@ public class PpdFiringRunTest {
         firer.addLockOn(romTarget);
 
         // Get a wave-lock the easy way, at a hit number of 9.
-        for (int attempt = 0; attempt < 50 && !ppd.isWaveLocked(); attempt++) {
+        // Locked AND with pulses left, not merely locked. Stopping at the lock alone lets a
+        // run that locked on its LAST pulse through, and the fixture assertion below then
+        // fails for no reason - the same flake as PpdTest.lockedWithPulsesLeft, which was
+        // fixed earlier the same day and reappeared here because this loop was written by
+        // hand rather than calling that helper.
+        for (int attempt = 0; attempt < 100 && !(ppd.isWaveLocked() && ppd.isPulsing()); attempt++) {
             if (!ppd.isPulsing()) {
                 ppd.arm(4);
                 ppd.arm(4);
@@ -811,7 +816,12 @@ public class PpdFiringRunTest {
         game.getShips().add(romTarget);
         firer.addLockOn(romTarget);
 
-        for (int attempt = 0; attempt < 50 && !ppd.isWaveLocked(); attempt++) {
+        // Locked AND with pulses left, not merely locked. Stopping at the lock alone lets a
+        // run that locked on its LAST pulse through, and the fixture assertion below then
+        // fails for no reason - the same flake as PpdTest.lockedWithPulsesLeft, which was
+        // fixed earlier the same day and reappeared here because this loop was written by
+        // hand rather than calling that helper.
+        for (int attempt = 0; attempt < 100 && !(ppd.isWaveLocked() && ppd.isPulsing()); attempt++) {
             if (!ppd.isPulsing()) {
                 ppd.arm(4);
                 ppd.arm(4);
