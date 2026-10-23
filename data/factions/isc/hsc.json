@@ -1,0 +1,96 @@
+{
+  "faction": "ISC",
+  "type": "HSC",
+  "typeName": "Heavy Scout",
+  "line": "CL",
+  "name": "CSS Inquisitor",
+  "serviceYear": 175,
+  "bpv": 112,
+  "epv": 170,
+  "turnMode": "C",
+  "sizeClass": 3,
+  "moveCost": 0.6666667,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 6,
+  "tokenArt": "isc/hsc.png",
+  "note": "R13.14, Captain's Module C2 SSD p.41 (PDF p.42). The Light Cruiser's scout, as the SC is the Destroyer's, and the owner called the chassis before the sheet was opened. POINT VALUE = 170/120, read as the SC's 126/90 and the CVE's 100/90 were: the SMALLER number is the BPV, the larger is the EPV. 120 less the 8 for going without PL-F gives 112, and the economic value is what a fleet budget actually charges for a scout. SIX SPECIAL SENSOR BOXES, two forward and two on each flank, where the SC has four. ALL SIX ARE RECORDED WITH dacHitLocation 'torp' EVEN THOUGH THEY REPLACED BOTH PHASERS AND TORPEDOES - the owner's ruling, 2026-10-23, and written here because the obvious reading of the sheet is the wrong one. The CL carries six phaser-1s and two plasma-G; this hull keeps only two phaser-1s (as 360s) and has sensors where the rest stood, so a reader could reasonably split the DAC locations between the phaser and torpedo rows. They do not split: the sheet's own line is 'SPECIAL SENSORS ARE DESTROYED ON TORPEDO DAMAGE POINTS', without exception, and G24.17 follows it. THE CHASSIS IS OTHERWISE THE CL's ENTIRE, counted box by box: shields 30/24/20/20/20/24, F hull 4, rear hull 8, warp 12 a side, impulse 4, APR 4, batteries 4, bridge 2, emergency 2, aux 2, transporters 4, tractors 4, labs 4, one probe, four shuttle boxes, two balcony positions, excess damage 5, turn mode C, command rating 6, and every damage track. Crew 32 against the CL's 36, boarding parties 10 against 12. NOTE WHAT THE SCOUT CONVERSION DID NOT COST: no power at all, where the CVL gives up a battery and an APR converting the same hull to a carrier. Four rear-firing plasma-F arrive with the PL-F refit, flagged iscRearFiring under R13.1C which this sheet cites. THE EPV IS TAKEN AS PRINTED, with the PL-F deduction NOT applied to it, for the same reason as the CVE's: the sheet gives one EPV and says nothing about it moving with the refit. An assumption, not a reading. The Y180 Sabot refit (+4) is absent as elsewhere: FP11.0 is in Module R10, out of scope.",
+
+  "shields": [30, 24, 20, 20, 20, 24],
+
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 8
+  },
+
+  "power": {
+    "leftWarp": 12,
+    "rightWarp": 12,
+    "impulse": 4,
+    "apr": 4,
+    "battery": 4
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 4,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"], "balconyPositions": 2 }
+  ],
+
+  "crewData": {
+    "totalCrew": 32,
+    "boardingParties": 10,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
+    { "type": "ScoutChannel", "dacHitLocation": "torp", "designator": "1" },
+    { "type": "ScoutChannel", "dacHitLocation": "torp", "designator": "2" },
+    { "type": "ScoutChannel", "dacHitLocation": "torp", "designator": "3" },
+    { "type": "ScoutChannel", "dacHitLocation": "torp", "designator": "4" },
+    { "type": "ScoutChannel", "dacHitLocation": "torp", "designator": "5" },
+    { "type": "ScoutChannel", "dacHitLocation": "torp", "designator": "6" }
+  ],
+
+  "refits": [
+    {
+      "code": "F",
+      "name": "PL-F refit",
+      "label": "Plasma-F",
+      "year": 179,
+      "bpv": 8,
+      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE ALL PLASMA-F TORPEDOES. Four, two a side, the same count and arcs as the Light Cruiser's. R13.1C's rear-firing torpedoes, flagged iscRearFiring, and this sheet cites R13.1C by name. No epv set here: see the hull note on why the economic value is left as printed.",
+      "addWeapons": [
+        { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] }
+      ]
+    }
+  ]
+}
