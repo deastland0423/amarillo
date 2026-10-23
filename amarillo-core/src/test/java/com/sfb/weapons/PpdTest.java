@@ -52,10 +52,18 @@ public class PpdTest {
             // isWaveLocked, not merely "that pulse scored". A device that re-rolled a hit
             // every pulse would satisfy the weaker check while the lock was never retained at
             // all — which is exactly the bug the auto-hit test below is meant to catch.
-            if (damage > 0 && ppd.isWaveLocked() && ppd.isPulsing())
+            //
+            // TWO pulses, not one, and the plural in this method's name is the promise it has
+            // to keep. It used to accept isPulsing(), which is one pulse or more, while callers
+            // spend two: one inside the myopic zone and one after leaving it. A run that locked
+            // on its third pulse returned here with exactly one left and failed the CALLER's
+            // fixture assertion — about one run in forty at range 10, which is rare enough to
+            // look like someone else's fault and common enough to hit a full suite regularly.
+            // Caught 2026-10-23 when it fired during unrelated work on the ISC escorts.
+            if (damage > 0 && ppd.isWaveLocked() && ppd.pulsesRemaining() >= 2)
                 return;
         }
-        fail("fixture: 100 runs without a wave-lock and a pulse to spare — the dice are broken");
+        fail("fixture: 100 runs without a wave-lock and two pulses to spare — the dice are broken");
     }
 
     // ------------------------------------------------------------------ arming (E11.2)
