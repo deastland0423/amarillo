@@ -1,0 +1,110 @@
+{
+  "note": [
+    "ISC shuttles and fighters. The shared documentation, and the craft any faction",
+    "may field, are in common.json.",
+    "",
+    "SOURCE: Master Fighter Chart, Captain's Module G3 pages 139-140, section (R13.0)",
+    "INTER-STELLAR CONCORDIUM FIGHTERS. It is in data/rules/Master_Annex_File.pdf as Annex #4,",
+    "PDF pages 140-141 — NOT a missing book. pdftotext scrambles that table badly (type names",
+    "land in one column and their numbers in another), so every figure below was read off a",
+    "rendered page rather than the text layer.",
+    "",
+    "COLUMN MAPPING, calibrated against the Gorn G-18 which was already entered:",
+    "  chart Dmg  -> hull        chart Spd -> speed",
+    "  chart BPV  -> bpv         chart Year -> year",
+    "The chart's Size, DFR, Prod and Ref columns have no home in this schema and are dropped.",
+    "",
+    "CRIPPLED is NOT in the chart. It is J1.33: a shuttle is crippled when damage 'equals or",
+    "exceeds 2/3 of their destruction point', rounding fractions UP — the rule gives its own",
+    "example, destroyed by eight means crippled by six. So crippled = ceil(hull * 2/3), which",
+    "reproduces all 72 entries already in this folder without a single mismatch. Nothing here",
+    "is a guess at that number.",
+    "",
+    "ONLY THE NINE BASE TYPES ARE ENTERED. The chart pairs each with an 'M' variant at double",
+    "speed and a higher price (AFM, EFM, SFM, TFM, FSFM, FDFM, FEFM, FTFM, FTKM), and lists",
+    "bombers and heavy fighters besides (BMR, HBMR, HF, HFF, FKF, FEK). None is entered,",
+    "because none is referenced by the fighter line below. They are not missing data so much",
+    "as data nobody has asked for yet."
+  ],
+
+  "_decisionsWorthKnowing": [
+    "EW PODS ARE 'fixedEwPods', NOT 'ewPods', on the EF and the FEF — reasoned from the rules",
+    "below and CONFIRMED by the owner 2026-10-23. J4.962 says an EWP",
+    "'replaces one drone carried by the fighter' — those are the rail-mounted ones this schema",
+    "calls ewPods. J4.964 is the one that speaks of pods 'built-in'. The FEF settles it: its",
+    "Plasma-D/K column is a dash, so it carries no rails at all, and pods it has no rails for",
+    "must be built in. The EF is recorded the same way, and so is the Gorn G-18E, which has the",
+    "same shape on the same chart.",
+    "",
+    "TWOSEATER on both EW fighters is J4.43 — 'two seats, which every EW fighter has'. Taken",
+    "from the rule, not inferred from the chart, which does not carry it.",
+    "",
+    "SCATTERPACKSIZE IS ZERO EVERYWHERE HERE. FD7.211 ties it to a fighter's DRONE rail count,",
+    "and PL-D and PL-K are plasma rails. The Gorn G-18 carries two PL-D and is likewise zero.",
+    "",
+    "NAMES came from the owner, 2026-10-23, and are NOT in the Master Fighter Chart — it",
+    "carries type codes only. They were entered as bare codes first rather than invented, and",
+    "the owner supplied the real ones. The pattern they follow is worth knowing before adding",
+    "the M-variants: an F prefix is the later fast type (SF -> FSF), and a Type-D or Type-K",
+    "suffix names the plasma rail it carries (FSF -> FDF is four PL-D, FTF -> FTK is PL-K)."
+  ],
+
+  "fighterLines": {
+    "isc-fighter": [
+      { "from": 170, "superiority": "af" },
+      { "from": 172, "superiority": "af", "ew": "ef" },
+      { "from": 174, "superiority": "sf", "ew": "ef", "assault": "tf" },
+      { "from": 180, "superiority": "fsf", "ew": "fef", "assault": "ftf" },
+      { "from": 182, "superiority": "fdf", "ew": "fef", "assault": "ftk" }
+    ]
+  },
+
+  "shuttles": [
+    { "type": "af", "name": "Attrition Fighter", "kind": "fighter", "factions": ["isc"], "year": 170, "speed": 12, "hull": 8, "crippled": 6, "bpv": 8, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "AF", "designation": "AF",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" } ] },
+
+    { "type": "ef", "name": "Electronic Warfare Fighter", "kind": "fighter", "factions": ["isc"], "year": 172, "speed": 12, "hull": 12, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "EF", "designation": "EF", "fixedEwPods": 2, "twoSeater": true,
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_K" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_K" } ] },
+
+    { "type": "sf", "name": "Superiority Fighter", "kind": "fighter", "factions": ["isc"], "year": 174, "speed": 12, "hull": 12, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "SF", "designation": "SF",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" } ] },
+
+    { "type": "tf", "name": "Torpedo Fighter", "kind": "fighter", "factions": ["isc"], "year": 174, "speed": 12, "hull": 12, "crippled": 8, "bpv": 7, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "TF", "designation": "TF",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"] } ] },
+
+    { "type": "fsf", "name": "Fast Superiority Fighter", "kind": "fighter", "factions": ["isc"], "year": 180, "speed": 15, "hull": 12, "crippled": 8, "bpv": 11, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FSF", "designation": "FSF",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" } ] },
+
+    { "type": "fdf", "name": "Fast Superiority Fighter Type-D", "kind": "fighter", "factions": ["isc"], "year": 181, "speed": 15, "hull": 12, "crippled": 8, "bpv": 13, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FDF", "designation": "FDF",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "PLASMA_D" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "PLASMA_D" } ] },
+
+    { "type": "fef", "name": "Fast Electronic Warfare Fighter", "kind": "fighter", "factions": ["isc"], "year": 180, "speed": 15, "hull": 12, "crippled": 8, "bpv": 11, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FEF", "designation": "FEF", "fixedEwPods": 2, "twoSeater": true,
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] } ] },
+
+    { "type": "ftf", "name": "Fast Torpedo Fighter", "kind": "fighter", "factions": ["isc"], "year": 180, "speed": 15, "hull": 12, "crippled": 8, "bpv": 8, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FTF", "designation": "FTF",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"] } ] },
+
+    { "type": "ftk", "name": "Fast Torpedo Fighter Type-K", "kind": "fighter", "factions": ["isc"], "year": 181, "speed": 15, "hull": 12, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FTK", "designation": "FTK",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_K" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_K" },
+                   { "type": "FighterPlasmaF", "designator": "C", "arcs": ["FA"] } ] }
+  ]
+}
