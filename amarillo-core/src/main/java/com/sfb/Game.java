@@ -805,6 +805,45 @@ public class Game {
     }
 
     /**
+     * D6.21: the firing range a weapon ROLLS against - the true range plus the attacker's
+     * scanner adjustment. "When computing firing range, always add the scanner adjustment
+     * factor to the actual range in hexes."
+     *
+     * <h2>The single home for the convention, which it needed to be</h2>
+     * This arithmetic was written out in three places and stated as universal in a fourth:
+     * {@code ADD}'s javadoc says "every caller hands a weapon
+     * {@code adjustedRange = range + attacker.getScanner()}". It was universal everywhere
+     * except the PPD, which resolves outside the volley and so quietly computed a bare true
+     * range instead - and a convention copied by hand is one a new weapon can miss without
+     * anything saying so. One function means the next weapon cannot.
+     *
+     * <h2>The pair, and which half is which</h2>
+     * Hit-or-miss weapons roll on THIS range and take their damage from the TRUE range -
+     * {@code DirectFire.fire(realRange, adjustedRange)}, overridden by Photon, Disruptor,
+     * FighterPhoton, PlasmaLauncher, PlasmaRack, ADD and DroneRack. Getting that backwards is
+     * not theoretical: a scanner once cost a plasma-R bolt ten points of warhead it should
+     * have kept, which is why {@code PlasmaLauncher} has an override at all.
+     *
+     * <h2>What this deliberately does NOT include</h2>
+     * <ul>
+     * <li><b>Electronic warfare.</b> EW rides separately as {@link Weapon#setEcmShift}, because
+     *     D6.34 shifts the die rather than the range.</li>
+     * <li><b>The cloak bonus.</b> G13 has its own fire-adjustment chart; folding D6.211's five
+     *     hexes in here would apply it twice.</li>
+     * <li><b>D6.123's doubling for a non-locked target.</b> NOT a decision made here - the
+     *     firing path has never applied it. {@code LockOnResolver.getEffectiveRange} is the
+     *     only place that doubles, and nothing but the DTO calls it. Recorded at the single
+     *     home for firing range because this is where someone looking for it will come.</li>
+     * </ul>
+     *
+     * @param attacker  the firing ship, whose scanner track supplies the adjustment
+     * @param trueRange the range in hexes, as the map measures it
+     */
+    public static int adjustedRange(com.sfb.objects.Ship attacker, int trueRange) {
+        return trueRange + attacker.getScanner();
+    }
+
+    /**
      * The ECM bearing on {@code actor}'s action against {@code target}, split by the five
      * sources of D6.314 so that rules which discriminate between them — D6.3146 above all
      * — can do so without re-deriving the sum.
@@ -3927,7 +3966,7 @@ public class Game {
         }
 
         int range = MapUtils.getRange(attacker.getLocation(), target.getLocation());
-        int adjustedRange = range + attacker.getScanner();
+        int adjustedRange = adjustedRange(attacker, range);
         attacker.consumeAegisPulse(now);
 
         // D13.143: "Weapons firing with aegis fire at their normal rate. They have more

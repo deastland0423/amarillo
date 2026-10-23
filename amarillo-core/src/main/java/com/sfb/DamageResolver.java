@@ -504,7 +504,7 @@ class DamageResolver {
         com.sfb.properties.EwBreakdown ew = game.ewAgainst(attacker, planet);
         int eccm = attacker.getEccmAllocated() + attacker.getLentEccm();
         int ecmShift = Game.netEcmShift(ew.total() - eccm);
-        int adjustedRange = range + attacker.getScanner();
+        int adjustedRange = Game.adjustedRange(attacker, range);
 
         int trueBearing = com.sfb.utilities.MapUtils.getBearing(attacker.getLocation(), planet.getLocation());
         int relBearing = com.sfb.utilities.MapUtils.getRelativeBearing(trueBearing, attacker.getFacing());
@@ -601,7 +601,7 @@ class DamageResolver {
         int terrainEcm = game.terrainEcmForClearingFire(attacker.getLocation(), hex);
         int eccm = attacker.getEccmAllocated() + attacker.getLentEccm();
         int ecmShift = Game.netEcmShift(terrainEcm - eccm);
-        int adjustedRange = range + attacker.getScanner();
+        int adjustedRange = Game.adjustedRange(attacker, range);
 
         int trueBearing = com.sfb.utilities.MapUtils.getBearing(attacker.getLocation(), hex);
         int relBearing = com.sfb.utilities.MapUtils.getRelativeBearing(trueBearing, attacker.getFacing());
