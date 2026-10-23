@@ -279,13 +279,16 @@ seeking-weapon control channel while pulsing (E11.15, E11.151).
     hold a wave-lock on a fully cloaked ship ... must roll for a new wave-lock on each pulse";
     and disengagement (E11.48) - "a unit cannot disengage by sublight evasion (C7.3) while held
     in a wave-lock", a gate in `DisengagementResolver`.
-  - **SUSPECTED LIVE BUG, not merely unbuilt** - E11.49's second half: "the (C10.512) restriction
-    on guiding seeking weapons does not apply to maintaining the wave-lock." But C10.512 is
-    modelled as a control capacity of ZERO under EM (`Ship.getControlLimit`), and E11.151 has a
-    pulsing PPD occupying a seeking-weapon control channel counted by the same `getControlUsed`
-    that `Game.checkControlOverflow` tests. So a ship going to erratic manoeuvres while pulsing
-    looks likely to have its PPD channel force-released through CONTROL_OVERFLOW, which is the
-    opposite of what E11.49 says. NOT YET PROVEN BY A TEST - write the test first.
+  - ~~SUSPECTED LIVE BUG~~ **CONFIRMED AND FIXED 2026-10-23.** E11.49's second half: "the
+    (C10.512) restriction on guiding seeking weapons does not apply to maintaining the
+    wave-lock." A probe test proved it real before anything was changed: a ship going to EM
+    mid-run showed capacity 0 against a used count of 1, and the next impulse boundary put the
+    game into CONTROL_OVERFLOW asking its owner to shed the channel their own wave-lock was
+    holding. `Ship.getControlCapacity` now returns `pulsingPpdCount()` under EM rather than
+    zero, which says both halves of the rule at once - seekers still go, the wave-lock stays -
+    and keeps C10.512 expressed as a CAPACITY rather than an exception inside the overflow
+    sweep. STARTING a run while already on EM is a separate question and was deliberately left
+    as found: the exemption sentence says MAINTAINING.
   - **Correctly parked, counterpart system does not exist**: web (E11.42), stasis (E11.43),
     displacement (E11.44).
 

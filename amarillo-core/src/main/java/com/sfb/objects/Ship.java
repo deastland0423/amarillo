@@ -2593,11 +2593,28 @@ public class Ship extends Unit implements DroneController {
 	 * <p>
 	 * {@link #isEmEffective()} rather than {@code isUsingEm()}, as everywhere else: a ship held
 	 * by a tractor is not conducting EM (C10.24) and keeps its channels.
+	 *
+	 * <h2>E11.49: a pulsing PPD's channel is EXEMPT from the zeroing</h2>
+	 * "Note that the (C10.512) restriction on guiding seeking weapons does not apply to
+	 * maintaining the wave-lock." So EM leaves room for exactly the channels the ship's own
+	 * firing runs are holding and none beyond — seekers still go, the wave-lock stays.
+	 * <p>
+	 * This was a LIVE BUG, not a missing feature, and a probe test caught it: a ship that went
+	 * to erratic manoeuvres mid-run had capacity 0 against a used count of 1, and the very next
+	 * impulse boundary dragged its owner into the CONTROL_OVERFLOW phase to shed the channel its
+	 * own wave-lock was holding. Returning the pulsing count rather than zero keeps the whole
+	 * mechanism above intact — it is still a capacity and not a special case in the sweep.
+	 * <p>
+	 * STARTING a run while already on EM is a different question and is NOT changed here: with
+	 * no run under way this returns zero exactly as before, so {@code PpdResolver} refuses the
+	 * shot. E11.49's first sentence ("the standard ECM shifts are used when the target or firing
+	 * unit are operating under EM") hints that a firing unit may be on EM, but the exemption
+	 * sentence says MAINTAINING, and that is all this claims. Left as it was found, deliberately.
 	 */
 	@Override
 	public int getControlCapacity() {
 		if (isEmEffective())
-			return 0;
+			return pulsingPpdCount();
 		return this.specialFunctions.getControlLimit();
 	}
 

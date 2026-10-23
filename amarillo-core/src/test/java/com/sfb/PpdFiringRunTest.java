@@ -397,4 +397,69 @@ public class PpdFiringRunTest {
             }
         }
     }
+
+    // ---- E11.49: erratic manoeuvres and the wave-lock's control channel ----
+
+    /**
+     * E11.49: "the (C10.512) restriction on guiding seeking weapons does not apply to
+     * maintaining the wave-lock."
+     *
+     * <h2>This was a live bug, not a missing feature</h2>
+     * C10.512 is modelled as a control capacity of ZERO under EM, and E11.151 has a pulsing PPD
+     * occupying a seeking-weapon channel counted by the same {@code getControlUsed} that
+     * {@code checkControlOverflow} tests on every impulse boundary. Nothing exempted the PPD, so
+     * a ship going to erratic manoeuvres mid-run had capacity 0 against a used count of 1 and
+     * the next boundary dragged its owner into CONTROL_OVERFLOW to shed the channel its own
+     * wave-lock was holding - the precise opposite of the rule.
+     *
+     * <p>The symptom is worth naming because it does not look like a rules bug from the outside:
+     * the game simply stops in an interrupt phase and asks the player to give up a seeker they
+     * have not got.
+     */
+    @Test
+    public void erraticManeuversDoNotCostAPulsingPpdItsChannel() {
+        game.firePpd(firer, ppd, target);
+        assertTrue("fixture: a run should be under way", ppd.isPulsing());
+        assertEquals("fixture: the run holds a control channel (E11.151)",
+                1, firer.getControlUsed());
+
+        int now = game.getAbsoluteImpulse();
+        firer.announceEm(true, now);
+        firer.applyEmAnnouncement(now);
+        assertTrue("fixture: the firer must actually be on EM", firer.isUsingEm());
+
+        assertEquals("EM leaves room for the run's own channel and nothing more",
+                1, firer.getControlCapacity());
+
+        // The impulse boundary runs checkControlOverflow(). nextImpulse() asserts its way to
+        // DIRECT_FIRE, so a ship queued into CONTROL_OVERFLOW fails here rather than silently.
+        nextImpulse();
+
+        assertTrue("E11.49: EM must not end a firing run already under way", ppd.isPulsing());
+        assertEquals("and the channel is still held", 1, firer.getControlUsed());
+    }
+
+    /**
+     * The other half of C10.512 still bites: EM takes a ship's SEEKERS, and only the wave-lock
+     * is spared. A capacity of "however many PPDs are pulsing" says both things at once, which
+     * is why the fix is a capacity rather than an exception inside the overflow sweep.
+     */
+    @Test
+    public void emStillStripsEverythingThatIsNotTheWaveLock() {
+        game.firePpd(firer, ppd, target);
+
+        int now = game.getAbsoluteImpulse();
+        firer.announceEm(true, now);
+        firer.applyEmAnnouncement(now);
+
+        assertEquals("one pulsing PPD, so room for one channel", 1, firer.getControlCapacity());
+        assertEquals("fixture: and that is exactly what the run holds",
+                1, firer.getControlUsed());
+
+        // With the run over, EM leaves nothing at all - C10.512 in full.
+        ppd.shutDown();
+        assertFalse("fixture: the run has ended", ppd.isPulsing());
+        assertEquals("no run, no exemption: EM zeroes the ship's channels",
+                0, firer.getControlCapacity());
+    }
 }
