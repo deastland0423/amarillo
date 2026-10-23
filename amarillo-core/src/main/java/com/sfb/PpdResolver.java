@@ -167,6 +167,20 @@ class PpdResolver {
             // Recomputed every pulse: the target moves between impulses, and a scanner track
             // damaged mid-run changes the adjustment under the firer (D6.21).
             int adjustedRange = Game.adjustedRange(run.firer, range);
+            // E11.473: "The PPD cannot hold a wave-lock on a fully cloaked ship. The PPD must
+            // roll for a new wave-lock on each pulse even if a wave-lock was achieved on a
+            // previous pulse. This is an exception to (E11.331)."
+            //
+            // Expressed by dropping the lock rather than by teaching PPD.pulse about cloaks:
+            // loseWaveLock() already means exactly "roll again, the run lives" (E11.34), so the
+            // exception costs no new state and cannot drift from the E11.34 path it shares.
+            //
+            // FULLY_CLOAKED only. E11.471 lets a PPD "maintain a wave-lock on a ship that is
+            // cloaking until the end of the fade period", so a target part-way through a fade
+            // keeps the lock it is held by — the reroll begins when the fade completes.
+            if (isFullyCloaked(run.target))
+                run.device.loseWaveLock();
+
             // E11.53: the shift the pulse faces now, which PPD compares against the one its
             // wave-lock was taken at. Set the same way every other weapon's is.
             run.device.setEcmShift(currentShift(run));
@@ -264,6 +278,25 @@ class PpdResolver {
         com.sfb.properties.EwBreakdown ew = game.ewAgainst(run.firer, run.target);
         int eccm = run.firer.getEccmAllocated() + run.firer.getLentEccm();
         return Game.netEcmShift(ew.total() - eccm);
+    }
+
+    /**
+     * Whether this target is FULLY cloaked, which is the state E11.473 keys on.
+     *
+     * <p>Not "has a cloak", and not "is cloaking". E11.471 is explicit that a wave-lock holds on
+     * a ship part-way through its fade, so the three states must be told apart: only
+     * {@code FULLY_CLOAKED} costs the lock its persistence.
+     *
+     * <p>A run's target is a {@link com.sfb.objects.Marker} rather than a Ship, because
+     * E11.546 can transfer the wave-lock onto a planet mid-run. A planet has no cloak, so the
+     * instanceof is load-bearing rather than defensive.
+     */
+    private boolean isFullyCloaked(com.sfb.objects.Marker target) {
+        if (!(target instanceof Ship ship))
+            return false;
+        com.sfb.systemgroups.CloakingDevice cloak = ship.getCloakingDevice();
+        return cloak != null
+                && cloak.getState() == com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED;
     }
 
     /**

@@ -518,6 +518,104 @@ public class PpdFiringRunTest {
         }
     }
 
+    // ---- E11.473: a fully cloaked target cannot be HELD ----
+
+    /**
+     * E11.473: "The PPD cannot hold a wave-lock on a fully cloaked ship. The PPD must roll for
+     * a new wave-lock on each pulse even if a wave-lock was achieved on a previous pulse. This
+     * is an exception to (E11.331)."
+     *
+     * <h2>Deterministic in BOTH directions, which took arranging</h2>
+     * "It rolls again" is awkward to assert, because a fresh roll often succeeds and looks
+     * exactly like a lock that was held. So the second pulse is made IMPOSSIBLE to win: the
+     * firer's scanner track is damaged to its last box and the target put at a true range of
+     * 38, which carries the adjusted range to 47 — off the end of the chart, hit number zero.
+     *
+     * <ul>
+     * <li>A held lock (E11.331, the old behaviour) scores without rolling, so the lock survives
+     *     and {@code isWaveLocked()} stays true.</li>
+     * <li>E11.473 drops it, the roll happens, the roll cannot win, and the lock is gone.</li>
+     * </ul>
+     * No dice decide which, so the test neither flakes nor passes by luck.
+     */
+    @Test
+    public void aFullyCloakedTargetCannotBeHeldInAWaveLock() {
+        Ship romTarget = new Ship();
+        romTarget.init(com.sfb.samples.RomulanShips.getRomKr());
+        romTarget.setName("Fading Hawk");
+        romTarget.setLocation(new Location(10, 20));   // 10 hexes: the PPD's best band
+        romTarget.setFacing(1);
+        game.getShips().add(romTarget);
+        firer.addLockOn(romTarget);
+
+        // Get a wave-lock the easy way, at a hit number of 9.
+        for (int attempt = 0; attempt < 50 && !ppd.isWaveLocked(); attempt++) {
+            if (!ppd.isPulsing()) {
+                ppd.arm(4);
+                ppd.arm(4);
+                game.firePpd(firer, ppd, romTarget);
+            } else {
+                nextImpulse();
+            }
+        }
+        assertTrue("fixture: 50 runs without a wave-lock", ppd.isWaveLocked());
+        assertTrue("fixture: pulses must remain for the test to mean anything", ppd.isPulsing());
+
+        // Now make the next pulse unwinnable, and the target fully cloaked.
+        while (firer.getSpecialFunctions().canDamageScanner())
+            firer.getSpecialFunctions().damageScanner();
+        romTarget.setLocation(new Location(10, 48));   // true 38, adjusted 47: off the chart
+        romTarget.getCloakingDevice().setState(
+                com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED);
+        firer.addLockOn(romTarget);                    // E11.472: fired at with a lock-on
+
+        nextImpulse();
+
+        assertFalse("E11.473: the lock may not be held against a fully cloaked ship",
+                ppd.isWaveLocked());
+    }
+
+    /**
+     * And the exception is scoped to FULLY cloaked. E11.471 lets a PPD "maintain a wave-lock on
+     * a ship that is cloaking until the end of the fade period", so a target part-way through
+     * its fade keeps the lock that holds it — the same unwinnable pulse that proves the lock is
+     * dropped above must leave it standing here.
+     */
+    @Test
+    public void aFadingTargetKeepsTheWaveLockThatHoldsIt() {
+        Ship romTarget = new Ship();
+        romTarget.init(com.sfb.samples.RomulanShips.getRomKr());
+        romTarget.setName("Fading Hawk");
+        romTarget.setLocation(new Location(10, 20));
+        romTarget.setFacing(1);
+        game.getShips().add(romTarget);
+        firer.addLockOn(romTarget);
+
+        for (int attempt = 0; attempt < 50 && !ppd.isWaveLocked(); attempt++) {
+            if (!ppd.isPulsing()) {
+                ppd.arm(4);
+                ppd.arm(4);
+                game.firePpd(firer, ppd, romTarget);
+            } else {
+                nextImpulse();
+            }
+        }
+        assertTrue("fixture: 50 runs without a wave-lock", ppd.isWaveLocked());
+        assertTrue("fixture: pulses must remain", ppd.isPulsing());
+
+        while (firer.getSpecialFunctions().canDamageScanner())
+            firer.getSpecialFunctions().damageScanner();
+        romTarget.setLocation(new Location(10, 48));
+        romTarget.getCloakingDevice().setState(
+                com.sfb.systemgroups.CloakingDevice.CloakState.FADING_OUT);
+        firer.addLockOn(romTarget);
+
+        nextImpulse();
+
+        assertTrue("E11.471: a fade does not cost the lock its persistence",
+                ppd.isWaveLocked());
+    }
+
     /** With the cloak INACTIVE the same ship fires normally, so the gate is the cloak. */
     @Test
     public void anUncloakedShipFiresItsPpdNormally() {
