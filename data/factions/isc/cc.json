@@ -1,0 +1,120 @@
+{
+  "faction": "ISC",
+  "type": "CC",
+  "typeName": "Flagship Cruiser",
+  "line": "CA",
+  "name": "CSS Affirmation",
+  "serviceYear": 168,
+  "bpv": 198,
+  "turnMode": "D",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 9,
+  "isLeader": true,
+  "tokenArt": "isc/cc.png",
+  "note": "R13.5, Captain's Module C2 SSD p.32. The fleet flagship: TWO PPDs where the Star Cruiser has one, a flag bridge, command rating 9, and eight APR. Unlike the CA this sheet has NO PH-3 refit and NO PPD refit, so both are base armament — 220 less 10 for going without PL-S and 12 without PL-F gives the Y168 hull at 198. The Y180 Sabot refit (+10) is absent as elsewhere: FP11.0 is in Module R10, out of scope.",
+
+  "shields": [30, 30, 24, 24, 24, 30],
+
+  "hullBoxes": {
+    "fhull": 8,
+    "ahull": 8
+  },
+
+  "power": {
+    "leftWarp": 16,
+    "rightWarp": 16,
+    "impulse": 4,
+    "apr": 8,
+    "battery": 4
+  },
+
+  "control": {
+    "bridge": 2,
+    "flag": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 4,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin", "admin", "admin"], "balconyPositions": 2 }
+  ],
+
+  "crewData": {
+    "totalCrew": 48,
+    "boardingParties": 16,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "11", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "13", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "14", "arcs": ["RS"] },
+    { "type": "PPD", "designator": "A", "arcs": ["FA"] },
+    { "type": "PPD", "designator": "B", "arcs": ["FA"] },
+    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "G", "arcs": ["LP"] },
+    { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "G", "arcs": ["RP"] }
+  ],
+
+  "refits": [
+    {
+      "code": "S",
+      "name": "PL-S refit",
+      "label": "Plasma-S",
+      "year": 170,
+      "bpv": 10,
+      "_note": "Sheet: WITHOUT THE PL-S REFIT, PLASMA-S TORPEDOES 'C' AND 'D' ARE PLASMA-G TORPEDOES. A conversion, not an addition — and scoped to C and D by designator so it cannot reach the plasma-F the next refit adds, whatever order the two are ticked in.",
+      "replaceWeapons": [
+        {
+          "from": "PlasmaLauncher",
+          "designators": ["C", "D"],
+          "set": { "plasmaType": "S" }
+        }
+      ]
+    },
+    {
+      "code": "F",
+      "name": "PL-F refit",
+      "label": "Plasma-F",
+      "year": 179,
+      "bpv": 12,
+      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE ALL PLASMA-F TORPEDOES. R13.1C's rear-firing torpedoes, flagged iscRearFiring — see the Star Cruiser's note for what that anchors. Six here, three a side, as on the CA.",
+      "addWeapons": [
+        { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "F", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "G", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "H", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "J", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "K", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] }
+      ]
+    }
+  ]
+}
