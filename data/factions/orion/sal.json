@@ -12,6 +12,7 @@
   "turnMode": "C",
   "moveCost": 0.6666667,
   "breakdown": 4,
+  "bonusHets": 2,
   "stealthBonus": 2,
 
   "shields": [24, 20, 16, 12, 16, 20],

@@ -3,7 +3,7 @@
   "type": "SLV",
   "typeName": "Slaver",
   "line": "FF",
-  "name": "Bad Company",
+  "name": "Rum Runner",
   "serviceYear": 129,
   "sizeClass": 4,
   "bpv": 60,
@@ -12,6 +12,7 @@
   "turnMode": "D",
   "moveCost": 0.25,
   "breakdown": 3,
+  "bonusHets": 2,
   "nimble": true,
   "stealthBonus": 2,
 

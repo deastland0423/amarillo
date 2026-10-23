@@ -10,9 +10,10 @@
   "sizeClass": 3,
   "moveCost": 1.0,
   "breakdown": 5,
+  "bonusHets": 2,
   "commandRating": 8,
   "stealthBonus": 2,
-  "note": "OAKDISC (FD4.5) is modelled as a declared refit, not a hull flag: it sets control.controlMod to 2.0 (the rule's \"double the current sensor rating\") and clears auxiliary.rackFiringLimit, lifting FD4.4's three-rack cap. See orion/sal.json for the worked example. This CA still needs its own OAKDISC refit and rackFiringLimit entering.",
+  "note": "OAKDISC (FD4.5) is modelled as a declared refit, not a hull flag: it sets control.controlMod to 2.0 (the rule's \"double the current sensor rating\") and clears auxiliary.rackFiringLimit, lifting FD4.4's three-rack cap. See orion/sal.json for the worked example. Both are entered below; this line used to say they still needed entering, which went stale the moment they were.",
   "tokenArt": "orion/ca.png",
 
   "shields": [24, 22, 16, 14, 16, 22],
