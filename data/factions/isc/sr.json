@@ -1,0 +1,107 @@
+{
+  "faction": "ISC",
+  "type": "SR",
+  "typeName": "Survey Cruiser",
+  "line": "CL",
+  "name": "CSS Cartographer",
+  "serviceYear": 160,
+  "bpv": 108,
+  "epv": 140,
+  "turnMode": "C",
+  "sizeClass": 3,
+  "moveCost": 0.6666667,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 6,
+  "tokenArt": "isc/sr.png",
+  "note": "R13.13, Captain's Module C2 SSD p.40 (PDF p.41). The Light Cruiser as a survey ship - special sensors AND cargo, which the owner named before the sheet was opened. POINT VALUE = 140/120, read as the SC's, HSC's and CVE's were: smaller is BPV, larger is EPV, and a scout is charged the economic value. TWO deductions here where other ISC hulls have one: WITHOUT PH-3 REFIT (PRE Y165) = -4 and WITHOUT PL-F REFIT (PRE Y179) = -8, so the Y160 hull is 120 less 12, or 108. THE SURVEY TRADE IS THE INTERESTING PART and it is all in the power and the middle of the hull: TEN LABORATORIES where the Light Cruiser has four, FIVE CARGO boxes it has none of, and in exchange ONE APR and TWO BATTERIES where the CL carries four of each. Counted at 500 dpi because an irregular lab block and an L-shaped cargo block are exactly what gets eyeballed wrong. This is the third conversion of the CL hull to be entered and the first to cost power for something other than a flight deck - the CE and HSC pay nothing, the CVL pays a battery and an APR for its bay, and this one pays three for its science. FOUR SPECIAL SENSOR BOXES, recorded as ScoutChannel weapons with dacHitLocation 'torp' - all of them, by the owner's ruling and the sheet's unconditional 'SPECIAL SENSORS ARE DESTROYED ON TORPEDO DAMAGE POINTS' (G24.17), the same as the HSC's six. Everything else is the CL's: shields 30/24/20/20/20/24 with shield #1 counted rather than assumed, F hull 4, rear hull 8, warp 12 a side, impulse 4, transporters 4, tractors 4, four shuttle boxes, two balcony positions, excess damage 5, turn mode C, command rating 6, every damage track, and crew 36 exactly. Boarding parties 10 against the CL's 12. NO FORWARD PLASMA AT ALL - the CL's two plasma-G are absent and nothing replaces them, so the only torpedoes are the four rear-firing plasma-F from the PL-F refit, flagged iscRearFiring under R13.1C which the sheet cites. Probe AMMO is TEN rounds here against the CL's five, which is not modelled; auxiliary.probes is the launcher count and there is one box. THE EPV IS TAKEN AS PRINTED, with neither deduction applied to it, for the same reason as the CVE's and HSC's: the sheet gives one EPV and says nothing about it moving with a refit. An assumption, not a reading. The Y180 Sabot refit (+4) is absent as elsewhere: FP11.0 is in Module R10, out of scope.",
+
+  "shields": [30, 24, 20, 20, 20, 24],
+
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 8,
+    "cargo": 5
+  },
+
+  "power": {
+    "leftWarp": 12,
+    "rightWarp": 12,
+    "impulse": 4,
+    "apr": 1,
+    "battery": 2
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 4,
+    "labs": 10,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"], "balconyPositions": 2 }
+  ],
+
+  "crewData": {
+    "totalCrew": 36,
+    "boardingParties": 10,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FULL"] },
+    { "type": "ScoutChannel", "dacHitLocation": "torp", "designator": "1" },
+    { "type": "ScoutChannel", "dacHitLocation": "torp", "designator": "2" },
+    { "type": "ScoutChannel", "dacHitLocation": "torp", "designator": "3" },
+    { "type": "ScoutChannel", "dacHitLocation": "torp", "designator": "4" }
+  ],
+
+  "refits": [
+    {
+      "code": "3",
+      "name": "PH-3 refit",
+      "label": "PH-3",
+      "year": 165,
+      "bpv": 4,
+      "_note": "Sheet: WITHOUT THE PH-3 REFIT, DELETE ALL PHASER-3s. Four, two a side, the same count as the Light Cruiser's and the same code.",
+      "addWeapons": [
+        { "type": "Phaser3", "designator": "5", "arcs": ["LS"] },
+        { "type": "Phaser3", "designator": "6", "arcs": ["LS"] },
+        { "type": "Phaser3", "designator": "7", "arcs": ["RS"] },
+        { "type": "Phaser3", "designator": "8", "arcs": ["RS"] }
+      ]
+    },
+    {
+      "code": "F",
+      "name": "PL-F refit",
+      "label": "Plasma-F",
+      "year": 179,
+      "bpv": 8,
+      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE ALL PLASMA-F TORPEDOES. Four, two a side. These are the ONLY torpedoes this hull ever carries - it has no forward plasma at all, where the Light Cruiser has two plasma-G. R13.1C's rear-firing kind, flagged iscRearFiring, and the sheet cites R13.1C by name. No epv set: see the hull note.",
+      "addWeapons": [
+        { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] }
+      ]
+    }
+  ]
+}
