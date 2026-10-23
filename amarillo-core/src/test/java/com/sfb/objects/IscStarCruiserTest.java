@@ -205,4 +205,61 @@ public class IscStarCruiserTest {
         assertEquals("the ship the sheet draws",
                 145, RefitResolver.apply(base, List.of("3", "S", "F")).bpv);
     }
+
+    // ------------------------------------------------------------------ the Destroyer
+
+    /**
+     * R13.17, the DD — THE SHIP THAT PROVES iscRearFiring CANNOT BE DERIVED.
+     *
+     * <p>All four of its torpedoes are plasma-F. Two sit forward at FP and are ordinary
+     * launchers with their pseudo torpedoes; two sit astern and are R13.1C's rear-firing
+     * weapons, with no pseudos and the one-per-turn limit. A model that inferred "rear-firing"
+     * from the plasma TYPE, or from a hull being ISC, would get this ship exactly half wrong.
+     */
+    @Test
+    public void thedestroyerHasPlasmaFBothForwardAndAstern() {
+        Ship dd = ShipLibrary.createShip(
+                RefitResolver.apply(ShipLibrary.get("ISC", "DD"), List.of("F")));
+
+        assertEquals("four plasma-F in all", 4, count(dd, PlasmaLauncher.class));
+
+        for (String forward : new String[] { "A", "B" }) {
+            PlasmaLauncher pl = (PlasmaLauncher) byDesignator(dd, forward);
+            assertFalse(forward + " is a forward launcher", pl.isIscRearFiring());
+            assertEquals("FP", pl.getArcLabel());
+        }
+        for (String rear : new String[] { "C", "D" })
+            assertTrue(rear + " is rear-firing (R13.1C)",
+                    ((PlasmaLauncher) byDesignator(dd, rear)).isIscRearFiring());
+
+        assertEquals("L + LR", byDesignator(dd, "C").getArcLabel());
+        assertEquals("R + RR", byDesignator(dd, "D").getArcLabel());
+    }
+
+    /**
+     * And the consequence the sheet draws in its pseudo-plasma box: the forward pair carry
+     * PPTs, the rear pair do not.
+     */
+    @Test
+    public void onlyTheDestroyersForwardTorpedoesCarryPseudos() {
+        Ship dd = ShipLibrary.createShip(
+                RefitResolver.apply(ShipLibrary.get("ISC", "DD"), List.of("F")));
+        dd.attachClock(new com.sfb.Game().getClock());
+
+        assertTrue("A is an ordinary launcher and keeps its PPT",
+                ((PlasmaLauncher) byDesignator(dd, "A")).canLaunchPseudo());
+        assertFalse("C is rear-firing and has none (R13.1C)",
+                ((PlasmaLauncher) byDesignator(dd, "C")).canLaunchPseudo());
+    }
+
+    /** Its phaser-3s are base armament, not a refit — the only ISC hull here where that holds. */
+    @Test
+    public void thedestroyersPhaserThreesAreNotARefit() {
+        Ship unrefitted = ShipLibrary.createShip(ShipLibrary.get("ISC", "DD"));
+
+        assertEquals(4, count(unrefitted, com.sfb.weapons.Phaser3.class));
+        assertEquals("the Y160 hull", 88, ShipLibrary.get("ISC", "DD").bpv);
+        assertEquals("the ship the sheet draws", 92,
+                RefitResolver.apply(ShipLibrary.get("ISC", "DD"), List.of("F")).bpv);
+    }
 }

@@ -1,0 +1,90 @@
+{
+  "faction": "ISC",
+  "type": "DD",
+  "typeName": "Destroyer",
+  "line": "DD",
+  "name": "CSS Peacekeeper",
+  "serviceYear": 160,
+  "bpv": 88,
+  "turnMode": "B",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 6,
+  "bonusHets": 1,
+  "commandRating": 4,
+  "tokenArt": "isc/dd.png",
+  "note": "R13.17, Captain's Module C2 SSD p.43. One refit only — 92 less the 4 for going without PL-F gives the Y160 hull at 88. No PPD, no plasma-S, and its phaser-3s are standard rather than a refit, so this is the plainest of the ISC line. Size class FOUR, which matters for R13.1C: a destroyer is itself a 'size-class-4 or larger ship'. No balcony note on this sheet, unlike the CA and CL. The Y180 Sabot refit (+4) is absent for the usual reason: FP11.0 lives in Module R10, out of scope.",
+
+  "shields": [20, 20, 20, 20, 20, 20],
+
+  "hullBoxes": {
+    "chull": 10
+  },
+
+  "power": {
+    "leftWarp": 8,
+    "rightWarp": 8,
+    "impulse": 2,
+    "apr": 2,
+    "battery": 4
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 5, 3, 1, 0],
+    "scanner": [0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 24,
+    "boardingParties": 8,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["FP"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["FP"] }
+  ],
+
+  "refits": [
+    {
+      "code": "F",
+      "name": "PL-F refit",
+      "label": "Plasma-F",
+      "year": 179,
+      "bpv": 4,
+      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE PLASMA-F TORPEDOES 'C' AND 'D'. Only C and D — A and B are base armament. THIS SHIP IS THE PROOF THAT iscRearFiring IS PER LAUNCHER AND NOT DERIVABLE FROM PLASMA TYPE: all four of its torpedoes are plasma-F, but only C and D are rear-firing. The sheet's own pseudo-plasma box says the same thing, listing pseudos for A and B and none for C or D, which is R13.1C's 'these rear-firing torpedoes do not have PPTs' drawn rather than written.",
+      "addWeapons": [
+        { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] }
+      ]
+    }
+  ]
+}
