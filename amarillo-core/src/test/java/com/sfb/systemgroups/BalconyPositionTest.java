@@ -284,7 +284,8 @@ public class BalconyPositionTest {
                 "Klingon C8V",      // stacked bays; four on the lower one
                 "Klingon D7V",      // R3.44: "LOWER BAY HAS FOUR BALCONY POSITIONS (J1.53)"
                 "Romulan K7V",      // stacked bays on a converted K7; four on the lower
-                "ISC CA");          // R13.6: "TWO BALCONY (J1.53) POSITIONS" on its one bay
+                "ISC CA",           // R13.6: "TWO BALCONY (J1.53) POSITIONS" on its one bay
+                "ISC CL");          // R13.9: the same note, and the same two positions
 
         for (ShipSpec spec : ShipLibrary.all()) {
             if ("Gorn".equals(spec.faction))

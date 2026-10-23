@@ -151,4 +151,58 @@ public class IscStarCruiserTest {
     public void sheIsJustLargeEnoughToCarryAPpd() {
         assertEquals(3, ShipLibrary.get("ISC", "CA").sizeClass);
     }
+
+    // ------------------------------------------------------------------ the Light Cruiser
+
+    /**
+     * R13.9, the CL — the same progression on a lighter hull, and the contrast that shows the
+     * PPD is a HEAVY-hull weapon. The sheet gives it no PPD refit line at all.
+     */
+    @Test
+    public void thelightCruiserHasNoPulsarDevice() {
+        ShipSpec cl = ShipLibrary.get("ISC", "CL");
+        assertNotNull("fixture: the ISC CL should be in the library", cl);
+
+        Ship fullyRefitted = ShipLibrary.createShip(
+                RefitResolver.apply(cl, List.of("3", "S", "F")));
+
+        assertEquals("no refit on this hull fits one", 0, count(fullyRefitted, PPD.class));
+    }
+
+    /** Its plasma-S sit on the CENTRELINE at FP, where the CA's are in the wings at LP/RP. */
+    @Test
+    public void thelightCruisersPlasmaSAreOnTheCentreline() {
+        Ship cl = ShipLibrary.createShip(
+                RefitResolver.apply(ShipLibrary.get("ISC", "CL"), List.of("S")));
+
+        assertEquals("FP", byDesignator(cl, "A").getArcLabel());
+        assertEquals("FP", byDesignator(cl, "B").getArcLabel());
+        assertEquals(com.sfb.properties.PlasmaType.S,
+                ((PlasmaLauncher) byDesignator(cl, "A")).getLauncherType());
+    }
+
+    /** Four rear torpedoes against the CA's six, two to a side, all flagged for R13.1C. */
+    @Test
+    public void thelightCruiserCarriesFourRearTorpedoes() {
+        Ship cl = ShipLibrary.createShip(
+                RefitResolver.apply(ShipLibrary.get("ISC", "CL"), List.of("F")));
+
+        for (String left : new String[] { "C", "D" })
+            assertEquals("L + LR", byDesignator(cl, left).getArcLabel());
+        for (String right : new String[] { "E", "F" })
+            assertEquals("R + RR", byDesignator(cl, right).getArcLabel());
+        for (String d : new String[] { "C", "D", "E", "F" })
+            assertTrue(d + " is rear-firing (R13.1C)",
+                    ((PlasmaLauncher) byDesignator(cl, d)).isIscRearFiring());
+    }
+
+    /** And its refits reach the point value the sheet prints. */
+    @Test
+    public void thelightCruiserPricesOutToTheSheet() {
+        ShipSpec base = ShipLibrary.get("ISC", "CL");
+
+        assertEquals("the Y160 hull", 123, base.bpv);
+        assertEquals("the ship the sheet draws",
+                145, RefitResolver.apply(base, List.of("3", "S", "F")).bpv);
+    }
 }
