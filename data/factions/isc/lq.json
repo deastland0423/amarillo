@@ -1,0 +1,76 @@
+{
+  "faction": "ISC",
+  "type": "L-Q",
+  "typeName": "Large Q-Ship",
+  "line": "F-L",
+  "name": "CSS Right Of Way",
+  "serviceYear": 160,
+  "bpv": 82,
+  "turnMode": "D",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 2,
+  "bonusHets": 0,
+  "commandRating": 3,
+  "tokenArt": "isc/lq.png",
+  "note": "R1.7, Captain's Module C2 SSD p.29 (PDF p.30). The large freighter chassis with ISC guns, and like the small Q-ship the chassis was counted off the sheet rather than copied: armor 7, C hull 6 (three fore, three aft), cargo 20 in two 2x5 blocks, warp FOUR a side, impulse 2, APR TEN in two columns of five, batteries 3, transporters 3, tractors 3, shields 20 all round, excess damage 4, crew 12, boarding parties 10, damage tracks 4-2-2-0, 6-6-3-0, 0-0-2-9. All of them the Gorn large Q-ship's. TWO BAYS of one shuttle each, and the sheet adds 'NO (J1.59) TRANSFERS' between them, which this schema has no way to say - recorded here rather than silently dropped. WHAT DIFFERS IS THE ARMAMENT: THREE plasma-F - A firing FA, B and C firing RA - where the Gorn carries two, both astern; and five phaser-1s, 1 and 2 to port, 3 and 4 to starboard, 5 astern, where the Gorn has six. 82 points against the Gorn's 80. THE REAR PLASMA ARE EXEMPT FROM R13.1C, AND THE SHEET SAYS SO OUTRIGHT: 'THE REAR PLASMA TORPEDOES ON THIS SHIP ARE NOT UNDER THE RESTRICTIONS OF (R13.1C) AS THOSE OF OTHER ISC SHIPS.' So no iscRearFiring flag, and this sheet is the authority that settles the same question on the small Q-ship, where the exemption is implied by the pseudo-plasma box rather than stated. Three type-F pseudos are listed, one per launcher, which is what a torpedo outside R13.1C has. NO HET: the turn mode table prints 'NO HET' rather than a cost. The acceleration note is the Q-ship wording - five points or DOUBLE current speed - so maxAccel 5 with C2.21's doubling left in place. The Y180 Sabot refit (+3) is absent as elsewhere: FP11.0 is in Module R10, out of scope.",
+
+  "shields": [20, 20, 20, 20, 20, 20],
+
+  "hullBoxes": {
+    "chull": 6,
+    "cargo": 20,
+    "armor": 7
+  },
+
+  "power": {
+    "leftWarp": 4,
+    "rightWarp": 4,
+    "impulse": 2,
+    "apr": 10,
+    "battery": 3
+  },
+
+  "control": {
+    "bridge": 1,
+    "auxCon": 1,
+    "emergency": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 0],
+    "sensor": [6, 6, 3, 0],
+    "scanner": [0, 0, 2, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 3,
+    "probes": 0,
+    "maxAccel": 5
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] },
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 12,
+    "boardingParties": 10,
+    "minCrew": 3
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["RA"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["FA"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["RA"] },
+    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RA"] }
+  ]
+}
