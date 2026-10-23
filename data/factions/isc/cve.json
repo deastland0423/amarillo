@@ -1,0 +1,95 @@
+{
+  "faction": "ISC",
+  "type": "CVE",
+  "typeName": "Escort Carrier",
+  "line": "DD",
+  "name": "CSS Vigil",
+  "serviceYear": 170,
+  "bpv": 86,
+  "epv": 100,
+  "turnMode": "B",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 6,
+  "bonusHets": 1,
+  "commandRating": 5,
+  "carrierClass": "CAPABLE",
+  "requiresEscort": true,
+  "tokenArt": "isc/cve.png",
+  "note": "R13.30, Captain's Module R4 SSD p.70 (PDF p.71). The Destroyer's hull turned carrier: turn mode B, size class 4, movement cost 1/2, C hull 10, warp 8 a side, impulse 2, APR 2, bridge 2, emergency 1, aux 1, transporters 2, tractors 2, one probe, shields 20 all round, excess damage 4, and the DD's damage tracks exactly. WHAT THE BAY COST: two batteries and two labs - TWO each here against the DD's four of each. The CE, converting the Light Cruiser to an ESCORT, pays nothing in power; the CVL and this ship, converting to CARRIERS, both pay. Two conversions of two hulls and the same rule falls out, which is only visible because the siblings were entered first. Crew 30 against the DD's 24, boarding parties 6 against 8, and EIGHT DECK CREWS for eight fighters. THE BAY: twelve SHUTTLE boxes, four plain and eight marked, against an administrative shuttles table listing four and the owner's complement of 7 superiority and 1 EW - eight and eight. Two balcony positions (J1.53). ARMAMENT is the DD's shape: two plasma-F at FP (A and B, with pseudos listed for both) and two rear-firing plasma-F arriving with the PL-F refit, C to port and D to starboard, flagged iscRearFiring under R13.1C, which the sheet cites by name. POINT VALUE = 100/90 ON THE SHEET, and the owner read it 2026-10-23: the SMALLER number is the BPV and the larger is the EPV. So 90 less the 4 for going without PL-F gives 86 here, with the economic value recorded beside it. THE EPV IS TAKEN AS PRINTED AND THE PL-F DEDUCTION IS NOT APPLIED TO IT, because the sheet states one EPV and says nothing about it changing with the refit - an assumption rather than a reading, and the place to correct if the campaign rules say otherwise. Every other ISC carrier gives a single point value, so this is the first ISC hull in the game to carry an epv at all. The Y180 Sabot refit (+6) is absent as elsewhere: FP11.0 is in Module R10, out of scope.",
+
+  "shields": [20, 20, 20, 20, 20, 20],
+
+  "hullBoxes": {
+    "chull": 10
+  },
+
+  "power": {
+    "leftWarp": 8,
+    "rightWarp": 8,
+    "impulse": 2,
+    "apr": 2,
+    "battery": 2
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 5, 3, 1, 0],
+    "scanner": [0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"], "balconyPositions": 2,
+      "fighters": { "line": "isc-fighter", "superiority": 7, "ew": 1 } }
+  ],
+
+  "crewData": {
+    "totalCrew": 30,
+    "boardingParties": 6,
+    "deckCrews": 8,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["FP"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["FP"] }
+  ],
+
+  "refits": [
+    {
+      "code": "F",
+      "name": "PL-F refit",
+      "label": "Plasma-F",
+      "year": 179,
+      "bpv": 4,
+      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE PLASMA-F TORPEDOES 'C' AND 'D'. Named designators, as on the Destroyer, because A and B are base armament and only these two are the refit. R13.1C's rear-firing torpedoes, cited by name on this sheet, and the pseudo-plasma box lists pseudos for A and B alone - which is R13.1C's 'no PPTs' drawn rather than written. No epv is set here: see the hull note on why the economic value is left as printed.",
+      "addWeapons": [
+        { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] }
+      ]
+    }
+  ]
+}
