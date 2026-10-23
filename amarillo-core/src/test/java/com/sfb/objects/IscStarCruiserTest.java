@@ -342,6 +342,33 @@ public class IscStarCruiserTest {
                 RefitResolver.apply(base, List.of("F")).bpv);
     }
 
+    // ---- R13.18: the Scout, and why its economic value is the one that counts ----
+
+    /**
+     * A scout is costed at its ECONOMIC value, not its BPV (FleetValidator), so a hull whose
+     * sheet prints a split point value must record both or it is cheap by a third.
+     *
+     * <p>The ISC SC prints "POINT VALUE = 126/90". Recording only the 90 would leave a 126-point
+     * ship spending 90 from a budget, and nothing else in the suite would notice - which is why
+     * this is pinned here rather than trusted to the data guard.
+     *
+     * <p>Also pins that declaring ScoutChannel weapons is ALL it takes to be a scout:
+     * {@code Ship.isScout} is simply whether any are present, and everything else - the G24
+     * functions, the economic costing, S8.25's free scout slot - follows from that.
+     */
+    @Test
+    public void theScoutIsCostedAtItsEconomicValue() {
+        ShipSpec sc = ShipLibrary.get("ISC", "SC");
+        assertEquals("the smaller half of 126/90 is the BPV", 90, sc.bpv);
+        assertEquals("the larger half is the EPV", 126, sc.epv);
+
+        Ship ship = ShipLibrary.createShip(sc);
+        assertTrue("four special sensor boxes make it a scout", ship.isScout());
+        assertEquals("and there are four of them", 4, ship.getScoutChannels().size());
+        assertEquals("which the budget charges at the economic value",
+                126, ship.getEconomicBpv());
+    }
+
     // ---- R13.29 / R13.29A: the escort frigates, and where their aegis comes from ----
 
     /**
