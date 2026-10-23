@@ -3,7 +3,7 @@
   "type": "DDL",
   "typeName": "Destroyer Leader",
   "line": "DD",
-  "name": "CSS Decisive",
+  "name": "CSS Audacious",
   "serviceYear": 168,
   "bpv": 106,
   "turnMode": "B",
@@ -12,6 +12,7 @@
   "breakdown": 6,
   "bonusHets": 1,
   "commandRating": 5,
+  "isLeader": true,
   "tokenArt": "isc/ddl.png",
   "note": "R13.16, Captain's Module C2 SSD p.42. The Destroyer's hull with a leader's extras, and the differences are worth listing because almost everything else is identical: service year 168 rather than 160, command rating 5 rather than 4, stronger shields, a CENTRE APR PAIR the DD has not got, and plasma-G forward where the DD carries plasma-F. Warp, centre hull, shuttles, impulse and every damage track match the DD exactly. It also has NO PROBES — no launcher box on the hull and no probes table on the sheet, where the DD has both. Unusual for a warship, confirmed by the owner 2026-10-22, and recorded here BECAUSE it is unusual: an absent probe reads exactly like an oversight, and the next person to notice would otherwise 'fix' it. Lined with the DD, as the Federation CC is lined with the CA: a leader groups with its hull family. One refit, so 110 less 4 gives the Y168 hull at 106. The Y180 Sabot refit (+4) is absent as elsewhere: FP11.0 is in Module R10, out of scope.",
 
