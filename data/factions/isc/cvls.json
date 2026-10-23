@@ -1,0 +1,99 @@
+{
+  "faction": "ISC",
+  "type": "CVLS",
+  "typeName": "Light Strike Carrier",
+  "line": "CL",
+  "name": "CSS Adjudicator",
+  "serviceYear": 172,
+  "bpv": 137,
+  "turnMode": "C",
+  "sizeClass": 3,
+  "moveCost": 0.6666667,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 6,
+  "carrierClass": "CAPABLE",
+  "requiresEscort": true,
+  "tokenArt": "isc/cvls.png",
+  "note": "R13.12, Captain's Module C2 SSD p.39 (PDF p.40). The Light Carrier's STRIKE variant, and 'Strike' in ISC usage means ARMED WITH A PPD - the owner's rule, 2026-10-23, and it holds across the line: the Strike Cruiser is the Light Cruiser with PPDs, this is the Light Carrier with PPDs, and it predicts the same of the R13.8 Strike Carrier. Worth writing down because the name alone does not say it, and a reader meeting CVLS before CS would have no way to guess. THE ONLY DIFFERENCE FROM THE CVL IS THE HEAVY WEAPON: two PPDs at FA where the CVL mounts two plasma-S at FP. Everything else was compared box by box against the CVL sheet and matches - shields 30/24/20/20/20/24, F hull 4, rear hull 8, warp 12 a side, impulse 4, battery 3 and APR 3 (the CL's four, less one each, as on the CVL), bridge 2, emergency 2, aux 2, transporters 4, tractors 4, labs 4, one probe launcher, tractor 4, and every damage track. Crew 40, boarding parties 10, NINE DECK CREWS, and the same twelve-box bay reading as three administrative shuttles and nine fighters. Two balcony positions (J1.53). Point value 145 with 'WITHOUT PL-F REFIT (PRE Y179) = -8', so 137 is the Y172 hull. SIZE CLASS 3, which E11.16 requires of any hull carrying a PPD - the data guard in ShipLibraryIntegrityTest is what would catch it otherwise. TWO PPDs also means this hull contributes two to E11.17's fleet allowance when it is the flagship, not the cap of four. Its EW fighter will be an FEF rather than the FEK the sheet draws, for the reason given in cvl.json: the fighter roster is deliberately simplified. The Y180 Sabot refit (+6.25) is absent as elsewhere, FP11.0 being in Module R10 and out of scope.",
+
+  "shields": [30, 24, 20, 20, 20, 24],
+
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 8
+  },
+
+  "power": {
+    "leftWarp": 12,
+    "rightWarp": 12,
+    "impulse": 4,
+    "apr": 3,
+    "battery": 3
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 4,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin"], "balconyPositions": 2,
+      "fighters": { "line": "isc-fighter", "superiority": 5, "assault": 3, "ew": 1 } }
+  ],
+
+  "crewData": {
+    "totalCrew": 40,
+    "boardingParties": 10,
+    "deckCrews": 9,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["RS"] },
+    { "type": "PPD", "designator": "A", "arcs": ["FA"] },
+    { "type": "PPD", "designator": "B", "arcs": ["FA"] }
+  ],
+
+  "refits": [
+    {
+      "code": "F",
+      "name": "PL-F refit",
+      "label": "Plasma-F",
+      "year": 179,
+      "bpv": 8,
+      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE ALL PLASMA-F TORPEDOES. Four, two a side, the same count and arcs as the CVL's and the CL's. R13.1C's rear-firing torpedoes, flagged iscRearFiring. Note what the pseudo-plasma box does NOT say here: the CVL lists S-type pseudos for its A and B, and this hull has no plasma at A or B to have pseudos for, because they are PPDs.",
+      "addWeapons": [
+        { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "F", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] }
+      ]
+    }
+  ]
+}
