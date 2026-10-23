@@ -341,4 +341,54 @@ public class IscStarCruiserTest {
         assertEquals("the ship the sheet draws", 110,
                 RefitResolver.apply(base, List.of("F")).bpv);
     }
+
+    // ---- R13.29 / R13.29A: the escort frigates, and where their aegis comes from ----
+
+    /**
+     * The FFE carries LIMITED aegis from Y170, is an escort, and is therefore also a CASUAL
+     * CARRIER — three facts that travel together and are easy to set only two of.
+     *
+     * <p>J4.62 is the one that catches people: "most carrier escorts" are casual carriers, so a
+     * hull declaring ready racks must say so in {@code carrierClass} too. Declaring
+     * {@code fighterFacilities} without it fails {@code CasualCarrierFacilitiesTest}, which is
+     * exactly how this pair was caught half-finished.
+     *
+     * <p>The aegis reading changed once. An earlier draft had the hull start with none and the
+     * free Y175 refit grant it, reading "INCLUDES LIMITED AEGIS" as part of that refit line. It
+     * is a standalone statement about the ship — the FFA opposite lists "INCLUDES Y175 REFIT"
+     * and "INCLUDES FULL AEGIS" as two separate lines, which is what settles it.
+     */
+    @Test
+    public void theEscortFrigateGetsItsLimitedAegisFromAFreeY175Refit() {
+        ShipSpec base = ShipLibrary.get("ISC", "FFE");
+        assertEquals("the sheet lists INCLUDES LIMITED AEGIS against the FFE itself",
+                "LIMITED", base.aegis);
+        assertTrue("and it is an escort (S8.311/S8.315)", base.isEscort);
+        assertEquals("J4.62 makes a hull with ready racks a casual carrier",
+                com.sfb.properties.CarrierClass.CASUAL,
+                ShipLibrary.createShip(base).getCarrierClass());
+
+        assertTrue("the sheet's +0 Y175 refit is deliberately not modelled: with the aegis on "
+                + "the hull it would change nothing, and a refit that changes nothing is refused",
+                base.refits == null || base.refits.isEmpty());
+    }
+
+    /**
+     * The FFA is the same hull built with that refit already in it, so it carries FULL aegis
+     * from the start and must NOT also offer the Y175 refit — the sheet says "INCLUDES Y175
+     * REFIT", and a buyer offered it again would pay for it twice.
+     */
+    @Test
+    public void theAegisFrigateAlreadyIncludesWhatTheOtherOneBuys() {
+        ShipSpec ffa = ShipLibrary.get("ISC", "FFA");
+        assertEquals("R13.29A is built with full aegis", "FULL", ffa.aegis);
+        assertEquals("at its own point value", 77, ffa.bpv);
+        assertTrue("fixture: the Y175 refit must not be on offer here",
+                ffa.refits == null || ffa.refits.isEmpty());
+
+        ShipSpec ffe = ShipLibrary.get("ISC", "FFE");
+        assertEquals("both are the same hull: 16 shields all round",
+                ffe.shields[0], ffa.shields[0]);
+        assertEquals("and the same crew", ffe.crewData.totalCrew, ffa.crewData.totalCrew);
+    }
 }

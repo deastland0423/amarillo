@@ -1,0 +1,79 @@
+{
+  "faction": "ISC",
+  "type": "FFE",
+  "typeName": "Escort Frigate",
+  "line": "FF",
+  "name": "CSS Shepherd",
+  "serviceYear": 170,
+  "bpv": 67,
+  "turnMode": "A",
+  "nimble": true,
+  "sizeClass": 4,
+  "moveCost": 0.3333333,
+  "breakdown": 6,
+  "bonusHets": 2,
+  "commandRating": 3,
+  "isEscort": true,
+  "carrierClass": "CASUAL",
+  "aegis": "LIMITED",
+  "tokenArt": "isc/ffe.png",
+  "note": "R13.29, Captain's Module R4 SSD p.69 (PDF p.70). The Frigate hull turned escort, and the sheet carries TWO ships on one diagram: the FFE here and the FFA in ffa.json, which differ only in year, price and aegis. Validated box by box 2026-10-23 — shields 16 all round (the FF's, not the FFL's 20), crew 16 with 6 boarding parties, DECK CREWS 2, excess damage 3 boxes counted, warp 6 a side, C hull 6, bridge/tran/trac/lab 2 each, shuttle 2, impulse 2. Where it differs from the plain FF: ONE aux and ONE APR rather than two, two plasma-D RACKS in place of the FF's two forward plasma-F launchers, and the deck crews. SHEET NOTE, and the reason isEscort is set: 'AS A CARRIER ESCORT, THIS SHIP HAS DECK CREWS AND READY RACKS TO SERVICE THE FIGHTERS OF THE CARRIER. IT HAS NO FIGHTERS OF ITS OWN.' That is expressed as fighterFacilities 2 - the two marked SHTL boxes, its ready racks - with a fighters block naming the LINE and NO COUNTS. A line without counts is exactly how this schema says 'services these, owns none' (J4.621: the carrier fighters decide what ready racks the escort has), and the player picks the model at the Commander Option stage. An earlier draft of this note claimed the opposite - that an escort should carry neither field - which would have left the ready racks the sheet draws invisible to the game. AEGIS IS ON THE HULL FROM Y170. The sheet lists 'INCLUDES LIMITED AEGIS' as a standalone line about the FFE, below the refit lines rather than inside one, and the FFA opposite says 'INCLUDES Y175 REFIT' AND 'INCLUDES FULL AEGIS' as two separate statements. An earlier draft read the aegis as arriving with the Y175 refit and put nothing on the hull; the owner corrected it 2026-10-23. THE +0 Y175 REFIT IS NOT MODELLED. The sheet prices one, but with the aegis belonging to the hull there is nothing left for it to change, and RefitDataGuardTest rightly refuses a refit that costs nothing and does nothing. What it grants on this hull is an open question: add it back the moment someone knows, rather than carrying an empty entry that looks like an answer. The plasma-D racks gain a second set of reloads in Y175 (FP10.312) and that needs NO DATA HERE: ScenarioLoader applies it by YEAR to every plasma rack in the game, before any per-ship or faction override, because the rule is about the weapon rather than the navy mounting it - its comment names the ISC among the empires it covers. An earlier draft of this note said the rack model could not express it, which was simply false. The Y180 Sabot refit (+2.5) is absent for the usual reason, FP11.0 being in Module R10 and out of scope, and its half-point would not fit an integer bpv anyway.",
+
+  "shields": [16, 16, 16, 16, 16, 16],
+
+  "hullBoxes": {
+    "chull": 6
+  },
+
+  "power": {
+    "leftWarp": 6,
+    "rightWarp": 6,
+    "impulse": 2,
+    "apr": 1,
+    "battery": 2
+  },
+
+  "control": {
+    "bridge": 2,
+    "auxCon": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 0],
+    "sensor": [6, 5, 3, 0],
+    "scanner": [0, 1, 5, 9],
+    "excess": 3
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "labs": 2
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"], "fighterFacilities": 2,
+      "fighters": { "line": "isc-fighter" } }
+  ],
+
+  "crewData": {
+    "totalCrew": 16,
+    "boardingParties": 6,
+    "deckCrews": 2,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
+    { "type": "PlasmaRack", "designator": "1", "arcs": ["LS"] },
+    { "type": "PlasmaRack", "designator": "2", "arcs": ["RS"] }
+  ]
+}
