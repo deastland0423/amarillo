@@ -226,8 +226,8 @@ public class AccelerationLimitTest {
                     qship.canDisengageByAcceleration());
             checked++;
         }
-        assertEquals("fixture: all thirteen Q-ships should have been checked — if this number"
-                + " moves, a hull was added or renamed and wants looking at", 13, checked);
+        assertEquals("fixture: all fourteen Q-ships should have been checked — if this number"
+                + " moves, a hull was added or renamed and wants looking at", 14, checked);
     }
 
     // ---------------------------------------------------------------- C7.1, the other sentence
