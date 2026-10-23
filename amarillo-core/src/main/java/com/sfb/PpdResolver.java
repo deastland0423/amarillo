@@ -289,6 +289,61 @@ class PpdResolver {
     }
 
     /**
+     * G13.37 against a fully cloaked target, with E11.472's ordering (E11.472).
+     *
+     * <p>"The damage is then reduced by (G13.37) ... Any reduction is taken first from the
+     * splash elements." So the chart is rolled once for the pulse — a pulse is one weapon
+     * firing, which is what G13.373 counts — and whatever it takes away comes off the adjacent
+     * shields before the centre.
+     *
+     * <p>That ordering is the whole of the rule and it is not cosmetic: at range 4-10 a pulse
+     * is 4 on the facing shield and 1 on each neighbour, so a half-damage roll removes three
+     * points. Taken from the splash first, both neighbours are spared entirely and the centre
+     * keeps 3. Taken proportionally, or from the centre first, the damage lands on different
+     * shields and can breach one that should have held.
+     *
+     * <h2>A decision of ours: which splash element drains first</h2>
+     * The rule groups "the splash elements" and says nothing about their order among
+     * themselves. We drain the weaker neighbour before the stronger — reverse insertion order,
+     * the chart having placed centre, stronger, weaker. It is arbitrary in the same way the
+     * equal-shield tie-break is arbitrary, and is recorded for the same reason: an unstated
+     * choice that is consistent is better than one rolled for, which would have to be
+     * journalled to replay.
+     *
+     * <p>Uses {@code breaksLockOn()} as the test for "fully cloaked" because that is the
+     * predicate {@code DamageResolver} uses for G13.37 on every other weapon. One answer to
+     * "does the chart apply", even though {@code isFullyCloaked} above would give the same one.
+     *
+     * @return a log fragment naming the roll, or the empty string when no cloak applies
+     */
+    private String applyCloakReduction(Ship targetShip, Map<Integer, Integer> spread) {
+        com.sfb.systemgroups.CloakingDevice cloak = targetShip.getCloakingDevice();
+        if (cloak == null || !cloak.breaksLockOn())
+            return "";
+
+        int total = spread.values().stream().mapToInt(Integer::intValue).sum();
+        int die = new com.sfb.utilities.DiceRoller().rollOneDie();
+        int kept = com.sfb.systemgroups.CloakingDevice.fireAdjustedDamage(total, die);
+        int toRemove = total - kept;
+
+        // Reverse insertion order: weaker neighbour, then stronger, then the centre last.
+        List<Integer> shields = new ArrayList<>(spread.keySet());
+        for (int i = shields.size() - 1; i >= 0 && toRemove > 0; i--) {
+            int shield = shields.get(i);
+            int here = spread.get(shield);
+            int take = Math.min(here, toRemove);
+            toRemove -= take;
+            if (here - take == 0)
+                spread.remove(shield);
+            else
+                spread.put(shield, here - take);
+        }
+        return "fire adjustment vs cloak (G13.37): die " + die + " → "
+                + com.sfb.systemgroups.CloakingDevice.fireAdjustmentLabel(die)
+                + ", splash reduced first (E11.472)";
+    }
+
+    /**
      * The range a wave-lock ROLLS against (E11.312, E11.472), as distinct from the true range
      * its damage comes off.
      *
@@ -378,9 +433,14 @@ class PpdResolver {
         if (spread.isEmpty())
             return "  " + who + " PPD pulse scores nothing at range " + range;
 
+        String cloakNote = applyCloakReduction(targetShip, spread);
+        if (spread.isEmpty())
+            return "  " + who + " PPD pulse hits " + targetShip.getName()
+                    + " — " + cloakNote + ", nothing gets through";
+
         pendingVolleys.add(new Game.PendingVolley(who, run.firer, targetShip, facing, spread, ""));
         StringBuilder out = new StringBuilder("  " + who + " PPD pulse hits "
-                + targetShip.getName() + " — ");
+                + targetShip.getName() + " — " + cloakNote);
         boolean first = true;
         for (Map.Entry<Integer, Integer> hit : spread.entrySet()) {
             out.append(first ? "" : ", ").append(hit.getValue())

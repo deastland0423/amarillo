@@ -574,6 +574,76 @@ public class PpdFiringRunTest {
         }
     }
 
+    /**
+     * E11.472: "the damage is then reduced by (G13.37) ... Any reduction is taken first from
+     * the splash elements."
+     *
+     * <h2>The ordering is not cosmetic</h2>
+     * At a true range of ten a pulse is 4 on the facing shield and 1 on each neighbour. A
+     * half-damage roll removes three points. Taken from the splash first, both neighbours are
+     * spared entirely and the centre keeps 3. Taken proportionally, or from the centre first,
+     * the same pulse lands on different shields and can breach one that should have held.
+     *
+     * <h2>Deterministic despite a random die, by asserting the invariant instead of a value</h2>
+     * G13.37 rolls one die per pulse and every outcome is allowed, so the test cannot name the
+     * damage. What it CAN name is the shape every outcome must have: either nothing was taken
+     * and all three shields carry the chart's 4+1+1, or something was taken and the neighbours
+     * went first — so a spread that still has three entries must total six. An implementation
+     * that drained proportionally, or from the centre, breaks that for every die but 1 and 2.
+     *
+     * <p>Also exercises E11.472's two ranges at once: effective range 15 (true 10 plus the
+     * cloak's five) wins the wave-lock on an eight, while the damage comes off true range 10.
+     */
+    @Test
+    public void g13_37ReductionComesOffTheSplashBeforeTheCentre() {
+        Ship romTarget = new Ship();
+        romTarget.init(com.sfb.samples.RomulanShips.getRomKr());
+        romTarget.setName("Ghost");
+        romTarget.setLocation(new Location(10, 20));   // true range 10
+        romTarget.setFacing(1);
+        game.getShips().add(romTarget);
+        romTarget.getCloakingDevice().setState(
+                com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED);
+        firer.addLockOn(romTarget);
+
+        assertEquals("fixture: true 10 plus the cloak's five", 15,
+                game.getEffectiveRange(firer, romTarget));
+
+        int full = 0;
+        int reduced = 0;
+        for (int attempt = 0; attempt < 400 && (full == 0 || reduced == 0); attempt++) {
+            // The pending list is an unmodifiable view, so the newest volley is read by
+            // index rather than the list being cleared between attempts.
+            int before = game.getPendingVolleys().size();
+            firer.addLockOn(romTarget);
+            ppd.arm(4);
+            ppd.arm(4);
+            game.firePpd(firer, ppd, romTarget);
+            ppd.shutDown();
+
+            if (game.getPendingVolleys().size() == before)
+                continue;   // no wave-lock this pulse
+
+            java.util.Map<Integer, Integer> spread =
+                    game.getPendingVolleys().get(game.getPendingVolleys().size() - 1).shieldDamage;
+            int total = spread.values().stream().mapToInt(Integer::intValue).sum();
+
+            if (spread.size() == 3) {
+                assertEquals("three shields still carrying damage means nothing was taken, "
+                        + "so the chart's 4+1+1 must be intact: " + spread, 6, total);
+                full++;
+            } else {
+                assertTrue("a reduced pulse keeps only the facing shield, the splash having "
+                        + "gone first: " + spread, spread.size() == 1);
+                assertTrue("and the centre keeps less than the chart's four: " + spread,
+                        total < 4);
+                reduced++;
+            }
+        }
+        assertTrue("fixture: never saw an unreduced pulse in 400 tries", full > 0);
+        assertTrue("fixture: never saw a reduced pulse in 400 tries", reduced > 0);
+    }
+
     // ---- E11.473: a fully cloaked target cannot be HELD ----
 
     /**
