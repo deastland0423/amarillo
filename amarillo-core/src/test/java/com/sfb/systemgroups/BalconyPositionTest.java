@@ -289,6 +289,8 @@ public class BalconyPositionTest {
                 "ISC CS",           // R13.11: the CL's hull, so the CL's two positions
                 "ISC CVL",          // R13.10: likewise, and its bay carries nine fighters besides
                 "ISC CVLS",         // R13.12: the CVL with PPDs, so the CVL's bay and balconies
+                "ISC CV",           // R13.7: FOUR positions, not the cruisers' two
+                "ISC CVS",          // R13.8: the CV with PPDs, so the CV's four
                 "ISC CC",           // R13.5: likewise, on the flagship cruiser
                 // Four on the dreadnought's single bay, where the ISC cruisers get two. No rule
                 // number here deliberately: the Module C2 sheets are scans with no text layer,

@@ -1,0 +1,106 @@
+{
+  "faction": "ISC",
+  "type": "CV",
+  "typeName": "Fleet Carrier",
+  "line": "CA",
+  "name": "CSS Concord",
+  "serviceYear": 172,
+  "bpv": 154,
+  "turnMode": "D",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 8,
+  "carrierClass": "CAPABLE",
+  "requiresEscort": true,
+  "tokenArt": "isc/cv.png",
+  "note": "R13.7, Captain's Module C2 SSD p.34 (PDF p.35). The Star Cruiser's chassis turned fleet carrier, and the comparison is exact: F hull 8, rear hull 8, warp SIXTEEN a side counted at 400 dpi, impulse 4, APR 4, batteries 4, bridge 2, emergency 2, aux 2, transporters 4, tractors 4, labs 4, one probe launcher, turn mode D, movement cost 1, breakdown 5, command rating 8, shields 30/30/24/24/24/30, excess damage 6, and every damage track - all the CA's. It carries a FLAG BRIDGE the CA has not, which is what a fleet carrier is for. Six phaser-3s as the CA has, here 9/10/11 to port and 12/13/14 to starboard, and the same six rear-firing plasma-F. CREW 50 (five columns of ten), BOARDING PARTIES 12, and TWELVE DECK CREWS - one per fighter, which is J4.814 drawn rather than written. THE BAY: sixteen SHUTTLE boxes in a 4x4 block, twelve marked and four plain, which reads as four administrative shuttles and twelve fighters; the administrative shuttles table lists exactly four, and the complement the owner gave is 7 superiority, 4 assault and 1 EW, which is twelve. FOUR balcony positions (J1.53), where the CA and the light carriers have two. Point value 166 with 'WITHOUT PL-F REFIT (PRE Y179) = -12', so 154 is the Y172 hull. Its EW fighter will be an FEF rather than the FEK the sheet draws, for the reason given in cvl.json: the fighter roster is deliberately simplified. The Y180 Sabot refit (+13) is absent as elsewhere, FP11.0 being in Module R10 and out of scope.",
+
+  "shields": [30, 30, 24, 24, 24, 30],
+
+  "hullBoxes": {
+    "fhull": 8,
+    "ahull": 8
+  },
+
+  "power": {
+    "leftWarp": 16,
+    "rightWarp": 16,
+    "impulse": 4,
+    "apr": 4,
+    "battery": 4
+  },
+
+  "control": {
+    "bridge": 2,
+    "flag": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 4,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"], "balconyPositions": 4,
+      "fighters": { "line": "isc-fighter", "superiority": 7, "assault": 4, "ew": 1 } }
+  ],
+
+  "crewData": {
+    "totalCrew": 50,
+    "boardingParties": 12,
+    "deckCrews": 12,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "11", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "13", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "14", "arcs": ["RS"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["FP"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["FP"] }
+  ],
+
+  "refits": [
+    {
+      "code": "F",
+      "name": "PL-F refit",
+      "label": "Plasma-F",
+      "year": 179,
+      "bpv": 12,
+      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE ALL PLASMA-F TORPEDOES. SIX here, three a side, the same count and arcs as the Star Cruiser's - which is the clearest sign this is the CA's hull and not the CL's. R13.1C's rear-firing torpedoes, flagged iscRearFiring. The sheet's pseudo-plasma box lists S-type pseudos for A and B and none for these.",
+      "addWeapons": [
+        { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "F", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "G", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "H", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] }
+      ]
+    }
+  ]
+}
