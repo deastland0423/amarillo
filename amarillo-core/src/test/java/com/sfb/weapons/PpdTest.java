@@ -550,6 +550,32 @@ public class PpdTest {
         assertEquals(4, ppd.pulsesCharged());
     }
 
+    /**
+     * A device armed DIRECTLY — by a scenario's weapon status, or by a saved game on restore —
+     * gets a full standard charge.
+     *
+     * <p>Without this it had no arming energy, so pulsesCharged() was zero and firing produced
+     * a run of NO pulses: a weapon that reported itself armed, spent its charge and did
+     * nothing. Found when a server test armed one this way and the run never started.
+     */
+    @Test
+    public void adirectlyArmedDeviceHasAFullCharge() {
+        ppd.setArmed(true);
+
+        assertTrue(ppd.isArmed());
+        assertEquals("a standard charge, not an empty one", 4, ppd.pulsesCharged());
+    }
+
+    /** And disarming clears the charge rather than leaving energy behind it. */
+    @Test
+    public void disarmingClearsTheCharge() {
+        fullCharge();
+
+        ppd.setArmed(false);
+
+        assertEquals(0, ppd.pulsesCharged());
+    }
+
     /** E11.6: overload is not built, so the device refuses to be put in that mode. */
     @Test
     public void overloadIsRefusedRatherThanFaked() {

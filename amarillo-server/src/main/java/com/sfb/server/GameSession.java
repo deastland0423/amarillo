@@ -3513,8 +3513,35 @@ public class GameSession {
             }
         }
 
-        List<Weapon> weapons = new ArrayList<>();
+        // PPDs LEAVE THE VOLLEY (E11.0). A PPD is a DirectFire and would otherwise be accepted
+        // into an ordinary FireCommand — firing once, scoring on a single shield, and never
+        // registering the run that gives it its other three pulses. It is not an ordinary shot:
+        // E11.31 fires it "before any other fire by that side", E11.332 resolves its damage as
+        // its own splash volley, and E11.30 carries it over the next three impulses. So it is
+        // taken out here, fired through its own path, and the rest of the volley proceeds.
+        StringBuilder ppdLog = new StringBuilder();
+        List<String> remaining = new ArrayList<>();
         for (String wName : weaponNames) {
+            Weapon w = attackerWeapons.fetchAllWeapons().stream()
+                    .filter(x -> x.getName().equalsIgnoreCase(wName))
+                    .findFirst().orElse(null);
+            if (w instanceof com.sfb.weapons.PPD ppd) {
+                if (!(attacker instanceof Ship firer))
+                    return ActionResult.fail("Only a ship can fire a PPD");
+                ActionResult r = game.firePpd(firer, ppd, target);
+                ppdLog.append(ppdLog.length() == 0 ? "" : "\n").append(r.getMessage());
+                if (!r.isSuccess())
+                    return r;
+            } else {
+                remaining.add(wName);
+            }
+        }
+        // A declaration naming nothing but PPDs is complete: there is no volley to follow.
+        if (remaining.isEmpty())
+            return ActionResult.ok(ppdLog.toString());
+
+        List<Weapon> weapons = new ArrayList<>();
+        for (String wName : remaining) {
             Weapon w = attackerWeapons.fetchAllWeapons().stream()
                     .filter(x -> x.getName().equalsIgnoreCase(wName))
                     .findFirst().orElse(null);
@@ -3534,8 +3561,13 @@ public class GameSession {
             weapons.add(w);
         }
 
-        return game.execute(new FireCommand(attacker, target, weapons,
+        ActionResult volley = game.execute(new FireCommand(attacker, target, weapons,
                 range, adjustedRange, shieldNumber, useUim, directFire));
+        if (ppdLog.length() == 0)
+            return volley;
+        return volley.isSuccess()
+                ? ActionResult.ok(ppdLog + "\n" + volley.getMessage())
+                : volley;
     }
 
     private static boolean containsIgnoreCase(List<String> names, String name) {

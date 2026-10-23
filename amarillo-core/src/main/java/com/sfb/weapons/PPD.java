@@ -192,10 +192,52 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
     }
 
     @Override public int energyToArm() { return ENERGY_PER_TURN; }
+
+    /**
+     * What the energy-allocation UI needs to offer a PPD its own arming choices.
+     *
+     * <p>All three are defaults in {@link HeavyWeapon} that happen to be wrong here, and the
+     * weapon looked fully armed-and-fireable without them: the dialog reads these to decide
+     * which buttons to draw, so an undeclared capability is one a player simply cannot reach.
+     *
+     * <ul>
+     *   <li>{@code holdEnergyCost} 2 — E11.22, and the default 0 would have offered a free hold.
+     *   <li>{@code supportsOverload} true — E11.6, without which the Ovld button never appears.
+     *   <li>{@code overloadFinalTurnOnly} true — E11.611, "no more than four points of energy
+     *       can be allocated on the first turn", so the choice belongs on the second.
+     * </ul>
+     *
+     * <p>The dialog prices an overload at {@code armingCost * 2}, which is four doubled to the
+     * eight points E11.61 asks for. That it lands on the right number is the chart agreeing
+     * with the UI's arithmetic, not a coincidence worth relying on silently — hence the test.
+     */
+    @Override public int holdEnergyCost() { return HOLDING_COST; }
+    @Override public boolean supportsOverload() { return true; }
+    @Override public boolean overloadFinalTurnOnly() { return true; }
     @Override public int totalArmingTurns() { return 2; }
     @Override public int getArmingTurn() { return armingTurn; }
     @Override public boolean isArmed() { return armed; }
-    @Override public void setArmed(boolean armed) { this.armed = armed; }
+    /**
+     * Arm or disarm directly, as a scenario's weapon status does (ScenarioLoader) and as a
+     * saved game does on restore.
+     *
+     * <p>A full standard charge when no energy has been recorded, mirroring
+     * {@link #setArmingTurn}. Without it an "armed" PPD had {@code armingEnergy} of zero, so
+     * {@link #pulsesCharged()} returned zero and firing produced a run of NO pulses — a device
+     * that reported itself armed, consumed its charge and did nothing at all. A scenario that
+     * armed a PPD would have shipped exactly that.
+     */
+    @Override
+    public void setArmed(boolean armed) {
+        this.armed = armed;
+        if (armed && armingEnergy == 0) {
+            armingEnergy = ENERGY_PER_TURN * totalArmingTurns();
+            armingTurn = totalArmingTurns();
+        } else if (!armed) {
+            armingEnergy = 0;
+            armingTurn = 0;
+        }
+    }
     @Override
     public WeaponArmingType getArmingType() {
         return overloaded ? WeaponArmingType.OVERLOAD : WeaponArmingType.STANDARD;
