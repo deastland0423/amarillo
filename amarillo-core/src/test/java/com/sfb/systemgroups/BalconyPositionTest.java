@@ -286,6 +286,7 @@ public class BalconyPositionTest {
                 "Romulan K7V",      // stacked bays on a converted K7; four on the lower
                 "ISC CA",           // R13.6: "TWO BALCONY (J1.53) POSITIONS" on its one bay
                 "ISC CL",           // R13.9: the same note, and the same two positions
+                "ISC CS",           // R13.11: the CL's hull, so the CL's two positions
                 "ISC CC",           // R13.5: likewise, on the flagship cruiser
                 // Four on the dreadnought's single bay, where the ISC cruisers get two. No rule
                 // number here deliberately: the Module C2 sheets are scans with no text layer,

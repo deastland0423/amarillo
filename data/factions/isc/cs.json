@@ -1,0 +1,95 @@
+{
+  "faction": "ISC",
+  "type": "CS",
+  "typeName": "Strike Cruiser",
+  "line": "CL",
+  "name": "CSS Celestra",
+  "serviceYear": 168,
+  "bpv": 147,
+  "turnMode": "C",
+  "sizeClass": 3,
+  "moveCost": 0.6666667,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 6,
+  "tokenArt": "isc/cs.png",
+  "note": "R13.11, Captain's Module C2 SSD p.38 (PDF p.39). The Light Cruiser's hull with TWO PPDs at FA where the CL carries two plasma-G at FP; shields, hull, warp, impulse, crew and every damage track are the CL's unchanged, which is why it is lined with it. Size class 3, so E11.16 allows the PPDs. Two of them, so a CS flagship contributes two to E11.17's allowance rather than the cap of four.\n\nTHE PHASER-3s ARE BASE ARMAMENT, NOT A REFIT, and that is the one thing on this hull worth reading twice. The CL carries four of them as its Y165 PH-3 refit; this ship enters service in Y168, AFTER that date, so the sheet draws them already fitted and there is no refit line to copy. The file was first entered with no phaser-3s at all - neither base nor refit - which is exactly what a dropped refit looks like, and is the same shape as the FFL that inherited a probe its sheet does not have. Questioned and answered by the owner 2026-10-23; recorded here so the missing refit line never reads as an oversight again.\n\nPROVENANCE: derived from cl.json and diffed against it field by field, not read box by box off its own sheet. The owner vouched for the hull. If a number here is ever in doubt, the sheet is the authority and this file has not been checked against it.",
+
+  "shields": [30, 24, 20, 20, 20, 24],
+
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 8
+  },
+
+  "power": {
+    "leftWarp": 12,
+    "rightWarp": 12,
+    "impulse": 4,
+    "apr": 4,
+    "battery": 4
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 4,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"], "balconyPositions": 2 }
+  ],
+
+  "crewData": {
+    "totalCrew": 36,
+    "boardingParties": 12,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["RS"] },
+    { "type": "PPD", "designator": "A", "arcs": ["FA"] },
+    { "type": "PPD", "designator": "B", "arcs": ["FA"] }
+  ],
+
+  "refits": [
+    {
+      "code": "F",
+      "name": "PL-F refit",
+      "label": "Plasma-F",
+      "year": 179,
+      "bpv": 8,
+      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE ALL PLASMA-F TORPEDOES. R13.1C's rear-firing torpedoes, flagged iscRearFiring — see the Star Cruiser's note for what that anchors. Four here, two a side, against the CA's six.",
+      "addWeapons": [
+        { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "F", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] }
+      ]
+    }
+  ]
+}
