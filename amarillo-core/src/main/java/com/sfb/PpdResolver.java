@@ -83,6 +83,18 @@ class PpdResolver {
             return Game.ActionResult.fail("No target to fire at.");
         if (!firer.isActiveFireControl())
             return Game.ActionResult.fail("A PPD cannot be fired with passive fire control (E11.152).");
+        // E11.475: "Ships cannot fire PPDs while cloaked, cloaking, or uncloaking (G13.513)."
+        //
+        // The same gate the volley applies at DamageResolver, reached here by hand for the
+        // reason this resolver exists at all: a PPD is routed OUT of the volley, so every check
+        // the volley makes on the way past is one this path has to make for itself. It did not,
+        // and a fully cloaked ship could open a firing run - caught by a probe test, not by
+        // reading. That is now two gates the PPD missed by the same route, the other being
+        // D6.21's scanner adjustment, so the next thing added to the volley is worth checking
+        // against this method deliberately.
+        Game.ActionResult cloaked = game.cloakActionBlock(firer);
+        if (cloaked != null)
+            return cloaked;
         if (!firer.hasLockOn(target))
             return Game.ActionResult.fail("A PPD needs a lock-on to fire (E11.15).");
         // E11.151: a pulsing PPD occupies a seeking-weapon control channel.

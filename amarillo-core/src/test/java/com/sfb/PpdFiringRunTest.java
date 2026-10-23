@@ -462,4 +462,72 @@ public class PpdFiringRunTest {
         assertEquals("no run, no exemption: EM zeroes the ship's channels",
                 0, firer.getControlCapacity());
     }
+
+    // ---- E11.475: a cloaked ship may not fire a PPD ----
+
+    /** A cloak-capable ship carrying an armed PPD, locked on and ready to fire. */
+    private Ship cloakCapableFirer(PPD device) {
+        Ship rom = new Ship();
+        rom.init(com.sfb.samples.RomulanShips.getRomKr());
+        rom.setName("Cloaked Firer");
+        rom.setLocation(new Location(10, 10));
+        rom.setFacing(1);
+        game.getShips().add(rom);
+
+        device.setDesignator("9");
+        rom.getWeapons().addWeapon(device);
+        device.arm(4);
+        device.arm(4);
+        rom.setActiveFireControl(true);
+        rom.addLockOn(target);
+        return rom;
+    }
+
+    /**
+     * E11.475: "Ships cannot fire PPDs while cloaked, cloaking, or uncloaking (G13.513)."
+     *
+     * <h2>A second gate the PPD missed by resolving outside the volley</h2>
+     * {@code DamageResolver} asks {@code cloakActionBlock} before any volley; the PPD is routed
+     * out of the volley and never met it, so a fully cloaked ship could open a firing run. A
+     * probe found it - the first assertion printed {@code success=true} - rather than anyone
+     * noticing by reading. That is now two gates missed by the same route, D6.21's scanner
+     * adjustment being the other, which is the argument for checking this method against the
+     * volley whenever the volley gains a check.
+     *
+     * <p>All three states, because the rule names all three and
+     * {@code CloakingDevice.isRestrictingActions} happens to answer for exactly them: a test
+     * that only tried FULLY_CLOAKED would not notice a gate narrowed to it later.
+     */
+    @Test
+    public void aCloakedCloakingOrUncloakingShipCannotFireAPpd() {
+        for (com.sfb.systemgroups.CloakingDevice.CloakState state : new
+                com.sfb.systemgroups.CloakingDevice.CloakState[] {
+                com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED,
+                com.sfb.systemgroups.CloakingDevice.CloakState.FADING_OUT,
+                com.sfb.systemgroups.CloakingDevice.CloakState.FADING_IN }) {
+            PPD hidden = new PPD();
+            Ship rom = cloakCapableFirer(hidden);
+            rom.getCloakingDevice().setState(state);
+
+            Game.ActionResult r = game.firePpd(rom, hidden, target);
+            assertFalse("E11.475: no PPD fire while " + state, r.isSuccess());
+            assertFalse("and no run may have been started", hidden.isPulsing());
+            assertTrue("the charge is not spent on a refused shot", hidden.isArmed());
+
+            game.getShips().remove(rom);
+        }
+    }
+
+    /** With the cloak INACTIVE the same ship fires normally, so the gate is the cloak. */
+    @Test
+    public void anUncloakedShipFiresItsPpdNormally() {
+        PPD open = new PPD();
+        Ship rom = cloakCapableFirer(open);
+        rom.getCloakingDevice().setState(
+                com.sfb.systemgroups.CloakingDevice.CloakState.INACTIVE);
+
+        assertTrue("a ship with its cloak off fires normally",
+                game.firePpd(rom, open, target).isSuccess());
+        assertTrue("and the run is under way", open.isPulsing());
+    }
 }
