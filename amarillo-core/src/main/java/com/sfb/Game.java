@@ -824,16 +824,36 @@ public class Game {
      * not theoretical: a scanner once cost a plasma-R bolt ten points of warhead it should
      * have kept, which is why {@code PlasmaLauncher} has an override at all.
      *
+     * <h2>THIS IS THE LESSER OF TWO FORMULAS, and which one you want depends on the caller</h2>
+     * An earlier version of this javadoc claimed D6.123's doubling for a non-locked target and
+     * D6.211's cloak bonus were "never applied in the firing path". That was WRONG, and wrong
+     * in the way that misleads: it was reached by grepping for callers of
+     * {@code LockOnResolver.getEffectiveRange}, finding only the DTO, and concluding the fire
+     * path did not use it. The fire path does not COMPUTE that number - it RECEIVES it.
+     * <p>
+     * Normal ship-vs-ship fire gets its {@code adjustedRange} from
+     * {@code GameController.fireOptionsFor}, which calls {@code getEffectiveRange} and so
+     * carries the full D6.21 + D6.123 + D6.211 sum: {@code (noLock ? true*2 : true) + scanner
+     * + cloakBonus}. That travels in the fire order and {@code GameSession} hands it to
+     * {@code fireWeapons} unchanged. A volley at a fully cloaked ship with no lock-on really
+     * does roll against {@code (true * 2) + 5}.
+     * <p>
+     * So this method is the SCANNER TERM ONLY, and its three callers are the paths that have no
+     * target ship to ask about: planet bombardment, asteroid clearing, and
+     * {@code fireAegisPulse}. The first two face objects that neither cloak nor need a lock-on.
+     * The third is a genuine inconsistency - aegis fire skips a bonus the same weapons get
+     * through the fire pad - and is recorded here rather than fixed, because it is nothing to
+     * do with the scanner convention this method exists for.
+     * <p>
+     * <b>Want the full effective range? Call {@code Game.getEffectiveRange}.</b> Reach for this
+     * one only when there is no target whose cloak and lock state could matter.
+     *
      * <h2>What this deliberately does NOT include</h2>
      * <ul>
      * <li><b>Electronic warfare.</b> EW rides separately as {@link Weapon#setEcmShift}, because
-     *     D6.34 shifts the die rather than the range.</li>
-     * <li><b>The cloak bonus.</b> G13 has its own fire-adjustment chart; folding D6.211's five
-     *     hexes in here would apply it twice.</li>
-     * <li><b>D6.123's doubling for a non-locked target.</b> NOT a decision made here - the
-     *     firing path has never applied it. {@code LockOnResolver.getEffectiveRange} is the
-     *     only place that doubles, and nothing but the DTO calls it. Recorded at the single
-     *     home for firing range because this is where someone looking for it will come.</li>
+     *     D6.34 shifts the die rather than the range - in BOTH formulas.</li>
+     * <li><b>The cloak bonus and the no-lock doubling</b>, for the reason above: they belong to
+     *     a target, and these callers have none.</li>
      * </ul>
      *
      * @param attacker  the firing ship, whose scanner track supplies the adjustment
