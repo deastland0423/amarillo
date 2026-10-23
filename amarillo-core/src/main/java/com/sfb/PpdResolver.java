@@ -112,7 +112,13 @@ class PpdResolver {
                             + " in use. Release or transfer a seeking weapon to make room.");
 
         int range = MapUtils.getRange(firer, target);
-        int adjustedRange = Game.adjustedRange(firer, range);
+        // E11.472: "Effective range is used for wave-lock; true range is used to determine
+        // damage scored (G13.341)." The FULL effective range, which is what every other weapon
+        // fired at a ship rolls against: GameController.fireOptionsFor builds a fire order's
+        // adjustedRange this way, so D6.21's scanner, D6.123's doubling and D6.211's cloak
+        // bonus all ride along. The PPD computed only the scanner term and so was the one
+        // weapon a cloak did not push away.
+        int adjustedRange = game.getEffectiveRange(firer, target);
         int damage;
         try {
             damage = device.fire(range, adjustedRange);
@@ -164,9 +170,11 @@ class PpdResolver {
             }
 
             int range = MapUtils.getRange(run.firer, run.target);
-            // Recomputed every pulse: the target moves between impulses, and a scanner track
-            // damaged mid-run changes the adjustment under the firer (D6.21).
-            int adjustedRange = Game.adjustedRange(run.firer, range);
+            // Recomputed every pulse: the target moves between impulses, a scanner track
+            // damaged mid-run changes the adjustment under the firer (D6.21), and a target
+            // part-way through a fade is a different number of hexes away on each of them
+            // (E11.471, G13.14).
+            int adjustedRange = rollRange(run.firer, run.target);
             // E11.473: "The PPD cannot hold a wave-lock on a fully cloaked ship. The PPD must
             // roll for a new wave-lock on each pulse even if a wave-lock was achieved on a
             // previous pulse. This is an exception to (E11.331)."
@@ -278,6 +286,31 @@ class PpdResolver {
         com.sfb.properties.EwBreakdown ew = game.ewAgainst(run.firer, run.target);
         int eccm = run.firer.getEccmAllocated() + run.firer.getLentEccm();
         return Game.netEcmShift(ew.total() - eccm);
+    }
+
+    /**
+     * The range a wave-lock ROLLS against (E11.312, E11.472), as distinct from the true range
+     * its damage comes off.
+     *
+     * <p>"Effective range is used for wave-lock; true range is used to determine damage scored
+     * (G13.341)." Effective range here means the whole of D6.21 + D6.123 + D6.211 — the same
+     * number {@code GameController.fireOptionsFor} puts in every other weapon's fire order, so
+     * a PPD is pushed away by a scanner, by a lost lock-on and by a cloak exactly as a disruptor
+     * is. It used to carry the scanner term alone, which made it the one weapon in the game a
+     * cloak did not move.
+     *
+     * <h2>A planet is not a Unit, and that is the whole reason this is a method</h2>
+     * E11.546 can transfer a wave-lock onto a planet mid-run, after which the run's target is a
+     * {@link com.sfb.objects.Marker} rather than a {@link com.sfb.objects.Unit}. Planets neither
+     * cloak nor need to be locked on to, so there is nothing for the extra terms to say and the
+     * scanner adjustment is the whole of it. Not a defensive fallback — the two cases are
+     * genuinely different rules, and the cast {@code getEffectiveRange} would need is the one
+     * that would throw.
+     */
+    private int rollRange(Ship firer, com.sfb.objects.Marker target) {
+        if (target instanceof com.sfb.objects.Unit unit)
+            return game.getEffectiveRange(firer, unit);
+        return Game.adjustedRange(firer, MapUtils.getRange(firer, target));
     }
 
     /**

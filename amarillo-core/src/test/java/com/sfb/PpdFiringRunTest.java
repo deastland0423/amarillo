@@ -518,6 +518,62 @@ public class PpdFiringRunTest {
         }
     }
 
+    // ---- E11.472: the cloak bonus reaches the wave-lock roll ----
+
+    /**
+     * E11.472: "Effective range is used for wave-lock; true range is used to determine damage
+     * scored (G13.341)." Effective range is the whole of D6.21 + D6.123 + D6.211, so a cloak
+     * pushes a PPD away exactly as it pushes away everything else.
+     *
+     * <h2>Why this needed its own test rather than trusting the call</h2>
+     * The PPD computed only D6.21's scanner term, which made it the one weapon in the game a
+     * cloak did not move. Nothing failed when it did: a wave-lock is a dice roll, and a weapon
+     * rolling at the wrong range still hits most of the time.
+     *
+     * <h2>The construction, which is the same lever as the scanner test</h2>
+     * True range 38 sits in the PPD's weakest band at a hit number of four. A fully cloaked
+     * target adds D6.211's five, carrying the effective range to 43 — off the end of the chart,
+     * hit number zero, unwinnable on every roll of the dice. Drop the cloak term and the same
+     * shot needs a four or less and lands about one time in six, which forty runs turn into a
+     * certainty. Deterministic where it passes, overwhelming where it should fail.
+     *
+     * <p>Only the FIRST pulse of each run is examined, deliberately: it is resolved inside
+     * {@code firePpd}, immediately after the lock-on is granted, which keeps the test clear of
+     * everything a cloak does to lock-on retention over later impulses. That belongs to G13 and
+     * has its own tests.
+     */
+    @Test
+    public void aCloakPushesAPpdAwayAsItPushesAwayEverythingElse() {
+        Ship romTarget = new Ship();
+        romTarget.init(com.sfb.samples.RomulanShips.getRomKr());
+        romTarget.setName("Ghost");
+        romTarget.setLocation(new Location(10, 48));   // true range 38
+        romTarget.setFacing(1);
+        game.getShips().add(romTarget);
+        romTarget.getCloakingDevice().setState(
+                com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED);
+
+        assertEquals("fixture: the scanner must contribute nothing here", 0, firer.getScanner());
+
+        // E11.472 fires at a cloaked ship WITH a lock-on, and the lock matters to the sum:
+        // without it D6.123 doubles the true range first and the effective range is 81, not 43.
+        // Asserting before granting the lock is how this test first read 81, which is a fair
+        // demonstration that all three terms are live.
+        firer.addLockOn(romTarget);
+        assertEquals("fixture: locked on, so 38 + 5 and no doubling",
+                43, game.getEffectiveRange(firer, romTarget));
+
+        for (int run = 0; run < 40; run++) {
+            firer.addLockOn(romTarget);
+            ppd.arm(4);
+            ppd.arm(4);
+            game.firePpd(firer, ppd, romTarget);
+            assertFalse("run " + run + ": effective range 43 cannot win a wave-lock",
+                    ppd.isWaveLocked());
+            ppd.shutDown();
+        }
+    }
+
     // ---- E11.473: a fully cloaked target cannot be HELD ----
 
     /**
