@@ -113,4 +113,72 @@ public class ShipLibraryIntegrityTest {
                 clashes.add(key + " : " + prior + " and " + e.getName());
         }
     }
+
+    /**
+     * E11.16: a PPD cannot be installed on a ship smaller than size class 3.
+     *
+     * <h2>Why this is a DATA guard and not a load-time refusal</h2>
+     * A hull either has a legal PPD or the file is wrong; there is no runtime decision to make
+     * and nothing a player can do about it. Refusing to load the hull would take a working game
+     * away over a typo, so the build fails instead, naming the file.
+     *
+     * <h2>Why it is not generalised to the other weapons that carry a size bar</h2>
+     * {@code OptionCatalogEntry.maxSizeClass} puts the same bar on five more options — Plasma-S
+     * (both swivel variants), Disruptor-30, Disruptor-40 and Hellbore — and the obvious move is
+     * to walk all six here. It would be WRONG, and the data says so plainly: seven size-class-4
+     * hulls carry a Hellbore, four carry a long disruptor, and one size-class-5 hull carries a
+     * plasma-S. Every one of them is correct.
+     * <p>
+     * The bar in Annex #8B is a rule about what an Orion may buy INTO AN OPTION MOUNT on a small
+     * hull. It is not a property of the weapon, and a native hull mounting the same gun at size
+     * class 4 breaks nothing. E11.16 is different in kind: it is stated about the device itself,
+     * in the PPD's own rules, and applies wherever a PPD is installed.
+     * <p>
+     * Recorded at this length because "the catalogue already knows about five more of these"
+     * is a genuinely attractive thought, and acting on it turns a green suite red twelve times
+     * over against data that is right.
+     */
+    @Test
+    public void noHullSmallerThanSizeClass3CarriesAPpd() throws Exception {
+        Map<String, String> offenders = new LinkedHashMap<>();
+        walkForPpds(new File(ROOT), offenders);
+        assertTrue("E11.16 bars a PPD below size class 3, but: " + offenders,
+                offenders.isEmpty());
+    }
+
+    private void walkForPpds(File dir, Map<String, String> offenders) {
+        File[] entries = dir.listFiles();
+        if (entries == null)
+            return;
+        for (File e : entries) {
+            if (e.isDirectory()) {
+                walkForPpds(e, offenders);
+                continue;
+            }
+            if (!e.getName().endsWith(".json"))
+                continue;
+            ShipSpec spec;
+            try {
+                spec = ShipSpec.fromJson(e);
+            } catch (Exception ignored) {
+                continue;
+            }
+            if (spec.type == null || spec.type.isBlank())
+                continue;
+
+            // Refits count: a refit that adds a PPD installs one just as the base hull does.
+            List<ShipSpec.WeaponSpec> all = new ArrayList<>();
+            if (spec.weapons != null)
+                all.addAll(spec.weapons);
+            if (spec.refits != null)
+                for (ShipSpec.RefitSpec r : spec.refits)
+                    if (r.addWeapons != null)
+                        all.addAll(r.addWeapons);
+
+            for (ShipSpec.WeaponSpec w : all)
+                if ("PPD".equals(w.type) && spec.sizeClass > 3)
+                    offenders.put(e.getName(),
+                            spec.faction + " " + spec.type + " is size class " + spec.sizeClass);
+        }
+    }
 }

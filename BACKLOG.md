@@ -251,14 +251,18 @@ seeking-weapon control channel while pulsing (E11.15, E11.151).
     There is no PF anywhere in the game, so there is nothing to count. Revisit when PFs arrive.
   - "Fighters do not count at all" needs no code — they are not in `fleet.ships` and none carries
     a PPD — and is recorded only because an absent clause reads exactly like an oversight.
-- **E11.16**: PPDs cannot be installed on ships smaller than size class 3. **The rule is already
-  modelled - it just does not reach hull JSON.** `OptionCatalogEntry.maxSizeClass` encodes Annex
-  #8B's double-dagger "not on size-4-or-smaller" and `allowsSizeClass()` enforces it, and SIX
-  options carry the bar: PPD, Plasma-S (both swivel variants), Disruptor-30, Disruptor-40 and
-  Hellbore. An Orion buying a PPD into a frigate is refused today; a frigate whose own JSON
-  declares one is not. So the fix is a data guard over ShipLibrary using the SAME predicate for
-  all six weapons, not a PPD special case - wire it to the general mechanism, which is where
-  this repo has gone wrong before. Owner spotted the plasma-S parallel, 2026-10-23.
+- ~~E11.16~~ **BUILT 2026-10-23** as `ShipLibraryIntegrityTest.noHullSmallerThanSizeClass3CarriesAPpd`,
+  a data guard that walks every hull file, counts PPDs in base armament AND in refits, and fails
+  the build naming the file. Proven both ways: a PPD added to the size-class-4 FFL and one added
+  by a REFIT to the size-class-4 DD each turn it red.
+  - **NOT generalised to the other five weapons carrying `maxSizeClass`, and that was the whole
+    question.** The plan had been to reuse the Annex #8B bar for Plasma-S, Disruptor-30/40 and
+    Hellbore as well. The data refuses it: SEVEN size-class-4 hulls carry a Hellbore, FOUR carry
+    a long disruptor, and one size-class-5 hull carries a plasma-S - all correct. Annex #8B's
+    double-dagger is a rule about what an Orion may buy INTO AN OPTION MOUNT on a small hull, not
+    a property of the weapon. E11.16 is different in kind: stated about the device itself, in the
+    PPD's own rules, applying wherever a PPD is installed. Generalising would have failed a green
+    suite twelve times over against data that is right.
 - **E11.39** general reinforcement against individual splash elements, **E11.14** no
   non-violent combat.
 - **E11.38 NARROW SALVOES - DEFERRED by the owner 2026-10-23**, who has "never been a fan, but
@@ -275,10 +279,23 @@ seeking-weapon control channel while pulsing (E11.15, E11.151).
     PPD wave-lock" but raises ECM and "could force another dice roll", and E11.53's reroll on a
     worsened shift is exactly that, built. Likewise E11.49's first half, standard ECM shifts
     under EM, which flows through natural ECM already.
-  - **REAL WORK, and the counterpart systems all exist**: cloaking (E11.47) - E11.473 "cannot
-    hold a wave-lock on a fully cloaked ship ... must roll for a new wave-lock on each pulse";
-    and disengagement (E11.48) - "a unit cannot disengage by sublight evasion (C7.3) while held
-    in a wave-lock", a gate in `DisengagementResolver`.
+  - ~~Cloaking (E11.47)~~ **BUILT 2026-10-23, all five clauses.** E11.471 (a fade keeps the
+    lock), E11.472 (effective range for the roll, true range for damage, G13.37 reduction taken
+    from the splash elements first), E11.473 (a fully cloaked ship cannot be HELD), E11.474
+    (a wave-lock does not void the cloak - a guard, since nothing implements the opposite), and
+    E11.475 (a cloaked, cloaking or uncloaking ship cannot fire), which was a LIVE BUG found by
+    probe: the volley gates on `cloakActionBlock` and the PPD had never met it.
+  - **E11.48 DISENGAGEMENT - DEFERRED, nothing to gate.** "A unit cannot disengage by sublight
+    evasion (C7.3) while held in a wave-lock. Other means of disengagement are unaffected."
+    `DisengagementResolver` implements C7.1 (acceleration) and C7.2 (separation) only; its own
+    javadoc lists C7.3 as a future home. So this clause waits on C7.3 and should be built WITH
+    it, not before.
+    - Two things for whoever builds C7.3. First, the rule's second sentence means C7.1 and C7.2
+      must stay UNGATED - the current no-gate behaviour is already correct for them, and an
+      over-broad gate would be the easy mistake. Second, C7.2 is structurally unreachable while
+      wave-locked anyway: separation needs no enemy within fifty hexes and a PPD only reaches
+      forty, so a wave-locked ship is always too close. In practice E11.48's "other means"
+      means C7.1.
   - ~~SUSPECTED LIVE BUG~~ **CONFIRMED AND FIXED 2026-10-23.** E11.49's second half: "the
     (C10.512) restriction on guiding seeking weapons does not apply to maintaining the
     wave-lock." A probe test proved it real before anything was changed: a ship going to EM
