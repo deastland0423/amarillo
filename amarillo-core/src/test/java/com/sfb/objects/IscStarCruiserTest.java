@@ -311,6 +311,27 @@ public class IscStarCruiserTest {
                 ShipLibrary.get("ISC", "DD").auxiliary.probes);
     }
 
+    /**
+     * It is a LEADER, and that is not decoration: S8.361/S8.362 make a leader which is not the
+     * flagship demand consorts FROM ITS OWN LINE, which `FleetValidator.checkLeaders` enforces.
+     * So the flag and the line work together — a DDL draws its escorts from the ISC destroyers,
+     * and lining it anywhere else would have sent the validator looking for ships that do not
+     * exist.
+     *
+     * <p>Missed when the hull was first entered, and the Gorn DDL was sitting there as a
+     * precedent. Pinned now so the pairing cannot come apart.
+     */
+    @Test
+    public void theLeaderLeadsAndItsConsortsAreTheDestroyers() {
+        ShipSpec ddl = ShipLibrary.get("ISC", "DDL");
+        ShipSpec dd = ShipLibrary.get("ISC", "DD");
+
+        assertTrue("R13.16 is a leader", ddl.isLeader);
+        assertFalse("and the destroyer it leads is not", dd.isLeader);
+        assertEquals("they share a line, so the DD is its consort pool (S8.361)",
+                dd.line, ddl.line);
+    }
+
     /** And it prices out to the sheet. */
     @Test
     public void theLeaderPricesOutToTheSheet() {
