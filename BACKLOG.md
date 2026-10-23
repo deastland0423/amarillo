@@ -251,13 +251,43 @@ seeking-weapon control channel while pulsing (E11.15, E11.151).
     There is no PF anywhere in the game, so there is nothing to count. Revisit when PFs arrive.
   - "Fighters do not count at all" needs no code — they are not in `fleet.ships` and none carries
     a PPD — and is recorded only because an absent clause reads exactly like an oversight.
-- **E11.16**: PPDs cannot be installed on ships smaller than size class 3. Nothing enforces it
-  for a hull that declares one in its own JSON (the Annex #8B option row does carry the bar).
-- **E11.39** general reinforcement against individual splash elements, **E11.38** narrow
-  salvoes, **E11.14** no non-violent combat.
-- **E11.4x INTERACTIONS, none built**: ESG (E11.41), web (E11.42), stasis (E11.43),
-  displacement (E11.44), plasma systems (E11.45), wild weasels (E11.46), cloaking devices
-  (E11.47), disengagement (E11.48), erratic manoeuvres (E11.49).
+- **E11.16**: PPDs cannot be installed on ships smaller than size class 3. **The rule is already
+  modelled - it just does not reach hull JSON.** `OptionCatalogEntry.maxSizeClass` encodes Annex
+  #8B's double-dagger "not on size-4-or-smaller" and `allowsSizeClass()` enforces it, and SIX
+  options carry the bar: PPD, Plasma-S (both swivel variants), Disruptor-30, Disruptor-40 and
+  Hellbore. An Orion buying a PPD into a frigate is refused today; a frigate whose own JSON
+  declares one is not. So the fix is a data guard over ShipLibrary using the SAME predicate for
+  all six weapons, not a PPD special case - wire it to the general mechanism, which is where
+  this repo has gone wrong before. Owner spotted the plasma-S parallel, 2026-10-23.
+- **E11.39** general reinforcement against individual splash elements, **E11.14** no
+  non-violent combat.
+- **E11.38 NARROW SALVOES - DEFERRED by the owner 2026-10-23**, who has "never been a fan, but
+  they are in the rules". Not a PPD gap: narrow salvoes are **not implemented anywhere in the
+  game** - `narrowSalvo` matches nothing in core or server - so the PPD clause has no general
+  mechanism to hang off yet. Whenever narrow salvoes are built, E11.38 comes with them.
+- **E11.4x INTERACTIONS - read 2026-10-23, and they are NOT one job.** Grouping all nine as
+  "none built" hid which ones need anything. Sorted by what they actually ask for:
+  - **Satisfied by absence, want only a guard test**: ESG (E11.41) "does not interact with an ESG
+    field" and plasma systems (E11.45) "no effect on plasma torpedoes". Both are statements that
+    nothing happens, and the PPD already resolves outside the volley, so the risk is a future
+    change quietly creating an interaction the rule forbids.
+  - **Already handled by a general mechanism**: wild weasels (E11.46) - a WW "will not distract a
+    PPD wave-lock" but raises ECM and "could force another dice roll", and E11.53's reroll on a
+    worsened shift is exactly that, built. Likewise E11.49's first half, standard ECM shifts
+    under EM, which flows through natural ECM already.
+  - **REAL WORK, and the counterpart systems all exist**: cloaking (E11.47) - E11.473 "cannot
+    hold a wave-lock on a fully cloaked ship ... must roll for a new wave-lock on each pulse";
+    and disengagement (E11.48) - "a unit cannot disengage by sublight evasion (C7.3) while held
+    in a wave-lock", a gate in `DisengagementResolver`.
+  - **SUSPECTED LIVE BUG, not merely unbuilt** - E11.49's second half: "the (C10.512) restriction
+    on guiding seeking weapons does not apply to maintaining the wave-lock." But C10.512 is
+    modelled as a control capacity of ZERO under EM (`Ship.getControlLimit`), and E11.151 has a
+    pulsing PPD occupying a seeking-weapon control channel counted by the same `getControlUsed`
+    that `Game.checkControlOverflow` tests. So a ship going to erratic manoeuvres while pulsing
+    looks likely to have its PPD channel force-released through CONTROL_OVERFLOW, which is the
+    opposite of what E11.49 says. NOT YET PROVEN BY A TEST - write the test first.
+  - **Correctly parked, counterpart system does not exist**: web (E11.42), stasis (E11.43),
+    displacement (E11.44).
 
 **Deliberately parked by the owner (2026-10-22), not gaps to chase:**
 - **Stasis and displacement** (E11.43/E11.44/E11.545) — neither system is implemented and
@@ -265,9 +295,33 @@ seeking-weapon control channel while pulsing (E11.15, E11.151).
 - **Webs** (E11.42/E11.547) — no web or web caster exists, and no plan to add one.
 - **Andromedan power-absorber panels** (E11.354) — out of scope, as Andromedans are.
 
-**One real gap inside what IS built.** E11.312 rolls at the EFFECTIVE range and damages at the
-TRUE range. We pass ONE range for both, because nothing in the engine separates them. A scout or
-anything else shifting effective range would make the roll and the damage disagree.
+**E11.312's effective-vs-true range - NARROWER than this file used to claim.** The old wording
+said "we pass ONE range for both, because nothing in the engine separates them". Both halves were
+wrong, and checking beat believing (2026-10-23):
+
+- The engine DOES separate them. `DirectFire.fire(realRange, adjustedRange)` is the centralised
+  two-range path, overridden by Photon, Disruptor, FighterPhoton, PlasmaLauncher, PlasmaRack, ADD
+  and DroneRack. `PlasmaLauncher` documents the split against FP8.42/FP8.43 and exists because a
+  scanner once cost a plasma-R bolt ten points of warhead it should have kept.
+- The PPD does not use that path at all - it is routed out of the volley through `PpdResolver`,
+  which takes `MapUtils.getRange` (the TRUE range) and applies EW as a penalty added to the die
+  roll. **Damage off true range is already correct**, and the EW half is correct too: the PPD's
+  hit number steps by exactly one per range band, so +N on the roll IS N bands of shift.
+
+**The scanner half is now BUILT 2026-10-23.** `Game.adjustedRange` is the single home for
+D6.21's `range + scanner`, which was previously written out in three places and stated as
+universal in a fourth (`ADD`'s javadoc) while the PPD quietly ignored it. `PPD` now overrides
+`fire(realRange, adjustedRange)` and `pulse(realRange, adjustedRange)` like every other
+hit-or-miss weapon, `PpdResolver` supplies both and recomputes them per pulse, and the range
+GATES stay on the true range as `Photon`'s do — E11.312 bars engaging at a true range of three
+or less, and a scanner must not put a target back in reach nor carry one out of it.
+
+**What is left of E11.312:** only the cloak bonus, which is E11.47's business anyway and should
+NOT be folded into `Game.adjustedRange` — G13 has its own fire-adjustment chart and counting
+D6.211's five hexes in both places would apply it twice. The no-lock doubling (D6.123) is
+unreachable for a PPD, which needs a lock throughout (E11.15); it is also absent from the
+firing path for EVERY weapon, which is noted at `Game.adjustedRange` and is a separate question
+from this one.
 
 ## Ready to start
 

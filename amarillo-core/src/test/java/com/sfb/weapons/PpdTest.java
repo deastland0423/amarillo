@@ -678,4 +678,76 @@ public class PpdTest {
         assertEquals("1", built.getDesignator());
         assertEquals("drone", built.getDacHitLocaiton());
     }
+
+    // ---- E11.312: roll at the adjusted range, damage at the true range ----
+
+    /** An armed PPD, ready to begin a run. */
+    private PPD charged() {
+        PPD w = new PPD();
+        w.arm(4);
+        w.arm(4);
+        return w;
+    }
+
+    /**
+     * THE ROLL TAKES THE ADJUSTED RANGE. A scanner big enough to carry the adjusted range off
+     * the end of the chart makes the wave-lock impossible, however close the target truly is.
+     *
+     * <p>Deterministic by construction rather than statistical: {@code PpdSplash.hitNumber}
+     * returns zero beyond band 31-40, so a correct weapon scores nothing here on every roll of
+     * the dice. A weapon rolling against the TRUE range of 20 would need a 7 or less and take
+     * this about three times in five, so twenty runs make the difference unmissable without
+     * ever making the passing case flaky.
+     */
+    @Test
+    public void aScannerOffTheEndOfTheChartMakesTheWaveLockImpossible() throws Exception {
+        for (int i = 0; i < 20; i++) {
+            PPD w = charged();
+            assertEquals("true range 20, adjusted 45: beyond the chart, so no wave-lock",
+                    0, w.fire(20, 45));
+            assertFalse("and nothing to hold", w.isWaveLocked());
+        }
+    }
+
+    /**
+     * THE DAMAGE TAKES THE TRUE RANGE. Rolling at 12 and damaging at 10 are different numbers
+     * on this chart - band 4-10 scores six, band 11-15 scores five - so a pulse that lands must
+     * score SIX.
+     *
+     * <p>This is the half that bit the plasma launcher: a scanner that makes a shot harder must
+     * not also make it weaker when it lands.
+     */
+    @Test
+    public void damageComesOffTheTrueRangeNotTheAdjustedOne() throws Exception {
+        boolean everLanded = false;
+        for (int i = 0; i < 40; i++) {
+            PPD w = charged();
+            int damage = w.fire(10, 12);
+            if (damage > 0) {
+                everLanded = true;
+                assertEquals("band 4-10 scores six; band 11-15 would score five",
+                        6, damage);
+            }
+        }
+        assertTrue("fixture: needing an 8 or less, forty runs should have landed one",
+                everLanded);
+    }
+
+    /**
+     * The range GATES stay on the true range, as Photon's do. A scanner must not put a target
+     * back inside the dead zone, nor carry one out of reach.
+     */
+    @Test
+    public void theRangeGatesIgnoreTheScanner() throws Exception {
+        try {
+            charged().fire(3, 30);
+            fail("a true range of three is inside the dead zone whatever the scanner says");
+        } catch (TargetOutOfRangeException expected) {
+            // E11.312
+        }
+
+        // True range 38 is in reach even though the adjusted range runs off the chart; the
+        // pulse is spent and scores nothing rather than being refused.
+        assertEquals(0, charged().fire(38, 47));
+    }
 }

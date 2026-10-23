@@ -100,9 +100,10 @@ class PpdResolver {
                             + " in use. Release or transfer a seeking weapon to make room.");
 
         int range = MapUtils.getRange(firer, target);
+        int adjustedRange = Game.adjustedRange(firer, range);
         int damage;
         try {
-            damage = device.fire(range);
+            damage = device.fire(range, adjustedRange);
         } catch (Exception e) {
             return Game.ActionResult.fail(e.getMessage());
         }
@@ -151,10 +152,13 @@ class PpdResolver {
             }
 
             int range = MapUtils.getRange(run.firer, run.target);
+            // Recomputed every pulse: the target moves between impulses, and a scanner track
+            // damaged mid-run changes the adjustment under the firer (D6.21).
+            int adjustedRange = Game.adjustedRange(run.firer, range);
             // E11.53: the shift the pulse faces now, which PPD compares against the one its
             // wave-lock was taken at. Set the same way every other weapon's is.
             run.device.setEcmShift(currentShift(run));
-            int damage = run.device.pulse(range);
+            int damage = run.device.pulse(range, adjustedRange);
             if (damage > 0)
                 log.add(run.lockedOntoBody != null
                         ? damageBlockingBody(run, range)

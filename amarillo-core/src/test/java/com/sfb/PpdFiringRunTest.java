@@ -349,4 +349,52 @@ public class PpdFiringRunTest {
 
         assertFalse(ppd.isPulsing());
     }
+
+    // ---- E11.312 end to end: the firer's scanner reaches the wave-lock roll ----
+
+    /**
+     * A DAMAGED SCANNER REACHES THE WAVE-LOCK, which is the wiring rather than the weapon.
+     *
+     * <p>{@code PpdTest} proves the device keeps the two ranges apart when it is handed both.
+     * Nothing there proves anyone HANDS it both - and for as long as the PPD existed, nobody
+     * did: it resolved outside the volley and computed a bare true range, so a scout's scanner
+     * did nothing to a PPD that it does to every other weapon in the game. This is the test
+     * that would have caught that, and it belongs at the layer that gates the behaviour.
+     *
+     * <p>The target sits 38 hexes out, inside the PPD's reach and in its weakest band. With the
+     * firer's scanner track damaged to its last box the adjusted range is 47, off the end of
+     * the chart, so no pulse can ever score. A resolver passing the true range instead would
+     * need a 4 or less, about one pulse in six.
+     *
+     * <h2>Why FORTY runs, and why the first pulse is asserted separately</h2>
+     * Not padding. The first pulse is resolved inside {@code firePpd} and the rest by the phase
+     * loop, which are two different call sites, and an earlier draft of this test checked only
+     * the state at the END of each run over five runs. That caught the later-pulse site but let
+     * the FIRST-pulse one be reverted with nothing failing - a mutation sweep said so. Five runs
+     * give the first-pulse mutant five rolls to survive, which it does three times in five.
+     * Forty rolls leave it under a thousandth. The passing case is unaffected either way:
+     * against a hit number of zero a correct weapon scores nothing on every roll of the dice,
+     * so this test is deterministic in the direction that matters and merely thorough in the
+     * other.
+     */
+    @Test
+    public void aDamagedScannerIsFeltByTheWaveLock() {
+        target.setLocation(new Location(10, 48));   // 38 hexes: in reach, weakest band
+        while (firer.getSpecialFunctions().canDamageScanner())
+            firer.getSpecialFunctions().damageScanner();
+        assertEquals("fixture: the Fed CA scanner track ends at 9", 9, firer.getScanner());
+
+        for (int run = 0; run < 40; run++) {
+            ppd.arm(4);
+            ppd.arm(4);
+            game.firePpd(firer, ppd, target);
+            assertFalse("run " + run + ": the FIRST pulse, resolved inside firePpd, may not lock",
+                    ppd.isWaveLocked());
+            for (int pulse = 0; pulse < 3; pulse++) {
+                nextImpulse();
+                assertFalse("run " + run + ": a later pulse, resolved by the phase loop, may not lock",
+                        ppd.isWaveLocked());
+            }
+        }
+    }
 }

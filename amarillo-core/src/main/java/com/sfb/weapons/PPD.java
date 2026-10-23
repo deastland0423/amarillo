@@ -265,14 +265,42 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
      */
     @Override
     public int fire(int range) throws WeaponUnarmedException, TargetOutOfRangeException {
+        return fire(range, range);
+    }
+
+    /**
+     * Begin a firing run with the two ranges kept apart (E11.312).
+     *
+     * <p>"The dice roll is made at the effective range and the damage is based on the true
+     * range." The wave-lock rolls against {@code adjustedRange} - D6.21's true range plus the
+     * firer's scanner, which {@link com.sfb.Game#adjustedRange} is the single home for - and
+     * every point of damage comes off {@code realRange}.
+     *
+     * <h2>Why this override exists at all</h2>
+     * The PPD resolves outside the volley, so it never inherited the convention every other
+     * hit-or-miss weapon follows through {@code DirectFire.fire(realRange, adjustedRange)}.
+     * It computed one bare true range and used it for both halves, which meant a scout's
+     * scanner did nothing to a PPD that it does to every other weapon in the game.
+     *
+     * <h2>The range checks stay on the TRUE range</h2>
+     * Deliberately, and twice over. E11.312 bars engaging "if the TRUE range is three or less",
+     * and {@code Photon} checks {@code realRange} against its limits for the same reason. A
+     * scanner must not put a target back in reach, nor push one out of it. What a large enough
+     * scanner DOES do is carry the adjusted range past the chart, where {@code PpdSplash}
+     * returns a hit number of zero and the pulse is simply lost - which is D6.123's "beyond
+     * the maximum range of the weapon" arriving by the right road.
+     */
+    @Override
+    public int fire(int realRange, int adjustedRange)
+            throws WeaponUnarmedException, TargetOutOfRangeException {
         if (!armed)
             throw new WeaponUnarmedException("PPD is not armed.");
         if (isPulsing())
             throw new WeaponUnarmedException("PPD is already firing; it cannot start again.");
-        if (range < MINIMUM_RANGE)
+        if (realRange < MINIMUM_RANGE)
             throw new TargetOutOfRangeException(
                     "PPD cannot be fired at a true range of three or less (E11.312).");
-        if (range > getMaxRange())
+        if (realRange > getMaxRange())
             throw new TargetOutOfRangeException("Target out of PPD range.");
 
         pulsesRemaining = pulsesCharged();
@@ -283,7 +311,7 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
         armingEnergy = 0;
         armingTurn = 0;
         registerFire();
-        return pulse(range);
+        return pulse(realRange, adjustedRange);
     }
 
     /**
@@ -297,13 +325,25 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
      *         minimum range
      */
     public int pulse(int range) {
+        return pulse(range, range);
+    }
+
+    /**
+     * One pulse, with the roll taken at the adjusted range and the damage at the true one
+     * (E11.312). See {@link #fire(int, int)} for why the two are kept apart.
+     *
+     * <p>Both are recomputed per pulse by the caller, because a run spans four impulses and the
+     * target moves between them - and so, if its scanner track takes damage mid-run, does the
+     * firer's adjustment.
+     */
+    public int pulse(int realRange, int adjustedRange) {
         if (!isPulsing())
             return 0;
         pulsesRemaining--;
 
         // E11.312 bars firing inside range 4; E11.521 lets a wave-lock survive the approach, so
         // the pulse is spent and scores nothing rather than ending the run.
-        if (range < MINIMUM_RANGE || range > getMaxRange())
+        if (realRange < MINIMUM_RANGE || realRange > getMaxRange())
             return 0;
 
         // E11.53: the electronic warfare shift has moved in the target's favour since the lock
@@ -315,13 +355,13 @@ public class PPD extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
         if (!waveLocked) {
             int roll = new DiceRoller().rollTwoDice();
             setLastRoll(roll);
-            int hitNumber = PpdSplash.hitNumber(range);
+            int hitNumber = PpdSplash.hitNumber(adjustedRange);
             if (hitNumber == 0 || roll + getEcmShift() > hitNumber)
                 return 0;                       // E11.331: this pulse is lost, the run goes on
             waveLocked = true;
             lockedAtShift = getEcmShift();
         }
-        return PpdSplash.totalDamage(range);
+        return PpdSplash.totalDamage(realRange);
     }
 
     /** Whether a firing run is still under way, with pulses left to resolve. */
