@@ -1,0 +1,70 @@
+{
+  "faction": "ISC",
+  "type": "POL",
+  "typeName": "Police Corvette",
+  "line": "POL",
+  "name": "CSS Sheriff",
+  "serviceYear": 160,
+  "bpv": 44,
+  "turnMode": "A",
+  "nimble": true,
+  "sizeClass": 4,
+  "moveCost": 0.3333333,
+  "breakdown": 6,
+  "bonusHets": 2,
+  "commandRating": 3,
+
+  "tokenArt": "isc/pol.png",
+
+  "shields": [14, 12, 10, 10, 10, 12],
+
+  "hullBoxes": {
+    "chull": 6,
+    "cargo": 2
+  },
+
+  "power": {
+    "leftWarp": 5,
+    "rightWarp": 5,
+    "impulse": 2,
+    "battery": 2
+  },
+
+  "control": {
+    "bridge": 1,
+    "auxCon": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 0],
+    "sensor": [6, 5, 3, 0],
+    "scanner": [0, 1, 5, 9],
+    "excess": 3
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 1,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 8,
+    "boardingParties": 2,
+    "minCrew": 2
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["RS"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["FP"] }
+  ]
+}

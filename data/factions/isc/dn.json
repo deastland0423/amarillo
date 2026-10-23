@@ -13,6 +13,7 @@
   "bonusHets": 1,
   "commandRating": 10,
   "tokenArt": "isc/dn.png",
+  "note": "R13.2, Captain's Module C2 SSD p.31 (PDF p.32). Validated box by box against the sheet 2026-10-23. The sheet draws the refitted ship at POINT VALUE 280 and prices the PL-F refit as a deduction - WITHOUT PL-F REFIT (PRE Y179) = -16 - so 264 here is the Y171 hull and the refit is worth SIXTEEN. It was entered as 12, which is the only number on this hull that was wrong; everything else matched. Counted rather than assumed: shields 44/36/30/30/30/36, crew 64 (six columns of ten and a partial column of four), boarding parties 24, excess damage 12 boxes, warp 24 a side in 3x8 blocks, front and rear hull 16 each in 4x4 blocks, transporters 8 (four on the spine and two in each pod), tractors 4, labs 6 (three a pod), batteries 8 (four a pod), APR 4 (two a pod), impulse 4, bridge 2, flag 2, emergency 2, aux 2, one probe launcher. FOUR PPDs, all FA, which makes this the only hull in the game that puts a flagship at E11.17's cap of four - it is the fixture the PPD fleet-limit tests are built on. The shuttle bay note reads FOUR BALCONY (J1.53) POSITIONS. Probe AMMO (5 rounds) is not modelled, as elsewhere; auxiliary.probes is the launcher count. The Y180 Sabot refit (+8) is absent for the usual reason: FP11.0 lives in Module R10, out of scope.",
 
   "shields": [44, 36, 30, 30, 30, 36],
 
@@ -92,8 +93,8 @@
       "name": "PL-F refit",
       "label": "Plasma-F",
       "year": 179,
-      "bpv": 12,
-      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE ALL PLASMA-F TORPEDOES. R13.1C's rear-firing torpedoes, flagged iscRearFiring — see the Star Cruiser's note for what that anchors. Eight here, four a side.",
+      "bpv": 16,
+      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE PLASMA-F TORPEDOES 'E,' 'F,' 'G,' 'H,' 'J,' 'K,' 'L,' AND 'M.' It names all eight rather than saying 'all plasma-Fs', because on this hull they ARE all of them — but the sheet still spells them out, so this quote does too. R13.1C's rear-firing torpedoes, flagged iscRearFiring — see the Star Cruiser's note for what that anchors. Eight here, four a side. Note the designators skip I: E-H to port, J-M to starboard.",
       "addWeapons": [
         { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
         { "type": "PlasmaLauncher", "designator": "F", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
