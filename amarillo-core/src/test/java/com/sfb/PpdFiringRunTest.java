@@ -644,6 +644,100 @@ public class PpdFiringRunTest {
         assertTrue("fixture: never saw a reduced pulse in 400 tries", reduced > 0);
     }
 
+    /**
+     * E11.474: "A PPD wave-lock to a cloaked ship will not void (G13.4) its cloaking device."
+     *
+     * <h2>A guard, because this rule is satisfied by absence</h2>
+     * Voiding is modelled as the "flashcube" (G13.401/.552/.57): a fully cloaked ship damaged
+     * by an ESG or a mine is momentarily exposed and enemies may gain a lock-on.
+     * {@code Game.flashcubeLockOn} is called from exactly two places, {@code EsgResolver} and
+     * {@code MineResolver}, and the PPD path calls neither. So the rule holds today for the
+     * reason that nothing implements its opposite.
+     *
+     * <p>That is precisely the kind of compliance worth pinning. Nothing about the current code
+     * announces that a PPD must stay off the flashcube, so the obvious future change — routing
+     * PPD damage through a shared "cloaked ship was hit" hook so ESG, mines and pulsars all
+     * agree — would break E11.474 while looking like a tidy-up. This test is what would object.
+     *
+     * <h2>It proves its own sensitivity first, because the first two drafts could not fail</h2>
+     * A guard against an absence is worthless if the thing it guards against could not have
+     * happened anyway, and this one took two goes to make real. Draft one left the bystander on
+     * passive fire control, which {@code resolveFlashcube} skips. Draft two fixed that and was
+     * STILL vacuous: G13.331's retention probability is
+     * {@code sensor − EW − rangeFactor + speedFactor − 4}, and against a stationary target the
+     * speed factor is −2, which puts the probability at zero and makes the retention roll
+     * unwinnable. Wiring the PPD straight into the flashcube passed both drafts.
+     *
+     * <p>So the cloaked ship is given a maneuver rate of twenty, where the speed factor is +6
+     * and retention is certain — and the test then CALLS the flashcube directly and asserts the
+     * bystander gains a lock, before clearing it and running the real check. Everything after
+     * that sanity step means something, because the step proved the fixture can fail.
+     */
+    @Test
+    public void aPpdWaveLockDoesNotVoidTheCloakItIsLockedOnto() {
+        Ship romTarget = new Ship();
+        romTarget.init(com.sfb.samples.RomulanShips.getRomKr());
+        romTarget.setName("Ghost");
+        romTarget.setLocation(new Location(10, 20));
+        romTarget.setFacing(1);
+        game.getShips().add(romTarget);
+        romTarget.getCloakingDevice().setState(
+                com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED);
+        firer.addLockOn(romTarget);
+
+        // A bystander the flashcube could hand a lock-on to. Every precondition
+        // resolveFlashcube checks must be MET, or this guard cannot fail and so proves
+        // nothing: active fire control, no existing lock-on, undamaged sensors, and two hexes
+        // away with clear line of sight. The first draft of this test omitted the fire control
+        // and passed happily with the PPD wired straight into the flashcube.
+        Ship bystander = new Ship();
+        bystander.init(FederationShips.getFedCa());
+        bystander.setName("USS Onlooker");
+        bystander.setLocation(new Location(12, 20));
+        bystander.setFacing(1);
+        bystander.setActiveFireControl(true);
+        game.getShips().add(bystander);
+        assertFalse("fixture: the bystander starts with no lock-on",
+                bystander.hasLockOn(romTarget));
+
+        // G13.331's speed factor is -2 against a stationary ship, which drives the retention
+        // probability to zero and makes the flashcube unwinnable. At a maneuver rate of twenty
+        // it is +6 and retention is certain.
+        romTarget.setSpeed(20);
+
+        // PROVE THE FIXTURE CAN FAIL before trusting anything it says.
+        game.flashcubeLockOn(romTarget);
+        assertTrue("fixture: a real flashcube must hand the bystander a lock-on, or this "
+                + "test cannot tell a PPD that voids a cloak from one that does not",
+                bystander.hasLockOn(romTarget));
+        bystander.removeLockOn(romTarget);
+        assertFalse("fixture: cleared again before the real check",
+                bystander.hasLockOn(romTarget));
+
+        // Many SCORING pulses, not one: the flashcube's acquisition and retention are both
+        // dice, so a single exposure could fail to grant a lock-on by luck and let a wired-in
+        // flashcube pass unnoticed.
+        int scoringPulses = 0;
+        for (int attempt = 0; attempt < 600 && scoringPulses < 30; attempt++) {
+            int before = game.getPendingVolleys().size();
+            firer.addLockOn(romTarget);
+            ppd.arm(4);
+            ppd.arm(4);
+            game.firePpd(firer, ppd, romTarget);
+            ppd.shutDown();
+            if (game.getPendingVolleys().size() > before)
+                scoringPulses++;
+        }
+        assertEquals("fixture: needed 30 scoring pulses to make the guard meaningful",
+                30, scoringPulses);
+
+        assertEquals("E11.474: the cloak is not voided by being wave-locked",
+                com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED,
+                romTarget.getCloakingDevice().getState());
+        assertFalse("and no flashcube handed the bystander a lock-on",
+                bystander.hasLockOn(romTarget));
+    }
+
     // ---- E11.473: a fully cloaked target cannot be HELD ----
 
     /**
