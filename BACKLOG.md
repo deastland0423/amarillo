@@ -212,7 +212,8 @@ two rear torpedoes are thrown at one PF in a single impulse.
 
 ## PPD (E11.0) — BUILT 2026-10-22, what is left
 
-The ISC's Plasmatic Pulsar Device. Core only: there is still no way to fire one from the UI.
+The ISC's Plasmatic Pulsar Device. Built across all three tiers: a ship arms one in the
+energy-allocation dialog and fires it through the sealed declaration like any other weapon.
 
 **What it does now.** Arms over two turns at 2-4 points (two points buys one pulse, E11.25);
 fires a run of up to four pulses over four impulses at one target it cannot change (E11.30);
@@ -229,13 +230,27 @@ seeking-weapon control channel while pulsing (E11.15, E11.151).
   them alike would either never stop or never recover.
 
 **Left, in the order that matters:**
-- **No server or web surface.** `Game.firePpd` exists and nothing calls it outside tests. Until
-  this lands the weapon cannot be used in a game at all. This is the next slice.
-- **E11.6 OVERLOADS.** Refused rather than faked: `setOverload()` returns false and more than
-  four points in a turn is rejected, so the weapon is honest about not having them. E11.61-E11.65.
-- **E11.17 FLEET LIMIT** — ISC doctrine caps how many PPDs a force may field (four per ship plus
-  one per three ships, roughly). A force-construction rule, so it belongs with `FleetValidator`
-  beside the Orion cartel quota, not in the weapon.
+- ~~No server or web surface.~~ **BUILT 2026-10-22.** `GameSession.resolveFire` routes a PPD
+  out of the volley to `Game.firePpd`, and the EA dialog draws its arming controls off the
+  `isHeavy` flag. What the weapon was missing was its CAPABILITIES — `holdEnergyCost`,
+  `supportsOverload`, `overloadFinalTurnOnly` — because an undeclared capability is one a
+  player simply cannot reach. **Still never seen in a browser**, which is the real gap now.
+- ~~E11.6 OVERLOADS.~~ **BUILT 2026-10-22** (07b985c2, 31be16a0). `supportsOverload()` returns
+  true, E11.611 caps turn one at four points, and a HELD charge can be overloaded during energy
+  allocation without losing it (E11.63). E11.612's underload — six points in the second turn for
+  one extra pulse rather than two — is in. Reserve/battery power into a heavy weapon is NOT, and
+  is a gap for every weapon rather than this one.
+- ~~E11.17 FLEET LIMIT~~ **BUILT 2026-10-23** in `FleetValidator.checkPpdFleetLimit`, beside the
+  Orion cartel quota as planned. The paraphrase this line used to carry — "four per ship plus one
+  per three ships" — was wrong twice over, which is why the rule text is quoted in the javadoc:
+  the flagship contributes **whatever PPDs it actually has**, capped at four, not a flat four; and
+  the allowance is per FLEET, not per ship. Overall ceiling nine. Bases excluded from both sides
+  of the sum. "The flagship (the largest ship present)" is read as the DESIGNATED flagship (S8.21)
+  where the two could differ — the owner's call, 2026-10-23.
+  - **NOT implemented, deliberately**: "each flotilla of six (not less) PFs counts as one ship".
+    There is no PF anywhere in the game, so there is nothing to count. Revisit when PFs arrive.
+  - "Fighters do not count at all" needs no code — they are not in `fleet.ships` and none carries
+    a PPD — and is recorded only because an absent clause reads exactly like an oversight.
 - **E11.16**: PPDs cannot be installed on ships smaller than size class 3. Nothing enforces it
   for a hull that declares one in its own JSON (the Annex #8B option row does carry the bar).
 - **E11.39** general reinforcement against individual splash elements, **E11.38** narrow

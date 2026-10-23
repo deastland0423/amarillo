@@ -1,0 +1,109 @@
+{
+  "faction": "ISC",
+  "type": "DN",
+  "typeName": "Dreadnought",
+  "line": "DN",
+  "name": "CSS Concordium",
+  "serviceYear": 171,
+  "bpv": 264,
+  "turnMode": "E",
+  "sizeClass": 2,
+  "moveCost": 1.5,
+  "breakdown": 3,
+  "bonusHets": 1,
+  "commandRating": 10,
+  "tokenArt": "isc/dn.png",
+
+  "shields": [44, 36, 30, 30, 30, 36],
+
+  "hullBoxes": {
+    "fhull": 16,
+    "ahull": 16
+  },
+
+  "power": {
+    "leftWarp": 24,
+    "rightWarp": 24,
+    "impulse": 4,
+    "apr": 4,
+    "battery": 8
+  },
+
+  "control": {
+    "bridge": 2,
+    "flag": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [6, 6, 4, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 6, 5, 4, 3, 2, 1, 0],
+    "scanner": [0, 0, 0, 0, 1, 2, 3, 4, 5, 9],
+    "excess": 12
+  },
+
+  "auxiliary": {
+    "transporters": 8,
+    "tractors": 4,
+    "labs": 6,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin", "admin", "admin", "admin", "admin"], "balconyPositions": 4 }
+  ],
+
+  "crewData": {
+    "totalCrew": 64,
+    "boardingParties": 24,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "9", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "10", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "11", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "13", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "14", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "15", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "16", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "17", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "18", "arcs": ["RS"] },
+    { "type": "PPD", "designator": "A", "arcs": ["FA"] },
+    { "type": "PPD", "designator": "B", "arcs": ["FA"] },
+    { "type": "PPD", "designator": "C", "arcs": ["FA"] },
+    { "type": "PPD", "designator": "D", "arcs": ["FA"] }
+  ],
+
+  "refits": [
+    {
+      "code": "F",
+      "name": "PL-F refit",
+      "label": "Plasma-F",
+      "year": 179,
+      "bpv": 12,
+      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE ALL PLASMA-F TORPEDOES. R13.1C's rear-firing torpedoes, flagged iscRearFiring — see the Star Cruiser's note for what that anchors. Eight here, four a side.",
+      "addWeapons": [
+        { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "F", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "G", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "H", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "J", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "K", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "L", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "M", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] }
+      ]
+    }
+  ]
+}

@@ -38,6 +38,15 @@ public final class FleetValidator {
     /** Ships per player that keeps a game moving; a guideline, not a limit (S8.17). */
     private static final int SHIPS_PER_PLAYER_GUIDELINE = 3;
 
+    /** The most a flagship's OWN PPDs may contribute to the allowance (E11.17). */
+    private static final int PPD_FLAGSHIP_MAX = 4;
+
+    /** Ships beyond the command ship that buy one more PPD (E11.17). */
+    private static final int SHIPS_PER_EXTRA_PPD = 3;
+
+    /** The overall ceiling on PPDs in any fleet, however large (E11.17). */
+    private static final int PPD_FLEET_CEILING = 9;
+
     public enum Severity {
         /** Breaks a rule — the fleet is illegal. */
         ERROR,
@@ -122,6 +131,7 @@ public final class FleetValidator {
         checkServiceYear(fleet, out);
         checkCarrierGroups(fleet, out);
         checkCartelQuota(fleet, out);
+        checkPpdFleetLimit(fleet, out);
         checkLeaders(fleet, out);
         checkShipCountGuideline(fleet, out);
         checkDistinctNames(fleet, out);
@@ -543,6 +553,86 @@ public final class FleetValidator {
         if (!result.withinQuota)
             for (String violation : result.violations)
                 out.add(new Violation("G15.44", Severity.ERROR, violation, null));
+    }
+
+    // -------------------------------------------------------------------------
+    // PPD fleet limit (E11.17)
+    // -------------------------------------------------------------------------
+
+    /**
+     * ISC doctrine caps how many PPDs a force may field (E11.17):
+     *
+     * <blockquote>The flagship (the largest ship present) with whatever PPDs it has (a maximum
+     * of four), plus one PPD for every group of three ships in addition to the command ship
+     * (counting a maximum of one fractional group). This yields a maximum of eight PPDs in a
+     * standard eleven-ship fleet. There is also an overall limit of nine PPDs in any given
+     * fleet.</blockquote>
+     *
+     * <p>The rule supplies its own worked example, so that is the test this must pass: eleven
+     * ships yield eight. Four from a flagship carrying four, plus one for each group of three
+     * among the other ten.
+     *
+     * <h2>"A maximum of one fractional group" is a cap on counting, not a rounding-down</h2>
+     * Ten other ships are three whole groups and one leftover, and the leftover counts - once.
+     * So the term is ceil(others / 3), and the parenthesis is there to stop a part-group being
+     * counted twice rather than to round it away. Read the other way, eleven ships would yield
+     * seven and the rule would contradict its own example.
+     *
+     * <h2>Which ship is "the flagship"</h2>
+     * The rule glosses it as "the largest ship present", which in a legal patrol fleet it
+     * normally is. Where the two can differ we use the DESIGNATED flagship (S8.21), because
+     * that is the force's own command ship and what every other check here reasons about.
+     * Settled with the owner 2026-10-23.
+     *
+     * <h2>What is deliberately NOT counted, and why each is recorded</h2>
+     * <ul>
+     * <li><b>Bases</b> - "PPDs on bases do not count for purposes of this limit." A base is
+     *     excluded from both sides of the sum: its PPDs are not fielded, and it does not help
+     *     make up a group of three.</li>
+     * <li><b>Fighters</b> - "Fighters do not count at all." This needs no code: fighters are
+     *     not in {@code fleet.ships}, and none carries a PPD. Recorded because an absent clause
+     *     reads exactly like an oversight.</li>
+     * <li><b>PF flotillas</b> - "Each flotilla of six (not less) PFs, whether casual or formal,
+     *     counts as one 'ship'." NOT IMPLEMENTED, and deliberately not faked: there is no PF
+     *     anywhere in the game yet, so there is nothing to count. This is the line to revisit
+     *     when PFs arrive.</li>
+     * </ul>
+     */
+    private static void checkPpdFleetLimit(Fleet fleet, List<Violation> out) {
+        // "PPDs on bases do not count for purposes of this limit."
+        List<Ship> counted = fleet.ships.stream().filter(s -> !s.isBase()).toList();
+
+        int fielded = counted.stream().mapToInt(FleetValidator::ppdCount).sum();
+        if (fielded == 0)
+            return;   // no PPDs; nothing to limit, and no reason to want a flagship
+
+        Ship flag = fleet.flagship();
+        if (flag == null)
+            return;   // a missing flagship is S8.21's complaint, not this one
+
+        int fromFlagship = flag.isBase() ? 0 : Math.min(ppdCount(flag), PPD_FLAGSHIP_MAX);
+        int others = counted.size() - (counted.contains(flag) ? 1 : 0);
+        int fromOthers = (others + SHIPS_PER_EXTRA_PPD - 1) / SHIPS_PER_EXTRA_PPD;   // ceil
+        int formula = fromFlagship + fromOthers;
+        int allowed = Math.min(formula, PPD_FLEET_CEILING);
+
+        if (fielded <= allowed)
+            return;
+
+        String why = allowed < formula
+                ? "the overall limit is " + PPD_FLEET_CEILING + " PPDs in any fleet"
+                : flag.getName() + " carries " + fromFlagship + ", and the other " + others
+                        + " ship" + (others == 1 ? "" : "s") + " allow " + fromOthers;
+        out.add(new Violation("E11.17", Severity.ERROR,
+                "This force fields " + fielded + " PPDs but may field " + allowed
+                        + ": " + why, null));
+    }
+
+    /** PPDs mounted on one ship. */
+    private static int ppdCount(Ship ship) {
+        return (int) ship.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.PPD)
+                .count();
     }
 
     private static void checkCarrierGroups(Fleet fleet, List<Violation> out) {

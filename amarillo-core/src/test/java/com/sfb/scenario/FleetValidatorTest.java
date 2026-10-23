@@ -680,4 +680,169 @@ public class FleetValidatorTest {
         assertTrue(FleetValidator.validate(fleet).toString(),
                 FleetValidator.isLegal(FleetValidator.validate(fleet)));
     }
+
+    // ---- E11.17 the PPD fleet limit ----
+
+    /** A ship carrying {@code ppds} pulsar devices, and nothing else the limit reads. */
+    private Ship ppdShip(String name, int sizeClass, int commandRating, int ppds) {
+        Ship s = ship(name, 150, sizeClass, commandRating);
+        for (int i = 0; i < ppds; i++)
+            s.getWeapons().addWeapon(new com.sfb.weapons.PPD());
+        return s;
+    }
+
+    /** A force of {@code total} ships led by a flagship carrying {@code flagPpds} PPDs. */
+    private List<Ship> force(int total, int flagPpds, int ppdsElsewhere) {
+        List<Ship> ships = new ArrayList<>();
+        ships.add(ppdShip("Flagship", 2, 10, flagPpds));
+        int left = ppdsElsewhere;
+        for (int i = 1; i < total; i++) {
+            int mine = Math.min(left, 4);
+            left -= mine;
+            ships.add(ppdShip("Consort " + i, 3, 0, mine));
+        }
+        assertEquals("the fixture could not place every PPD", 0, left);
+        return ships;
+    }
+
+    /**
+     * The rule states its own worked example - "This yields a maximum of eight PPDs in a
+     * standard eleven-ship fleet" - so that example IS the test. Four from the flagship, plus
+     * one for each group of three among the other ten.
+     */
+    @Test
+    public void elevenShipsYieldEightPpds() {
+        Fleet eight = new Fleet(force(11, 4, 4), "Flagship", 9000, 175);
+        assertFalse("E11.17's own example must be legal",
+                rulesBroken(FleetValidator.validate(eight)).contains("E11.17"));
+
+        Fleet nine = new Fleet(force(11, 4, 5), "Flagship", 9000, 175);
+        assertTrue("a ninth PPD in an eleven-ship fleet breaks E11.17",
+                rulesBroken(FleetValidator.validate(nine)).contains("E11.17"));
+    }
+
+    /**
+     * The fractional group COUNTS. Ten other ships are three whole groups and one leftover;
+     * reading the leftover away would yield seven and contradict the rule's own example.
+     */
+    @Test
+    public void aPartGroupOfShipsStillBuysAPpd() {
+        // Flagship with none, plus four others: one whole group of three and one left over.
+        Fleet two = new Fleet(force(5, 0, 2), "Flagship", 9000, 175);
+        assertFalse("four other ships are a group of three plus a fraction, so two PPDs",
+                rulesBroken(FleetValidator.validate(two)).contains("E11.17"));
+
+        Fleet three = new Fleet(force(5, 0, 3), "Flagship", 9000, 175);
+        assertTrue("but not three", rulesBroken(FleetValidator.validate(three)).contains("E11.17"));
+    }
+
+    /** "with whatever PPDs it has (a maximum of four)" - a fifth on the flagship buys nothing. */
+    @Test
+    public void theFlagshipContributesAtMostFour() {
+        Fleet six = new Fleet(List.of(ppdShip("Flagship", 2, 10, 6)), "Flagship", 9000, 175);
+        assertTrue("a flagship's own PPDs cap at four",
+                rulesBroken(FleetValidator.validate(six)).contains("E11.17"));
+
+        Fleet four = new Fleet(List.of(ppdShip("Flagship", 2, 10, 4)), "Flagship", 9000, 175);
+        assertFalse("four is allowed",
+                rulesBroken(FleetValidator.validate(four)).contains("E11.17"));
+    }
+
+    /** "There is also an overall limit of nine PPDs in any given fleet." */
+    @Test
+    public void nineIsTheCeilingHoweverLargeTheFleet() {
+        // 31 ships: 4 + ceil(30/3) = 14 by the formula, but the fleet ceiling is nine.
+        Fleet nine = new Fleet(force(31, 4, 5), "Flagship", 99000, 175);
+        assertFalse("nine is allowed",
+                rulesBroken(FleetValidator.validate(nine)).contains("E11.17"));
+
+        Fleet ten = new Fleet(force(31, 4, 6), "Flagship", 99000, 175);
+        List<Violation> vs = FleetValidator.validate(ten);
+        assertTrue("a tenth PPD breaks the overall ceiling", rulesBroken(vs).contains("E11.17"));
+        assertTrue("and the message says WHICH limit bit: " + vs,
+                vs.stream().anyMatch(v -> "E11.17".equals(v.rule)
+                        && v.message.contains("overall limit")));
+    }
+
+    /** "PPDs on bases do not count for purposes of this limit." */
+    @Test
+    public void basesCountForNeitherTheirPpdsNorTheirHulls() {
+        Ship flag = ppdShip("Flagship", 2, 10, 4);
+        Ship base = ppdShip("Star Base", 1, 0, 4);
+        base.setBase(true);
+
+        // The flagship alone allows four. The base adds four more PPDs and one more hull, and
+        // neither may change the sum.
+        Fleet fleet = new Fleet(List.of(flag, base), "Flagship", 9000, 175);
+        assertFalse("a base's PPDs are not fielded for this limit: "
+                        + FleetValidator.validate(fleet),
+                rulesBroken(FleetValidator.validate(fleet)).contains("E11.17"));
+    }
+
+    /** A force with no pulsar devices is not this rule's business. */
+    @Test
+    public void aFleetWithoutPpdsIsUntouched() {
+        Fleet fleet = new Fleet(List.of(ship("Flagship", 120, 3, 3), ship("Consort", 80, 4, 0)),
+                "Flagship", 500, 175);
+        assertFalse(rulesBroken(FleetValidator.validate(fleet)).contains("E11.17"));
+    }
+
+    /**
+     * And it bites on the REAL DATA, not only on synthetic ships. The ISC DN carries four PPDs
+     * off its own sheet, which is the whole of a flagship's allowance; a single Star Cruiser
+     * with its PPD refit is a fractional group and buys the fifth, so the force is legal at
+     * five and over at six.
+     *
+     * <p>That boundary is here because the first draft of this test asserted the wrong one. It
+     * expected five across two ships to be illegal, having read "every group of three ships"
+     * as needing three whole ships. One ship IS a group, counted as the one fractional group
+     * the rule allows. The test failed, the code was right, and the misreading would have been
+     * invisible had this test only ever exercised synthetic fleets that happened to agree.
+     *
+     * <p>Here rather than only in the synthetic block deliberately. A limit that passes every
+     * unit test but never fires on a fleet a player could actually build is a limit that is not
+     * enforced, and this repo has shipped exactly that twice.
+     */
+    @Test
+    public void theLimitFiresOnRealIscHulls() throws Exception {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("../data/factions");
+
+        Ship dn = com.sfb.objects.ShipLibrary.createShip(
+                com.sfb.objects.ShipLibrary.get("ISC", "DN"));
+        dn.setName("CSS Concordium");
+        assertEquals("the DN's sheet carries four PPDs", 4, ppdCountOf(dn));
+
+        Fleet alone = new Fleet(List.of(dn), "CSS Concordium", 9000, 185);
+        assertFalse("a DN on its own sits exactly at its allowance: "
+                        + FleetValidator.validate(alone),
+                rulesBroken(FleetValidator.validate(alone)).contains("E11.17"));
+
+        Ship ca = starCruiserWithPpd("CSS Advantageous");
+        assertEquals("the refitted Star Cruiser carries one", 1, ppdCountOf(ca));
+
+        // One other ship is a fractional group, and the rule counts it: five is allowed.
+        Fleet pair = new Fleet(List.of(dn, ca), "CSS Concordium", 9000, 185);
+        assertFalse("the DN's four plus one fractional group is five: "
+                        + FleetValidator.validate(pair),
+                rulesBroken(FleetValidator.validate(pair)).contains("E11.17"));
+
+        // A second Star Cruiser brings a sixth PPD, and two ships are still one group.
+        Fleet trio = new Fleet(List.of(dn, ca, starCruiserWithPpd("CSS Arbiter")),
+                "CSS Concordium", 9000, 185);
+        assertTrue("six PPDs across three ships breaks E11.17",
+                rulesBroken(FleetValidator.validate(trio)).contains("E11.17"));
+    }
+
+    /** An ISC Star Cruiser wearing its PPD refit, off the real ship data. */
+    private Ship starCruiserWithPpd(String name) {
+        Ship ca = com.sfb.objects.ShipLibrary.createShip(com.sfb.objects.RefitResolver.apply(
+                com.sfb.objects.ShipLibrary.get("ISC", "CA"), List.of("P")));
+        ca.setName(name);
+        return ca;
+    }
+
+    private int ppdCountOf(Ship s) {
+        return (int) s.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.PPD).count();
+    }
 }
