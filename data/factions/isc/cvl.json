@@ -1,0 +1,99 @@
+{
+  "faction": "ISC",
+  "type": "CVL",
+  "typeName": "Light Carrier",
+  "line": "CL",
+  "name": "CSS Covenant",
+  "serviceYear": 171,
+  "bpv": 127,
+  "turnMode": "C",
+  "sizeClass": 3,
+  "moveCost": 0.6666667,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 6,
+  "carrierClass": "CAPABLE",
+  "requiresEscort": true,
+  "tokenArt": "isc/cvl.png",
+  "note": "R13.10, Captain's Module C2 SSD p.37 (PDF p.38). The Light Cruiser converted to a carrier, and close enough to it that the differences are the useful part of this note. IDENTICAL to the CL: shields 30/24/20/20/20/24 counted box by box, F hull 4, rear hull 8, warp 12 a side, impulse 4, bridge 2, emergency 2, aux 2, transporters 4, tractors 4, labs 4, one probe launcher, turn mode C, command rating 6, and every damage track - damcon 4-2-2-2-0, sensor 6-6-5-3-1-0, scanner 0-0-1-3-5-9, excess 5. WHAT THE CONVERSION COST: one battery and one APR, THREE each here against the CL's four, both counted at 500 dpi because a carrier trading power for bay space is exactly the sort of difference that gets copied over by eye. CREW GOES THE OTHER WAY: 40 crew against the CL's 36, 10 boarding parties against 12, and NINE DECK CREWS for its nine fighters. Its plasma is PLASMA-S from the hull rather than from a refit, and its phaser-3s are base armament, both because YS:171 is after the Y170 PL-S and Y165 PH-3 refit dates - the same reasoning as the Strike Cruiser. Point value 135 on the sheet with 'WITHOUT PL-F REFIT (PRE Y179) = -8', so 127 is the Y171 hull. The four rear-firing plasma-F are R13.1C's, flagged iscRearFiring, and arrive with the PL-F refit exactly as the CL's do. THE BAY: twelve SHUTTLE boxes in a 3x4 block, three plain and nine marked, which resolves as three administrative shuttles and nine fighter positions - the administrative shuttles table lists exactly three, and the complement the owner gave is 5 superiority, 3 assault and 1 EW, which is nine. Two balcony positions (J1.53) as on the CL. ITS EW FIGHTER WILL BE AN FEF, NOT THE FEK THE SHEET DRAWS. The fighter roster in data/shuttles/isc.json is deliberately simplified and carries no FEK, so the isc-fighter line resolves ew to FEF. The owner chose that 2026-10-23; it is not a misreading of the sheet, and adding FEK would fix it whenever the fidelity is wanted. The Y180 Sabot refit (+10.25) is absent as elsewhere: FP11.0 is in Module R10, out of scope, and a quarter point would not fit an integer bpv.",
+
+  "shields": [30, 24, 20, 20, 20, 24],
+
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 8
+  },
+
+  "power": {
+    "leftWarp": 12,
+    "rightWarp": 12,
+    "impulse": 4,
+    "apr": 3,
+    "battery": 3
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 4,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin"], "balconyPositions": 2,
+      "fighters": { "line": "isc-fighter", "superiority": 5, "assault": 3, "ew": 1 } }
+  ],
+
+  "crewData": {
+    "totalCrew": 40,
+    "boardingParties": 10,
+    "deckCrews": 9,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["RS"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["FP"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["FP"] }
+  ],
+
+  "refits": [
+    {
+      "code": "F",
+      "name": "PL-F refit",
+      "label": "Plasma-F",
+      "year": 179,
+      "bpv": 8,
+      "_note": "Sheet: WITHOUT THE PL-F REFIT, DELETE ALL PLASMA-F TORPEDOES. Four here, two a side, the same count and the same arcs as the Light Cruiser's. R13.1C's rear-firing torpedoes, flagged iscRearFiring - see the Star Cruiser's note for what that anchors. The sheet's pseudo-plasma box lists S-type pseudos for A and B and none for these, which is R13.1C's 'no PPTs' drawn rather than written.",
+      "addWeapons": [
+        { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "iscRearFiring": true, "arcs": ["L", "LR"] },
+        { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] },
+        { "type": "PlasmaLauncher", "designator": "F", "plasmaType": "F", "iscRearFiring": true, "arcs": ["R", "RR"] }
+      ]
+    }
+  ]
+}
