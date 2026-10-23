@@ -262,4 +262,62 @@ public class IscStarCruiserTest {
         assertEquals("the ship the sheet draws", 92,
                 RefitResolver.apply(ShipLibrary.get("ISC", "DD"), List.of("F")).bpv);
     }
+
+    // ------------------------------------------------------------------ the Destroyer Leader
+
+    /**
+     * R13.16, the DDL — the DD's hull with a leader's extras. Almost everything matches, so the
+     * test is the DIFFERENCES: a later service year, a higher command rating, twice the APR,
+     * and plasma-G forward where the destroyer carries plasma-F.
+     */
+    @Test
+    public void theLeaderIsTheDestroyerWithLeadersExtras() {
+        ShipSpec ddl = ShipLibrary.get("ISC", "DDL");
+        ShipSpec dd = ShipLibrary.get("ISC", "DD");
+        assertNotNull("fixture: the ISC DDL should be in the library", ddl);
+
+        assertEquals("the leader entered service later", 168, ddl.serviceYear);
+        assertEquals(160, dd.serviceYear);
+        assertEquals("and leads", 5, ddl.commandRating);
+        assertEquals(4, dd.commandRating);
+        assertEquals("twice the APR", 4, ddl.power.apr);
+        assertEquals(2, dd.power.apr);
+        assertEquals("the same hull underneath", dd.hullBoxes.chull, ddl.hullBoxes.chull);
+    }
+
+    /** Plasma-G forward, where the destroyer carries plasma-F in the same position. */
+    @Test
+    public void theLeaderCarriesPlasmaGForward() {
+        Ship ddl = ShipLibrary.createShip(ShipLibrary.get("ISC", "DDL"));
+
+        for (String forward : new String[] { "A", "B" }) {
+            PlasmaLauncher pl = (PlasmaLauncher) byDesignator(ddl, forward);
+            assertEquals(com.sfb.properties.PlasmaType.G, pl.getLauncherType());
+            assertEquals("FP", pl.getArcLabel());
+            assertFalse("forward launchers are not rear-firing", pl.isIscRearFiring());
+        }
+    }
+
+    /**
+     * NO PROBES, which is unusual for a warship and therefore worth pinning. The sheet has no
+     * launcher box and no probes table; an absent probe reads exactly like an oversight, and
+     * without a test the next person to notice would add one.
+     */
+    @Test
+    public void theLeaderHasNoProbeLauncher() {
+        assertEquals("R13.16 gives the DDL none", 0,
+                ShipLibrary.get("ISC", "DDL").auxiliary.probes);
+        assertEquals("where the destroyer has one", 1,
+                ShipLibrary.get("ISC", "DD").auxiliary.probes);
+    }
+
+    /** And it prices out to the sheet. */
+    @Test
+    public void theLeaderPricesOutToTheSheet() {
+        ShipSpec base = ShipLibrary.get("ISC", "DDL");
+
+        assertEquals("the Y168 hull", 106, base.bpv);
+        assertEquals("the ship the sheet draws", 110,
+                RefitResolver.apply(base, List.of("F")).bpv);
+    }
 }
