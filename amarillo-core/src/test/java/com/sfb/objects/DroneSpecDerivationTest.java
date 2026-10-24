@@ -168,6 +168,63 @@ public class DroneSpecDerivationTest {
                 12, typeIIIXX.warheadStrength());
     }
 
+    /**
+     * The owner's favourite custom drone, which is also FD12.12's worked example: a type-IV
+     * frame carrying THREE 1/2-PS armor modules and ONE 1/2-PS explosive.
+     *
+     * <p>Four half-spaces filling two payload spaces exactly. FD12.21 gives each 1/2-PS armor
+     * module two hull, so six plus six is twelve, behind FD10.41's strength-six half-space
+     * warhead. Twelve hull and a six-point explosion, on a frame whose bare hull is six.
+     *
+     * <p><b>This is the drone that proves hull is not a property of the frame.</b> Every drone
+     * in the game today has exactly its frame's hull, so reading it off the frame passed every
+     * test — and would have been quietly wrong the first time anyone armored one.
+     */
+    @Test
+    public void anArmoredHeavyDroneTradesWarheadForHull() {
+        DroneSpec armored = DroneSpec.of(DroneFrame.TWO_SPACE, Propulsion.SPEED_8,
+                PayloadModule.ARMOR_HALF, PayloadModule.ARMOR_HALF,
+                PayloadModule.ARMOR_HALF, PayloadModule.EXPLOSIVE_HALF);
+
+        assertEquals("FD12.21: three half-space armor modules at two hull each, over the"
+                + " two-space frame's six", 12, armored.hull());
+        assertEquals("FD10.41: one half-space explosive module", 6, armored.warheadStrength());
+        assertEquals("it still takes two rack spaces", 2.0, armored.rackSpaces(), 0.0001);
+
+        DroneSpec plain = DroneType.TypeIV.spec;
+        assertEquals("where a standard type-IV has the frame's hull and nothing more",
+                6, plain.hull());
+        assertEquals(24, plain.warheadStrength());
+    }
+
+    /**
+     * FD12.12 states the shape outright, so the exact module list it gives is built too: "a
+     * type-IV drone could be equipped with a one-PS armor module, a 1/2-PS armor module, and a
+     * 1/2-PS explosive module."
+     */
+    @Test
+    public void theRulebooksOwnArmoredTypeFourAlsoBuilds() {
+        DroneSpec fd1212 = DroneSpec.of(DroneFrame.TWO_SPACE, Propulsion.SPEED_8,
+                PayloadModule.ARMOR_1, PayloadModule.ARMOR_HALF, PayloadModule.EXPLOSIVE_HALF);
+
+        assertEquals("four from the one-PS module and two from the half", 12, fd1212.hull());
+        assertEquals(6, fd1212.warheadStrength());
+    }
+
+    /**
+     * FD13.0: a slug drone "carries nothing but armor modules (i.e., no warhead)". It explodes
+     * for nothing, which falls out of the sum rather than needing a rule.
+     */
+    @Test
+    public void aSlugDroneCarriesArmorAndExplodesForNothing() {
+        DroneSpec slug = DroneSpec.of(DroneFrame.ONE_SPACE, Propulsion.SPEED_8,
+                PayloadModule.ARMOR_1);
+
+        assertEquals("FD12.12's own slug example: a type-I with a one-PS armor module",
+                8, slug.hull());
+        assertEquals("and no warhead at all", 0, slug.warheadStrength());
+    }
+
     /** And a payload that does not fit is refused (FD10.4). */
     @Test
     public void aPayloadLargerThanTheFrameIsRefused() {

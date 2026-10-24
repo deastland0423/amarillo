@@ -12,7 +12,8 @@ import java.util.List;
  * <h2>What this is for, and what it is not for yet</h2>
  * It exists so {@link DroneType}'s numbers can be DERIVED from what a drone is made of instead
  * of written down fourteen times. Three of the enum's nine fields come from here —
- * {@code rack}, {@code hull} and {@code damage} — and the rest stay declared, because nothing
+ * {@code rack} from the frame, {@code hull} from the frame PLUS its armor (FD12.21), and
+ * {@code damage} from the payload modules — and the rest stay declared, because nothing
  * in the rules derives them:
  *
  * <ul>
@@ -91,9 +92,24 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion, List<PayloadMod
         return frame.rackSpaces;
     }
 
-    /** Hull boxes it has as a target. */
+    /**
+     * Hull boxes the drone has as a target: the frame's own, plus whatever armor adds.
+     *
+     * <blockquote>FD12.21: "The effect of an armor module is to increase the number of damage
+     * points required to destroy the drone. The 1/2-PS module adds two damage points; the
+     * one-PS armor module adds four damage points."</blockquote>
+     *
+     * <p>Not a property of the frame, though it looks like one: every drone in the game today
+     * has exactly its frame's hull, because none carries armor. FD12.12's own example — and the
+     * owner's — is a type-IV with three 1/2-PS armor modules and a 1/2-PS explosive, four
+     * half-spaces filling its two payload spaces exactly, which is six plus six: twelve hull
+     * behind a strength-six warhead.
+     */
     public int hull() {
-        return frame.hull;
+        int total = frame.hull;
+        for (PayloadModule m : allModules())
+            total += m.hullBonus;
+        return total;
     }
 
     /** Hexes per turn (FD2.1). */

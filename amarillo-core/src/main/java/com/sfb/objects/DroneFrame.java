@@ -24,11 +24,16 @@ import java.util.List;
  * from frame size would make the type-III-XX inexpressible, which is why these are two fields
  * rather than one. Nothing in the current roster exercises the difference; the rule does.
  *
- * <h2>Hull boxes come from here</h2>
+ * <h2>Hull boxes START here</h2>
  * Not from the rules directly — no clause says "a two-space drone has six hull" — but from the
  * data, where it holds without exception across all fourteen drones: 0.5 -&gt; 3, 1.0 -&gt; 4,
  * 2.0 -&gt; 6. Recorded as a derivation rather than fourteen copies of a number, and pinned by
  * {@code DroneSpecDerivationTest} against the values the enum carried before this existed.
+ *
+ * <p>It is the frame's CONTRIBUTION rather than the drone's total: FD12.21 has armor modules add
+ * two hull apiece at half a payload space and four at a full one, so the sum lives in
+ * {@link DroneSpec#hull()}. Every drone in the game today has exactly its frame's hull, because
+ * none carries armor — which is precisely why reading hull off the frame looked correct.
  */
 public enum DroneFrame {
 

@@ -3,34 +3,56 @@ package com.sfb.objects;
 /**
  * FD10.4: what goes in a drone's payload spaces.
  *
- * <p>FD10.41 defines the standard payload and gives it two sizes:
+ * <h2>A module is a SIZE as well as a kind</h2>
+ * FD10.51's chart has three columns — 1/2-PS, 1-PS, 2-PS — and a dash where a module does not
+ * come in that size. An explosive exists at all three; an ECM module exists at exactly one:
  *
- * <blockquote>"EXPLOSIVE MODULES are the standard drone payload (or warhead). There are two
- * sizes: 1/2 payload space = explosion strength six; 1 payload space = explosion strength
- * twelve. Two-space drones (such as type-IV) carry two one-payload space explosive modules (or
- * four 1/2-space modules)... All of the explosive modules on a given drone are combined into a
- * single explosion; they are not resolved as separate volleys. <b>There is no difference between
- * two 1/2-space and one 1.0-space module.</b>"</blockquote>
+ * <blockquote>FD10.442: "No more than one such module can be placed on any drone; <b>the module
+ * occupies one payload space</b> (which can be either space; it need not be forward)."</blockquote>
  *
- * <p>That last sentence is why warhead strength is a SUM rather than a lookup: a type-IV's 24
- * points are two twelves, or four sixes, and the rule says those are the same drone. Today every
- * one-space drone in the game carries exactly one full explosive module, so frame size and
- * warhead happen to agree; they stop agreeing the moment FD10.48's null drone or FD10.42's probe
- * module exists, which is the whole reason this is modelled rather than stored.
+ * <p>So the sizes are enumerated rather than carried as a number on a kind. Writing "ECM, 0.5
+ * spaces" would be inventing a module the chart says does not exist, and the mistake is easy to
+ * make because the explosives — the only modules here when this file was first written — happen
+ * to come in all three.
  *
- * <h2>Only the modules the current roster needs are here</h2>
- * The probe, ECM, armor and null modules are catalogued in FD10.42 through FD10.48 and each has
- * its own rules and its own behaviour — FD10.403 goes as far as to spell out which combinations
- * cannot exist. None is expressible yet and none is declared here, because an enum constant that
- * nothing can build is a claim this file should not be making.
+ * <h2>Armor contributes HULL, which is why hull is not a property of the frame</h2>
+ * <blockquote>FD12.21: "The effect of an armor module is to increase the number of damage points
+ * required to destroy the drone. The 1/2-PS module adds two damage points; the one-PS armor
+ * module adds four damage points."</blockquote>
+ *
+ * <p>The owner's example, which is also FD12.12's: a type-IV frame carrying three 1/2-PS armor
+ * modules and one 1/2-PS explosive — four half-spaces filling its two payload spaces exactly —
+ * is a drone with <b>twelve</b> hull and an explosion strength of <b>six</b>. An earlier version
+ * of this model read hull off the frame alone, which is right for every drone in the game today
+ * and wrong for that one.
+ *
+ * <h2>What is not here yet</h2>
+ * The probe, ECM, MW, swordfish, spearfish, starfish and stingray modules are each their own FD
+ * section with their own behaviour, and FD10.403 spells out which combinations cannot exist at
+ * all. None is declared until the thing it does is built — an enum constant nothing can use is a
+ * claim this file should not make. Costs are absent for the same reason: FD10.51 prices every
+ * module, and pricing is its own slice.
  */
 public enum PayloadModule {
 
     /** FD10.41: half a payload space, explosion strength six. */
-    EXPLOSIVE_HALF(0.5, 6),
+    EXPLOSIVE_HALF(0.5, 6, 0),
 
-    /** FD10.41: one payload space, explosion strength twelve. The usual meaning of the term. */
-    EXPLOSIVE_1(1.0, 12),
+    /** FD10.41: one payload space, strength twelve. The usual meaning of "explosive module". */
+    EXPLOSIVE_1(1.0, 12, 0),
+
+    /**
+     * FD10.41's two-space explosive. "There is no difference between two 1/2-space and one
+     * 1.0-space module", so this and a pair of {@link #EXPLOSIVE_1}s are the same drone — both
+     * are offered because the chart offers both and a loadout may be recorded either way.
+     */
+    EXPLOSIVE_2(2.0, 24, 0),
+
+    /** FD12.11/FD12.21: the smaller internal armor module. No warhead, four more hull... */
+    ARMOR_HALF(0.5, 0, 2),
+
+    /** ...and the larger, at one payload space. FD12.21: "adds four damage points". */
+    ARMOR_1(1.0, 0, 4),
 
     /**
      * The type-VI's fixed warhead, which is not a module a player can choose and is here so that
@@ -46,16 +68,20 @@ public enum PayloadModule {
      * <p>So this constant is a nominal, not a strength. The rule lives in {@code Drone}, where it
      * already worked before this model existed and was deliberately left alone.
      */
-    DOGFIGHT_WARHEAD(0.5, 8);
+    DOGFIGHT_WARHEAD(0.5, 8, 0);
 
-    /** Payload spaces consumed (FD10.4). */
+    /** Payload spaces consumed (FD10.4), and the chart column this module is priced in. */
     public final double spaces;
 
-    /** Points this module contributes to the drone's single combined explosion (FD10.41). */
+    /** Points contributed to the drone's single combined explosion (FD10.41). Zero for armor. */
     public final int strength;
 
-    PayloadModule(double spaces, int strength) {
+    /** Damage points added to the drone's own hull (FD12.21). Zero for everything but armor. */
+    public final int hullBonus;
+
+    PayloadModule(double spaces, int strength, int hullBonus) {
         this.spaces = spaces;
         this.strength = strength;
+        this.hullBonus = hullBonus;
     }
 }
