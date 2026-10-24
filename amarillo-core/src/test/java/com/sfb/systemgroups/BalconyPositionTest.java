@@ -294,6 +294,7 @@ public class BalconyPositionTest {
                 "ISC CVE",          // R13.30: the DD hull as a carrier, two positions
                 "ISC HSC",          // R13.14: the CL hull as a scout, so the CL's two
                 "ISC SR",           // R13.13: the CL hull as a survey ship, likewise
+                "ISC DNT",          // R13.37: TWO, where the DN it is built on has four
                 "ISC CV",           // R13.7: FOUR positions, not the cruisers' two
                 "ISC CVS",          // R13.8: the CV with PPDs, so the CV's four
                 "ISC CC",           // R13.5: likewise, on the flagship cruiser

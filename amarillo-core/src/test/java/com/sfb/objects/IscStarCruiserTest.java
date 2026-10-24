@@ -362,6 +362,23 @@ public class IscStarCruiserTest {
         assertEquals("the smaller half of 126/90 is the BPV", 90, sc.bpv);
         assertEquals("the larger half is the EPV", 126, sc.epv);
 
+        // A SPLIT VALUE TAKES ITS DEDUCTIONS ON BOTH HALVES. The owner ruled it 2026-10-23,
+        // and RefitResolver already carried the same ruling from 2026-10-11 going the other
+        // way - a refit adds its cost to the epv as well as the bpv. The SC has no refits so
+        // its printed 126/90 stands; its three siblings all needed correcting, and the HSC kept
+        // the wrong value for a while because the convention lived in prose in three files
+        // instead of in one assertion. This is that assertion.
+        for (String[] hull : new String[][] {
+                { "CVE", "86", "96" },     // 100/90 less the PL-F refit's 4
+                { "SR",  "108", "128" },   // 140/120 less PH-3's 4 and PL-F's 8
+                { "HSC", "112", "162" },   // 170/120 less the PL-F refit's 8
+                { "SC",  "90",  "126" }}) { // no refits, so as printed
+            ShipSpec s2 = ShipLibrary.get("ISC", hull[0]);
+            assertEquals(hull[0] + " bpv", Integer.parseInt(hull[1]), s2.bpv);
+            assertEquals(hull[0] + " epv", Integer.parseInt(hull[2]), s2.epv);
+            assertTrue(hull[0] + " must keep its epv above its bpv", s2.epv > s2.bpv);
+        }
+
         Ship ship = ShipLibrary.createShip(sc);
         assertTrue("four special sensor boxes make it a scout", ship.isScout());
         assertEquals("and there are four of them", 4, ship.getScoutChannels().size());
