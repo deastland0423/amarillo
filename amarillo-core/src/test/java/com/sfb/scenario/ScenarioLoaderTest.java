@@ -250,14 +250,15 @@ public class ScenarioLoaderTest {
 
     @Test
     public void coi_droneRackLoadout_replaces_default_ammo() {
-        Ship ship = makeShip(); // FedCA has drone racks
+        Ship ship = makeDroneShip();
         // Find how many drone racks the ship has
         List<DroneRack> racks = new java.util.ArrayList<>();
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (w instanceof DroneRack)
                 racks.add((DroneRack) w);
         }
-        assumeTrue("Ship must have at least one drone rack", !racks.isEmpty());
+        assertFalse("fixture: makeDroneShip must carry a rack for this test to mean anything",
+                racks.isEmpty());
 
         CoiLoadout loadout = new CoiLoadout();
         // Load rack 0 with TypeIM drones (medium-speed TypeI, available Y165)
@@ -275,7 +276,7 @@ public class ScenarioLoaderTest {
 
     @Test
     public void coi_droneRackLoadout_rejects_unavailable_year() {
-        Ship ship = makeShip();
+        Ship ship = makeDroneShip();
         ScenarioSpec spec = makeSpec();
         spec.year = 160; // TypeIM not available until Y165
 
@@ -284,21 +285,22 @@ public class ScenarioLoaderTest {
             if (w instanceof DroneRack)
                 racks.add((DroneRack) w);
         }
-        assumeTrue("Ship must have at least one drone rack", !racks.isEmpty());
+        assertFalse("fixture: makeDroneShip must carry a rack for this test to mean anything",
+                racks.isEmpty());
 
-        List<Drone> originalAmmo = new java.util.ArrayList<>(racks.get(0).getAmmo());
+        List<DroneType> before = typesIn(racks.get(0));
 
         CoiLoadout loadout = new CoiLoadout();
         loadout.setDroneRackLoadout(0, Arrays.asList(DroneType.TypeIM));
         ScenarioLoader.applyCoi(ship, loadout, spec);
 
-        // Rack ammo should be unchanged (TypeIM rejected)
-        assertEquals(originalAmmo.size(), racks.get(0).getAmmo().size());
+        assertEquals("a rejected loadout must leave the rack exactly as it was",
+                before, typesIn(racks.get(0)));
     }
 
     @Test
     public void coi_droneRackLoadout_rejects_speed_cap_violation() {
-        Ship ship = makeShip();
+        Ship ship = makeDroneShip();
         ScenarioSpec spec = makeSpec();
         spec.commanderOptions.maxDroneSpeed = 12; // cap at speed 12, TypeIM=20 rejected
 
@@ -307,16 +309,22 @@ public class ScenarioLoaderTest {
             if (w instanceof DroneRack)
                 racks.add((DroneRack) w);
         }
-        assumeTrue("Ship must have at least one drone rack", !racks.isEmpty());
+        assertFalse("fixture: makeDroneShip must carry a rack for this test to mean anything",
+                racks.isEmpty());
 
-        List<Drone> originalAmmo = new java.util.ArrayList<>(racks.get(0).getAmmo());
+        List<DroneType> before = typesIn(racks.get(0));
 
         CoiLoadout loadout = new CoiLoadout();
         loadout.setDroneRackLoadout(0, Arrays.asList(DroneType.TypeIM, DroneType.TypeIM,
                 DroneType.TypeIM, DroneType.TypeIM));
         ScenarioLoader.applyCoi(ship, loadout, spec);
 
-        assertEquals(originalAmmo.size(), racks.get(0).getAmmo().size());
+        // TYPES, not the count. The FFG's rack holds four drones and the rejected loadout asks
+        // for four, so a cap that did nothing would leave the SIZE at four and this test green
+        // while the rack quietly filled with speed-20 drones under a speed-12 cap. Confirmed by
+        // mutation: deleting the maxSpeed check failed nothing until this compared types.
+        assertEquals("a rejected loadout must leave the rack exactly as it was",
+                before, typesIn(racks.get(0)));
     }
 
     @Test
@@ -392,6 +400,39 @@ public class ScenarioLoaderTest {
     }
 
     // ---- helpers ----
+
+    /**
+     * A ship that actually has a DRONE RACK, for the COI tests that load one.
+     *
+     * <h2>Why this exists, and what it cost not to have it</h2>
+     * The three {@code coi_droneRackLoadout_*} tests below used {@link #makeShip}, a bare
+     * Federation CA, under a comment reading "FedCA has drone racks". It does not: the CA
+     * carries phaser-1s and photons, and its racks arrive with the + refit. So
+     * {@code racks.isEmpty()} was always true, the {@code assumeTrue} guarding each test always
+     * skipped, and ALL THREE HAD NEVER RUN — they were the whole of this build's "Skipped: 3",
+     * a number small enough that nobody reads it.
+     *
+     * <p>The FFG is the right fixture rather than a refitted CA: it is a sample builder, so no
+     * filesystem is touched, and its single type-G rack arrives with four drones already in it.
+     * That last part matters for two of the three tests, which assert that a REJECTED loadout
+     * leaves the ammunition unchanged — against an empty rack that assertion passes on nothing.
+     *
+     * <p>The guards are assertions now. A fixture that stops carrying a rack should fail the
+     * test that needs one, not quietly excuse it.
+     */
+    /** What a rack is actually holding, which is what "unchanged" has to mean. */
+    private static List<DroneType> typesIn(DroneRack rack) {
+        List<DroneType> out = new java.util.ArrayList<>();
+        for (Drone d : rack.getAmmo())
+            out.add(d.getDroneType());
+        return out;
+    }
+
+    private Ship makeDroneShip() {
+        Ship ship = new Ship();
+        ship.init(FederationShips.getFedFfg());
+        return ship;
+    }
 
     private Ship makeShip() {
         Ship ship = new Ship();
