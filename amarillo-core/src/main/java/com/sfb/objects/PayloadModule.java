@@ -36,23 +36,23 @@ package com.sfb.objects;
 public enum PayloadModule {
 
     /** FD10.41: half a payload space, explosion strength six. */
-    EXPLOSIVE_HALF(0.5, 6, 0, 0.25),
+    EXPLOSIVE_HALF(0.5, 6, 0, 0.25, Availability.GENERAL),
 
     /** FD10.41: one payload space, strength twelve. The usual meaning of "explosive module". */
-    EXPLOSIVE_1(1.0, 12, 0, 0.50),
+    EXPLOSIVE_1(1.0, 12, 0, 0.50, Availability.GENERAL),
 
     /**
      * FD10.41's two-space explosive. "There is no difference between two 1/2-space and one
      * 1.0-space module", so this and a pair of {@link #EXPLOSIVE_1}s are the same drone — both
      * are offered because the chart offers both and a loadout may be recorded either way.
      */
-    EXPLOSIVE_2(2.0, 24, 0, 1.00),
+    EXPLOSIVE_2(2.0, 24, 0, 1.00, Availability.GENERAL),
 
     /** FD12.11/FD12.21: the smaller internal armor module. No warhead, four more hull... */
-    ARMOR_HALF(0.5, 0, 2, 0.25),
+    ARMOR_HALF(0.5, 0, 2, 0.25, Availability.RESTRICTED),
 
     /** ...and the larger, at one payload space. FD12.21: "adds four damage points". */
-    ARMOR_1(1.0, 0, 4, 0.50),
+    ARMOR_1(1.0, 0, 4, 0.50, Availability.RESTRICTED),
 
     /**
      * The type-VI's fixed warhead, which is not a module a player can choose and is here so that
@@ -68,7 +68,7 @@ public enum PayloadModule {
      * <p>So this constant is a nominal, not a strength. The rule lives in {@code Drone}, where it
      * already worked before this model existed and was deliberately left alone.
      */
-    DOGFIGHT_WARHEAD(0.5, 8, 0, 0.25);
+    DOGFIGHT_WARHEAD(0.5, 8, 0, 0.25, Availability.GENERAL);
 
     /** Payload spaces consumed (FD10.4), and the chart column this module is priced in. */
     public final double spaces;
@@ -93,10 +93,23 @@ public enum PayloadModule {
      */
     public final double cost;
 
-    PayloadModule(double spaces, int strength, int hullBonus, double cost) {
+    /**
+     * FD10.6's tier. Explosives are General (FD10.611); an armored drone is Restricted
+     * (FD10.621) and EXTERNAL armor is Limited (FD10.631), which is one more reason the two
+     * armors are separate things rather than a placement flag.
+     *
+     * <p>The dogfight warhead is General because FD10.643 keeps type-VI drones out of the
+     * availability calculation entirely — the tier is never consulted for one, and marking it
+     * anything else would invite someone to count it.
+     */
+    public final Availability availability;
+
+    PayloadModule(double spaces, int strength, int hullBonus, double cost,
+            Availability availability) {
         this.spaces = spaces;
         this.strength = strength;
         this.hullBonus = hullBonus;
         this.cost = cost;
+        this.availability = availability;
     }
 }

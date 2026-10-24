@@ -36,16 +36,16 @@ public enum Propulsion {
      * drone, which FD2.227 says in words — "type-III or type-VI slow drones are Speed 12 as
      * noted in (FD2.1), not Speed 8".
      */
-    SPEED_8(8, Chart.UNAVAILABLE, 0.50, 1.00),
+    SPEED_8(8, Chart.UNAVAILABLE, 0.50, 1.00, Chart.ALWAYS_GENERAL, Chart.ALWAYS_GENERAL),
 
     /** The speed of the transitional type-II and type-V, and of a "slow" type-III (FD2.227). */
-    SPEED_12(12, 0.25, 1.00, 1.50),
+    SPEED_12(12, 0.25, 1.00, 1.50, 100, 120),
 
     /** FD2.223: medium speed, "the speed is increased to twenty". */
-    SPEED_20(20, 0.50, 1.00, 1.50),
+    SPEED_20(20, 0.50, 1.00, 1.50, 166, 167),
 
     /** FD2.224: fast speed, "the speed is increased to 32". */
-    SPEED_32(32, 0.75, 1.50, 2.00);
+    SPEED_32(32, 0.75, 1.50, 2.00, 179, 180);
 
     /**
      * A dash in FD10.52's chart: this engine is not made for that frame.
@@ -55,6 +55,8 @@ public enum Propulsion {
      */
     private static final class Chart {
         static final double UNAVAILABLE = -1;
+        /** Speed-8 is the free baseline every ship already has (FD2.22). */
+        static final int ALWAYS_GENERAL = 0;
     }
 
     /** A dash in FD10.52's chart: this engine is not made for that frame. */
@@ -64,12 +66,51 @@ public enum Propulsion {
     public final int speed;
 
     private final double costHalf, costOne, costTwo;
+    private final int restrictedFrom, generalFrom;
 
-    Propulsion(int speed, double costHalf, double costOne, double costTwo) {
+    Propulsion(int speed, double costHalf, double costOne, double costTwo,
+            int restrictedFrom, int generalFrom) {
         this.speed = speed;
         this.costHalf = costHalf;
         this.costOne = costOne;
         this.costTwo = costTwo;
+        this.restrictedFrom = restrictedFrom;
+        this.generalFrom = generalFrom;
+    }
+
+    /**
+     * FD10.65/FD10.651: how obtainable this engine is in a given year.
+     *
+     * <blockquote>"Medium speed drones are Limited in Y165, Restricted in Y166, General in
+     * Y167. Fast drones are Limited in Y178, Restricted in Y179, General in Y180... Moderate
+     * speed drones were invented in Y77 and were Limited Availability until Y100, then became
+     * Restricted Availability. They became General Availability items in Y120."</blockquote>
+     *
+     * <p>A speed that has not been invented yet is not Limited, it is nothing, so callers ask
+     * {@link #existsIn} first. Speed-8 is the baseline every ship's BPV already pays for
+     * (FD2.22) and is General from the beginning.
+     */
+    public Availability availabilityIn(int year) {
+        if (year >= generalFrom)
+            return Availability.GENERAL;
+        if (year >= restrictedFrom)
+            return Availability.RESTRICTED;
+        return Availability.LIMITED;
+    }
+
+    /** The year this engine first exists at all, which is its Limited year (FD10.651). */
+    public int firstYear() {
+        return switch (this) {
+            case SPEED_8 -> 0;
+            case SPEED_12 -> 77;
+            case SPEED_20 -> 165;
+            case SPEED_32 -> 178;
+        };
+    }
+
+    /** Whether this engine has been invented yet (FD10.651). */
+    public boolean existsIn(int year) {
+        return year >= firstYear();
     }
 
     /**

@@ -26,26 +26,34 @@ public enum FrameAddition {
      * added to type-III drone, which already has a special type of guidance." Priced here,
      * unbuilt: see FD5.2 for what it does.
      */
-    ACTIVE_TERMINAL_GUIDANCE(0.50),
+    ACTIVE_TERMINAL_GUIDANCE(0.50, Availability.RESTRICTED),
 
     /**
      * FD2.222: doubles the endurance, and FD10.24 makes a type-III that takes it a TWO-space
      * drone with one payload space. Priced here, unbuilt, because that frame change is the
      * interesting part and belongs with it.
      */
-    EXTENDED_RANGE(0.50),
+    EXTENDED_RANGE(0.50, Availability.GENERAL),
 
     /**
      * The type-III's own surcharge, "for standard 25-turn range and special guidance"
      * (FD10.22). The one addition the current roster uses, and the reason an extra type-III
      * costs 2.0 where an extra type-II costs 1.5 (FD2.11) on the same frame at the same speed.
      */
-    TYPE_III_GUIDANCE(0.50);
+    TYPE_III_GUIDANCE(0.50, Availability.LIMITED);
 
     /** Points, from FD10.53's chart. */
     public final double cost;
 
-    FrameAddition(double cost) {
+    /**
+     * FD10.6's tier. Extended range is General (FD10.611), ATG is Restricted (FD10.621), and
+     * the type-III frame is Limited (FD10.631) — which is why a type-III is the one drone in
+     * the standard roster that is hard to come by at all.
+     */
+    public final Availability availability;
+
+    FrameAddition(double cost, Availability availability) {
         this.cost = cost;
+        this.availability = availability;
     }
 }

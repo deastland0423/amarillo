@@ -42,13 +42,13 @@ public enum DroneFrame {
      * except for speed upgrades", which is FD10.21's "only the speed can be varied" said from
      * the other end. So it is NOT modular: its warhead is fixed and nothing can be attached.
      */
-    HALF_SPACE(0.5, 0, 3, false, List.of(PayloadModule.DOGFIGHT_WARHEAD)),
+    HALF_SPACE(0.5, 0, 3, false, List.of(PayloadModule.DOGFIGHT_WARHEAD), Availability.GENERAL),
 
     /** The standard frame: one rack space, one payload space. Type-I, II and III. */
-    ONE_SPACE(1.0, 1, 4, true, List.of()),
+    ONE_SPACE(1.0, 1, 4, true, List.of(), Availability.GENERAL),
 
     /** The heavy frame: two rack spaces, two payload spaces. Type-IV and V. */
-    TWO_SPACE(2.0, 2, 6, true, List.of());
+    TWO_SPACE(2.0, 2, 6, true, List.of(), Availability.GENERAL);
 
     /** Spaces this frame occupies in a drone rack (FD3.0 counts racks in spaces). */
     public final double rackSpaces;
@@ -71,12 +71,21 @@ public enum DroneFrame {
     /** What a non-modular frame carries. Empty for the modular ones, which are told. */
     public final List<PayloadModule> fixedPayload;
 
+    /**
+     * FD10.611: "frame types-I and IV" are General Availability. Both modular frames, in other
+     * words — the type-III frame is Limited (FD10.631) but reaches a drone as a
+     * {@link FrameAddition} rather than as a frame of its own, and the half-space type-VI is
+     * excluded from the availability calculation altogether (FD10.643).
+     */
+    public final Availability availability;
+
     DroneFrame(double rackSpaces, int payloadSpaces, int hull, boolean modular,
-               List<PayloadModule> fixedPayload) {
+               List<PayloadModule> fixedPayload, Availability availability) {
         this.rackSpaces = rackSpaces;
         this.payloadSpaces = payloadSpaces;
         this.hull = hull;
         this.modular = modular;
         this.fixedPayload = fixedPayload;
+        this.availability = availability;
     }
 }

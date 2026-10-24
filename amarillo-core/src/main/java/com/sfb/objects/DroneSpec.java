@@ -133,6 +133,48 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
     }
 
     /**
+     * FD10.6: how hard this drone is to obtain in a given year — the most restrictive of its
+     * parts.
+     *
+     * <blockquote>FD10.65: "A type-I drone with medium speed in Y166 (restricted) and a
+     * Swordfish module (limited) would be a limited availability drone."</blockquote>
+     *
+     * <p>FD10.641 says the same for frame modifications: "Frame modifications, e.g., speed
+     * upgrades, external armor, extended range, ATG guidance, or type-III frames... apply to
+     * the entire drone unless a warhead is of a more restricted type."
+     *
+     * <h2>What this does NOT do</h2>
+     * FD10.65's third example splits a two-space drone across two tiers — "a type-IV fast speed
+     * drone in Y179 (restricted) with an explosive module (general) and a swordfish module
+     * (limited) is a space of restricted (the speed upgrade) and a space of limited (the
+     * swordfish module)". That is a per-SPACE accounting and only matters once something counts
+     * spaces against a cap, so it belongs with the caps rather than here. This answers the
+     * simpler question the examples above ask: what tier is this drone.
+     *
+     * <p>Type-VI drones are excluded from the calculation altogether (FD10.643), which this
+     * cannot express either — a tier is a property of the drone, and being left out of the sum
+     * is a property of the sum.
+     */
+    public Availability availabilityIn(int year) {
+        Availability worst = frame.availability;
+        worst = Availability.moreRestrictive(worst, propulsion.availabilityIn(year));
+        for (PayloadModule m : allModules())
+            worst = Availability.moreRestrictive(worst, m.availability);
+        for (FrameAddition a : additions)
+            worst = Availability.moreRestrictive(worst, a.availability);
+        return worst;
+    }
+
+    /**
+     * Whether this drone can exist at all in a given year, which is a different question from
+     * how obtainable it is. FD10.651 dates each engine's invention; a drone built around one
+     * that has not been invented is not Limited, it is impossible.
+     */
+    public boolean existsIn(int year) {
+        return propulsion.existsIn(year);
+    }
+
+    /**
      * What this drone costs to buy outright, from FD10.5's three charts: the propulsion section
      * at this frame's size (FD10.52), every payload module at its own size (FD10.51), and
      * whatever is bolted to the frame (FD10.53). The frame itself is free (FD10.22).

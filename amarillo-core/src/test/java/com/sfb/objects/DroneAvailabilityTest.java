@@ -1,0 +1,155 @@
+package com.sfb.objects;
+
+import static org.junit.Assert.*;
+
+import java.util.Set;
+
+import org.junit.Test;
+
+/**
+ * FD10.6: how obtainable a drone is, which is a TIER that moves with the year rather than a
+ * date it becomes legal.
+ *
+ * <h2>The misreading this exists to prevent</h2>
+ * {@code DroneType.availableFromYear} is 165 for the medium-speed drones, and the obvious
+ * reading is "legal from Y165". FD10.65 says a medium drone is <b>Limited in Y165, Restricted
+ * in Y166, General in Y167</b> — available in all three, in rising quantity. Collapsing that to
+ * a single year lets a Y165 fleet carry a full load of drones that were barely obtainable.
+ *
+ * <p>FD2.223's "available from Y167" is the same ladder quoted at its top step, which is why
+ * the prose rule and our data disagreed by two years without either being wrong.
+ */
+public class DroneAvailabilityTest {
+
+    /** FD10.651's table, for all three speeds that have one. */
+    @Test
+    public void everySpeedClimbsTheLadderOnTheYearsFD10651Prints() {
+        assertEquals("moderate: Limited from Y77",
+                Availability.LIMITED, Propulsion.SPEED_12.availabilityIn(77));
+        assertEquals("Restricted from Y100",
+                Availability.RESTRICTED, Propulsion.SPEED_12.availabilityIn(100));
+        assertEquals("General from Y120",
+                Availability.GENERAL, Propulsion.SPEED_12.availabilityIn(120));
+
+        assertEquals(Availability.LIMITED, Propulsion.SPEED_20.availabilityIn(165));
+        assertEquals(Availability.RESTRICTED, Propulsion.SPEED_20.availabilityIn(166));
+        assertEquals(Availability.GENERAL, Propulsion.SPEED_20.availabilityIn(167));
+
+        assertEquals(Availability.LIMITED, Propulsion.SPEED_32.availabilityIn(178));
+        assertEquals(Availability.RESTRICTED, Propulsion.SPEED_32.availabilityIn(179));
+        assertEquals(Availability.GENERAL, Propulsion.SPEED_32.availabilityIn(180));
+    }
+
+    /** The baseline FD2.22 says every ship's BPV already includes. */
+    @Test
+    public void slowDronesAreGeneralFromTheBeginning() {
+        assertEquals(Availability.GENERAL, Propulsion.SPEED_8.availabilityIn(0));
+        assertEquals(Availability.GENERAL, Propulsion.SPEED_8.availabilityIn(180));
+    }
+
+    /**
+     * Existing and being obtainable are different questions. A medium drone in Y164 is not
+     * Limited; there is no such thing yet.
+     */
+    @Test
+    public void anUninventedSpeedDoesNotExistRatherThanBeingHardToGet() {
+        assertFalse(Propulsion.SPEED_20.existsIn(164));
+        assertTrue(Propulsion.SPEED_20.existsIn(165));
+        assertFalse(Propulsion.SPEED_32.existsIn(177));
+        assertTrue(Propulsion.SPEED_32.existsIn(178));
+
+        assertFalse("and the drone built around it cannot exist either",
+                DroneType.TypeIM.spec.existsIn(164));
+        assertTrue(DroneType.TypeIM.spec.existsIn(165));
+    }
+
+    /**
+     * The years our data carries ARE the Limited years — the first the thing exists — which is
+     * why they disagree with FD2.223's and FD2.224's "available from", those being the General
+     * years at the top of the same ladder.
+     */
+    @Test
+    public void theYearInTheDataIsTheLimitedYearNotTheGeneralOne() {
+        assertEquals(165, DroneType.TypeIM.availableFromYear);
+        assertEquals("which is the year it becomes LIMITED, not freely available",
+                Availability.LIMITED,
+                DroneType.TypeIM.spec.availabilityIn(DroneType.TypeIM.availableFromYear));
+        assertEquals("FD2.223's Y167 is the General step of the same ladder",
+                Availability.GENERAL, DroneType.TypeIM.spec.availabilityIn(167));
+
+        assertEquals(178, DroneType.TypeIF.availableFromYear);
+        assertEquals(Availability.LIMITED,
+                DroneType.TypeIF.spec.availabilityIn(178));
+        assertEquals("FD2.224's Y180", Availability.GENERAL,
+                DroneType.TypeIF.spec.availabilityIn(180));
+    }
+
+    /**
+     * FD10.65: "A type-I drone with medium speed in Y166 (restricted) and a Swordfish module
+     * (limited) would be a limited availability drone." A drone is as hard to get as its
+     * hardest part. The swordfish module is unbuilt, so armor stands in for it — FD10.621 makes
+     * an armored drone Restricted, and a type-III frame Limited (FD10.631).
+     */
+    @Test
+    public void aDroneIsAsHardToGetAsItsHardestPart() {
+        DroneSpec armoredMedium = DroneSpec.of(DroneFrame.ONE_SPACE, Propulsion.SPEED_20,
+                PayloadModule.ARMOR_HALF, PayloadModule.EXPLOSIVE_HALF);
+
+        assertEquals("in Y167 the speed is General, so the armor decides",
+                Availability.RESTRICTED, armoredMedium.availabilityIn(167));
+        assertEquals("in Y165 the speed is Limited, and that is worse than the armor",
+                Availability.LIMITED, armoredMedium.availabilityIn(165));
+    }
+
+    /**
+     * FD10.631 puts the type-III frame in Limited Availability, so a type-III is Limited in
+     * every year — the one drone in the standard roster that always is.
+     */
+    @Test
+    public void aTypeThreeIsLimitedForever() {
+        for (int year : new int[] { 120, 165, 167, 180, 200 })
+            assertEquals("Y" + year, Availability.LIMITED,
+                    DroneType.TypeIII.spec.availabilityIn(year));
+        assertEquals("even the fast one, where the speed has gone General by Y180",
+                Availability.LIMITED, DroneType.TypeIIIF.spec.availabilityIn(180));
+    }
+
+    /** An ordinary type-I is General whenever it exists; it is the thing everything else is measured against. */
+    @Test
+    public void theBaselineDroneIsAlwaysGeneral() {
+        assertEquals(Availability.GENERAL, DroneType.TypeI.spec.availabilityIn(0));
+        assertEquals(Availability.GENERAL, DroneType.TypeI.spec.availabilityIn(180));
+        assertEquals("and so is the heavy one: FD10.611 lists frames I and IV together",
+                Availability.GENERAL, DroneType.TypeIV.spec.availabilityIn(180));
+    }
+
+    /**
+     * FD10.64: "The allowed percentage of Restricted Availability drones INCLUDES the limit on
+     * Limited Availability drones." So a cap check asks "at least this restricted", not "equal
+     * to this", and a Limited drone consumes Restricted allowance as well as its own.
+     */
+    @Test
+    public void theTiersNestSoALimitedDroneCountsAgainstRestrictedToo() {
+        assertTrue(Availability.LIMITED.atLeastAsRestrictedAs(Availability.RESTRICTED));
+        assertTrue(Availability.LIMITED.atLeastAsRestrictedAs(Availability.LIMITED));
+        assertTrue(Availability.RESTRICTED.atLeastAsRestrictedAs(Availability.GENERAL));
+        assertFalse(Availability.RESTRICTED.atLeastAsRestrictedAs(Availability.LIMITED));
+        assertFalse(Availability.GENERAL.atLeastAsRestrictedAs(Availability.RESTRICTED));
+    }
+
+    /**
+     * ATG is Restricted (FD10.621) and extended range is General (FD10.611), so a frame
+     * addition can move a drone's tier or leave it alone.
+     */
+    @Test
+    public void frameAdditionsCarryTheirOwnTier() {
+        DroneSpec withAtg = DroneSpec.of(DroneFrame.ONE_SPACE, Propulsion.SPEED_8,
+                Set.of(FrameAddition.ACTIVE_TERMINAL_GUIDANCE), PayloadModule.EXPLOSIVE_1);
+        assertEquals(Availability.RESTRICTED, withAtg.availabilityIn(180));
+
+        DroneSpec withRange = DroneSpec.of(DroneFrame.ONE_SPACE, Propulsion.SPEED_8,
+                Set.of(FrameAddition.EXTENDED_RANGE), PayloadModule.EXPLOSIVE_1);
+        assertEquals("extended range is General, so it changes nothing",
+                Availability.GENERAL, withRange.availabilityIn(180));
+    }
+}
