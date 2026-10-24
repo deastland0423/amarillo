@@ -420,6 +420,45 @@ public class ScenarioLoaderTest {
      * <p>The guards are assertions now. A fixture that stops carrying a rack should fail the
      * test that needs one, not quietly excuse it.
      */
+    /**
+     * FD2.51 at the layer that GATES it: a dogfight drone cannot be loaded into a type-A rack.
+     *
+     * <h2>Why this is separate from DroneRackAcceptsTest</h2>
+     * That test proves {@code DroneRack.accepts} answers correctly. This one proves
+     * {@code applyCoi} ASKS. They are different failures, and the second one went uncaught: a
+     * mutation run on 2026-10-24 deleted the {@code rack.accepts(dt)} call from the loader and
+     * the whole 3487-test suite stayed green, because no COI test had ever offered a rack a
+     * drone it refuses. The rule was implemented, tested, and unreachable from the only place
+     * that calls it.
+     *
+     * <p>The Kzinti BC is the fixture because its first rack is a type-A, which takes no
+     * dogfight drones. The FFG used by the tests above has a type-G, and a type-G accepts them
+     * quite legally (FD2.51) — so the obvious fixture is exactly the one that cannot show this.
+     */
+    @Test
+    public void coi_droneRackLoadout_rejects_aDroneTheRackCannotCarry() {
+        Ship ship = new Ship();
+        ship.init(com.sfb.samples.KzintiShips.getKzinBC());
+
+        List<DroneRack> racks = new java.util.ArrayList<>();
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRack dr)
+                racks.add(dr);
+        assertFalse("fixture: the Kzinti BC must carry drone racks", racks.isEmpty());
+        assertEquals("fixture: and the first must be a type-A, which refuses dogfight drones",
+                DroneRack.DroneRackType.TYPE_A, racks.get(0).getRackType());
+
+        List<DroneType> before = typesIn(racks.get(0));
+
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.setDroneRackLoadout(0, Arrays.asList(DroneType.TypeVI, DroneType.TypeVI,
+                DroneType.TypeVI, DroneType.TypeVI));
+        ScenarioLoader.applyCoi(ship, loadout, makeSpec());
+
+        assertEquals("FD2.51: dogfight drones go only in E, G and H racks, so the type-A keeps"
+                + " what it had", before, typesIn(racks.get(0)));
+    }
+
     /** What a rack is actually holding, which is what "unchanged" has to mean. */
     private static List<DroneType> typesIn(DroneRack rack) {
         List<DroneType> out = new java.util.ArrayList<>();
