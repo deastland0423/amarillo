@@ -12,74 +12,74 @@
     ]
   },
   "shuttles": [
-    { "type": "g1", "name": "Gladiator-1 Assault Fighter",                  "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 10,  "hull": 8,  "crippled": 6, "bpv": 4,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-1", "designation": "G1",
+    { "type": "g1", "name": "Gladiator-1 Assault Fighter",                  "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 10,  "hull": 8,  "crippled": 6, "bpv": 4,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-1", "designation": "G1", "tokenArt": "romulan/g1.png",
       "weapons": [ 
         { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"] } 
       ] },
-    { "type": "g1_e", "name": "Gladiator-1 Assault Fighter (EW)",                  "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 10,  "hull": 8,  "crippled": 6, "bpv": 6,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-1E", "designation": "G1E", "fixedEwPods": 2, "twoSeater": true,
+    { "type": "g1_e", "name": "Gladiator-1 Assault Fighter (EW)",                  "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 10,  "hull": 8,  "crippled": 6, "bpv": 6,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-1E", "designation": "G1E", "fixedEwPods": 2, "twoSeater": true, "tokenArt": "romulan/g1e.png",
       "weapons": [ ] },
-    { "type": "g2", "name": "Gladiator-2 Assault Fighter",                  "kind": "fighter",    "factions": ["romulan"], "year": 173, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 7,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-2", "designation": "G2",
+    { "type": "g2", "name": "Gladiator-2 Assault Fighter",                  "kind": "fighter",    "factions": ["romulan"], "year": 173, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 7,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-2", "designation": "G2", "tokenArt": "romulan/g2.png",
       "weapons": [ 
                    { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"] } 
       ] },
-    { "type": "g2_e", "name": "Gladiator-2 Assault Fighter (EW)",                  "kind": "fighter",    "factions": ["romulan"], "year": 173, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 9,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-2E", "designation": "G2E", "fixedEwPods": 2, "twoSeater": true,
+    { "type": "g2_e", "name": "Gladiator-2 Assault Fighter (EW)",                  "kind": "fighter",    "factions": ["romulan"], "year": 173, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 9,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-2E", "designation": "G2E", "fixedEwPods": 2, "twoSeater": true, "tokenArt": "romulan/g2e.png",
       "weapons": [ 
                    { "type": "Phaser3", "designator": "1", "arcs": ["FA"] }
       ] },
-    { "type": "g3", "name": "Gladiator-3 Assault Fighter",                  "kind": "fighter",    "factions": ["romulan"], "year": 180, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 8,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-3", "designation": "G3",
+    { "type": "g3", "name": "Gladiator-3 Assault Fighter",                  "kind": "fighter",    "factions": ["romulan"], "year": 180, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 8,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-3", "designation": "G3", "tokenArt": "romulan/g3.png",
       "weapons": [ 
                    { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"] } 
       ] },
-    { "type": "g3_e", "name": "Gladiator-3 Assault Fighter (EW)",                  "kind": "fighter",    "factions": ["romulan"], "year": 180, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 10,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-3E", "designation": "G3E", "fixedEwPods": 2, "twoSeater": true,
+    { "type": "g3_e", "name": "Gladiator-3 Assault Fighter (EW)",                  "kind": "fighter",    "factions": ["romulan"], "year": 180, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 10,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-3E", "designation": "G3E", "fixedEwPods": 2, "twoSeater": true, "tokenArt": "romulan/g3e.png",
       "weapons": [ 
                    { "type": "Phaser3", "designator": "1", "arcs": ["FA"] }
       ] },
-    { "type": "g3k", "name": "Gladiator-3K Assault Fighter",                  "kind": "fighter",    "factions": ["romulan"], "year": 183, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 10,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-3K", "designation": "G3K",
+    { "type": "g3k", "name": "Gladiator-3K Assault Fighter",                  "kind": "fighter",    "factions": ["romulan"], "year": 183, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 10,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-3K", "designation": "G3K", "tokenArt": "romulan/g3k.png",
       "weapons": [ 
                    { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"] }, 
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" },
                    { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "PLASMA_D" } 
       ] },
-    { "type": "g3k_e", "name": "Gladiator-3K Assault Fighter (EW)",                  "kind": "fighter",    "factions": ["romulan"], "year": 183, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 12,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-3KE", "designation": "G3KE", "fixedEwPods": 2, "twoSeater": true,
+    { "type": "g3k_e", "name": "Gladiator-3K Assault Fighter (EW)",                  "kind": "fighter",    "factions": ["romulan"], "year": 183, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 12,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-3KE", "designation": "G3KE", "fixedEwPods": 2, "twoSeater": true, "tokenArt": "romulan/g3ke.png",
       "weapons": [ 
                    { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" } 
       ] },
-    { "type": "gf", "name": "Gladiator-F Superiority Fighter",                   "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 8,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-F", "designation": "GF",
+    { "type": "gf", "name": "Gladiator-F Superiority Fighter",                   "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 8,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-F", "designation": "GF", "tokenArt": "romulan/gf.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" } 
                  ] },
-    { "type": "gf_e", "name": "Gladiator-F Superiority Fighter (EW)",                   "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 10,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-FE", "designation": "GFE", "fixedEwPods": 2, "twoSeater": true,
+    { "type": "gf_e", "name": "Gladiator-F Superiority Fighter (EW)",                   "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 10,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-FE", "designation": "GFE", "fixedEwPods": 2, "twoSeater": true, "tokenArt": "romulan/gfe.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["FA"] }
                  ] },
-    { "type": "gsf", "name": "Gladiator-SF Superiority Fighter",                   "kind": "fighter",    "factions": ["romulan"], "year": 173, "speed": 12,  "hull": 10,  "crippled": 7, "bpv": 9,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-SF", "designation": "GSF",
+    { "type": "gsf", "name": "Gladiator-SF Superiority Fighter",                   "kind": "fighter",    "factions": ["romulan"], "year": 173, "speed": 12,  "hull": 10,  "crippled": 7, "bpv": 9,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-SF", "designation": "GSF", "tokenArt": "romulan/gsf.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" } 
                  ] },
-    { "type": "gsf_e", "name": "Gladiator-SF Superiority Fighter (EW)",                   "kind": "fighter",    "factions": ["romulan"], "year": 173, "speed": 12,  "hull": 10,  "crippled": 7, "bpv": 11,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-SFE", "designation": "GSFE", "fixedEwPods": 2, "twoSeater": true,
+    { "type": "gsf_e", "name": "Gladiator-SF Superiority Fighter (EW)",                   "kind": "fighter",    "factions": ["romulan"], "year": 173, "speed": 12,  "hull": 10,  "crippled": 7, "bpv": 11,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-SFE", "designation": "GSFE", "fixedEwPods": 2, "twoSeater": true, "tokenArt": "romulan/gsfe.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["FA"] }
                  ] },
-    { "type": "gfsf", "name": "Gladiator-FSF Superiority Fighter",                   "kind": "fighter",    "factions": ["romulan"], "year": 180, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 10,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-FSF", "designation": "GFSF",
+    { "type": "gfsf", "name": "Gladiator-FSF Superiority Fighter",                   "kind": "fighter",    "factions": ["romulan"], "year": 180, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 10,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-FSF", "designation": "GFSF", "tokenArt": "romulan/gfsf.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" } 
                  ] },
-    { "type": "gfsf_e", "name": "Gladiator-FSF Superiority Fighter (EW)",                   "kind": "fighter",    "factions": ["romulan"], "year": 180, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 12,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-FSFE", "designation": "GFSFE", "fixedEwPods": 2, "twoSeater": true,
+    { "type": "gfsf_e", "name": "Gladiator-FSF Superiority Fighter (EW)",                   "kind": "fighter",    "factions": ["romulan"], "year": 180, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 12,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-FSFE", "designation": "GFSFE", "fixedEwPods": 2, "twoSeater": true, "tokenArt": "romulan/gfsfe.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["FA"] }
                  ] },
-    { "type": "gd", "name": "Gladiator-D Superiority Fighter",                   "kind": "fighter",    "factions": ["romulan"], "year": 183, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 12,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-D", "designation": "GD",
+    { "type": "gd", "name": "Gladiator-D Superiority Fighter",                   "kind": "fighter",    "factions": ["romulan"], "year": 183, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 12,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-D", "designation": "GD", "tokenArt": "romulan/gd.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
@@ -87,7 +87,7 @@
                    { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "PLASMA_D" },
                    { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "PLASMA_D" } 
                  ] },
-    { "type": "gd_e", "name": "Gladiator-D Superiority Fighter (EW)",                   "kind": "fighter",    "factions": ["romulan"], "year": 183, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 14,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-DE", "designation": "GDE", "fixedEwPods": 2, "twoSeater": true,
+    { "type": "gd_e", "name": "Gladiator-D Superiority Fighter (EW)",                   "kind": "fighter",    "factions": ["romulan"], "year": 183, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 14,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-DE", "designation": "GDE", "fixedEwPods": 2, "twoSeater": true, "tokenArt": "romulan/gde.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
