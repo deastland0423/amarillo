@@ -201,7 +201,7 @@ public class GroundBaseSitingTest {
     @Test
     public void nivramCarriesSixBatteriesOneOnEachFace() throws Exception {
         java.io.File f = new java.io.File("../data/scenarios/nivram_assault.json");
-        org.junit.Assume.assumeTrue("nivram_assault.json must exist", f.exists());
+        assertTrue("data/scenarios/nivram_assault.json: a file this test READS is missing. It is tracked in git, so this is not a checkout that lacks it — it has been deleted or moved, and the test cannot run. Failing rather than skipping, because a skip would take the coverage with it and leave the suite green", f.exists());
 
         ScenarioSpec s = ScenarioSpec.fromJson(f);
         Game game = new Game();

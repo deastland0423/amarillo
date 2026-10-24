@@ -122,7 +122,7 @@ public class ScenarioLoaderTest {
     @Test
     public void trainingScenario_parsesFromJson() throws Exception {
         File f = new File("../data/scenarios/training.json");
-        assumeTrue("training.json must exist for this test", f.exists());
+        assertTrue("data/scenarios/training.json: a file this test READS is missing. It is tracked in git, so this is not a checkout that lacks it — it has been deleted or moved, and the test cannot run. Failing rather than skipping, because a skip would take the coverage with it and leave the suite green", f.exists());
         ScenarioSpec spec = ScenarioSpec.fromJson(f);
         assertEquals("TRAINING", spec.id);
         assertEquals(175, spec.year);
@@ -143,9 +143,10 @@ public class ScenarioLoaderTest {
     @Test
     public void loadTrainingScenario_shipsPopulated() throws Exception {
         File scenarioFile = new File("../data/scenarios/training.json");
-        assumeTrue("training.json must exist", scenarioFile.exists());
+        assertTrue("data/scenarios/training.json: a file this test READS is missing. It is tracked in git, so this is not a checkout that lacks it — it has been deleted or moved, and the test cannot run. Failing rather than skipping, because a skip would take the coverage with it and leave the suite green", scenarioFile.exists());
         ShipLibrary.loadAllSpecs("../data/factions");
-        assumeTrue("ShipLibrary must load specs", ShipLibrary.isLoaded());
+        assertTrue("the ship library did not load, so this test would prove nothing",
+                ShipLibrary.isLoaded());
 
         ScenarioSpec spec = ScenarioSpec.fromJson(scenarioFile);
         List<List<Ship>> sideShips = ScenarioLoader.loadShips(spec);
@@ -398,8 +399,15 @@ public class ScenarioLoaderTest {
     }
 
     /**
-     * Skip test gracefully if a precondition isn't met (avoids CI failures for
-     * missing files).
+     * Skip a test whose precondition is not met.
+     *
+     * <p><b>Not for a missing FILE.</b> It used to be — the javadoc here said "avoids CI
+     * failures for missing files" — but every scenario this suite reads is tracked in git, so
+     * absence means deletion rather than a thin checkout, and skipping took four tests' worth
+     * of coverage with it while the suite stayed green. Those checks now assert.
+     *
+     * <p>What is left is genuinely conditional on a FIXTURE's shape rather than on the data
+     * tree existing, and each remaining caller is a candidate for the same treatment.
      */
     private static void assumeTrue(String msg, boolean condition) {
         org.junit.Assume.assumeTrue(msg, condition);
@@ -413,9 +421,10 @@ public class ScenarioLoaderTest {
     @Test
     public void loadScoutTestScenario_bothScoutsAndConsortsPresent() throws Exception {
         File scenarioFile = new File("../data/scenarios/scout_test.json");
-        assumeTrue("scout_test.json must exist", scenarioFile.exists());
+        assertTrue("data/scenarios/scout_test.json: a file this test READS is missing. It is tracked in git, so this is not a checkout that lacks it — it has been deleted or moved, and the test cannot run. Failing rather than skipping, because a skip would take the coverage with it and leave the suite green", scenarioFile.exists());
         ShipLibrary.loadAllSpecs("../data/factions");
-        assumeTrue("ShipLibrary must load specs", ShipLibrary.isLoaded());
+        assertTrue("the ship library did not load, so this test would prove nothing",
+                ShipLibrary.isLoaded());
 
         ScenarioSpec spec = ScenarioSpec.fromJson(scenarioFile);
         List<List<Ship>> sideShips = ScenarioLoader.loadShips(spec);
