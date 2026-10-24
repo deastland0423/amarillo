@@ -5,6 +5,7 @@
   "line": "FF",
   "name": "RIS Firefly",
   "series": "KESTREL",
+  "tokenArt": "romulan/k4r.png",
   "serviceYear": 168,
   "bpv": 60,
   "turnMode": "A",

@@ -5,6 +5,7 @@
   "line": "FF",
   "name": "RIS Locust",
   "series": "KESTREL",
+  "tokenArt": "romulan/k4d.png",
   "serviceYear": 172,
   "bpv": 64,
   "turnMode": "A",

@@ -5,6 +5,7 @@
   "line": "DD",
   "name": "RIS Questor",
   "series": "KESTREL",
+  "tokenArt": "romulan/k5s.png",
   "serviceYear": 164,
   "bpv": 60,
   "epv": 85,

@@ -5,6 +5,7 @@
   "line": "DD",
   "name": "RIS Nemesis",
   "series": "KESTREL",
+  "tokenArt": "romulan/k5d.png",
   "serviceYear": 175,
   "bpv": 88,
   "turnMode": "A",

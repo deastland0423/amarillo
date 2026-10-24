@@ -16,7 +16,7 @@
   "commandRating": 8,
   "droneStorageSpaces": 150,
   "requiresEscort": true,
-  "tokenArt": "romulan/kr.png",
+  "tokenArt": "romulan/k7v.png",
 
   "shields": [30, 22, 22, 22, 22, 22],
   "hullBoxes": {
