@@ -16,6 +16,7 @@
   "nimble": true,
   "stealthBonus": 2,
 
+  "tokenArt": "orion/slv.png",
   "shields": [20, 14, 14, 14, 14, 14],
 
   "hullBoxes": { "chull": 8, "cargo": 22 },

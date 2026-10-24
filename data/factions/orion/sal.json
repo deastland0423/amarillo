@@ -15,6 +15,7 @@
   "bonusHets": 2,
   "stealthBonus": 2,
 
+  "tokenArt": "orion/sal.png",
   "shields": [24, 20, 16, 12, 16, 20],
 
   "hullBoxes": { "chull": 8, "cargo": 8 },
