@@ -298,6 +298,12 @@ public class BalconyPositionTest {
                 "ISC CV",           // R13.7: FOUR positions, not the cruisers' two
                 "ISC CVS",          // R13.8: the CV with PPDs, so the CV's four
                 "ISC CC",           // R13.5: likewise, on the flagship cruiser
+                // R13.3, Captain's Module J SSD p.2. The only ISC hull with TWO bays, and the
+                // sheet grants the balcony to each of them in as many words: "EACH BAY HAS FOUR
+                // BALCONY (J1.53) POSITIONS." Eight in all, which is the most of any hull here.
+                // It also says "SHIP HAS TWO BAYS, NO TRANSFERS" — J1.59, which the engine does
+                // not model yet; see the hull's own note.
+                "ISC CVA",
                 // Four on the dreadnought's single bay, where the ISC cruisers get two. No rule
                 // number here deliberately: the Module C2 sheets are scans with no text layer,
                 // and the R13.x reference was not read off this one. Add it when someone has.

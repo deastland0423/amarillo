@@ -56,6 +56,11 @@ public class TokenArtClaimedTest {
     private static final Map<String, String> AWAITING_A_HULL = new LinkedHashMap<>();
     static {
         AWAITING_A_HULL.put("klingon/d6m.png", "D6M mauler");
+        // R13.19 ISC Minesweeper, Captain's Module C2 SSD p.45 (PDF p.46). Identified from the
+        // book's own contents page rather than guessed: the ISC list there runs R13.2 through
+        // R13.22 plus the two Q-ships, and .19 is the only minesweeper in it. Unblocked — it
+        // needs no tug or pod work, only the sheet reading.
+        AWAITING_A_HULL.put("isc/ms.png", "MS minesweeper");
     }
 
     private static final File SHIP_DIR  = new File("../data/factions");
