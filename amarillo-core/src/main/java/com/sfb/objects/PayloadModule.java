@@ -36,23 +36,23 @@ package com.sfb.objects;
 public enum PayloadModule {
 
     /** FD10.41: half a payload space, explosion strength six. */
-    EXPLOSIVE_HALF(0.5, 6, 0),
+    EXPLOSIVE_HALF(0.5, 6, 0, 0.25),
 
     /** FD10.41: one payload space, strength twelve. The usual meaning of "explosive module". */
-    EXPLOSIVE_1(1.0, 12, 0),
+    EXPLOSIVE_1(1.0, 12, 0, 0.50),
 
     /**
      * FD10.41's two-space explosive. "There is no difference between two 1/2-space and one
      * 1.0-space module", so this and a pair of {@link #EXPLOSIVE_1}s are the same drone — both
      * are offered because the chart offers both and a loadout may be recorded either way.
      */
-    EXPLOSIVE_2(2.0, 24, 0),
+    EXPLOSIVE_2(2.0, 24, 0, 1.00),
 
     /** FD12.11/FD12.21: the smaller internal armor module. No warhead, four more hull... */
-    ARMOR_HALF(0.5, 0, 2),
+    ARMOR_HALF(0.5, 0, 2, 0.25),
 
     /** ...and the larger, at one payload space. FD12.21: "adds four damage points". */
-    ARMOR_1(1.0, 0, 4),
+    ARMOR_1(1.0, 0, 4, 0.50),
 
     /**
      * The type-VI's fixed warhead, which is not a module a player can choose and is here so that
@@ -68,7 +68,7 @@ public enum PayloadModule {
      * <p>So this constant is a nominal, not a strength. The rule lives in {@code Drone}, where it
      * already worked before this model existed and was deliberately left alone.
      */
-    DOGFIGHT_WARHEAD(0.5, 8, 0);
+    DOGFIGHT_WARHEAD(0.5, 8, 0, 0.25);
 
     /** Payload spaces consumed (FD10.4), and the chart column this module is priced in. */
     public final double spaces;
@@ -79,9 +79,24 @@ public enum PayloadModule {
     /** Damage points added to the drone's own hull (FD12.21). Zero for everything but armor. */
     public final int hullBonus;
 
-    PayloadModule(double spaces, int strength, int hullBonus) {
+    /**
+     * Points, from FD10.51's chart at THIS module's size.
+     *
+     * <p>The chart is why FD10.441 and FD12.31 can say an explosive may be swapped for an ECM
+     * or an armor module "without cost": at a given size the two prices are simply equal, so
+     * those clauses are consequences rather than exceptions.
+     *
+     * <p>The dogfight warhead has no row of its own and is NOT priced as a half-space
+     * explosive, which it is not. FD2.11 prices the whole type-VI at 0.5 and FD10.52 puts its
+     * half-space speed-12 engine at 0.25, so 0.25 is what is left. The two numbers coincide;
+     * the reasoning does not.
+     */
+    public final double cost;
+
+    PayloadModule(double spaces, int strength, int hullBonus, double cost) {
         this.spaces = spaces;
         this.strength = strength;
         this.hullBonus = hullBonus;
+        this.cost = cost;
     }
 }

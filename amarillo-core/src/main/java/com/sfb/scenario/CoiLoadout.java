@@ -175,8 +175,71 @@ public class CoiLoadout {
              + convertBpToCommando  * COST_CONVERT_TO_COMMANDO
              + extraCommandoSquads  * COST_EXTRA_COMMANDO
              + extraTBombs          * COST_TBOMB
-             + extraDeckCrews       * COST_EXTRA_DECK_CREW;
+             + extraDeckCrews       * COST_EXTRA_DECK_CREW
+             + droneUpgradeCost();
     }
+
+    /**
+     * FD2.22: what the improved drones in this loadout cost over the ones the ship already had.
+     *
+     * <blockquote>"Many optional improvements are available, each of which costs points that
+     * must be paid through (S3.2). All costs are based on additions to the basic cost of a
+     * type-I-slow drone. <b>The BPV of all ships includes type-I-slow drones; the surcharges for
+     * improvements below must be paid in all cases</b> (except X-ships)."</blockquote>
+     *
+     * <p>So a rack arrives full of type-I-slow drones that are already paid for (FD2.31), and a
+     * player who loads something better pays the difference. Each drone's absolute price comes
+     * from FD10.5's charts via {@code DroneSpec.pointCost}; the baseline is what type-I-slows
+     * filling the same SPACES would have cost, which is one point each at one space each.
+     *
+     * <p>Measuring the baseline in spaces rather than in drones is what makes FD2.11's trades
+     * come out right: "two type-Is with one type-IV is 0.00" and "one type-I with two type-VIs
+     * is 0.00" are both free precisely because the spaces match.
+     *
+     * <h2>Paid once per rack, not once per drone aboard</h2>
+     * <blockquote>FD2.45: "The cost of improved drones (FD2.22) is paid only for a single
+     * loading of each launch rack and/or fighter; the reloads (and drones stored on a carrier
+     * for use by its fighters) are presumed to be of the same type without additional
+     * cost."</blockquote>
+     *
+     * <p>Which is what this does by construction — it prices the rack's contents and knows
+     * nothing about reload storage. A Federation CA+ upgraded to medium drones costs 2 points,
+     * not 4.
+     *
+     * <h2>Two exceptions NOT implemented, and why that is survivable</h2>
+     * FD2.45 names type-H and type-D racks as exceptions. The H-rack's is specific: FD3.84 has a
+     * starbase pay "for two magazines per launcher" with the rest free and the type-VI magazine
+     * never charged for speed. Neither is modelled, and the reason it does not bite yet is that
+     * nothing charges for reloads at all — this prices what is in the rack, which is the right
+     * answer for every other type. A starbase COI that fills a twenty-space H-rack would be
+     * overcharged, and that is the case to fix first if H-racks ever reach the builder.
+     *
+     * <h2>No refunds</h2>
+     * A loadout cheaper than the baseline — null drones (FD10.48) cost 0.75 where a type-I-slow
+     * costs 1.00 — contributes zero rather than a credit. FD2.22 calls these "surcharges" and
+     * nothing in the rules offers points back for arming a ship worse than it came.
+     */
+    public double droneUpgradeCost() {
+        double total = 0;
+        for (List<DroneType> rack : droneRackLoadouts.values()) {
+            if (rack == null || rack.isEmpty())
+                continue;
+            double loaded = 0;
+            double spaces = 0;
+            for (DroneType d : rack) {
+                loaded += d.spec.pointCost();
+                spaces += d.rack;
+            }
+            total += Math.max(0, loaded - spaces * TYPE_I_SLOW_COST_PER_SPACE);
+        }
+        return total;
+    }
+
+    /**
+     * What the drones a ship already owns are worth, per rack space: a type-I-slow costs one
+     * point (FD2.11) and occupies one space (FD2.1), so the two are the same number.
+     */
+    public static final double TYPE_I_SLOW_COST_PER_SPACE = 1.0;
 
     /**
      * Returns the BPV budget for a given ship BPV and budget percentage.

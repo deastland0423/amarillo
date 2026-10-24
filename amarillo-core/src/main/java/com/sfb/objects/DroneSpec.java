@@ -1,6 +1,7 @@
 package com.sfb.objects;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * A drone as FD10.2 describes one: a frame, a propulsion section and a payload.
@@ -33,12 +34,20 @@ import java.util.List;
  * FD10.42-FD10.48's probe, ECM, armor and null modules are each their own work. This class is
  * the shape they will hang off, and carries none of them.
  */
-public record DroneSpec(DroneFrame frame, Propulsion propulsion, List<PayloadModule> payload) {
+public record DroneSpec(DroneFrame frame, Propulsion propulsion,
+                       List<PayloadModule> payload, Set<FrameAddition> additions) {
 
     public DroneSpec {
         if (frame == null || propulsion == null)
             throw new IllegalArgumentException("a drone needs a frame and a propulsion section");
         payload = payload == null ? List.of() : List.copyOf(payload);
+        additions = additions == null ? Set.of() : Set.copyOf(additions);
+
+        // FD10.52 prints a dash rather than a price where an engine is not made for a
+        // frame: there is no speed-8 dogfight drone (FD2.227).
+        if (!propulsion.fits(frame))
+            throw new IllegalArgumentException(
+                    propulsion + " is not made for a " + frame + " drone (FD10.52)");
 
         // FD10.21: the half-space frame "cannot be modified"; FD2.51 says the same of the
         // type-VI. Offering it a payload is a mistake in the code rather than an illegal
@@ -58,12 +67,18 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion, List<PayloadMod
 
     /** A drone built on a frame that chooses its own payload. */
     public static DroneSpec of(DroneFrame frame, Propulsion propulsion, PayloadModule... modules) {
-        return new DroneSpec(frame, propulsion, List.of(modules));
+        return new DroneSpec(frame, propulsion, List.of(modules), Set.of());
+    }
+
+    /** The same, with something bolted to the frame (FD10.53). */
+    public static DroneSpec of(DroneFrame frame, Propulsion propulsion,
+            Set<FrameAddition> additions, PayloadModule... modules) {
+        return new DroneSpec(frame, propulsion, List.of(modules), additions);
     }
 
     /** A drone on a frame that carries what it carries — the type-VI (FD10.21). */
     public static DroneSpec fixed(DroneFrame frame, Propulsion propulsion) {
-        return new DroneSpec(frame, propulsion, List.of());
+        return new DroneSpec(frame, propulsion, List.of(), Set.of());
     }
 
     /** Everything aboard: the chosen modules, or the frame's own on a non-modular frame. */
@@ -115,5 +130,35 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion, List<PayloadMod
     /** Hexes per turn (FD2.1). */
     public int speed() {
         return propulsion.speed;
+    }
+
+    /**
+     * What this drone costs to buy outright, from FD10.5's three charts: the propulsion section
+     * at this frame's size (FD10.52), every payload module at its own size (FD10.51), and
+     * whatever is bolted to the frame (FD10.53). The frame itself is free (FD10.22).
+     *
+     * <h2>This is the OPEN-MARKET price, not the Commander's Option charge</h2>
+     * <blockquote>FD10.54: "There is a chance for confusion between these costs and those shown
+     * in (FD2.1). The costs here are for an extra drone ('bought on the open market' so to
+     * speak), while the costs in (FD2.1) are the costs of TRADING IN type-I-slow drones for the
+     * improved drones."</blockquote>
+     *
+     * <p>A ship's BPV already includes type-I-slow drones (FD2.22), so what a player pays at
+     * the COI is the DIFFERENCE between this and the baseline those drones would have cost.
+     * {@code CoiLoadout} does that subtraction; this only knows the absolute figure.
+     *
+     * <p>FD2.11's own table of extra-drone costs is the oracle: type-I 1.0, type-II 1.5,
+     * type-III 2.0, type-IV 2.0, type-V 2.5, type-VI 0.5. All six fall out of these charts, and
+     * so do its six replacement costs — including the one that looks wrong, where trading a
+     * type-I for a type-III costs 0.5 rather than 1.0 because that price buys the speed-8
+     * type-III FD10.54 calls a Basic Set erratum.
+     */
+    public double pointCost() {
+        double total = propulsion.costOn(frame);
+        for (PayloadModule m : allModules())
+            total += m.cost;
+        for (FrameAddition a : additions)
+            total += a.cost;
+        return total;
     }
 }

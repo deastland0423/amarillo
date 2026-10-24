@@ -121,8 +121,16 @@ public enum DroneType {
   DroneType(DroneFrame frame, Propulsion propulsion, int endur,
       boolean selfGuiding, boolean warpSeeker, int availableFromYear, Family family,
       PayloadModule... payload) {
+    // FD10.22: "the frame is effectively free. Exception: type-III, which costs 1/2 point for
+    // standard 25-turn range and special guidance" — FD10.53's Type-III Frame Surcharge. Read
+    // off the FAMILY rather than passed in, because the surcharge IS that guidance: the
+    // SELF_GUIDING family is the three type-IIIs and nothing else, and a drone that acquired
+    // the one without the other would be a contradiction rather than a configuration.
+    java.util.Set<FrameAddition> additions = family == Family.SELF_GUIDING
+        ? java.util.Set.of(FrameAddition.TYPE_III_GUIDANCE)
+        : java.util.Set.of();
     this.spec = frame.modular
-        ? DroneSpec.of(frame, propulsion, payload)
+        ? DroneSpec.of(frame, propulsion, additions, payload)
         : DroneSpec.fixed(frame, propulsion);
     this.family = family;
     this.endurance = endur;
