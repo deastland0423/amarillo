@@ -386,6 +386,81 @@ public class IscStarCruiserTest {
                 126, ship.getEconomicBpv());
     }
 
+    // ---- R13.34: the Plasma-G Destroyer, and the letter the rear torpedoes start at ----
+
+    /**
+     * R13.34, the DDG — the DD's hull with ONE plasma-G forward where the destroyer carries TWO
+     * plasma-F. That single trade is the whole ship: shields, hull, power, crew, probes and
+     * every damage track match the DD box for box.
+     *
+     * <p>Worth pinning because the DDL also carries plasma-G and does NOT make this trade. The
+     * leader keeps a PAIR of them and pays elsewhere — a centre APR pair, 30/24 shields, four
+     * more crew and no probe launcher at all. Copying either sibling's launcher block onto this
+     * hull gives it one torpedo too many, and nothing else in the suite would notice.
+     */
+    @Test
+    public void thePlasmaGDestroyerTradesTwoForwardLaunchersForOne() {
+        Ship ddg = ShipLibrary.createShip(ShipLibrary.get("ISC", "DDG"));
+
+        assertEquals("one forward launcher, not the DD's or the DDL's two",
+                1, count(ddg, PlasmaLauncher.class));
+        PlasmaLauncher forward = (PlasmaLauncher) byDesignator(ddg, "A");
+        assertEquals(com.sfb.properties.PlasmaType.G, forward.getLauncherType());
+        assertEquals("FP", forward.getArcLabel());
+        assertFalse("and it is not rear-firing", forward.isIscRearFiring());
+
+        ShipSpec dd = ShipLibrary.get("ISC", "DD");
+        ShipSpec ddg2 = ShipLibrary.get("ISC", "DDG");
+        assertEquals("the same chassis underneath", dd.hullBoxes.chull, ddg2.hullBoxes.chull);
+        assertEquals("the same APR, where the leader has twice", dd.power.apr, ddg2.power.apr);
+        assertEquals("the same crew", dd.crewData.totalCrew, ddg2.crewData.totalCrew);
+        assertEquals("and the probe the leader goes without",
+                1, ddg2.auxiliary.probes);
+    }
+
+    /**
+     * The rear-firing pair are B and C here, not the DD's and DDL's C and D. The letters are
+     * not decoration: the sheet says "WITHOUT THE PL-F REFIT, DELETE PL-Fs 'B' AND 'C'", and
+     * they shift down one because the forward armament is a single launcher rather than a pair.
+     *
+     * <p>This is exactly the kind of detail a copied refit block gets wrong, and a wrong
+     * designator is invisible until someone reads a fire order against the sheet.
+     */
+    @Test
+    public void thePlasmaGDestroyersRearTorpedoesStartAtB() {
+        Ship ddg = ShipLibrary.createShip(
+                RefitResolver.apply(ShipLibrary.get("ISC", "DDG"), List.of("F")));
+
+        assertEquals("one plasma-G forward and two plasma-F astern",
+                3, count(ddg, PlasmaLauncher.class));
+        for (String rear : new String[] { "B", "C" })
+            assertTrue(rear + " is rear-firing (R13.1C)",
+                    ((PlasmaLauncher) byDesignator(ddg, rear)).isIscRearFiring());
+
+        assertEquals("L + LR", byDesignator(ddg, "B").getArcLabel());
+        assertEquals("R + RR", byDesignator(ddg, "C").getArcLabel());
+
+        assertTrue("there is no D on this hull",
+                ddg.getWeapons().fetchAllWeapons().stream()
+                        .noneMatch(w -> "D".equals(w.getDesignator())));
+    }
+
+    /**
+     * And it prices out to the sheet. POINT VALUE = 94 is a SINGLE number here, not the split
+     * the CVE, SC, SR and HSC print, so there is no economic value to record — and recording
+     * one would make the ship dearer than the sheet for no reason.
+     */
+    @Test
+    public void thePlasmaGDestroyerPricesOutToTheSheet() {
+        ShipSpec base = ShipLibrary.get("ISC", "DDG");
+
+        assertEquals("the Y177 hull, 94 less the 4 for going without PL-F", 90, base.bpv);
+        assertEquals(177, base.serviceYear);
+        assertEquals("the ship the sheet draws", 94,
+                RefitResolver.apply(base, List.of("F")).bpv);
+        assertEquals("a single point value leaves no epv to carry", 0, base.epv);
+    }
+
     // ---- R13.29 / R13.29A: the escort frigates, and where their aegis comes from ----
 
     /**
