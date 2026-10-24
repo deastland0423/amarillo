@@ -3,6 +3,7 @@ package com.sfb.objects;
 import static org.junit.Assert.*;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -340,6 +341,82 @@ public class IscStarCruiserTest {
         assertEquals("the Y168 hull", 106, base.bpv);
         assertEquals("the ship the sheet draws", 110,
                 RefitResolver.apply(base, List.of("F")).bpv);
+    }
+
+    // ---- The refits do not rename the ship, and what that costs to say ----
+
+    /**
+     * A VARIANT MAY DECLARE ITS BASE'S OWN TYPE CODE, meaning history did not rename the hull.
+     *
+     * <p>The ISC refit this cruiser four times between Y165 and Y179 and it is a CA throughout —
+     * the C2 sheet prints one ship at 185 points with four "WITHOUT ... REFIT" deductions and no
+     * new designation anywhere. The Federation is the contrast, and it is in the data: that hull
+     * names {@code CA+} and {@code CAR+} as separate ships, a + without the R, so its refits
+     * really are independent purchases with their own names. Both shapes have to be expressible.
+     *
+     * <p>Before this, a combination nobody renamed could only be called by the derived fallback,
+     * and the shelf showed a fully refitted Star Cruiser as {@code CA3PSF}.
+     */
+    @Test
+    public void theRefitsDoNotRenameTheStarCruiser() {
+        ShipSpec base = ShipLibrary.get("ISC", "CA");
+
+        for (String[] era : new String[][] {
+                { "3",       "165", "Star Cruiser (Y165)" },
+                { "3,P",     "168", "Star Cruiser (Y168)" },
+                { "3,P,S",   "170", "Star Cruiser (Y170)" },
+                { "3,P,S,F", "179", "Star Cruiser (Y179)" }}) {
+            List<String> codes = List.of(era[0].split(","));
+            ShipSpec built = RefitResolver.apply(base, codes);
+
+            assertEquals(era[0] + " must still be a CA", "CA", built.type);
+            assertEquals(era[0] + " typeName", era[2], built.typeName);
+            assertEquals(era[0] + " service year",
+                    Integer.parseInt(era[1]), built.serviceYear);
+            assertEquals("and it still knows the hull it came from", "CA", built.refitOf);
+            assertEquals("and which refits made it",
+                    codes.size(), built.appliedRefits.size());
+        }
+    }
+
+    /**
+     * And the base hull SURVIVES being named by its own variants.
+     *
+     * <p>This is the assertion the guard exists for. {@code registerVariants} writes every named
+     * variant into the registry under {@code faction + type}; a variant answering to "CA" would
+     * overwrite the Y160 hull under its own key, and every ISC CA in the game would silently
+     * become the fully refitted one — at 185 points, with a PPD, in a Y160 battle.
+     *
+     * <p>{@code ShipLibraryIntegrityTest} would catch the collision, but it reports a duplicate
+     * key rather than saying which ship was lost. This says it.
+     */
+    @Test
+    public void namingTheVariantsCaDoesNotReplaceTheHullItRefits() {
+        ShipSpec registered = ShipLibrary.get("ISC", "CA");
+
+        assertEquals("the registry must still hold the Y160 original", 142, registered.bpv);
+        assertEquals(160, registered.serviceYear);
+        assertNull("which is a base hull, not a refit of anything", registered.refitOf);
+        assertEquals("no phaser-3s before the Y165 refit",
+                0, count(ShipLibrary.createShip(registered), com.sfb.weapons.Phaser3.class));
+
+        assertEquals("and no same-code variant reached the registry",
+                Map.of(), ShipLibrary.duplicateKeys());
+    }
+
+    /** The five eras price out to the sheet's own deductions: 185 less 6, 15, 10 and 12. */
+    @Test
+    public void everyEraPricesOutToTheSheet() {
+        ShipSpec base = ShipLibrary.get("ISC", "CA");
+
+        assertEquals("Y160, the bare hull", 142, base.bpv);
+        assertEquals("Y165, with PH-3", 148, RefitResolver.apply(base, List.of("3")).bpv);
+        assertEquals("Y168, with the PPD", 163,
+                RefitResolver.apply(base, List.of("3", "P")).bpv);
+        assertEquals("Y170, with plasma-S", 173,
+                RefitResolver.apply(base, List.of("3", "P", "S")).bpv);
+        assertEquals("Y179, the ship the sheet draws", 185,
+                RefitResolver.apply(base, List.of("3", "P", "S", "F")).bpv);
     }
 
     // ---- R13.18: the Scout, and why its economic value is the one that counts ----

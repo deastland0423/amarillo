@@ -74,6 +74,39 @@
     { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "G", "arcs": ["RP"] }
   ],
 
+  "variants": [
+    {
+      "refits": ["3"],
+      "type": "CA",
+      "typeName": "Star Cruiser (Y165)",
+      "name": "CSS Equitable",
+      "serviceYear": 165,
+      "_note": "A VARIANT MAY SHARE ITS BASE'S CODE, meaning history did not rename the ship. The ISC refit this hull four times and it is a CA throughout: the C2 sheet prints one ship at 185 with four WITHOUT-REFIT deductions, and no new designation anywhere. ShipLibrary.registerVariants skips a same-code variant rather than registering it — the combination is reached as base + codes through the on-demand path, and a registry write here would overwrite the base hull under its own key. What these entries buy is the NAME: without them the shelf reads CA3PSF, the derived fallback. typeName and name are a STARTING POINT for the owner to edit; the type code is the part that matters."
+    },
+    {
+      "refits": ["3", "P"],
+      "type": "CA",
+      "typeName": "Star Cruiser (Y168)",
+      "name": "CSS Mediator",
+      "serviceYear": 168
+    },
+    {
+      "refits": ["3", "P", "S"],
+      "type": "CA",
+      "typeName": "Star Cruiser (Y170)",
+      "name": "CSS Impartial",
+      "serviceYear": 170
+    },
+    {
+      "refits": ["3", "P", "S", "F"],
+      "type": "CA",
+      "typeName": "Star Cruiser (Y179)",
+      "name": "CSS Tribunal",
+      "serviceYear": 179,
+      "_note": "The ship the sheet DRAWS, at its printed 185 points. Only the historical progression is named — the refits stay independent switches (the owner's point, 2026-10-23: a ship could still be waiting its turn in the shipyard, so a CA3 and a CA3P could serve in one fleet), so the other eleven combinations keep deriving their own codes as before."
+    }
+  ],
+
   "refits": [
     {
       "code": "3",

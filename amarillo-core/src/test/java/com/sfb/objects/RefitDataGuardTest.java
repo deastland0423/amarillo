@@ -219,6 +219,22 @@ public class RefitDataGuardTest {
                         asked.add(codes.get(i));
                 List<String> legal = RefitResolver.withRequirements(hull, asked);
                 String type = RefitResolver.apply(hull, asked).type;
+                // A combination that keeps the BASE's own code is deliberately not an identity.
+                //
+                // Most refits do not rename a ship: the ISC refit their Star Cruiser four times
+                // and it is a CA in every era, so all four combinations declare "CA". That is the
+                // opposite of the Lyran CWB problem this guard was built for. There, two ships
+                // competed for one REGISTRY KEY and the loser ceased to exist; here nothing
+                // competes, because `ShipLibrary.registerVariants` skips a same-code variant
+                // rather than writing it — the combination is only ever reached as base + codes,
+                // and `ShipLibraryIntegrityTest` still proves the registry holds the base hull.
+                //
+                // Note a derived code can never land here: `canonicalCode` appends the refit
+                // letters, so a non-empty set never reduces to the bare base type. Only a hull
+                // that DECLARED a same-code variant reaches this line, which makes it a
+                // deliberate statement in the data rather than an accident to be caught.
+                if (type != null && type.equalsIgnoreCase(hull.type))
+                    continue;
                 byCode.computeIfAbsent(type, k -> new LinkedHashSet<>())
                         .add(String.join("+", legal));
                 checked++;

@@ -101,6 +101,24 @@ public class ShipLibrary {
             if (v.type == null || v.type.isBlank())
                 continue;
             ShipSpec built = RefitResolver.apply(base, v.refits);
+            /*
+             * A VARIANT MAY DECLARE THE BASE'S OWN CODE, meaning history did not rename the ship.
+             *
+             * Most refits do not rename anything. The ISC refit their Star Cruiser four times
+             * between Y165 and Y179 and it is a CA throughout — the C2 sheet prints one ship and
+             * four "WITHOUT ... REFIT" deductions, and no new designation anywhere. Without this,
+             * such a hull could only be named by the derived fallback, and a player browsing the
+             * shelf for a fully refitted Star Cruiser read "CA3PSF".
+             *
+             * There is nothing to register: the combination is already reached as base + codes,
+             * through the same on-demand path that serves every combination nobody named (16 of
+             * the 17 Orion hulls). Writing it here would instead overwrite the base hull under
+             * its own key and delete the ship — which is what `duplicates` is watching for, so
+             * the collision would have surfaced as a build failure rather than a silent loss.
+             * The NAME still arrives: RefitResolver.apply reads the variant list itself.
+             */
+            if (built.type != null && built.type.equalsIgnoreCase(base.type))
+                continue;
             String key = key(base.faction, built.type);
             String prior = sourceFile.put(key, fileName + " (refit " + String.join("+", v.refits) + ")");
             if (prior != null) {
