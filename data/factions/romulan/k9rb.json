@@ -31,7 +31,7 @@
   "breakdown": 3,
   "bonusHets": 1,
   "commandRating": 10,
-  "tokenArt": "romulan/c9.png",
+  "tokenArt": "romulan/k9rb.png",
   "shields": [44, 36, 36, 36, 36, 36],
   "hullBoxes": {
     "fhull": 12,

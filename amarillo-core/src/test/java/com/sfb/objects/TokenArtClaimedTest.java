@@ -61,6 +61,33 @@ public class TokenArtClaimedTest {
         // R13.22 plus the two Q-ships, and .19 is the only minesweeper in it. Unblocked — it
         // needs no tug or pod work, only the sheet reading.
         AWAITING_A_HULL.put("isc/ms.png", "MS minesweeper");
+
+        // Romulan hulls drawn 2026-10-24 ahead of their sheets. The owner identified every one
+        // of these; none was guessed from the filename, because the stems are ambiguous in both
+        // directions here — SNS is not the SNP, and KHK is not the KR.
+        //
+        // Module R4, read off that book's own contents page:
+        AWAITING_A_HULL.put("romulan/phx.png", "R4.49 PHX Phoenix space control ship");
+        AWAITING_A_HULL.put("romulan/th.png",  "R4.50 TH ThunderHawk battle control ship");
+        AWAITING_A_HULL.put("romulan/spj.png", "R4.51 SPJ assault cruiser");
+        AWAITING_A_HULL.put("romulan/spr.png", "R4.52 SPR repair cruiser");
+        AWAITING_A_HULL.put("romulan/fhf.png", "R4.75 FHF FlameHawk mauler cruiser");
+
+        // Advanced Missions, per the owner 2026-10-24:
+        AWAITING_A_HULL.put("romulan/khk.png", "KHK KillerHawk-K");
+        AWAITING_A_HULL.put("romulan/skd.png", "SKD SkyHawk-D minesweeper");
+        AWAITING_A_HULL.put("romulan/skh.png", "SKH SkyHawk-H cargo transport");
+        AWAITING_A_HULL.put("romulan/sns.png", "SNS Snipe-S+ improved sublight frigate");
+        AWAITING_A_HULL.put("romulan/spd.png", "SPD SparrowHawk-D minesweeper");
+        AWAITING_A_HULL.put("romulan/spf.png", "SPF SparrowHawk-F mauler");
+        AWAITING_A_HULL.put("romulan/sph.png", "SPH SparrowHawk-H cargo transport");
+
+        // The one that is not waiting on a sheet but on a DECISION. The Klingons sold the C9 to
+        // the Romulans only after its B refit was done, so the Romulan hull in the game is the
+        // K9RB and there is no K9R — the owner's words, 2026-10-24. This picture exists in case
+        // a pre-B-refit Romulan version is ever wanted, and if that decision goes the other way
+        // the right move is to delete the file, which this list will then demand.
+        AWAITING_A_HULL.put("romulan/k9r.png", "K9R, a pre-B-refit Romulan C9 that may never exist");
     }
 
     private static final File SHIP_DIR  = new File("../data/factions");
@@ -128,6 +155,51 @@ public class TokenArtClaimedTest {
         assertTrue("token art exists that no ship file names, so nothing will ever draw it."
                 + " Add \"tokenArt\" to the hull it belongs to, or delete the picture:\n  "
                 + String.join("\n  ", orphans), orphans.isEmpty());
+    }
+
+    /**
+     * MS-DOS device names are still reserved on Windows, and a tokenArt path that uses one names
+     * a file that cannot exist there.
+     *
+     * <h2>How this was found, which is the best argument for keeping it</h2>
+     * The Romulan Condor's type code is CON. Its picture was called {@code romulan/con.png} and
+     * had never been drawn — the owner went to draw it on 2026-10-24 and the operating system
+     * refused to create the file. CON, PRN, AUX, NUL, COM1-9 and LPT1-9 are reserved with ANY
+     * extension, so {@code con.png} is not a filename on Windows; it is the console.
+     *
+     * <p>This is not cosmetic and it is not only about the person drawing. A contributor on Linux
+     * CAN create {@code con.png} and commit it, and then {@code git checkout} fails on Windows —
+     * the repository stops being usable by its owner. The same reason {@code condor.json} is the
+     * hull's filename and is exempted in {@code ShipFileNamingTest}: {@code con.json} cannot exist
+     * either. That exemption reads as a naming preference; it is actually a hard constraint.
+     *
+     * <p>It bites tools too. A script here opened {@code data/factions/romulan/con.json} to make
+     * the fix and hung: Python had opened the console device and was waiting on the keyboard.
+     *
+     * <p>Checked over the basename only, because a DIRECTORY may legally be called {@code aux}
+     * on neither — but no faction is named for a device, and widening this to path segments
+     * would be guessing at a problem nobody has.
+     */
+    @Test
+    public void noTokenArtNamesAWindowsReservedDevice() {
+        Set<String> reserved = new HashSet<>(List.of(
+                "con", "prn", "aux", "nul",
+                "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
+                "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"));
+
+        List<String> bad = new ArrayList<>();
+        for (String art : claimed) {
+            String base = art.substring(art.lastIndexOf('/') + 1);
+            int dot = base.lastIndexOf('.');
+            String stem = (dot < 0 ? base : base.substring(0, dot)).toLowerCase();
+            if (reserved.contains(stem))
+                bad.add(art + " — '" + stem + "' is a reserved device name; this file cannot be"
+                        + " created on Windows, and a checkout that contains it fails there");
+        }
+
+        String indent = System.lineSeparator() + "  ";
+        assertTrue("tokenArt naming a Windows device:" + indent + String.join(indent, bad),
+                bad.isEmpty());
     }
 
     /**

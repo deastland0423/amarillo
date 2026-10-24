@@ -13,7 +13,7 @@
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 8,
-  "tokenArt": "romulan/fh.png",
+  "tokenArt": "romulan/fha.png",
 
   "shields": [34, 28, 24, 24, 24, 28],
   "hullBoxes": {

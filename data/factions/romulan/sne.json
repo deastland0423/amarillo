@@ -17,7 +17,7 @@
   "isEscort": true,
   "carrierClass": "CASUAL",
   "aegis": "LIMITED",
-  "tokenArt": "romulan/sn.png",
+  "tokenArt": "romulan/sne.png",
   "shields": [20, 20, 20, 20, 20, 20],
   "hullBoxes": {
     "chull": 3,

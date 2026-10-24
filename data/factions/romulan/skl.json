@@ -14,7 +14,7 @@
   "bonusHets": 1,
   "isLeader": true,
   "commandRating": 5,
-  "tokenArt": "romulan/ska.png",
+  "tokenArt": "romulan/skl.png",
 
   "shields": [24, 24, 20, 20, 20, 24],
   "hullBoxes": {
