@@ -62,33 +62,33 @@
   },
 
   "shuttles": [
-    { "type": "af", "name": "Attrition Fighter", "kind": "fighter", "factions": ["isc"], "year": 170, "speed": 12, "hull": 8, "crippled": 6, "bpv": 8, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "AF", "designation": "AF",
+    { "type": "af", "name": "Attrition Fighter", "kind": "fighter", "factions": ["isc"], "year": 170, "speed": 12, "hull": 8, "crippled": 6, "bpv": 8, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "AF", "designation": "AF", "tokenArt": "isc/af.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" } ] },
 
-    { "type": "ef", "name": "Electronic Warfare Fighter", "kind": "fighter", "factions": ["isc"], "year": 172, "speed": 12, "hull": 12, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "EF", "designation": "EF", "fixedEwPods": 2, "twoSeater": true,
+    { "type": "ef", "name": "Electronic Warfare Fighter", "kind": "fighter", "factions": ["isc"], "year": 172, "speed": 12, "hull": 12, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "EF", "designation": "EF", "fixedEwPods": 2, "twoSeater": true, "tokenArt": "isc/ef.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_K" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_K" } ] },
 
-    { "type": "sf", "name": "Superiority Fighter", "kind": "fighter", "factions": ["isc"], "year": 174, "speed": 12, "hull": 12, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "SF", "designation": "SF",
+    { "type": "sf", "name": "Superiority Fighter", "kind": "fighter", "factions": ["isc"], "year": 174, "speed": 12, "hull": 12, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "SF", "designation": "SF", "tokenArt": "isc/sf.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" } ] },
 
-    { "type": "tf", "name": "Torpedo Fighter", "kind": "fighter", "factions": ["isc"], "year": 174, "speed": 12, "hull": 12, "crippled": 8, "bpv": 7, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "TF", "designation": "TF",
+    { "type": "tf", "name": "Torpedo Fighter", "kind": "fighter", "factions": ["isc"], "year": 174, "speed": 12, "hull": 12, "crippled": 8, "bpv": 7, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "TF", "designation": "TF", "tokenArt": "isc/tf.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"] } ] },
 
-    { "type": "fsf", "name": "Fast Superiority Fighter", "kind": "fighter", "factions": ["isc"], "year": 180, "speed": 15, "hull": 12, "crippled": 8, "bpv": 11, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FSF", "designation": "FSF",
+    { "type": "fsf", "name": "Fast Superiority Fighter", "kind": "fighter", "factions": ["isc"], "year": 180, "speed": 15, "hull": 12, "crippled": 8, "bpv": 11, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FSF", "designation": "FSF", "tokenArt": "isc/fsf.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" } ] },
 
-    { "type": "fdf", "name": "Fast Superiority Fighter Type-D", "kind": "fighter", "factions": ["isc"], "year": 181, "speed": 15, "hull": 12, "crippled": 8, "bpv": 13, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FDF", "designation": "FDF",
+    { "type": "fdf", "name": "Fast Superiority Fighter Type-D", "kind": "fighter", "factions": ["isc"], "year": 181, "speed": 15, "hull": 12, "crippled": 8, "bpv": 13, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FDF", "designation": "FDF", "tokenArt": "isc/fdf.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
@@ -96,14 +96,14 @@
                    { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "PLASMA_D" },
                    { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "PLASMA_D" } ] },
 
-    { "type": "fef", "name": "Fast Electronic Warfare Fighter", "kind": "fighter", "factions": ["isc"], "year": 180, "speed": 15, "hull": 12, "crippled": 8, "bpv": 11, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FEF", "designation": "FEF", "fixedEwPods": 2, "twoSeater": true,
+    { "type": "fef", "name": "Fast Electronic Warfare Fighter", "kind": "fighter", "factions": ["isc"], "year": 180, "speed": 15, "hull": 12, "crippled": 8, "bpv": 11, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FEF", "designation": "FEF", "fixedEwPods": 2, "twoSeater": true, "tokenArt": "isc/fef.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] } ] },
 
-    { "type": "ftf", "name": "Fast Torpedo Fighter", "kind": "fighter", "factions": ["isc"], "year": 180, "speed": 15, "hull": 12, "crippled": 8, "bpv": 8, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FTF", "designation": "FTF",
+    { "type": "ftf", "name": "Fast Torpedo Fighter", "kind": "fighter", "factions": ["isc"], "year": 180, "speed": 15, "hull": 12, "crippled": 8, "bpv": 8, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FTF", "designation": "FTF", "tokenArt": "isc/ftf.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"] } ] },
 
-    { "type": "ftk", "name": "Fast Torpedo Fighter Type-K", "kind": "fighter", "factions": ["isc"], "year": 181, "speed": 15, "hull": 12, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FTK", "designation": "FTK",
+    { "type": "ftk", "name": "Fast Torpedo Fighter Type-K", "kind": "fighter", "factions": ["isc"], "year": 181, "speed": 15, "hull": 12, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "FTK", "designation": "FTK", "tokenArt": "isc/ftk.png",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_K" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_K" },
