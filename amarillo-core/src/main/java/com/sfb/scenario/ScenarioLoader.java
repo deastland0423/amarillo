@@ -1221,7 +1221,53 @@ public class ScenarioLoader {
                 ship.setActiveFireControl(true);
         }
 
+        // FP1.23 LAST, so it overrides the ladder above rather than being overridden by it.
+        // WS-2 sets every holdable heavy weapon to its all-but-final arming turn, which would
+        // leave a plasma-F two-thirds armed; this puts it back to ready.
+        armPlasmaFTorpedoes(ship);
+
         applyFighterWeaponStatus(ship, weaponStatus);
+    }
+
+    /**
+     * FP1.23: a plasma-F is ready at the start of EVERY weapon status, WS-0 included.
+     *
+     * <p>The rule is an exception to the whole of (S4.0). Plasma torpedoes are expensive to arm
+     * and hold, so a ship "would not normally travel for months with loaded torpedoes" — but:
+     *
+     * <blockquote>EXCEPTION: Plasma-F torpedoes, held in stasis boxes, can be held almost
+     * indefinitely and are <b>always ready at the start of a scenario</b>, except when the ship
+     * is "surprised" (D18.12).</blockquote>
+     *
+     * <p>FP1.132 states the WS-0 half outright, and draws the line this method is keyed on:
+     * "Launchers larger than type-F can have a type-F downloaded at the start of the scenario if
+     * the weapon status allows the launcher to have a standard torpedo loaded, but cannot have a
+     * downloaded type-F at WS-0 (whereas <b>an actual type-F launcher could be holding a torpedo
+     * at that status</b>)." So this is keyed on the LAUNCHER's own type, never on what it happens
+     * to be loading — a plasma-S tube downloading an F has no stasis box and gets nothing here.
+     *
+     * <p>The stasis box is the mechanism throughout, and it is also why a plasma-F holds for
+     * nothing: FP2.51 prints its hold cost as 0 where a G costs 1 and an S costs 2, and XG17.522
+     * confirms the link from the other side — a type-M launcher hastily repaired as a type-F
+     * "would not have the stasis box and would have to pay holding energy". We already charge 0
+     * in {@code PlasmaLauncher.holdEnergyCost}; this is the other half of the same box.
+     *
+     * <p><b>The D18.12 exception is not implemented, because nothing can be surprised yet.</b>
+     * D18.0 inactive ships are unmodelled — there is no flag to read — and when they arrive,
+     * D18.12 is explicit that "their plasma-F launchers, ADDs, plasma racks, PPTs, and drone
+     * racks are not loaded", so this method is one of the places that will have to ask.
+     *
+     * <p>Fighter-mounted plasma-F is deliberately untouched: this walks the SHIP's own weapons,
+     * and a fighter's arming is J4.8's deck-crew budget in {@link #applyFighterWeaponStatus}.
+     */
+    private static void armPlasmaFTorpedoes(Ship ship) {
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof com.sfb.weapons.PlasmaLauncher launcher))
+                continue;
+            if (launcher.getLauncherType() != com.sfb.properties.PlasmaType.F)
+                continue;
+            launcher.setArmedState();
+        }
     }
 
     /**

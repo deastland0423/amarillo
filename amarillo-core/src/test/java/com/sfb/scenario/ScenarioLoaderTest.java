@@ -5,6 +5,7 @@ import com.sfb.objects.DroneType;
 import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.properties.Location;
+import com.sfb.properties.PlasmaType;
 import com.sfb.samples.FederationShips;
 import com.sfb.weapons.DroneRack;
 import org.junit.Test;
@@ -457,6 +458,101 @@ public class ScenarioLoaderTest {
             if (w instanceof DroneRack)
                 return true;
         return false;
+    }
+
+    // ---- FP1.23: the plasma-F exception to weapon status ----
+
+    /**
+     * FP1.23: a plasma-F is ready at EVERY weapon status, WS-0 included.
+     *
+     * <p>"Plasma-F torpedoes, held in stasis boxes, can be held almost indefinitely and are
+     * always ready at the start of a scenario, except when the ship is 'surprised' (D18.12)."
+     * FP1.132 spells out the WS-0 half: "an actual type-F launcher could be holding a torpedo
+     * at that status".
+     *
+     * <p>Found in a playtest on this very hull — the Federation DDL, the Plasma Armed Destroyer,
+     * which carries two plasma-F at FP alongside its photons. That pairing is why it is the
+     * fixture: the photons obey the ordinary S4.1 ladder on the same ship, in the same call, so
+     * a change that armed everything would pass the plasma half and fail here.
+     */
+    @Test
+    public void plasmaF_isReadyAtEveryWeaponStatus() {
+        for (int ws = 0; ws <= 3; ws++) {
+            Ship ship = plasmaArmedDestroyer();
+            ScenarioLoader.applyWeaponStatus(ship, ws);
+
+            List<com.sfb.weapons.PlasmaLauncher> fs = launchers(ship, PlasmaType.F);
+            assertEquals("fixture: the Fed DDL carries two plasma-F", 2, fs.size());
+            for (com.sfb.weapons.PlasmaLauncher f : fs) {
+                assertTrue("WS-" + ws + ": FP1.23 keeps a plasma-F ready", f.isArmed());
+                assertEquals("WS-" + ws + ": and fully armed, not part-way",
+                        f.totalArmingTurns(), f.getArmingTurn());
+            }
+        }
+    }
+
+    /**
+     * And it is the exception, not the rule: the photons on the SAME ship still climb the
+     * ordinary ladder. Unarmed at WS-0 and WS-1, one turn short at WS-2 (S4.12), armed at WS-3.
+     *
+     * <p>Without this the fix could be "arm everything at every status" and look correct.
+     */
+    @Test
+    public void theRestOfTheShipStillObeysTheWeaponStatusLadder() {
+        for (int ws : new int[] { 0, 1 }) {
+            Ship ship = plasmaArmedDestroyer();
+            ScenarioLoader.applyWeaponStatus(ship, ws);
+            for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+                if (w instanceof com.sfb.weapons.Photon p)
+                    assertFalse("WS-" + ws + ": a photon is not armed", p.isArmed());
+        }
+
+        Ship atTwo = plasmaArmedDestroyer();
+        ScenarioLoader.applyWeaponStatus(atTwo, 2);
+        for (com.sfb.weapons.Weapon w : atTwo.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.Photon p) {
+                assertFalse("S4.12: one arming turn short at WS-2", p.isArmed());
+                assertEquals(p.totalArmingTurns() - 1, p.getArmingTurn());
+            }
+    }
+
+    /**
+     * FP1.132 draws the line at the LAUNCHER's own type, not at what it is loading: "Launchers
+     * larger than type-F ... cannot have a downloaded type-F at WS-0". A bigger tube has no
+     * stasis box, so it gets nothing from FP1.23.
+     *
+     * <p>The plasma-G is attached here rather than borrowed from another hull so the contrast
+     * sits on ONE ship in ONE call — the same reason the photons above do.
+     */
+    @Test
+    public void aLargerLauncherGetsNothingFromThePlasmaFException() {
+        Ship ship = plasmaArmedDestroyer();
+        com.sfb.weapons.PlasmaLauncher g =
+                new com.sfb.weapons.PlasmaLauncher(PlasmaType.G);
+        g.setDesignator("Z");
+        ship.getWeapons().addWeapon(g);
+
+        ScenarioLoader.applyWeaponStatus(ship, 0);
+
+        assertFalse("a plasma-G has no stasis box and is not ready at WS-0", g.isArmed());
+        for (com.sfb.weapons.PlasmaLauncher f : launchers(ship, PlasmaType.F))
+            assertTrue("while the plasma-F beside it is", f.isArmed());
+    }
+
+    /** R13.17 / R2: the Federation DDL, two plasma-F at FP alongside its photons. */
+    private static Ship plasmaArmedDestroyer() {
+        ShipLibrary.loadAllSpecs("../data/factions");
+        com.sfb.objects.ShipSpec spec = ShipLibrary.get("Federation", "DDL");
+        assertNotNull("fixture: Federation/DDL must be in the library", spec);
+        return ShipLibrary.createShip(spec);
+    }
+
+    private static List<com.sfb.weapons.PlasmaLauncher> launchers(Ship ship, PlasmaType type) {
+        List<com.sfb.weapons.PlasmaLauncher> out = new java.util.ArrayList<>();
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.PlasmaLauncher pl && pl.getLauncherType() == type)
+                out.add(pl);
+        return out;
     }
 
     /**
