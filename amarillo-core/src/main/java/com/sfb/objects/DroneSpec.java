@@ -1,6 +1,8 @@
 package com.sfb.objects;
 
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -163,6 +165,43 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
         for (FrameAddition a : additions)
             worst = Availability.moreRestrictive(worst, a.availability);
         return worst;
+    }
+
+    /**
+     * FD10.641: this drone's warhead spaces, split across the tiers they count against.
+     *
+     * <blockquote>"Frame modifications, e.g., speed upgrades, external armor, extended range,
+     * ATG guidance, or type-III frames... apply to the entire drone <b>unless a warhead is of a
+     * more restricted type</b>. A type-IV drone with Medium Speed in Y166 counts as two spaces
+     * of Restricted Availability even if both of its payload spaces are General Availability
+     * items. Such a Restricted Availability drone might have a Limited Availability module in
+     * one of its payload spaces, in which case it would be considered as <b>one space of
+     * Restricted and one space of Limited</b> availability."</blockquote>
+     *
+     * <p>So a drone is not one tier but a bill of them: the frame modifications set a floor that
+     * applies to every space, and any module harder to obtain than that floor raises its own
+     * space above it. {@link #availabilityIn} answers the simpler question — what tier is this
+     * drone — which FD10.65's first example asks and a ship-wide count does not.
+     *
+     * <h2>One combination this gets wrong, and cannot yet get right</h2>
+     * FD10.641 ends with a carve-out that inverts the whole scheme: "a type-III frame (Limited
+     * Availability) to which the extended range frame modification (General Availability) is
+     * added becomes a two-space <b>Restricted</b> Availability drone (FD10.24)". Limited plus
+     * General making Restricted is less restrictive than either input, so it is a named
+     * exception rather than anything derivable. It needs the type-III-XX frame change FD10.24
+     * describes, which is unbuilt, so the combination cannot be constructed and the exception
+     * is recorded rather than implemented.
+     */
+    public Map<Availability, Double> spacesByAvailability(int year) {
+        Availability floor = frame.availability;
+        floor = Availability.moreRestrictive(floor, propulsion.availabilityIn(year));
+        for (FrameAddition a : additions)
+            floor = Availability.moreRestrictive(floor, a.availability);
+
+        Map<Availability, Double> out = new EnumMap<>(Availability.class);
+        for (PayloadModule m : allModules())
+            out.merge(Availability.moreRestrictive(floor, m.availability), m.spaces, Double::sum);
+        return out;
     }
 
     /**

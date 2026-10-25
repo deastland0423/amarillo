@@ -124,6 +124,68 @@ public class DroneAvailabilityTest {
     }
 
     /**
+     * FD10.641: a drone is a BILL of tiers, not one tier.
+     *
+     * <blockquote>"Frame modifications... apply to the entire drone unless a warhead is of a
+     * more restricted type. A type-IV drone with Medium Speed in Y166 counts as two spaces of
+     * Restricted Availability even if both of its payload spaces are General Availability
+     * items. Such a Restricted Availability drone might have a Limited Availability module in
+     * one of its payload spaces, in which case it would be considered as one space of
+     * Restricted and one space of Limited availability."</blockquote>
+     */
+    @Test
+    public void aFrameModificationSetsAFloorUnderEveryPayloadSpace() {
+        // The rulebook's own example: type-IV, medium speed in Y166 (Restricted), two General
+        // explosive modules. Both spaces are dragged up to Restricted.
+        var y166 = DroneType.TypeIVM.spec.spacesByAvailability(166);
+        assertEquals("two spaces, all of them Restricted",
+                2.0, y166.getOrDefault(Availability.RESTRICTED, 0.0), 0.0001);
+        assertNull("and none left General", y166.get(Availability.GENERAL));
+
+        // The same drone a year later, when medium speed has gone General (FD10.65): the floor
+        // drops and the explosive modules are General again.
+        var y167 = DroneType.TypeIVM.spec.spacesByAvailability(167);
+        assertEquals(2.0, y167.getOrDefault(Availability.GENERAL, 0.0), 0.0001);
+        assertNull(y167.get(Availability.RESTRICTED));
+    }
+
+    /**
+     * And the other direction: a module harder to obtain than the frame raises its OWN space
+     * and leaves the rest alone. Armor is Restricted (FD10.621), a speed-8 frame is General.
+     *
+     * <p>This is the half that a single worst-tier-wins answer gets wrong. Before the split,
+     * this drone counted as two spaces of Restricted; it is one and one.
+     */
+    @Test
+    public void aRestrictedModuleRaisesOnlyItsOwnSpace() {
+        DroneSpec half = DroneSpec.of(DroneFrame.TWO_SPACE, Propulsion.SPEED_8,
+                PayloadModule.ARMOR_HALF, PayloadModule.ARMOR_HALF, PayloadModule.EXPLOSIVE_1);
+
+        var bill = half.spacesByAvailability(180);
+        assertEquals("the two half-space armor modules",
+                1.0, bill.getOrDefault(Availability.RESTRICTED, 0.0), 0.0001);
+        assertEquals("and the explosive module stays General",
+                1.0, bill.getOrDefault(Availability.GENERAL, 0.0), 0.0001);
+
+        assertEquals("while the DRONE as a whole is still Restricted, which is the question"
+                + " FD10.65's first example asks", Availability.RESTRICTED,
+                half.availabilityIn(180));
+    }
+
+    /** The spaces in the bill add up to what the drone actually carries. */
+    @Test
+    public void theBillAccountsForEverySpace() {
+        for (DroneType t : DroneType.values()) {
+            double billed = t.spec.spacesByAvailability(180).values().stream()
+                    .mapToDouble(Double::doubleValue).sum();
+            double carried = 0;
+            for (PayloadModule m : t.spec.allModules())
+                carried += m.spaces;
+            assertEquals(t + " must bill every space it carries", carried, billed, 0.0001);
+        }
+    }
+
+    /**
      * FD10.64: "The allowed percentage of Restricted Availability drones INCLUDES the limit on
      * Limited Availability drones." So a cap check asks "at least this restricted", not "equal
      * to this", and a Limited drone consumes Restricted allowance as well as its own.

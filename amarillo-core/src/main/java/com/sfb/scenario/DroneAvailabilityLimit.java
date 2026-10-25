@@ -72,13 +72,13 @@ import com.sfb.weapons.Weapon;
  * type-VI rails counted separately, type-VI drones on ordinary rails counted as General — and
  * that is a slice of its own.
  *
- * <p><b>FD10.641's per-space split.</b> A two-space drone can sit in two tiers at once: "a
- * type-IV fast speed drone in Y179 (restricted) with an explosive module (general) and a
- * swordfish module (limited) is a space of restricted (the speed upgrade) and a space of limited
- * (the swordfish module)". Every drone here contributes all of its spaces at its own worst tier,
- * which is FD10.641's other example — "a type-IV drone with Medium Speed in Y166 counts as two
- * spaces of Restricted" — and is correct whenever the frame modification is the restrictive
- * part. It overcounts a drone whose MODULE is the worse of the two, and no such module is built.
+ * <p><b>FD10.641's type-III-XX carve-out.</b> The per-space split IS implemented, through
+ * {@code DroneSpec.spacesByAvailability} — a drone contributes each of its spaces at its own
+ * tier, so "a space of restricted and a space of limited" comes out as two entries rather than
+ * two Limited spaces. What is not implemented is the exception the same rule ends with: a
+ * type-III frame (Limited) plus extended range (General) "becomes a two-space Restricted
+ * Availability drone", which is less restrictive than either input and therefore not derivable
+ * from anything. It needs FD10.24's frame change, which is unbuilt.
  */
 public final class DroneAvailabilityLimit {
 
@@ -162,13 +162,19 @@ public final class DroneAvailabilityLimit {
                 if (d.getDroneType() == null || d.getDroneType().isTypeVI())
                     continue;           // FD10.643
                 var spec = d.getDroneType().spec;
-                // Integer.MAX_VALUE is the caller asking for "everything", since every tier is
-                // at least as restricted as GENERAL and the year then cannot matter.
-                Availability have = year == Integer.MAX_VALUE
-                        ? Availability.GENERAL
-                        : spec.availabilityIn(year);
-                if (have.atLeastAsRestrictedAs(tier))
-                    spaces += spec.frame().payloadSpaces;
+                if (year == Integer.MAX_VALUE) {
+                    // The caller asking for "everything": every tier is at least as restricted
+                    // as GENERAL, so the year cannot matter and the whole drone counts.
+                    for (var m : spec.allModules())
+                        spaces += m.spaces;
+                    continue;
+                }
+                // FD10.641: a drone is a BILL of tiers, not one tier. A type-IV whose speed is
+                // Restricted and whose second module is Limited is "one space of Restricted and
+                // one space of Limited" — so each space is tested on its own.
+                for (var entry : spec.spacesByAvailability(year).entrySet())
+                    if (entry.getKey().atLeastAsRestrictedAs(tier))
+                        spaces += entry.getValue();
             }
         }
         return spaces;

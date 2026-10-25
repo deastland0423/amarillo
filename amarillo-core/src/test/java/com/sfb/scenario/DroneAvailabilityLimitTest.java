@@ -268,6 +268,60 @@ public class DroneAvailabilityLimitTest {
                 notes.contains("FD10.632") || notes.contains("FD10.622"));
     }
 
+    /**
+     * FD10.641's split is implemented and tested on {@code DroneSpec}, and CANNOT yet be
+     * exercised at ship level. This records why rather than pretending otherwise.
+     *
+     * <p>A rack holds {@link Drone}s and a {@code Drone} is built from a {@link DroneType} —
+     * one of fourteen standard drones. None of them has a payload module more restricted than
+     * its own frame modifications, so the half of the rule that matters here, a module raising
+     * its own space above the floor, has nothing to raise. Reverting the count to
+     * worst-tier-wins fails no test in this class; it fails three in
+     * {@code DroneAvailabilityTest}, which drives the spec directly.
+     *
+     * <p>That is a limit of {@code Drone}, not of the rule: the owner's armored type-IV from
+     * slice 1 is exactly such a drone, and there is no way to put one in a rack. Slice 4 has to
+     * give {@code Drone} a {@code DroneSpec} before any custom module it builds can reach a
+     * ship, and this test is where the ship-level case goes when it can.
+     *
+     * <p>What it checks meanwhile: ordinary drones contribute nothing restricted, so the
+     * denominator and the numerator are not accidentally the same thing.
+     */
+    @Test
+    public void ordinaryDronesCountTowardsTheTotalButNotTheCap() {
+        Ship ship = ordinaryShip();
+        load(ship, DroneType.TypeI, DroneType.TypeI, DroneType.TypeI);
+
+        assertEquals("three one-space drones",
+                3.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("none of them restricted", 0.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 180), 0.0001);
+        assertTrue(DroneAvailabilityLimit.violations(ship, 180).isEmpty());
+    }
+
+    /**
+     * And the rulebook's own worst case, at ship level: a type-IV with medium speed in Y166 is
+     * "two spaces of Restricted Availability even if both of its payload spaces are General".
+     * The frame modification drags the whole drone up, and the cap feels all of it.
+     */
+    @Test
+    public void aMediumSpeedHeavyDroneCountsBothItsSpacesInY166() {
+        Ship ship = ordinaryShip();
+        load(ship, DroneType.TypeIVM, DroneType.TypeI, DroneType.TypeI);
+
+        assertEquals("two spaces of heavy plus two of light", 4.0,
+                DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("FD10.641: both of the heavy drone's spaces are Restricted in Y166",
+                2.0, DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 166),
+                0.0001);
+        assertEquals("25% of four spaces is one, so two is a breach",
+                1, DroneAvailabilityLimit.allowance(ship, Availability.RESTRICTED));
+        assertFalse(DroneAvailabilityLimit.violations(ship, 166).isEmpty());
+
+        assertEquals("and in Y167 medium speed is General, so none of it counts", 0.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 167), 0.0001);
+    }
+
     /** An empty rack is not a breach of anything. */
     @Test
     public void aShipWithNoDronesIsNotJudged() {
