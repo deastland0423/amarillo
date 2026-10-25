@@ -915,6 +915,20 @@ public class ScenarioLoader {
             }
         }
 
+        // FD10.622/FD10.632 LAST, over the finished ship.
+        //
+        // The caps are a proportion of everything aboard, so they cannot be judged rack by rack
+        // the way the year, speed and compatibility checks above are — a loadout that is legal
+        // in each rack can still put a quarter of the ship's drones over the line. Hence a pass
+        // at the end, once every rack holds what it is going to hold.
+        //
+        // NOTED rather than refused, like every other illegality in this method: a scenario or
+        // fleet written under one year's rules may be played under another, and losing the
+        // battle to one over-specialised drone load helps nobody. See DroneAvailabilityLimit
+        // for what is counted and the two things that are not.
+        for (String violation : DroneAvailabilityLimit.violations(ship, spec.year))
+            note(ship, "COI: " + violation);
+
         // Record the COI spend so the enemy is awarded these points at scenario end
         // (S2.20 step B). Option-mount weapon costs are excluded — they ride the ship's
         // GABPV and are already scored under step C.
