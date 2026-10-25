@@ -58,6 +58,23 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
             throw new IllegalArgumentException(
                     frame + " takes no payload modules (FD10.21): only the speed can be varied");
 
+        // FD12.131: "No more than one external armor module can be added to any one drone.
+        // External armor cannot be placed on a drone equipped with internal armor."
+        long external = additions.stream().filter(FrameAddition::isExternalArmor).count();
+        if (external > 1)
+            throw new IllegalArgumentException(
+                    "a drone may carry only one external armor module (FD12.131)");
+        if (external > 0) {
+            if (payload.stream().anyMatch(m -> m.hullBonus > 0))
+                throw new IllegalArgumentException(
+                        "external armor cannot go on a drone with internal armor (FD12.131)");
+            // FD12.132's chart has no half-space row, and FD10.21 says only the speed can be
+            // varied on a type-VI. Nothing in the rules arms one.
+            if (frame == DroneFrame.HALF_SPACE)
+                throw new IllegalArgumentException(
+                        frame + " takes no armor: only the speed can be varied (FD10.21)");
+        }
+
         double used = 0;
         for (PayloadModule m : payload)
             used += m.spaces;
@@ -126,11 +143,22 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
         int total = frame.hull;
         for (PayloadModule m : allModules())
             total += m.hullBonus;
+        for (FrameAddition a : additions)
+            total += a.hullBonus;       // FD12.21, for external armor
         return total;
     }
 
-    /** Hexes per turn (FD2.1). */
+    /**
+     * Hexes per turn (FD2.1) — the propulsion section's, less whatever external armor costs.
+     *
+     * <p>FD12.132 is why this is not simply {@code propulsion.speed}: external armor "reduces
+     * the speed of the drone according to the chart below", and the chart is steep. A fast
+     * one-space drone with a full external module drops from 32 to 12.
+     */
     public int speed() {
+        for (FrameAddition a : additions)
+            if (a.isExternalArmor())
+                return a.speedWith(frame, propulsion);
         return propulsion.speed;
     }
 
