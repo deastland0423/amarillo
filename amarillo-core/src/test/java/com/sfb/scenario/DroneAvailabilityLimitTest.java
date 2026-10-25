@@ -9,7 +9,11 @@ import org.junit.Test;
 
 import com.sfb.objects.Availability;
 import com.sfb.objects.Drone;
+import com.sfb.objects.DroneFrame;
+import com.sfb.objects.DroneSpec;
 import com.sfb.objects.DroneType;
+import com.sfb.objects.PayloadModule;
+import com.sfb.objects.Propulsion;
 import com.sfb.objects.Ship;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.KzintiShips;
@@ -269,34 +273,61 @@ public class DroneAvailabilityLimitTest {
     }
 
     /**
-     * FD10.641's split is implemented and tested on {@code DroneSpec}, and CANNOT yet be
-     * exercised at ship level. This records why rather than pretending otherwise.
+     * FD10.641's split, at ship level, on a drone that could not be loaded until now.
      *
-     * <p>A rack holds {@link Drone}s and a {@code Drone} is built from a {@link DroneType} —
-     * one of fourteen standard drones. None of them has a payload module more restricted than
-     * its own frame modifications, so the half of the rule that matters here, a module raising
-     * its own space above the floor, has nothing to raise. Reverting the count to
-     * worst-tier-wins fails no test in this class; it fails three in
-     * {@code DroneAvailabilityTest}, which drives the spec directly.
+     * <p>The owner's armored type-IV: a two-space frame carrying three 1/2-PS armor modules and
+     * one 1/2-PS explosive. Armor is Restricted (FD10.621) and the explosive is General, and
+     * the frame modifications are General too — a speed-8 engine on a type-IV frame — so the
+     * floor is General and only the armor raises its own spaces.
      *
-     * <p>That is a limit of {@code Drone}, not of the rule: the owner's armored type-IV from
-     * slice 1 is exactly such a drone, and there is no way to put one in a rack. Slice 4 has to
-     * give {@code Drone} a {@code DroneSpec} before any custom module it builds can reach a
-     * ship, and this test is where the ship-level case goes when it can.
+     * <p>One and a half spaces of armor, half a space of explosive. Under worst-tier-wins the
+     * whole drone would count as two Restricted spaces.
      *
-     * <p>What it checks meanwhile: ordinary drones contribute nothing restricted, so the
-     * denominator and the numerator are not accidentally the same thing.
+     * <p>This is the test that forced {@code Drone} to take a {@code DroneSpec}. A rack holds
+     * {@code Drone}s, a {@code Drone} was built only from a {@code DroneType}, and none of the
+     * fourteen standard types has a module more restricted than its frame — so the half of
+     * FD10.641 that matters here had nothing to act on and a mutation reverting it failed
+     * nothing.
      */
     @Test
-    public void ordinaryDronesCountTowardsTheTotalButNotTheCap() {
+    public void anArmoredCustomDroneSplitsAcrossTiersInTheCount() {
         Ship ship = ordinaryShip();
-        load(ship, DroneType.TypeI, DroneType.TypeI, DroneType.TypeI);
+        DroneSpec armored = DroneSpec.of(DroneFrame.TWO_SPACE, Propulsion.SPEED_8,
+                PayloadModule.ARMOR_HALF, PayloadModule.ARMOR_HALF,
+                PayloadModule.ARMOR_HALF, PayloadModule.EXPLOSIVE_HALF);
 
-        assertEquals("three one-space drones",
-                3.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
-        assertEquals("none of them restricted", 0.0,
-                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 180), 0.0001);
-        assertTrue(DroneAvailabilityLimit.violations(ship, 180).isEmpty());
+        List<Drone> load = new ArrayList<>();
+        load.add(new Drone(DroneType.TypeIV, armored));
+        load.add(new Drone(DroneType.TypeI));
+        load.add(new Drone(DroneType.TypeI));
+        for (DroneRack r : racksOf(ship))
+            r.setAmmo(new ArrayList<>());
+        racksOf(ship).get(0).setAmmo(load);
+
+        assertEquals("two spaces of armored heavy plus two one-space drones",
+                4.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("only the three half-space armor modules are Restricted",
+                1.5, DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 180),
+                0.0001);
+        assertEquals("and nothing is Limited", 0.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.LIMITED, 180), 0.0001);
+    }
+
+    /** And the drone itself is what slice 1 said it was, now that one can be loaded. */
+    @Test
+    public void theArmoredDroneKeepsItsTwelveHullInsideARack() {
+        DroneSpec armored = DroneSpec.of(DroneFrame.TWO_SPACE, Propulsion.SPEED_8,
+                PayloadModule.ARMOR_HALF, PayloadModule.ARMOR_HALF,
+                PayloadModule.ARMOR_HALF, PayloadModule.EXPLOSIVE_HALF);
+        Drone d = new Drone(DroneType.TypeIV, armored);
+
+        assertEquals("FD12.21: six from the frame plus two per half-space module", 12, d.getHull());
+        assertEquals("FD10.41: one half-space explosive", 6, d.impact());
+        assertEquals("still two rack spaces", 2.0, d.getRackSize(), 0.0001);
+        assertEquals("and still a type-IV for everything that asks what KIND it is",
+                DroneType.TypeIV, d.getDroneType());
+        assertEquals("including its endurance, which no rule derives from the composition",
+                DroneType.TypeIV.endurance, d.getEndurance());
     }
 
     /**

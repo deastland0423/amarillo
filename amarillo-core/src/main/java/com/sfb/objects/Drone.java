@@ -13,7 +13,8 @@ public class Drone extends Unit implements Seeker {
 
 	private Unit target; // The target of the drone.
 	private Unit controller; // The ship controlling this drone.
-	private DroneType type; // The type of drone. This determines the drone's properties and behavior.
+	private DroneType type; // The standard drone this one is, or is a modification of.
+	private com.sfb.objects.DroneSpec spec; // FD10.2: what it is actually built from.
 	private boolean selfGuiding; // True if the weapon does not need control channels to operate.
 	private boolean warpSeeker; // True if the drone uses warp-energy tracking (FD2.56) — TypeVI variants.
 	private int endurance; // The number of impulses this weapon will continue to operate.
@@ -32,20 +33,63 @@ public class Drone extends Unit implements Seeker {
 	}
 
 	public Drone(DroneType type) {
+		this(type, null);
+	}
+
+	/**
+	 * A drone BUILT rather than chosen: one of the standard types, modified (FD10.2).
+	 *
+	 * <p>FD12.12's example, and the owner's: a type-IV frame carrying three 1/2-PS armor modules
+	 * and a 1/2-PS explosive — twelve hull behind a strength-six warhead, where a standard
+	 * type-IV is six hull and twenty-four. No {@link DroneType} can say that, because the enum
+	 * is the fourteen drones history fielded and this is not one of them.
+	 *
+	 * <h2>Why a BASIS as well as a spec</h2>
+	 * The spec settles everything FD10.2 derives — warhead from the payload modules (FD10.41),
+	 * rack footprint and hull from the frame plus its armor (FD12.21), speed from the propulsion
+	 * section. It does not settle ENDURANCE, and no rule derives that from frame, propulsion or
+	 * payload: FD2.1's chart simply states three turns for a type-I, two for a type-II, 25 for a
+	 * type-III and one for a type-VI.
+	 *
+	 * <p>It happens that frame plus propulsion plus guidance predicts all fourteen correctly —
+	 * half-space is 32, type-III guidance is 800, speed-12 is 64, everything else 96 — and
+	 * FD10.33 even states the speed-12 case as a rule. Deriving it anyway would be generalising
+	 * from a roster to a law the rulebook never writes, which is the line slice 1 drew and this
+	 * keeps: the basis supplies what the rules state rather than compute.
+	 *
+	 * <p>So the drone remains a type-IV for every purpose that asks what KIND it is —
+	 * {@link #getDroneType}, FD2.54's dogfight test, the DAC — while {@link #getSpec} says what
+	 * it is made of.
+	 *
+	 * @param type the standard drone this is a modification of; TypeI if null
+	 * @param built what it is actually made of, or null to use the type's own composition
+	 */
+	public Drone(DroneType type, com.sfb.objects.DroneSpec built) {
 		this();
 		// Fallback to TypeI if null is passed
 		DroneType config = (type != null) ? type : DroneType.TypeI;
 
 		this.type = config;
+		this.spec = (built != null) ? built : config.spec;
 
-		// Unified Direct Assignments
+		// Stated by the type, because no rule derives them from the composition.
 		this.endurance = config.endurance;
-		this.speed = config.speed; // Protected in Unit
-		this.warheadDamage = config.damage;
-		this.rackSize = config.rack;
-		this.hull = config.hull;
 		this.selfGuiding = config.selfGuiding;
 		this.warpSeeker = config.warpSeeker;
+
+		// Derived from what the drone is made of (FD10.2).
+		this.speed = this.spec.speed(); // Protected in Unit
+		this.warheadDamage = this.spec.warheadStrength();
+		this.rackSize = this.spec.rackSpaces();
+		this.hull = this.spec.hull();
+	}
+
+	/**
+	 * What this drone is made of (FD10.2) — the same as its type's composition unless it was
+	 * built as a modification of one.
+	 */
+	public com.sfb.objects.DroneSpec getSpec() {
+		return this.spec;
 	}
 
 	public void setTarget(Unit target) {

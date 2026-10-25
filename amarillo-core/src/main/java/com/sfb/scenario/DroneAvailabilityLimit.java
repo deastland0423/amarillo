@@ -159,9 +159,11 @@ public final class DroneAvailabilityLimit {
             if (!(w instanceof DroneRack rack))
                 continue;
             for (Drone d : rack.getAmmo()) {
-                if (d.getDroneType() == null || d.getDroneType().isTypeVI())
+                if (d.getDroneType() != null && d.getDroneType().isTypeVI())
                     continue;           // FD10.643
-                var spec = d.getDroneType().spec;
+                var spec = d.getSpec();
+                if (spec == null)
+                    continue;
                 if (year == Integer.MAX_VALUE) {
                     // The caller asking for "everything": every tier is at least as restricted
                     // as GENERAL, so the year cannot matter and the whole drone counts.
