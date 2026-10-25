@@ -65,7 +65,7 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
             throw new IllegalArgumentException(
                     "a drone may carry only one external armor module (FD12.131)");
         if (external > 0) {
-            if (payload.stream().anyMatch(m -> m.hullBonus > 0))
+            if (payload.stream().anyMatch(PayloadModule::isArmor))
                 throw new IllegalArgumentException(
                         "external armor cannot go on a drone with internal armor (FD12.131)");
             // FD12.132's chart has no half-space row, and FD10.21 says only the speed can be
@@ -74,6 +74,18 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
                 throw new IllegalArgumentException(
                         frame + " takes no armor: only the speed can be varied (FD10.21)");
         }
+
+        // FD10.442: "No more than one such module can be placed on any drone."
+        long ecm = payload.stream().filter(m -> m == PayloadModule.ECM).count();
+        if (ecm > 1)
+            throw new IllegalArgumentException(
+                    "a drone may carry only one ECM module (FD10.442)");
+
+        // FD10.443: "The ECM module can... be combined with any other module in the game except
+        // an (internal or external) armor module. ECM drones will not work with armor modules."
+        if (ecm > 0 && (payload.stream().anyMatch(PayloadModule::isArmor) || external > 0))
+            throw new IllegalArgumentException(
+                    "an ECM module cannot share a drone with armor (FD10.443)");
 
         double used = 0;
         for (PayloadModule m : payload)

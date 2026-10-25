@@ -48,6 +48,25 @@ public enum PayloadModule {
      */
     EXPLOSIVE_2(2.0, 24, 0, 1.00, Availability.GENERAL),
 
+    /**
+     * FD10.44: an ECM module, which FD9.0 explains and this file only has to build.
+     *
+     * <p>FD10.442: "No more than one such module can be placed on any drone; the module
+     * occupies <b>one payload space</b> (which can be either space; it need not be forward)."
+     * One size only — FD10.51's chart has a dash in both the 1/2-PS and 2-PS columns.
+     *
+     * <p>No warhead and no hull: an ECM drone is a jammer that happens to fly. It costs the
+     * same 0.50 as the one-space explosive it displaces, which is FD10.441's "there is no cost
+     * to replace an explosive module with an ECM module" falling out of the chart rather than
+     * being granted.
+     *
+     * <p><b>What it cannot share a drone with:</b> armor, of either kind. FD10.443 — "The ECM
+     * module can, within the limits of other modules, be combined with any other module in the
+     * game except an (internal or external) armor module. ECM drones will not work with armor
+     * modules." {@code DroneSpec} refuses the combination.
+     */
+    ECM(1.0, 0, 0, 0.50, Availability.RESTRICTED),
+
     /** FD12.11/FD12.21: the smaller internal armor module. No warhead, four more hull... */
     ARMOR_HALF(0.5, 0, 2, 0.25, Availability.RESTRICTED),
 
@@ -103,6 +122,18 @@ public enum PayloadModule {
      * anything else would invite someone to count it.
      */
     public final Availability availability;
+
+    /**
+     * Whether this module is armor (FD12.0), which several rules turn on — FD10.443 forbids it
+     * beside an ECM module, and FD12.131 beside external armor.
+     *
+     * <p>Asked by name rather than inferred from {@code hullBonus > 0}: adding hull is what
+     * armor DOES, not what it IS, and a later module that happens to toughen a drone would
+     * silently inherit armor's prohibitions.
+     */
+    public boolean isArmor() {
+        return this == ARMOR_HALF || this == ARMOR_1;
+    }
 
     PayloadModule(double spaces, int strength, int hullBonus, double cost,
             Availability availability) {
