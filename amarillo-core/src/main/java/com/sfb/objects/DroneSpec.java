@@ -81,6 +81,13 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
             throw new IllegalArgumentException(
                     "a drone may carry only one ECM module (FD10.442)");
 
+        // FD10.42: "no more than one can be placed on a given drone". Said of the probe in its
+        // own words rather than folded in with the ECM limit above, because the two are
+        // separate clauses that happen to agree and could stop agreeing.
+        if (payload.stream().filter(m -> m == PayloadModule.PROBE).count() > 1)
+            throw new IllegalArgumentException(
+                    "a drone may carry only one probe module (FD10.42)");
+
         // FD10.443: "The ECM module can... be combined with any other module in the game except
         // an (internal or external) armor module. ECM drones will not work with armor modules."
         if (ecm > 0 && (payload.stream().anyMatch(PayloadModule::isArmor) || external > 0))

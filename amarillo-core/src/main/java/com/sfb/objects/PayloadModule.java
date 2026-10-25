@@ -49,6 +49,30 @@ public enum PayloadModule {
     EXPLOSIVE_2(2.0, 24, 0, 1.00, Availability.GENERAL),
 
     /**
+     * FD10.42: a probe module, which FD6.0 explains and this file only has to build.
+     *
+     * <p>"All probe modules occupy one payload space, but no more than one can be placed on a
+     * given drone." One size, like the ECM module, and FD10.51 dashes the other two columns.
+     *
+     * <p>Half a point, which is what a one-space explosive costs — so FD10.421's "there is no
+     * cost to replace an explosive module with a probe module" is the price match again rather
+     * than a dispensation.
+     *
+     * <p><b>The probe is the module that CAN share a drone with armor.</b> FD10.422: "The probe
+     * module can be combined with other modules on a two-space drone <b>or have external armor
+     * added to its drone frame</b>. (The most common two-space probe drone had armor to improve
+     * survivability.)" Where FD10.443 bars ECM from armor of either kind, this is explicitly
+     * permitted, and FD10.403's impossible drone — probe, ECM and external armor together —
+     * fails on the ECM rather than on the probe.
+     *
+     * <p>Everything about USING one is elsewhere and stays there: FD10.423 has the launching
+     * player designate what an accompanying ECM module protects, FD10.424 decides which
+     * guidance system the drone may use, FD10.425 lists the options for a probe on a type-III
+     * frame. All three happen at launch.
+     */
+    PROBE(1.0, 0, 0, 0.50, Availability.RESTRICTED),
+
+    /**
      * FD10.44: an ECM module, which FD9.0 explains and this file only has to build.
      *
      * <p>FD10.442: "No more than one such module can be placed on any drone; the module
