@@ -838,9 +838,34 @@ public class PpdFiringRunTest {
         romTarget.setLocation(new Location(10, 48));
         romTarget.getCloakingDevice().setState(
                 com.sfb.systemgroups.CloakingDevice.CloakState.FADING_OUT);
+        // START the fade here, which setState alone does not do.
+        //
+        // THIS LINE IS THE FIX FOR A FLAKE THAT TOOK THREE ATTEMPTS. setState writes the state
+        // and nothing else, so transitionImpulse kept whatever it held — and a fade's progress
+        // is impulsesElapsed = currentImpulse - transitionImpulse + 1, measured against
+        // FADE_IMPULSES of five. With transitionImpulse untouched, that sum was already past
+        // five whenever the loop above happened to end on a late impulse, so the fade COMPLETED
+        // during the single nextImpulse() below instead of being part-way through it.
+        //
+        // A completed fade is a different rule: G13.331 makes every ship holding a lock-on roll
+        // to keep it, and that roll is near-hopeless against a stationary target (the speed
+        // factor is -2). The lock-on went, which ended the run, which took the wave-lock with
+        // it — and the test reported that as E11.471 failing, which it was not.
+        //
+        // Measured before the fix: 11 failures in 400 runs, and the whole distribution was that
+        // one cause. Two earlier attempts at this flake adjusted the loop's exit condition
+        // instead, because the symptom looks exactly like PpdTest.lockedWithPulsesLeft.
+        romTarget.getCloakingDevice().setTransitionImpulse(game.getClock().getImpulse());
         firer.addLockOn(romTarget);
 
         nextImpulse();
+
+        assertEquals("fixture: the target must still be MID-fade, which is the whole premise —"
+                + " a completed fade is G13.331's retention roll, not E11.471",
+                com.sfb.systemgroups.CloakingDevice.CloakState.FADING_OUT,
+                romTarget.getCloakingDevice().getState());
+        assertTrue("fixture: and the firer must still hold the lock-on that carries the run",
+                firer.hasLockOn(romTarget));
 
         assertTrue("E11.471: a fade does not cost the lock its persistence",
                 ppd.isWaveLocked());
