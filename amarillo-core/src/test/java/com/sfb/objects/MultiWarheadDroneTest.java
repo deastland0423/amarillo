@@ -120,23 +120,31 @@ public class MultiWarheadDroneTest {
     }
 
     /**
-     * TWO separate forward-only modules on one drone is the case the FD10.402 check exists for,
-     * and it is NOT REACHABLE YET: the MW module is the only forward-only module built, and
-     * FD10.432 caps it at one per drone, so the pair cannot be assembled.
+     * TWO separate forward-only modules on one drone — the case FD10.402's check was written
+     * for, and unreachable until the swordfish module arrived.
      *
-     * <p>Recorded rather than faked. The check becomes live with swordfish (FD11.11), spearfish
-     * (FD14.11) or starfish (FD15.11) — an MW module plus any of those is the first drone it
-     * will refuse, and this test is where that goes.
+     * <p>The previous commit left a tripwire here asserting that only the MW sizes demanded the
+     * front, so that adding any other forward-only module would fail this test and bring
+     * whoever added it straight to the case it was waiting for. It did exactly that.
+     *
+     * <p>An MW module and a swordfish module both insist on the front of a two-space drone.
+     * Each fits the capacity; together they cannot both be forward.
      */
     @Test
-    public void twoForwardOnlyModulesIsUnreachableUntilAnotherOneExists() {
-        long forwardOnly = java.util.Arrays.stream(PayloadModule.values())
-                .filter(m -> m.requiresForward).count();
-        assertEquals("only the two MW sizes demand the front so far", 2, forwardOnly);
-        assertTrue("and both are MW modules, which FD10.432 allows only one of",
-                java.util.Arrays.stream(PayloadModule.values())
-                        .filter(m -> m.requiresForward)
-                        .allMatch(m -> m.submunitions > 0));
+    public void anMwAndASwordfishCannotBothHaveTheFront() {
+        // Each is legal on its own, on the same frame.
+        DroneSpec.of(DroneFrame.TWO_SPACE, Propulsion.SPEED_8,
+                PayloadModule.MW_SMALL, PayloadModule.EXPLOSIVE_1);
+        DroneSpec.of(DroneFrame.TWO_SPACE, Propulsion.SPEED_8,
+                PayloadModule.SWORDFISH_PHASER3, PayloadModule.EXPLOSIVE_1);
+
+        try {
+            DroneSpec.of(DroneFrame.TWO_SPACE, Propulsion.SPEED_8,
+                    PayloadModule.MW_SMALL, PayloadModule.SWORDFISH_PHASER3);
+            fail("two forward-only modules on one drone (FD10.402)");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("FD10.402"));
+        }
     }
 
     /** FD10.631 again, and FD10.641: a Limited module drags its own space to Limited. */

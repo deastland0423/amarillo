@@ -114,6 +114,30 @@ public enum PayloadModule {
      */
     MW_LARGE(2.0, 0, 0, 3.50, Availability.LIMITED, true, 5),
 
+    /**
+     * FD11.0 / FD10.45: the one-space swordfish module, which carries a <b>phaser-3</b> and
+     * fires it at the drone's target rather than exploding on it.
+     *
+     * <p>FD11.3 prices it by difference: "The cost of a phaser-3 module is 1/2 point more than
+     * a one-PS explosive module" — 0.50 plus 0.50, which is FD10.51's 1.00 for the one-PS
+     * swordfish. The two statements agree, as they have every time this model has checked them.
+     *
+     * <p>Front position only (FD11.11), Limited Availability (FD10.631). Developed by the
+     * Klingons in Y174 "to confuse Kzinti and Federation drone defenses" (FD14.0's aside).
+     *
+     * <p>Its warhead strength is ZERO because what it carries is a phaser, not an explosive —
+     * the damage happens when the phaser fires, which is FD11.2 and is not modelled.
+     */
+    SWORDFISH_PHASER3(1.0, 0, 0, 1.00, Availability.LIMITED, true, 0),
+
+    /**
+     * FD11.0's two-space swordfish, carrying a <b>phaser-2</b>.
+     *
+     * <p>FD11.3 again by difference: "one point more than a two-PS explosive module" — 1.00
+     * plus 1.00 is FD10.51's 2.00.
+     */
+    SWORDFISH_PHASER2(2.0, 0, 0, 2.00, Availability.LIMITED, true, 0),
+
     /** FD12.11/FD12.21: the smaller internal armor module. No warhead, four more hull... */
     ARMOR_HALF(0.5, 0, 2, 0.25, Availability.RESTRICTED, false, 0),
 
