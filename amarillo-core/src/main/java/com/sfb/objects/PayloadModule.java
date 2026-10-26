@@ -36,17 +36,17 @@ package com.sfb.objects;
 public enum PayloadModule {
 
     /** FD10.41: half a payload space, explosion strength six. */
-    EXPLOSIVE_HALF(0.5, 6, 0, 0.25, Availability.GENERAL),
+    EXPLOSIVE_HALF(0.5, 6, 0, 0.25, Availability.GENERAL, false, 0),
 
     /** FD10.41: one payload space, strength twelve. The usual meaning of "explosive module". */
-    EXPLOSIVE_1(1.0, 12, 0, 0.50, Availability.GENERAL),
+    EXPLOSIVE_1(1.0, 12, 0, 0.50, Availability.GENERAL, false, 0),
 
     /**
      * FD10.41's two-space explosive. "There is no difference between two 1/2-space and one
      * 1.0-space module", so this and a pair of {@link #EXPLOSIVE_1}s are the same drone — both
      * are offered because the chart offers both and a loadout may be recorded either way.
      */
-    EXPLOSIVE_2(2.0, 24, 0, 1.00, Availability.GENERAL),
+    EXPLOSIVE_2(2.0, 24, 0, 1.00, Availability.GENERAL, false, 0),
 
     /**
      * FD10.42: a probe module, which FD6.0 explains and this file only has to build.
@@ -70,7 +70,7 @@ public enum PayloadModule {
      * guidance system the drone may use, FD10.425 lists the options for a probe on a type-III
      * frame. All three happen at launch.
      */
-    PROBE(1.0, 0, 0, 0.50, Availability.RESTRICTED),
+    PROBE(1.0, 0, 0, 0.50, Availability.RESTRICTED, false, 0),
 
     /**
      * FD10.44: an ECM module, which FD9.0 explains and this file only has to build.
@@ -89,13 +89,36 @@ public enum PayloadModule {
      * game except an (internal or external) armor module. ECM drones will not work with armor
      * modules." {@code DroneSpec} refuses the combination.
      */
-    ECM(1.0, 0, 0, 0.50, Availability.RESTRICTED),
+    ECM(1.0, 0, 0, 0.50, Availability.RESTRICTED, false, 0),
+
+    /**
+     * FD8.0 / FD10.431: the smaller multi-warhead module — one payload space, three
+     * submunitions, which are type-VI drones carried "instead of an explosive warhead".
+     *
+     * <p>FD8.12 is the Federation's type-III-MW, deployed Y175 and copied immediately. The
+     * submunitions themselves are paid for in the module's 2.50 (FD10.43); only their speed
+     * upgrades cost extra (FD8.44), which is a cost rule for a thing this file does not model.
+     *
+     * <p>Limited Availability (FD10.631), forward payload space only (FD10.432), and no drone
+     * may carry two.
+     */
+    MW_SMALL(1.0, 0, 0, 2.50, Availability.LIMITED, true, 3),
+
+    /**
+     * FD10.431's larger module: two payload spaces, five submunitions. FD8.11's Kzinti
+     * type-IV-MW, deployed Y170 after they watched the Klingon Stingray.
+     *
+     * <p>It spans the whole payload of a two-space frame, which is how it satisfies FD10.432's
+     * "must be in the forward payload space(s)" — the plural is the rule allowing for exactly
+     * this.
+     */
+    MW_LARGE(2.0, 0, 0, 3.50, Availability.LIMITED, true, 5),
 
     /** FD12.11/FD12.21: the smaller internal armor module. No warhead, four more hull... */
-    ARMOR_HALF(0.5, 0, 2, 0.25, Availability.RESTRICTED),
+    ARMOR_HALF(0.5, 0, 2, 0.25, Availability.RESTRICTED, false, 0),
 
     /** ...and the larger, at one payload space. FD12.21: "adds four damage points". */
-    ARMOR_1(1.0, 0, 4, 0.50, Availability.RESTRICTED),
+    ARMOR_1(1.0, 0, 4, 0.50, Availability.RESTRICTED, false, 0),
 
     /**
      * The type-VI's fixed warhead, which is not a module a player can choose and is here so that
@@ -111,7 +134,7 @@ public enum PayloadModule {
      * <p>So this constant is a nominal, not a strength. The rule lives in {@code Drone}, where it
      * already worked before this model existed and was deliberately left alone.
      */
-    DOGFIGHT_WARHEAD(0.5, 8, 0, 0.25, Availability.GENERAL);
+    DOGFIGHT_WARHEAD(0.5, 8, 0, 0.25, Availability.GENERAL, false, 0);
 
     /** Payload spaces consumed (FD10.4), and the chart column this module is priced in. */
     public final double spaces;
@@ -159,12 +182,37 @@ public enum PayloadModule {
         return this == ARMOR_HALF || this == ARMOR_1;
     }
 
+    /**
+     * FD10.402: "Some warhead modules can only be placed in the forward space."
+     *
+     * <p>True for the MW module (FD10.432) and, when they are built, for swordfish (FD11.11),
+     * spearfish (FD14.11) and starfish (FD15.11) — four of the five remaining modules.
+     *
+     * <p><b>WHICH space a module sits in is deliberately not modelled.</b> The owner's call,
+     * 2026-10-26: no rule asks where a given module IS, only that a legal arrangement exists,
+     * so it is enough to refuse a drone whose forward-only modules could not all fit in front.
+     * That makes FD10.47's "the internal armor must be placed in the opposite bay" a placement
+     * detail with no effect on legality, which is what it is.
+     */
+    public final boolean requiresForward;
+
+    /**
+     * FD10.431: type-VI drones carried in place of a warhead — three in the small module, five
+     * in the large. Zero for everything that is not a multi-warhead module.
+     *
+     * <p>A construction fact, stated here because it is what distinguishes the two MW sizes.
+     * What the submunitions DO on release is FD8.2 and is not modelled.
+     */
+    public final int submunitions;
+
     PayloadModule(double spaces, int strength, int hullBonus, double cost,
-            Availability availability) {
+            Availability availability, boolean requiresForward, int submunitions) {
         this.spaces = spaces;
         this.strength = strength;
         this.hullBonus = hullBonus;
         this.cost = cost;
         this.availability = availability;
+        this.requiresForward = requiresForward;
+        this.submunitions = submunitions;
     }
 }

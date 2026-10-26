@@ -94,6 +94,11 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
             throw new IllegalArgumentException(
                     "an ECM module cannot share a drone with armor (FD10.443)");
 
+        // FD10.432: "No more than one MW module can be on a single drone".
+        if (payload.stream().filter(m -> m.submunitions > 0).count() > 1)
+            throw new IllegalArgumentException(
+                    "a drone may carry only one multi-warhead module (FD10.432)");
+
         double used = 0;
         for (PayloadModule m : payload)
             used += m.spaces;
@@ -101,6 +106,27 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
             throw new IllegalArgumentException(
                     "payload of " + used + " spaces exceeds " + frame + "'s "
                             + frame.payloadSpaces + " (FD10.4)");
+
+        // FD10.402: some modules "can only be placed in the forward space", and FD10.432,
+        // FD11.11, FD14.11 and FD15.11 each say it of their own.
+        //
+        // WHICH space a module occupies is not tracked, by design. No rule asks where a module
+        // IS; they ask that it BE forward, so it is enough to refuse a drone whose forward-only
+        // modules could not all fit in front. A frame has exactly one forward space, EXCEPT
+        // that a module spanning the entire payload is forward by occupying everything — which
+        // is why FD10.432 writes "forward payload space(s)" with the plural.
+        List<PayloadModule> forwardOnly = payload.stream()
+                .filter(m -> m.requiresForward).toList();
+        double forwardSpaces = forwardOnly.stream().mapToDouble(m -> m.spaces).sum();
+        if (forwardSpaces > 1.0) {
+            boolean spansWholePayload = forwardOnly.size() == 1
+                    && forwardOnly.get(0).spaces == frame.payloadSpaces;
+            if (!spansWholePayload)
+                throw new IllegalArgumentException(
+                        "more than one payload space of forward-only modules, which cannot all"
+                        + " be forward (FD10.402)");
+        }
+
     }
 
     /** A drone built on a frame that chooses its own payload. */
