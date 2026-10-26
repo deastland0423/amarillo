@@ -218,6 +218,19 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
      * upgrades, external armor, extended range, ATG guidance, or type-III frames... apply to
      * the entire drone unless a warhead is of a more restricted type."
      *
+     * <h2>FD10.66: the unit of account is the SPACE, not the module</h2>
+     * <blockquote>"Drones with a payload of two types (e.g., a 1/2 space of armor and a 1/2
+     * space of explosive), are considered to be <b>one space of the more restricted type</b>
+     * for purposes of the percentages. (Note; <b>there are no 'half spaces' of drone
+     * warheads</b>, mixed spaces are counted as the more restricted type of the two
+     * halves.)"</blockquote>
+     *
+     * <p>So two half-space modules share a payload space and that space is billed once, at the
+     * worse of the two tiers. FD10.66's own example: "a type-IV drone with an MW module, a half
+     * space explosive module, and a half space armor module would be considered as a space of
+     * Restricted and a space of Limited availability" — the MW is the Limited space, and the
+     * General explosive half is dragged up by the Restricted armor half it shares a space with.
+     *
      * <h2>What this does NOT do</h2>
      * FD10.65's third example splits a two-space drone across two tiers — "a type-IV fast speed
      * drone in Y179 (restricted) with an explosive module (general) and a swordfish module
@@ -272,8 +285,25 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
             floor = Availability.moreRestrictive(floor, a.availability);
 
         Map<Availability, Double> out = new EnumMap<>(Availability.class);
-        for (PayloadModule m : allModules())
-            out.merge(Availability.moreRestrictive(floor, m.availability), m.spaces, Double::sum);
+        // FD10.66: the unit of account is the PAYLOAD SPACE, not the module. Two half-space
+        // modules share a space and that space counts once, at the worse of the two tiers.
+        Availability pendingHalf = null;
+        for (PayloadModule m : allModules()) {
+            Availability tier = Availability.moreRestrictive(floor, m.availability);
+            if (m.spaces == 0.5) {
+                if (pendingHalf == null) {
+                    pendingHalf = tier;
+                } else {
+                    out.merge(Availability.moreRestrictive(pendingHalf, tier), 1.0, Double::sum);
+                    pendingHalf = null;
+                }
+            } else {
+                out.merge(tier, m.spaces, Double::sum);
+            }
+        }
+        // A half with no partner still occupies a space; nothing shares it, so it is its own.
+        if (pendingHalf != null)
+            out.merge(pendingHalf, 1.0, Double::sum);
         return out;
     }
 

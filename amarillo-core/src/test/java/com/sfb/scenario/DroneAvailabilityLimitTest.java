@@ -306,8 +306,17 @@ public class DroneAvailabilityLimitTest {
 
         assertEquals("two spaces of armored heavy plus two one-space drones",
                 4.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
-        assertEquals("only the three half-space armor modules are Restricted",
-                1.5, DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 180),
+        // BOTH of the armored drone's spaces, not one and a half. FD10.66: "there are no
+        // 'half spaces' of drone warheads" — the two leftover halves, one armor and one
+        // explosive, share a payload space and that space counts "as the more restricted type
+        // of the two halves". So armor+armor is a Restricted space and armor+explosive is
+        // another, and the General explosive half is dragged up by the armor beside it.
+        //
+        // This read 1.5 until FD10.66 was found, which was a rule nobody had looked for
+        // because per-module accounting is the obvious way to do it and gives a plausible
+        // number.
+        assertEquals("both of the armored drone's spaces are Restricted (FD10.66)",
+                2.0, DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 180),
                 0.0001);
         assertEquals("and nothing is Limited", 0.0,
                 DroneAvailabilityLimit.spacesAtLeast(ship, Availability.LIMITED, 180), 0.0001);

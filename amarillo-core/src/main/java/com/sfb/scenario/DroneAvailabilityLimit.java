@@ -165,10 +165,12 @@ public final class DroneAvailabilityLimit {
                 if (spec == null)
                     continue;
                 if (year == Integer.MAX_VALUE) {
-                    // The caller asking for "everything": every tier is at least as restricted
-                    // as GENERAL, so the year cannot matter and the whole drone counts.
-                    for (var m : spec.allModules())
-                        spaces += m.spaces;
+                    // The caller asking for "everything". The year cannot matter — every tier
+                    // is at least as restricted as GENERAL — but the ACCOUNTING must still be
+                    // FD10.66's, or the denominator would count half-spaces the numerator has
+                    // already rounded into whole ones. Any year gives the same total.
+                    for (var v : spec.spacesByAvailability(0).values())
+                        spaces += v;
                     continue;
                 }
                 // FD10.641: a drone is a BILL of tiers, not one tier. A type-IV whose speed is

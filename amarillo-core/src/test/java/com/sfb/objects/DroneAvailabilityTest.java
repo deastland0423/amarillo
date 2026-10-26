@@ -172,17 +172,65 @@ public class DroneAvailabilityTest {
                 half.availabilityIn(180));
     }
 
-    /** The spaces in the bill add up to what the drone actually carries. */
+    /**
+     * The bill accounts for every space the drone uses — which under FD10.66 is not always the
+     * same as the spaces its modules occupy.
+     *
+     * <p>"There are no 'half spaces' of drone warheads": two half-modules share one space and
+     * are billed as one, and a lone half still takes a space of its own. So the bill equals the
+     * carried total except where an ODD number of halves rounds the last one up, which today is
+     * only the type-VI's fixed warhead — and FD10.643 keeps type-VIs out of the sum anyway.
+     */
     @Test
     public void theBillAccountsForEverySpace() {
         for (DroneType t : DroneType.values()) {
             double billed = t.spec.spacesByAvailability(180).values().stream()
                     .mapToDouble(Double::doubleValue).sum();
             double carried = 0;
-            for (PayloadModule m : t.spec.allModules())
+            long halves = 0;
+            for (PayloadModule m : t.spec.allModules()) {
                 carried += m.spaces;
-            assertEquals(t + " must bill every space it carries", carried, billed, 0.0001);
+                if (m.spaces == 0.5)
+                    halves++;
+            }
+            double expected = halves % 2 == 0 ? carried : carried + 0.5;
+            assertEquals(t + " bills every space, rounding an odd half up (FD10.66)",
+                    expected, billed, 0.0001);
         }
+    }
+
+    /**
+     * FD10.66's own worked example, which is the rule that nobody looks for because
+     * per-module accounting gives a plausible answer:
+     *
+     * <blockquote>"a type-IV drone with an MW module, a half space explosive module, and a
+     * half space armor module would be considered as a space of Restricted and a space of
+     * Limited availability."</blockquote>
+     *
+     * <p>The MW module is Limited and fills one space. The other space holds two halves — a
+     * General explosive and a Restricted armor — and FD10.66 makes it "one space of the more
+     * restricted type", so the explosive half is dragged up rather than counting separately.
+     */
+    @Test
+    public void twoHalfModulesShareOneSpaceAtTheWorseTier() {
+        DroneSpec mixed = DroneSpec.of(DroneFrame.TWO_SPACE, Propulsion.SPEED_8,
+                PayloadModule.MW_SMALL, PayloadModule.EXPLOSIVE_HALF,
+                PayloadModule.ARMOR_HALF);
+
+        var bill = mixed.spacesByAvailability(180);
+        assertEquals("the MW module", 1.0, bill.get(Availability.LIMITED), 0.0001);
+        assertEquals("the shared space, at the armor's tier",
+                1.0, bill.get(Availability.RESTRICTED), 0.0001);
+        assertNull("and nothing counts as General at all", bill.get(Availability.GENERAL));
+    }
+
+    /** Two halves of the SAME tier are still one space, not two halves. */
+    @Test
+    public void twoHalvesOfOneTierAreStillASingleSpace() {
+        DroneSpec twoHalves = DroneSpec.of(DroneFrame.ONE_SPACE, Propulsion.SPEED_8,
+                PayloadModule.EXPLOSIVE_HALF, PayloadModule.EXPLOSIVE_HALF);
+        assertEquals("FD10.41: no difference between two 1/2-space and one 1.0-space module",
+                1.0, twoHalves.spacesByAvailability(180).get(Availability.GENERAL), 0.0001);
     }
 
     /**
