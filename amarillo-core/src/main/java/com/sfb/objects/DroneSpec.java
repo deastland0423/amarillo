@@ -37,7 +37,8 @@ import java.util.Set;
  * the shape they will hang off, and carries none of them.
  */
 public record DroneSpec(DroneFrame frame, Propulsion propulsion,
-                       List<PayloadModule> payload, Set<FrameAddition> additions) {
+                       List<PayloadModule> payload, Set<FrameAddition> additions,
+                       Propulsion submunitionPropulsion) {
 
     public DroneSpec {
         if (frame == null || propulsion == null)
@@ -99,6 +100,40 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
             throw new IllegalArgumentException(
                     "a drone may carry only one multi-warhead module (FD10.432)");
 
+        // FD8.24: the submunitions have an engine of their own, and it is bought separately.
+        //
+        // "The speed of the submunition will, like the bus vehicle, be the appropriate speed
+        // for the year in which the scenario is set. It could be a higher speed if that was
+        // available as a restricted item (FD10.65). Note that the cost of speed upgrades for
+        // the submunitions is paid separately from and in addition to the cost of the bus
+        // vehicle; see (S3.2). This makes MW drones extremely expensive."
+        //
+        // So this is a second propulsion choice rather than a property of the module: FD8.11
+        // buys "five type-VI drones (any speed available for the year)". ONE field and not
+        // three or five, because FD8.44 requires them to agree -- "All submunitions on a given
+        // MW drone MUST receive the same speed upgrade. If one is to be made a fast type-VI,
+        // all must be made fast." Making that unsayable beats checking for it.
+        //
+        // Nothing links it to the bus's own speed. The worked examples in FD8.41/.42/.45 pair
+        // them ("fast-speed frame with fast-speed submunitions"), but that is a player buying
+        // both, not a rule, and FD8.24 explicitly allows the submunitions to be faster.
+        List<PayloadModule> aboard = frame.modular ? payload : frame.fixedPayload;
+        boolean carriesSubmunitions = aboard.stream().anyMatch(m -> m.submunitions > 0);
+        if (submunitionPropulsion != null && !carriesSubmunitions)
+            throw new IllegalArgumentException(
+                    "only a drone carrying submunitions has a submunition speed (FD8.21)");
+        if (carriesSubmunitions) {
+            // Nothing bought means they fly at the type-VI's own baseline, which FD2.227 puts
+            // at 12 rather than 8. That is why FD8.45's "slow speed (both bus and
+            // submunitions)" type-I-MW pays nothing at all for its submunitions, and why
+            // speed 8 is not a choice here: FD10.52 prints a dash in that column.
+            if (submunitionPropulsion == null)
+                submunitionPropulsion = Propulsion.SPEED_12;
+            if (!submunitionPropulsion.fits(DroneFrame.HALF_SPACE))
+                throw new IllegalArgumentException(submunitionPropulsion
+                        + " is not made for a type-VI submunition (FD10.52, FD2.227)");
+        }
+
         double used = 0;
         for (PayloadModule m : payload)
             used += m.spaces;
@@ -131,18 +166,29 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
 
     /** A drone built on a frame that chooses its own payload. */
     public static DroneSpec of(DroneFrame frame, Propulsion propulsion, PayloadModule... modules) {
-        return new DroneSpec(frame, propulsion, List.of(modules), Set.of());
+        return new DroneSpec(frame, propulsion, List.of(modules), Set.of(), null);
     }
 
     /** The same, with something bolted to the frame (FD10.53). */
     public static DroneSpec of(DroneFrame frame, Propulsion propulsion,
             Set<FrameAddition> additions, PayloadModule... modules) {
-        return new DroneSpec(frame, propulsion, List.of(modules), additions);
+        return new DroneSpec(frame, propulsion, List.of(modules), additions, null);
     }
 
     /** A drone on a frame that carries what it carries — the type-VI (FD10.21). */
     public static DroneSpec fixed(DroneFrame frame, Propulsion propulsion) {
-        return new DroneSpec(frame, propulsion, List.of(), Set.of());
+        return new DroneSpec(frame, propulsion, List.of(), Set.of(), null);
+    }
+
+    /**
+     * The same drone with its submunitions upgraded — FD8.11's "five type-VI drones (any
+     * speed available for the year)", chosen rather than taken as they come.
+     *
+     * <p>Separate from the factories because it is the one part of a drone that is neither a
+     * module nor an addition: it buys engines for drones that are themselves the payload.
+     */
+    public DroneSpec withSubmunitionSpeed(Propulsion submunitionSpeed) {
+        return new DroneSpec(frame, propulsion, payload, additions, submunitionSpeed);
     }
 
     /** Everything aboard: the chosen modules, or the frame's own on a non-modular frame. */
@@ -246,6 +292,12 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
     public Availability availabilityIn(int year) {
         Availability worst = frame.availability;
         worst = Availability.moreRestrictive(worst, propulsion.availabilityIn(year));
+        // FD8.24: the submunitions' speed is a restricted item in its own right (FD10.65).
+        // Cannot bite today -- every module that HAS submunitions is itself Limited, which is
+        // already the worst tier there is -- but a cheaper carrier module would make it bite.
+        if (submunitionPropulsion != null)
+            worst = Availability.moreRestrictive(
+                    worst, submunitionPropulsion.availabilityIn(year));
         for (PayloadModule m : allModules())
             worst = Availability.moreRestrictive(worst, m.availability);
         for (FrameAddition a : additions)
@@ -281,6 +333,11 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
     public Map<Availability, Double> spacesByAvailability(int year) {
         Availability floor = frame.availability;
         floor = Availability.moreRestrictive(floor, propulsion.availabilityIn(year));
+        // FD10.641 counts "speed upgrades" among the frame modifications that set the floor for
+        // every space, and the submunitions' engines are a speed upgrade (FD8.44).
+        if (submunitionPropulsion != null)
+            floor = Availability.moreRestrictive(
+                    floor, submunitionPropulsion.availabilityIn(year));
         for (FrameAddition a : additions)
             floor = Availability.moreRestrictive(floor, a.availability);
 
@@ -313,6 +370,10 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
      * that has not been invented is not Limited, it is impossible.
      */
     public boolean existsIn(int year) {
+        // FD8.11 sells submunitions at "any speed available for the year", so an MW drone whose
+        // type-VIs outrun their own invention date is as impossible as one whose bus does.
+        if (submunitionPropulsion != null && !submunitionPropulsion.existsIn(year))
+            return false;
         return propulsion.existsIn(year);
     }
 
@@ -343,6 +404,48 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
             total += m.cost;
         for (FrameAddition a : additions)
             total += a.cost;
+        total += submunitionUpgradeCost();      // FD8.44, paid per submunition
         return total;
+    }
+
+    /** How many type-VI drones this one carries as its payload (FD8.21). */
+    public int submunitionCount() {
+        int total = 0;
+        for (PayloadModule m : allModules())
+            total += m.submunitions;
+        return total;
+    }
+
+    /**
+     * FD8.44: what the submunitions' engines cost, on top of everything else.
+     *
+     * <blockquote>"The submunitions of an MW drone can only receive speed upgrades, and the
+     * cost of this upgrade will be added to the total cost of the drone. <b>The cost for each
+     * submunition is half the cost for a type-I drone receiving the speed
+     * upgrade.</b>"</blockquote>
+     *
+     * <p>FD10.43 says it from the other end: "The actual submunitions are part of the cost of
+     * the MW module; but their speed upgrades will cost extra (FD8.44)." The module's 2.50 or
+     * 3.50 buys the drones and nothing about how fast they fly.
+     *
+     * <h2>The halving is FD10.52's half-space column, not arithmetic on FD8.44's sentence</h2>
+     * A submunition is a type-VI, and FD2.226 — "Type-VI speed upgrades cost 1/2 the normal
+     * amount" — is already in the chart, which is why {@link Propulsion#costOn} is read at
+     * HALF_SPACE here. The two readings agree at medium and fast and DISAGREE at speed 12,
+     * where the chart is right: halving a type-I's 0.50 upgrade would charge 0.25 a submunition
+     * for speed 12, making FD8.41's "standard Speed 12 type-III with Speed 12 submunitions"
+     * cost 4.75 where the rule says four points. Speed 12 IS the type-VI's baseline (FD2.227),
+     * so there is no upgrade there to pay for.
+     *
+     * <p>Against the published tables: three submunitions at medium is 3 x 0.25 = 0.75 and at
+     * fast 3 x 0.50 = 1.50 (FD8.441); five is 1.25 and 2.50 (FD8.442). Both exact, and so are
+     * all nine drone totals FD8.41, FD8.42 and FD8.45 work out longhand.
+     */
+    public double submunitionUpgradeCost() {
+        if (submunitionPropulsion == null)
+            return 0;
+        double baseline = Propulsion.SPEED_12.costOn(DroneFrame.HALF_SPACE);
+        double perSubmunition = submunitionPropulsion.costOn(DroneFrame.HALF_SPACE) - baseline;
+        return submunitionCount() * perSubmunition;
     }
 }

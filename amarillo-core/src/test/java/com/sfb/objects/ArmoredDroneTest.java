@@ -155,7 +155,7 @@ public class ArmoredDroneTest {
     public void aDogfightDroneCannotBeArmored() {
         try {
             new DroneSpec(DroneFrame.HALF_SPACE, Propulsion.SPEED_12,
-                    java.util.List.of(), Set.of(FrameAddition.EXTERNAL_ARMOR_HALF));
+                    java.util.List.of(), Set.of(FrameAddition.EXTERNAL_ARMOR_HALF), null);
             fail("a type-VI takes no armor (FD10.21)");
         } catch (IllegalArgumentException expected) {
             assertTrue(expected.getMessage(), expected.getMessage().contains("FD10.21"));
