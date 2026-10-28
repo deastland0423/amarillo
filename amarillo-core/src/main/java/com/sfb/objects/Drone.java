@@ -19,6 +19,13 @@ public class Drone extends Unit implements Seeker {
 	// over. Genuine runtime state, unlike the CAPABILITY, which is a property of what the
 	// drone is made of and never changes.
 	private boolean ownLockOn;
+
+	/**
+	 * G13.334: set once this drone is holding its target through a cloak — either because it
+	 * won a retention roll (G13.3343) or because it is a type-VI, which G13.3345 says does not
+	 * lose a lock-on "merely because the target cloaks".
+	 */
+	private boolean cloakLockRetained;
 	private boolean warpSeeker; // True if the drone uses warp-energy tracking (FD2.56) — TypeVI variants.
 	private int endurance; // The number of impulses this weapon will continue to operate.
 	private int launchImpulse; // The (absolute) impulse this drone was launched.
@@ -183,6 +190,15 @@ public class Drone extends Unit implements Seeker {
 	@Override
 	public boolean hasOwnLockOn() {
 		return ownLockOn;
+	}
+
+	/** G13.334: whether this drone is holding its target through a cloak. */
+	public boolean isCloakLockRetained() {
+		return cloakLockRetained;
+	}
+
+	public void setCloakLockRetained(boolean retained) {
+		this.cloakLockRetained = retained;
 	}
 
 	/**
@@ -391,6 +407,7 @@ public class Drone extends Unit implements Seeker {
 		state.put("warpSeeker", warpSeeker);
 		state.put("endurance", endurance);
 		state.put("ownLockOn", ownLockOn);
+		state.put("cloakLockRetained", cloakLockRetained);
 		state.put("launchImpulse", launchImpulse);
 		state.put("warheadDamage", warheadDamage);
 		state.put("rackSize", rackSize);
@@ -445,6 +462,8 @@ public class Drone extends Unit implements Seeker {
 				drone.getEndurance()));
 		if (com.sfb.systemgroups.StateIo.flag(state, "ownLockOn", false))
 			drone.acquireOwnLockOn();
+		drone.setCloakLockRetained(
+				com.sfb.systemgroups.StateIo.flag(state, "cloakLockRetained", false));
 		drone.setLaunchImpulse(com.sfb.systemgroups.StateIo.integer(state, "launchImpulse",
 				drone.getLaunchImpulse()));
 		drone.warheadDamage = com.sfb.systemgroups.StateIo.integer(state, "warheadDamage",

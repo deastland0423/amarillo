@@ -1250,11 +1250,12 @@ public class Game {
                             && after == com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED) {
                         // Fade-out complete — each ship holding a lock-on rolls to
                         // retain it (G13.331); failures lose it and their guided
-                        // drones release (D6.122). Self-guiding plasma rolls its
-                        // own retention at sensor 6 (G13.3343/G13.3344).
+                        // drones release (D6.122). Self-guiding weapons roll their
+                        // own retention at sensor 6 (G13.3343/G13.3344) -- except a type-VI
+                        // drone with its own lock-on, which keeps it outright (G13.3345).
                         log.add(ship.getName() + " has completed fade-out — rolling lock-on retention (G13.331)");
                         log.addAll(lockOnResolver.rollRetention(ship));
-                        log.addAll(seekerControl.rollPlasmaCloakRetention(ship));
+                        log.addAll(seekerControl.rollSeekerCloakRetention(ship));
                         log.addAll(seekerControl.releaseOrphanedDrones());
                     }
                     // Leaving FULLY_CLOAKED never happens in updateState() — only

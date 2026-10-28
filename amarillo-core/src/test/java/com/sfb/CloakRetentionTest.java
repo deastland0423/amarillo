@@ -345,6 +345,127 @@ public class CloakRetentionTest {
         return torp;
     }
 
+    /**
+     * Put a drone of the given type in flight at the same spot the plasma tests use, already
+     * holding the lock-on of its own that FD5.12 grants at eight hexes.
+     */
+    private com.sfb.objects.Drone droneTargeting(com.sfb.objects.DroneType type, Ship target,
+            Ship controller) {
+        com.sfb.objects.Drone d = new com.sfb.objects.Drone(type);
+        d.setName("Test-" + type.name());
+        // Inside FD5.23's twelve-hex leash and facing its target: a self-guiding drone further
+        // out than that, or with the target off its bow, is lost before a cloak matters.
+        d.setLocation(new Location(18, 10));
+        d.setFacing(com.sfb.utilities.MapUtils.getBearing(d.getLocation(), target.getLocation()));
+        d.setTarget(target);
+        d.setController(controller);
+        d.setSeekerType(Seeker.SeekerType.DRONE);
+        d.acquireOwnLockOn();
+        game.getSeekers().add(d);
+        return d;
+    }
+
+    /**
+     * G13.3345: "Type-VI drones which have a lock-on (FD5.131) do not lose that lock-on merely
+     * because the target cloaks."
+     *
+     * <p>Set up at the speed where an ATG drone certainly FAILS its roll, so the two outcomes
+     * cannot be confused: the dogfight drone is not rolling and winning, it is not rolling.
+     */
+    @Test
+    public void dogfightDroneHoldsItsLockOnThroughACloak() {
+        submitAllocations(true, 0.0);           // the setup that kills an ATG drone outright
+        com.sfb.objects.Drone dfd =
+                droneTargeting(com.sfb.objects.DroneType.TypeVI, rom, null);
+        cloakAndCompleteFadeOut();
+
+        assertTrue("G13.3345: no roll, and no loss", dfd.isCloakLockRetained());
+        assertTrue("still coming", game.getSeekers().contains((Seeker) dfd));
+    }
+
+    /**
+     * And the same drone WITHOUT its own lock-on is not covered. G13.3345 is explicit that it
+     * protects "Type-VI drones <b>which have a lock-on</b>", and FD5.133 says the other side
+     * out loud: a cloak "could divert a dogfight drone that did not yet have its own
+     * lock-on". Such a drone is still being guided, so it lives or dies with its controller
+     * under D6.122 rather than holding anything of its own.
+     */
+    @Test
+    public void aDogfightDroneThatHasNotLockedOnIsNotProtected() {
+        submitAllocations(true, 0.0);           // fed's own retention is impossible here
+        com.sfb.objects.Drone fresh =
+                new com.sfb.objects.Drone(com.sfb.objects.DroneType.TypeVI);
+        fresh.setName("Test-Unlocked");
+        // Beyond FD5.12's eight hexes, so it does not take over mid-test. It is still guided,
+        // so FD5.23's twelve-hex leash does not apply to it either.
+        fresh.setLocation(new Location(22, 10));
+        fresh.setFacing(com.sfb.utilities.MapUtils.getBearing(
+                fresh.getLocation(), rom.getLocation()));
+        fresh.setTarget(rom);
+        fresh.setController(fed);
+        fresh.setSeekerType(Seeker.SeekerType.DRONE);
+        game.getSeekers().add(fresh);
+
+        cloakAndCompleteFadeOut();
+
+        assertFalse("fixture: the guiding ship lost its lock-on", fed.hasLockOn(rom));
+        assertFalse("G13.3345 did not shield it", fresh.isCloakLockRetained());
+        assertFalse("and it never had a lock-on of its own to keep", fresh.hasOwnLockOn());
+    }
+
+    /**
+     * G13.3343/G13.3344: an ATG drone is not deleted by a cloak either — it makes its own
+     * attempt at sensor rating six, with the two points of built-in ECCM FD5.26 gives it.
+     */
+    @Test
+    public void atgDrone_fastCloaker_retainsTracking() {
+        submitAllocations(true, 20.0);          // the speed factor that makes it certain
+        com.sfb.objects.Drone atg =
+                droneTargeting(com.sfb.objects.DroneType.TypeIII, rom, null);
+        cloakAndCompleteFadeOut();
+
+        assertTrue("G13.3343: certain at this speed factor", atg.isCloakLockRetained());
+        assertTrue(game.getSeekers().contains((Seeker) atg));
+    }
+
+    /** And it can fail, which is the half that was missing: it used to be deleted outright. */
+    @Test
+    public void atgDrone_stationaryCloaker_losesTracking() {
+        submitAllocations(true, 0.0);
+        com.sfb.objects.Drone atg =
+                droneTargeting(com.sfb.objects.DroneType.TypeIII, rom, null);
+        cloakAndCompleteFadeOut();
+
+        assertFalse("removed after a failed retention roll (G13.3343)",
+                game.getSeekers().contains((Seeker) atg));
+    }
+
+    /**
+     * F3.41: "if no other unit assumes control, the seeking weapon will become inert (FD1.7)
+     * <b>unless it is capable of controlling itself</b>."
+     *
+     * <p>A drone that has won its own lock-on is released to its own guidance when its
+     * controller can no longer guide it, rather than destroyed with it.
+     */
+    @Test
+    public void aDroneWithItsOwnLockOnSurvivesLosingItsController() {
+        submitAllocations(false, 20.0);
+        com.sfb.objects.Drone atg =
+                droneTargeting(com.sfb.objects.DroneType.TypeIII, rom, fed);
+        for (int guard = 0; guard < 400
+                && game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY; guard++)
+            game.advancePhase();
+
+        fed.removeLockOn(rom);                  // the controller can no longer guide it
+        for (int i = 0; i < 8; i++)             // far enough to reach the end-of-impulse sweep
+            game.advancePhase();
+
+        assertTrue("F3.42: it keeps tracking on its own lock-on",
+                game.getSeekers().contains((Seeker) atg));
+        assertNull("and nobody is holding it any more (F3.4)", atg.getController());
+        assertTrue(atg.isSelfGuiding());
+    }
+
     @Test
     public void plasma_fastCloaker_retainsTracking() {
         submitAllocations(true, 20.0); // P = 2 − RF(≈2) + 6 = 6 → certain

@@ -564,8 +564,11 @@ class SeekerControl {
             if (s instanceof Drone) {
                 Drone drone = (Drone) s;
                 if (drone.isSelfGuiding()) {
-                    // Self-guiding drones have their own lock-on — foiled by full cloak
-                    if (isTargetFullyCloaked(drone)) {
+                    // G13.334: a cloak does not simply delete a self-guiding drone. A type-VI
+                    // holds its lock-on outright (G13.3345) and an ATG drone rolls for it
+                    // (G13.3343); either way the verdict was reached when the fade-out
+                    // completed, and this only enforces it.
+                    if (isTargetFullyCloaked(drone) && !drone.isCloakLockRetained()) {
                         log.add("  Drone lost tracking — " + drone.getTarget().getName() + " is fully cloaked");
                         toRemove.add(drone);
                     }
@@ -585,12 +588,23 @@ class SeekerControl {
                         if (xfer != null) {
                             log.add(xfer);
                         } else {
-                            log.add("  Drone released — " + controller.getName()
+                            String why = controller.getName()
                                     + (offMap ? " is no longer in space"
                                               : " lost lock-on to " + target.getName())
-                                    + ", no eligible controller available");
+                                    + ", no eligible controller available";
                             dc.releaseControl(drone);
-                            toRemove.add(drone);
+                            // F3.41: "if no other unit assumes control, the seeking weapon
+                            // will become inert (FD1.7) UNLESS IT IS CAPABLE OF CONTROLLING
+                            // ITSELF". A drone that has closed to eight hexes has a lock-on
+                            // of its own to carry on with (FD5.12), and releaseControl has
+                            // just cleared its controller, so it is self-guiding from here.
+                            if (drone.hasOwnLockOn()) {
+                                log.add("  Drone released — " + why
+                                        + "; it has its own lock-on and keeps tracking (F3.42)");
+                            } else {
+                                log.add("  Drone released — " + why);
+                                toRemove.add(drone);
+                            }
                         }
                     }
                 }
@@ -714,10 +728,52 @@ class SeekerControl {
      *   is a no-op in this engine: plasma occupies no control channels and
      *   cannot be steered, and the launcher reference is kept for display.
      */
-    List<String> rollPlasmaCloakRetention(Ship cloaked) {
+    List<String> rollSeekerCloakRetention(Ship cloaked) {
         List<String> log = new ArrayList<>();
         DiceRoller dice = new DiceRoller();
         List<Seeker> toRemove = new ArrayList<>();
+
+        // G13.3345: "Type-VI drones which have a lock-on (FD5.131) do not lose that lock-on
+        // merely because the target cloaks." No roll, and FD5.131 adds "even if still under
+        // control of another unit" -- which is why this asks hasOwnLockOn rather than whether
+        // the drone is guiding itself at this moment.
+        //
+        // A drone that has NOT yet won its own lock-on is not covered: FD5.133 says a cloak
+        // "could divert a dogfight drone that did not yet have its own lock-on", and FD5.1's
+        // closing note is blunter -- it "would lose tracking and be removed from the board".
+        // That drone is still being guided, so it follows its controller out under D6.122 in
+        // releaseOrphanedDrones, which is where that outcome already lives.
+        for (Seeker s : seekers) {
+            if (!(s instanceof Drone) || s.getTarget() != cloaked)
+                continue;
+            Drone drone = (Drone) s;
+            if (!drone.hasOwnLockOn())
+                continue;
+            if (drone.getSpec() != null && drone.getSpec().isEnergySeeking()) {
+                drone.setCloakLockRetained(true);
+                log.add("  " + drone.getName() + " holds its lock-on on cloaked "
+                        + cloaked.getName() + " — a dogfight drone does not lose one to a"
+                        + " cloak (G13.3345)");
+                continue;
+            }
+            // G13.3341: an ATG drone whose guiding unit kept its lock-on tracks automatically.
+            Unit guide = drone.getController();
+            if (guide instanceof Ship && ((Ship) guide).hasLockOn(cloaked)) {
+                drone.setCloakLockRetained(true);
+                log.add("  " + drone.getName() + " keeps tracking cloaked " + cloaked.getName()
+                        + " via " + guide.getName() + "'s retained lock-on (G13.3341)");
+                continue;
+            }
+            // G13.3342/G13.3343: released, and it makes its own attempt at sensor rating six
+            // (G13.3344) with its built-in ECCM (FD5.26) and no outside help.
+            if (guide instanceof DroneController)
+                ((DroneController) guide).releaseControl(drone);
+            if (rollOwnRetention(drone, cloaked, dice, log, "G13.3343"))
+                drone.setCloakLockRetained(true);
+            else
+                toRemove.add(drone);
+        }
+
         for (Seeker s : seekers) {
             if (!(s instanceof PlasmaTorpedo) || s.getTarget() != cloaked)
                 continue;
@@ -733,28 +789,44 @@ class SeekerControl {
             if (controller instanceof Ship)
                 log.add("  " + torp.getName() + " released — " + controller.getName()
                         + " lost its lock-on (G13.3342); rolling own retention");
-            // G13.3343: no outside ECCM, but built-in ECCM (D6.393) counts —
-            // EW adjustment = signed chart of (cloaked ECM − built-in ECCM)
-            int ew = LockOnResolver.signedNetEcmShift(
-                    cloaked.getEcmAllocated() + cloaked.getLentEcm() - s.getBuiltInEccm());
-            int p = 6
-                    - ew
-                    - LockOnResolver.rangeFactor(MapUtils.getRange((Unit) s, cloaked))
-                    + LockOnResolver.speedFactor(cloaked.getSpeed())
-                    - 4;
-            int roll = dice.rollOneDie();
-            if (roll <= p) {
+            if (rollOwnRetention(torp, cloaked, dice, log, "G13.3343"))
                 torp.setCloakLockRetained(true);
-                log.add("  " + torp.getName() + " retains tracking on cloaked " + cloaked.getName()
-                        + " (die " + roll + " ≤ " + p + "; G13.3343)");
-            } else {
-                log.add("  " + torp.getName() + " lost tracking — failed retention on cloaked "
-                        + cloaked.getName() + " (die " + roll + " > " + p + "; G13.3343)");
+            else
                 toRemove.add(s);
-            }
         }
         seekers.removeAll(toRemove);
         return log;
+    }
+
+    /**
+     * G13.3343/G13.3344: a seeking weapon's own attempt to hold a lock-on through a cloak.
+     *
+     * <blockquote>"If the SGSWs are not controlled by a unit, they make their own attempt to
+     * retain a lock-on; they have <b>no outside ECCM but may have built-in ECCM</b>
+     * (D6.393)." And G13.3344: "Self-guided seeking weapons have a sensor rating of six."
+     * </blockquote>
+     *
+     * <p>Built-in ECCM is three for a plasma torpedo and, since FD5.26, two for an ATG drone.
+     */
+    private boolean rollOwnRetention(Seeker s, Ship cloaked, DiceRoller dice,
+            List<String> log, String cite) {
+        int ew = LockOnResolver.signedNetEcmShift(
+                cloaked.getEcmAllocated() + cloaked.getLentEcm() - s.getBuiltInEccm());
+        int p = 6
+                - ew
+                - LockOnResolver.rangeFactor(MapUtils.getRange((Unit) s, cloaked))
+                + LockOnResolver.speedFactor(cloaked.getSpeed())
+                - 4;
+        int roll = dice.rollOneDie();
+        String name = ((Unit) s).getName();
+        if (roll <= p) {
+            log.add("  " + name + " retains tracking on cloaked " + cloaked.getName()
+                    + " (die " + roll + " ≤ " + p + "; " + cite + ")");
+            return true;
+        }
+        log.add("  " + name + " lost tracking — failed retention on cloaked "
+                + cloaked.getName() + " (die " + roll + " > " + p + "; " + cite + ")");
+        return false;
     }
 
     /** Extracts the lowest-numbered direction from an arc bitmask. */

@@ -413,6 +413,18 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
     }
 
     /**
+     * The other route to self-guidance: FD5.11's warp-energy seeker, which FD5.14 says "is used
+     * only on 1/2-space dogfight drones and cannot be used on any other type of seeking weapon".
+     *
+     * <p>Worth asking by name because the rules keep treating the two differently. FD5.26 gives
+     * ATG two points of ECCM and says nothing about this; G13.3345 lets a type-VI hold a
+     * lock-on through a cloak outright where ATG has to roll for it.
+     */
+    public boolean isEnergySeeking() {
+        return effectiveFrame() == DroneFrame.HALF_SPACE;
+    }
+
+    /**
      * FD10.6: how hard this drone is to obtain in a given year — the most restrictive of its
      * parts.
      *
