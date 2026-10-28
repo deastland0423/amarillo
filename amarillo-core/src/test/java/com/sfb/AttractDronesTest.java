@@ -69,6 +69,49 @@ public class AttractDronesTest {
         return d;
     }
 
+    /**
+     * FD5.131: a dogfight drone that has won its own lock-on "cannot be distracted by...
+     * scouts (G24.22) and (G24.23)". The javadoc on attractDrone recorded this as unmodelled
+     * for a long time; it is modelled now.
+     */
+    @Test
+    public void aDogfightDroneWithItsOwnLockOnCannotBeAttracted() {
+        Game game = new Game();
+        Ship scout = scout(game);
+        Ship victim = enemyShip(game, "USS Prey", 11, 10);
+        Drone dfd = enemyDrone(game, "DFD-1", 10, 12, null, victim);
+        dfd.setDroneType(DroneType.TypeVI);
+        dfd.acquireOwnLockOn();
+        scout.addLockOn(dfd);
+
+        Game.ActionResult r = game.attractDrone(scout, "1", "DFD-1");
+
+        assertFalse(r.getMessage(), r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("FD5.131"));
+        assertEquals("and it is still going where it was going", victim, dfd.getTarget());
+    }
+
+    /**
+     * FD5.133: "WW, SWACS, cloaking devices, and scouts could divert a dogfight drone that
+     * did not yet have its own lock-on." So the lock-on is the test, not the drone type.
+     */
+    @Test
+    public void aDogfightDroneThatHasNotLockedOnCanStillBeAttracted() {
+        Game game = new Game();
+        Ship scout = scout(game);
+        Ship victim = enemyShip(game, "USS Prey", 11, 10);
+        Ship owner = enemyShip(game, "Kzin", 12, 10);
+        Drone dfd = enemyDrone(game, "DFD-2", 10, 12, owner, victim);
+        dfd.setDroneType(DroneType.TypeVI);
+        owner.addLockOn(victim);
+        scout.addLockOn(dfd);
+
+        Game.ActionResult r = game.attractDrone(scout, "1", "DFD-2");
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals("drawn onto the scout like any other drone", scout, dfd.getTarget());
+    }
+
     @Test
     public void attractsAnEnemyDrone_ontoTheScout() {
         Game game = new Game();

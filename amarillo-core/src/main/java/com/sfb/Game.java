@@ -1808,6 +1808,13 @@ public class Game {
                 }
         if (seeker == null && plainShuttle == null)
             return ActionResult.fail("No seeker or shuttle named '" + droneName + "'");
+        // FD5.131: a dogfight drone that has won its own lock-on "cannot be distracted by...
+        // scouts (G24.22) and (G24.23)". Before that it can be -- FD5.133 -- so the test is
+        // the lock-on, not the drone type.
+        if (seeker instanceof com.sfb.objects.Drone
+                && ((com.sfb.objects.Drone) seeker).ignoresDistraction())
+            return ActionResult.fail(droneName + " has a lock-on of its own and cannot be"
+                    + " drawn off by a scout channel (FD5.131)");
         if (seeker instanceof com.sfb.objects.PlasmaTorpedo)
             return ActionResult.fail("Plasma torpedoes ignore the attraction (G24.233)");
 

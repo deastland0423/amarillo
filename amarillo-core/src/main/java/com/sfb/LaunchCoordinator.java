@@ -248,10 +248,17 @@ class LaunchCoordinator {
         activeShuttles.add(ww);
         ship.setActiveWildWeasel(ww);
 
-        // Retarget all seekers aimed at this ship to the WW (J3.111)
+        // Retarget all seekers aimed at this ship to the WW (J3.111) -- except a dogfight
+        // drone that has its own lock-on, which FD5.131 says "cannot be distracted by...
+        // wild weasels (J3.2)". FD5.133 is the other side: a weasel "could divert a dogfight
+        // drone that did not yet have its own lock-on", so one that has not acquired is
+        // drawn off like anything else.
         for (Seeker seeker : seekers) {
-            if (seeker.getTarget() == ship)
-                seeker.setTarget(ww);
+            if (seeker.getTarget() != ship)
+                continue;
+            if (seeker instanceof Drone && ((Drone) seeker).ignoresDistraction())
+                continue;
+            seeker.setTarget(ww);
         }
 
         // Deactivate fire control (J3.132) — the setter clears all lock-ons
@@ -273,11 +280,23 @@ class LaunchCoordinator {
         if (ww == null)
             return;
 
-        // Retarget seekers from WW back to parent ship
+        // Retarget seekers from WW back to parent ship -- but not the dogfight drones.
+        // FD5.131: "Type-VIs targeted on a WW will not revert to their original target if the
+        // WW is voided or destroyed." They were already tracking the weasel when they won
+        // their own lock-on, so the weasel is what they know; with it gone they have nothing
+        // left to chase and go inert (FD1.7).
+        List<Seeker> stranded = new ArrayList<>();
         for (Seeker seeker : seekers) {
-            if (seeker.getTarget() == ww)
-                seeker.setTarget(ship);
+            if (seeker.getTarget() != ww)
+                continue;
+            if (seeker instanceof Drone && ((Drone) seeker).ignoresDistraction()) {
+                stranded.add(seeker);
+                continue;
+            }
+            seeker.setTarget(ship);
         }
+        for (Seeker s : stranded)
+            game.removeSeekerFromPlay(s);
 
         activeShuttles.remove(ww);
         ship.setActiveWildWeasel(null);

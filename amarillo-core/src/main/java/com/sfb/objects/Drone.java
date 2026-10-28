@@ -192,6 +192,30 @@ public class Drone extends Unit implements Seeker {
 		return ownLockOn;
 	}
 
+	/**
+	 * FD5.131: whether this drone is past being fooled.
+	 *
+	 * <blockquote>"Dogfight drones that have gained their own lock-ons (<b>even if still under
+	 * control of another unit</b>) cannot be distracted by electronic warfare (D6.3), wild
+	 * weasels (J3.2), cloaking devices (G13.3345), SWACS (J9.2), or scouts (G24.22) and
+	 * (G24.23)."</blockquote>
+	 *
+	 * <p>The parenthesis is why this asks {@link #hasOwnLockOn} rather than whether the drone
+	 * is guiding itself: a type-VI still being flown by its launcher is already past being
+	 * decoyed, as soon as it has a lock-on of its own.
+	 *
+	 * <p>FD5.132 is the exception that keeps it beatable: "Dogfight drones <b>can</b> be
+	 * distracted by chaff (D11.0)." Chaff asks a different question entirely -- D11.32 names
+	 * seeker TYPES, dogfight drones expressly among them -- so nothing here reaches it.
+	 *
+	 * <p>Of the list, EW is covered more broadly by D6.38, which puts "type-VI (dogfight)
+	 * drones" among the systems electronic warfare does not affect at all, with no lock-on
+	 * condition; cloaks are G13.3345; and SWACS do not exist in this engine yet.
+	 */
+	public boolean ignoresDistraction() {
+		return spec != null && spec.isEnergySeeking() && hasOwnLockOn();
+	}
+
 	/** G13.334: whether this drone is holding its target through a cloak. */
 	public boolean isCloakLockRetained() {
 		return cloakLockRetained;

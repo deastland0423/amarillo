@@ -271,4 +271,29 @@ public class ChaffTargetsTest {
         assertTrue(r.getMessage(), r.getMessage().contains("1 seeker(s) distracted"));
         assertEquals("the two heavy torpedoes are still coming", 2, game.getSeekers().size());
     }
+
+    /**
+     * FD5.132: "Dogfight drones <b>can</b> be distracted by chaff (D11.0)."
+     *
+     * <p>The exception that keeps FD5.131 from making an unstoppable weapon. A dogfight drone
+     * that has won its own lock-on shrugs off electronic warfare (D6.38), wild weasels, a
+     * cloak (G13.3345) and a scout channel (G24.23) — and a handful of chaff still works,
+     * because D11.32 names seeker TYPES and lists dogfight drones among them.
+     */
+    @Test
+    public void chaffStillWorksOnADogfightDroneWithItsOwnLockOn() {
+        final Drone[] dfd = new Drone[1];
+        chaffUntilItTakes(() -> {
+            Fighter f = fighterUnderFire();
+            Drone d = drone("DFD-1", f);
+            d.setDroneType(DroneType.TypeVI);
+            d.acquireOwnLockOn();
+            assertTrue("fixture: this is the drone FD5.131 protects", d.ignoresDistraction());
+            dfd[0] = d;
+            return f;
+        });
+
+        assertFalse("FD5.132: chaff is the one thing that still gets through",
+                game.getSeekers().contains((Seeker) dfd[0]));
+    }
 }
