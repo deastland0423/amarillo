@@ -92,6 +92,22 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
             throw new IllegalArgumentException(
                     "a dogfight drone cannot be given extended range (FD2.222)");
 
+        // Who may be fitted with active terminal guidance, and who already has guidance of
+        // their own. Two rules, both phrased as a drone that cannot be given ATG because it
+        // is already self-guiding by another route.
+        if (additions.contains(FrameAddition.ACTIVE_TERMINAL_GUIDANCE)) {
+            // FD5.22: "Any drone other than a type-VI may be equipped with ATG", and FD5.14
+            // says why -- energy-seeking guidance "is used only on 1/2-space dogfight drones".
+            if (frame == DroneFrame.HALF_SPACE)
+                throw new IllegalArgumentException(
+                        "a type-VI already guides itself and takes no ATG (FD5.22, FD5.14)");
+            // FD10.23: "ATG cannot be added to type-III drone, which already has a special
+            // type of guidance." FD2.221 says the same: "Type-III drones already have ATG".
+            if (additions.contains(FrameAddition.TYPE_III_GUIDANCE))
+                throw new IllegalArgumentException(
+                        "a type-III already has a guidance system of its own (FD10.23)");
+        }
+
         // FD10.442: "No more than one such module can be placed on any drone."
         long ecm = payload.stream().filter(m -> m == PayloadModule.ECM).count();
         if (ecm > 1)
@@ -348,6 +364,36 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
         if (!additions.contains(FrameAddition.EXTENDED_RANGE))
             return baseEndurance;
         return baseEndurance * 2;
+    }
+
+    /**
+     * F3.42: whether this drone is CAPABLE of guiding itself — which is not the same question
+     * as whether it is doing so right now.
+     *
+     * <blockquote>"Plasma torpedoes (FP4.0), drones with active terminal guidance (FD5.2), and
+     * type-VI drones (FD5.1) are <b>capable of</b> guiding themselves if released from control
+     * by the controlling unit."</blockquote>
+     *
+     * <p>F3.421 keeps the two apart: "A seeking weapon capable of self-guiding is assumed to be
+     * <b>under the control of a guiding unit</b> until control over it has been released." So a
+     * type-III handed from one ship to another is still a type-III; the capability is a
+     * property of what the drone is made of, and nothing that happens in flight can take it
+     * away. That is why this is derived here rather than stored on the drone.
+     *
+     * <p>Three routes to it, and the rules spell out all three:
+     * <ul>
+     *   <li>the half-space frame — FD5.11's energy seeker, which FD5.14 says "is used only on
+     *       1/2-space dogfight drones";</li>
+     *   <li>the ATG addition — FD5.2, bought for half a point (FD2.221);</li>
+     *   <li>the type-III frame — FD10.23, "which already has a special type of guidance", and
+     *       FD2.221, "Type-III drones already have ATG".</li>
+     * </ul>
+     */
+    public boolean isSelfGuidingCapable() {
+        if (effectiveFrame() == DroneFrame.HALF_SPACE)
+            return true;
+        return additions.contains(FrameAddition.ACTIVE_TERMINAL_GUIDANCE)
+                || additions.contains(FrameAddition.TYPE_III_GUIDANCE);
     }
 
     /**

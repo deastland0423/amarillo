@@ -163,8 +163,6 @@ public class ScatterPack extends Shuttle implements Seeker {
     @Override public Unit getTarget()                     { return target; }
     @Override public void setController(Unit controller)  { this.controller = controller; }
     @Override public Unit getController()                 { return controller; }
-    @Override public boolean isSelfGuiding()              { return false; }
-    @Override public void setSelfGuiding(boolean sg)      {}
     @Override public SeekerType getSeekerType()           { return SeekerType.SHUTTLE; }
     @Override public void setSeekerType(SeekerType type)  {}
     @Override public int getEndurance()                   { return Integer.MAX_VALUE; }

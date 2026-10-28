@@ -28,35 +28,35 @@ public enum DroneType {
   // a propulsion section and a payload. rack, hull and damage are DERIVED from that; endurance,
   // guidance and availability stay declared, because no rule computes them. See DroneSpec.
   //
-  //      frame                propulsion            payload                     endur  guid  warp  year  family
+  //      frame                propulsion            payload                     endur  warp  year  family
 
   // Standard drones — one-space frame, one explosive module, 3-turn (96 impulse) endurance
-  TypeI(ONE_SPACE, SPEED_8, 96, false, false, 0, Family.STANDARD, EXPLOSIVE_1),
-  TypeIM(ONE_SPACE, SPEED_20, 96, false, false, 165, Family.STANDARD, EXPLOSIVE_1),
-  TypeIF(ONE_SPACE, SPEED_32, 96, false, false, 178, Family.STANDARD, EXPLOSIVE_1),
+  TypeI(ONE_SPACE, SPEED_8, 96, false, 0, Family.STANDARD, EXPLOSIVE_1),
+  TypeIM(ONE_SPACE, SPEED_20, 96, false, 165, Family.STANDARD, EXPLOSIVE_1),
+  TypeIF(ONE_SPACE, SPEED_32, 96, false, 178, Family.STANDARD, EXPLOSIVE_1),
 
   // Standard heavy drones — two-space frame carrying TWO explosive modules, which is where
   // the 24 comes from: FD10.41, "two one-payload space explosive modules", combined into one
   // explosion rather than resolved as separate volleys.
-  TypeIV(TWO_SPACE, SPEED_8, 96, false, false, 0, Family.HEAVY, EXPLOSIVE_1, EXPLOSIVE_1),
-  TypeIVM(TWO_SPACE, SPEED_20, 96, false, false, 165, Family.HEAVY, EXPLOSIVE_1, EXPLOSIVE_1),
-  TypeIVF(TWO_SPACE, SPEED_32, 96, false, false, 178, Family.HEAVY, EXPLOSIVE_1, EXPLOSIVE_1),
+  TypeIV(TWO_SPACE, SPEED_8, 96, false, 0, Family.HEAVY, EXPLOSIVE_1, EXPLOSIVE_1),
+  TypeIVM(TWO_SPACE, SPEED_20, 96, false, 165, Family.HEAVY, EXPLOSIVE_1, EXPLOSIVE_1),
+  TypeIVF(TWO_SPACE, SPEED_32, 96, false, 178, Family.HEAVY, EXPLOSIVE_1, EXPLOSIVE_1),
 
   // Transitional speed-12 drones — 2-turn (64 impulse) endurance, obsolete at Y165
-  TypeII(ONE_SPACE, SPEED_12, 64, false, false, 77, Family.STANDARD, EXPLOSIVE_1),
-  TypeV(TWO_SPACE, SPEED_12, 64, false, false, 77, Family.HEAVY, EXPLOSIVE_1, EXPLOSIVE_1),
+  TypeII(ONE_SPACE, SPEED_12, 64, false, 77, Family.STANDARD, EXPLOSIVE_1),
+  TypeV(TWO_SPACE, SPEED_12, 64, false, 77, Family.HEAVY, EXPLOSIVE_1, EXPLOSIVE_1),
 
   // Self-guiding drones. FD2.227: a "slow" type-III is Speed 12, not Speed 8 — which is why
   // Propulsion is named for the number rather than for the rule's adjective.
-  TypeIII(ONE_SPACE, SPEED_12, 800, true, false, 0, Family.SELF_GUIDING, EXPLOSIVE_1),
-  TypeIIIM(ONE_SPACE, SPEED_20, 800, true, false, 165, Family.SELF_GUIDING, EXPLOSIVE_1),
-  TypeIIIF(ONE_SPACE, SPEED_32, 800, true, false, 178, Family.SELF_GUIDING, EXPLOSIVE_1),
+  TypeIII(ONE_SPACE, SPEED_12, 800, false, 0, Family.SELF_GUIDING, EXPLOSIVE_1),
+  TypeIIIM(ONE_SPACE, SPEED_20, 800, false, 165, Family.SELF_GUIDING, EXPLOSIVE_1),
+  TypeIIIF(ONE_SPACE, SPEED_32, 800, false, 178, Family.SELF_GUIDING, EXPLOSIVE_1),
 
   // Dogfight drones on the half-space frame, which takes no payload at all (FD10.21, FD2.51):
   // its warhead is fixed and only the speed varies. FD2.227 puts the "slow" one at Speed 12.
-  TypeVI(HALF_SPACE, SPEED_12, 32, true, true, 0, Family.DOGFIGHT),
-  TypeVIM(HALF_SPACE, SPEED_20, 32, true, true, 165, Family.DOGFIGHT),
-  TypeVIF(HALF_SPACE, SPEED_32, 32, true, true, 178, Family.DOGFIGHT);
+  TypeVI(HALF_SPACE, SPEED_12, 32, true, 0, Family.DOGFIGHT),
+  TypeVIM(HALF_SPACE, SPEED_20, 32, true, 165, Family.DOGFIGHT),
+  TypeVIF(HALF_SPACE, SPEED_32, 32, true, 178, Family.DOGFIGHT);
 
   /**
    * J4.241's "DFD": a dogfight drone, which is the type-VI family and nothing else.
@@ -119,7 +119,7 @@ public enum DroneType {
    * not one caller changes, which is what made this safe to do in one commit.
    */
   DroneType(DroneFrame frame, Propulsion propulsion, int endur,
-      boolean selfGuiding, boolean warpSeeker, int availableFromYear, Family family,
+      boolean warpSeeker, int availableFromYear, Family family,
       PayloadModule... payload) {
     // FD10.22: "the frame is effectively free. Exception: type-III, which costs 1/2 point for
     // standard 25-turn range and special guidance" — FD10.53's Type-III Frame Surcharge. Read
@@ -134,7 +134,11 @@ public enum DroneType {
         : DroneSpec.fixed(frame, propulsion);
     this.family = family;
     this.endurance = this.spec.enduranceFrom(endur);   // declared, doubled by FD2.222
-    this.selfGuiding = selfGuiding;
+    // F3.42: derived, not declared. The capability comes from what the drone is made of --
+    // the type-VI frame (FD5.11), the ATG addition (FD5.2), or the type-III's own guidance
+    // (FD10.23) -- and all fourteen of these agreed with the figure that used to be written
+    // down here. See DroneSpec.isSelfGuidingCapable.
+    this.selfGuiding = this.spec.isSelfGuidingCapable();
     this.warpSeeker = warpSeeker;
     this.availableFromYear = availableFromYear;
     // Derived (FD10.2): the frame gives the rack footprint and the hull, the propulsion gives

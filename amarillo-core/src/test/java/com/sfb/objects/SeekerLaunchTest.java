@@ -166,7 +166,7 @@ public class SeekerLaunchTest {
     public void launcherHasLockOn_evenWithNoActiveFireControl() {
         // Under PFC only self-guiding drones may be launched (D19.22).
         // Auto lock-on to the launched drone is still unconditional for the launcher.
-        firstDrone.setSelfGuiding(true);
+        firstDrone.setDroneType(DroneType.TypeIII);   // guidance of its own (FD5.21)
         launcher.setActiveFireControl(false);
         game.launchDrone(launcher, target, rack, firstDrone, 0);
 

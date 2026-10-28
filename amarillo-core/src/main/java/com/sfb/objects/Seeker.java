@@ -59,9 +59,32 @@ public interface Seeker {
 
 	public void setSeekerType(SeekerType type);
 
-	public boolean isSelfGuiding();
+	/**
+	 * F3.42: whether this weapon is CAPABLE of guiding itself if released — a property of
+	 * what it is, which nothing that happens in flight can change.
+	 *
+	 * <blockquote>"Plasma torpedoes (FP4.0), drones with active terminal guidance (FD5.2), and
+	 * type-VI drones (FD5.1) are capable of guiding themselves if released from control by the
+	 * controlling unit."</blockquote>
+	 */
+	default boolean isSelfGuidingCapable() { return false; }
 
-	public void setSelfGuiding(boolean selfGuiding);
+	/**
+	 * Whether this weapon is guiding itself RIGHT NOW, which is the capability plus the fact
+	 * that nobody is holding it.
+	 *
+	 * <blockquote>F3.421: "A seeking weapon capable of self-guiding is assumed to be under the
+	 * control of a guiding unit until control over it has been released. Once control over a
+	 * self-guiding seeking weapon is released... the seeking weapon controls itself."</blockquote>
+	 *
+	 * <p>Derived rather than stored. It was a settable flag, and the two meanings collided: a
+	 * drone handed to a consort had its flag cleared to mean "somebody controls it now", which
+	 * also erased the ATG it was built with — permanently, since nothing ever set the flag
+	 * back. Asking the two questions separately makes that unsayable.
+	 */
+	default boolean isSelfGuiding() {
+		return isSelfGuidingCapable() && getController() == null;
+	}
 
 	default boolean isWarpSeeker() { return false; }
 

@@ -1734,7 +1734,6 @@ public class Game {
                 ((com.sfb.objects.DroneController) sk.getController()).releaseControl(sk);
             sk.setTarget(null);
             sk.setController(null);   // control cannot be regained (G24.224)
-            sk.setSelfGuiding(false);
         }
         shuttle.setSpeed(0);          // remains in its hex, inert
     }
@@ -3068,9 +3067,9 @@ public class Game {
             if (!toShip.acquireControl(seeker))
                 return ActionResult.fail(toShipName + " is at control capacity");
             ship.releaseControl(seeker);
+            // F3.421: it is under the new ship's control now, which is all that changes.
+            // Clearing a self-guiding flag here used to destroy the drone's ATG for good.
             seeker.setController(toShip);
-            if (seeker instanceof Drone)
-                ((Drone) seeker).setSelfGuiding(false);
             log = ((Unit) seeker).getName() + " control transferred to " + toShipName;
         } else {
             ship.releaseControl(seeker);

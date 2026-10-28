@@ -15,7 +15,6 @@ public class Drone extends Unit implements Seeker {
 	private Unit controller; // The ship controlling this drone.
 	private DroneType type; // The standard drone this one is, or is a modification of.
 	private com.sfb.objects.DroneSpec spec; // FD10.2: what it is actually built from.
-	private boolean selfGuiding; // True if the weapon does not need control channels to operate.
 	private boolean warpSeeker; // True if the drone uses warp-energy tracking (FD2.56) — TypeVI variants.
 	private int endurance; // The number of impulses this weapon will continue to operate.
 	private int launchImpulse; // The (absolute) impulse this drone was launched.
@@ -74,7 +73,6 @@ public class Drone extends Unit implements Seeker {
 
 		// Stated by the type, because no rule derives them from the composition.
 		this.endurance = this.spec.enduranceFrom(config.endurance);   // FD2.222
-		this.selfGuiding = config.selfGuiding;
 		this.warpSeeker = config.warpSeeker;
 
 		// Derived from what the drone is made of (FD10.2).
@@ -144,7 +142,6 @@ public class Drone extends Unit implements Seeker {
 		this.type = config;
 		this.spec = config.spec;
 		this.endurance = this.spec.enduranceFrom(config.endurance);
-		this.selfGuiding = config.selfGuiding;
 		this.warpSeeker = config.warpSeeker;
 		this.speed = this.spec.speed();            // Protected in Unit
 		this.warheadDamage = this.spec.warheadStrength();
@@ -152,14 +149,14 @@ public class Drone extends Unit implements Seeker {
 		this.hull = this.spec.hull();
 	}
 
+	/**
+	 * F3.42, via what the drone is made of: the type-VI frame, the ATG addition, or the
+	 * type-III's own guidance. {@link Seeker#isSelfGuiding} turns this into the question of
+	 * whether it is guiding itself at this moment, by asking who holds it.
+	 */
 	@Override
-	public boolean isSelfGuiding() {
-		return selfGuiding;
-	}
-
-	@Override
-	public void setSelfGuiding(boolean selfGuiding) {
-		this.selfGuiding = selfGuiding;
+	public boolean isSelfGuidingCapable() {
+		return spec != null && spec.isSelfGuidingCapable();
 	}
 
 	@Override
@@ -327,7 +324,6 @@ public class Drone extends Unit implements Seeker {
 		state.put("controller", controller == null ? null : controller.getName());
 		state.put("launcherName", launcherName);
 
-		state.put("selfGuiding", selfGuiding);
 		state.put("warpSeeker", warpSeeker);
 		state.put("endurance", endurance);
 		state.put("launchImpulse", launchImpulse);
@@ -378,8 +374,6 @@ public class Drone extends Unit implements Seeker {
 		if (launcher != null)
 			drone.setLauncherName(launcher);
 
-		drone.setSelfGuiding(com.sfb.systemgroups.StateIo.flag(state, "selfGuiding",
-				drone.isSelfGuiding()));
 		drone.setWarpSeeker(com.sfb.systemgroups.StateIo.flag(state, "warpSeeker",
 				drone.isWarpSeeker()));
 		drone.setEndurance(com.sfb.systemgroups.StateIo.integer(state, "endurance",

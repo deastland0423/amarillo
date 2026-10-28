@@ -25,7 +25,6 @@ public class PlasmaTorpedo extends Unit implements Seeker {
 
     private Unit target;
     private Unit controller;
-    private boolean selfGuiding = false;
     private int launchImpulse;
     private int distanceTraveled = 0; // impulses since launch
     private double damageTaken = 0.0; // accumulated phaser damage (1 phaser pt = 0.5 damage)
@@ -60,7 +59,6 @@ public class PlasmaTorpedo extends Unit implements Seeker {
         this.sizeClass = 7;
         this.plasmaType = type;
         this.armingType = armingType;
-        this.selfGuiding = true;
         setTurnMode(TurnMode.Seeker);
         setSpeed(SPEED);
     }
@@ -213,13 +211,8 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     }
 
     @Override
-    public boolean isSelfGuiding() {
-        return selfGuiding;
-    }
-
-    @Override
-    public void setSelfGuiding(boolean sg) {
-        this.selfGuiding = sg;
+    public boolean isSelfGuidingCapable() {
+        return true;        // F3.42 names plasma torpedoes first, with no condition attached
     }
 
     /**
@@ -367,7 +360,6 @@ public class PlasmaTorpedo extends Unit implements Seeker {
         state.put("target", getTarget() == null ? null : getTarget().getName());
         state.put("controller", controller == null ? null : controller.getName());
 
-        state.put("selfGuiding", selfGuiding);
         state.put("launchImpulse", launchImpulse);
         state.put("distanceTraveled", distanceTraveled);
         state.put("damageTaken", damageTaken);
@@ -418,8 +410,6 @@ public class PlasmaTorpedo extends Unit implements Seeker {
         torpedo.setTarget(target);
         torpedo.setController(controller);
 
-        torpedo.selfGuiding = com.sfb.systemgroups.StateIo.flag(state, "selfGuiding",
-                torpedo.selfGuiding);
         torpedo.launchImpulse = com.sfb.systemgroups.StateIo.integer(state, "launchImpulse",
                 torpedo.launchImpulse);
         torpedo.distanceTraveled = com.sfb.systemgroups.StateIo.integer(state,

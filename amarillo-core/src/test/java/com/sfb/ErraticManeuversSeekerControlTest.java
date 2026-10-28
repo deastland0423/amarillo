@@ -200,11 +200,54 @@ public class ErraticManeuversSeekerControlTest {
                 game.getSeekers().contains((Seeker) d));
     }
 
+    /**
+     * F3.42 is about a CAPABILITY, not about who is holding the leash right now.
+     *
+     * <blockquote>F3.421: "A seeking weapon capable of self-guiding is assumed to be <b>under
+     * the control of a guiding unit</b> until control over it has been released."</blockquote>
+     *
+     * <p>A type-III handed to a consort is still a type-III, so the handover cannot take its
+     * guidance package away. It did: transfer cleared a self-guiding flag to record "somebody
+     * controls it now", and nothing ever set that flag back, so a transferred type-III would
+     * self-destruct the next time it was released.
+     */
+    @Test
+    public void transferringControlDoesNotTakeAwayADronesOwnGuidance() {
+        Drone d = launchOne();
+        d.setDroneType(com.sfb.objects.DroneType.TypeIII);
+        beginEm(kzinti);
+
+        Game.ActionResult r = game.submitControlOverflowChoice(d.getName(), consort.getName());
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals("fixture: the consort is guiding it now", consort, d.getController());
+        assertFalse("so it is not guiding itself at the moment", d.isSelfGuiding());
+
+        assertTrue("F3.42: but its ATG did not fall off in the handover",
+                d.isSelfGuidingCapable());
+    }
+
+    /**
+     * And the consequence, which is what made it a bug rather than an untidiness: released by
+     * its new controller, the drone carries on instead of self-destructing (F3.41).
+     */
+    @Test
+    public void aTransferredSelfGuidingDroneStillCarriesOnWhenReleased() {
+        Drone d = launchOne();
+        d.setDroneType(com.sfb.objects.DroneType.TypeIII);
+        beginEm(kzinti);
+        assertTrue(game.submitControlOverflowChoice(d.getName(), consort.getName()).isSuccess());
+
+        consort.releaseControl(d);
+
+        assertNull("F3.4: released means released", d.getController());
+        assertTrue("F3.42: and it guides itself from here", d.isSelfGuiding());
+    }
+
     /** F3.42: a self-guiding drone carries on instead, which is the whole point of the type. */
     @Test
     public void aSelfGuidingDroneCarriesOnAlone() {
         Drone d = launchOne();
-        d.setSelfGuiding(true);
+        d.setDroneType(com.sfb.objects.DroneType.TypeIII);   // ATG of its own (FD5.21)
         beginEm(kzinti);
 
         Game.ActionResult r = game.submitControlOverflowChoice(d.getName(), null);

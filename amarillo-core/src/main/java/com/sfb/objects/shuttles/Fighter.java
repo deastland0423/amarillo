@@ -604,6 +604,9 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     @Override
     public void releaseControl(com.sfb.objects.Seeker seeker) {
         controlledSeekers.remove(seeker);
+        // F3.4, as on a ship: the seeker stops pointing at a unit that no longer guides it.
+        if (seeker != null && seeker.getController() == this)
+            seeker.setController(null);
     }
 
     @Override

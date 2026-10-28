@@ -1017,7 +1017,7 @@ public class GameStateRoundTripTest {
         Game before = battleInProgress();
         com.sfb.objects.shuttles.Fighter fighter = fighterInFlight(before, "Hood-F18-1");
         com.sfb.objects.Drone loose = droneFrom(before, "Hood-F18-1-Drone-2");
-        loose.setSelfGuiding(true);
+        loose.setDroneType(com.sfb.objects.DroneType.TypeIII);
         loose.setController(fighter);
         assertEquals("fixture: no channel is spent on a self-guiding drone",
                 0, fighter.getControlledSeekers().size());

@@ -2693,6 +2693,12 @@ public class Ship extends Unit implements DroneController {
 
 	public void releaseControl(Seeker seeker) {
 		this.specialFunctions.releaseControl(seeker);
+		// F3.4: release is release, and the seeker has to know it. Freeing the channel while
+		// leaving the seeker pointing at a ship that no longer guides it was invisible while
+		// "self-guiding" was a flag of its own, and became a bug the moment that question was
+		// answered by asking who holds the weapon (F3.421).
+		if (seeker != null && seeker.getController() == this)
+			seeker.setController(null);
 	}
 
 	/// TRANSPORTERS ///

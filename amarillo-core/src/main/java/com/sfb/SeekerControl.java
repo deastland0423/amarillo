@@ -99,7 +99,6 @@ class SeekerControl {
             if (current instanceof DroneController && current != candidate)
                 ((DroneController) current).releaseControl(seeker);
             seeker.setController(candidate);
-            seeker.setSelfGuiding(false);
             String seekerName = seeker instanceof Unit ? ((Unit) seeker).getName() : "seeker";
             return "  Control of " + seekerName + " transferred from "
                     + formerController.getName() + " to " + candidate.getName();
@@ -224,8 +223,16 @@ class SeekerControl {
         }
         if (seeker == null)
             return ActionResult.fail("Seeker not found: " + seekerName);
-        if (seeker instanceof Drone && ((Drone) seeker).isSelfGuiding())
-            return ActionResult.fail("Self-guiding drones cannot be transferred");
+        // F3.421: "Once control over a self-guiding seeking weapon is released [without it
+        // being transferred to another unit (F3.5)], the seeking weapon controls itself. No
+        // other unit may subsequently assume control over it."
+        //
+        // The test is whether anybody is holding it, not whether it COULD guide itself: a
+        // type-III still under its launcher's control is transferable like any other drone,
+        // and it is the release that is one-way. isSelfGuiding() asks exactly that now.
+        if (seeker.isSelfGuiding())
+            return ActionResult.fail(
+                    "A released seeking weapon guides itself and cannot be handed over (F3.421)");
 
         Ship toShip = ships.stream()
                 .filter(s -> s.getName().equalsIgnoreCase(toShipName))
@@ -251,8 +258,6 @@ class SeekerControl {
 
         ((DroneController) currentController).releaseControl(seeker);
         seeker.setController(toShip);
-        if (seeker instanceof Drone)
-            ((Drone) seeker).setSelfGuiding(false);
 
         String label = seeker instanceof com.sfb.objects.shuttles.ScatterPack ? "Scatterpack"
                 : seeker instanceof com.sfb.objects.shuttles.SuicideShuttle ? "Suicide shuttle"
@@ -619,7 +624,9 @@ class SeekerControl {
         for (Seeker s : seekers) {
             if (!(s instanceof Unit) || s.getTarget() == null)
                 continue;
-            boolean selfGuided = s.isSelfGuiding() || s instanceof PlasmaTorpedo;
+            // A plasma torpedo answers true on its own now (F3.42), so the instanceof
+            // that used to backstop a flag it could not be trusted to carry is gone.
+            boolean selfGuided = s.isSelfGuiding();
             if (!selfGuided)
                 continue;
             Unit unit = (Unit) s;

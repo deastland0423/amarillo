@@ -197,13 +197,12 @@ public class PlasmaTorpedoTest {
 
 	@Test
 	public void testSelfGuiding() {
-		// Plasma torpedoes are always self-guiding
-		assertTrue(plasma.isSelfGuiding());
+		// F3.42 names plasma torpedoes first and attaches no condition to them, so the
+		// CAPABILITY is permanent -- it is not a flag anyone can turn off.
+		assertTrue(plasma.isSelfGuidingCapable());
 
-		plasma.setSelfGuiding(false);
-		assertFalse(plasma.isSelfGuiding());
-
-		plasma.setSelfGuiding(true);
+		// And with nobody holding it, it is exercising that capability (F3.421).
+		assertNull(plasma.getController());
 		assertTrue(plasma.isSelfGuiding());
 	}
 
