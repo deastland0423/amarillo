@@ -73,7 +73,7 @@ public class Drone extends Unit implements Seeker {
 		this.spec = (built != null) ? built : config.spec;
 
 		// Stated by the type, because no rule derives them from the composition.
-		this.endurance = config.endurance;
+		this.endurance = this.spec.enduranceFrom(config.endurance);   // FD2.222
 		this.selfGuiding = config.selfGuiding;
 		this.warpSeeker = config.warpSeeker;
 

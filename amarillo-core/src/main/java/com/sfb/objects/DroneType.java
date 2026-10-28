@@ -133,7 +133,7 @@ public enum DroneType {
         ? DroneSpec.of(frame, propulsion, additions, payload)
         : DroneSpec.fixed(frame, propulsion);
     this.family = family;
-    this.endurance = endur;
+    this.endurance = this.spec.enduranceFrom(endur);   // declared, doubled by FD2.222
     this.selfGuiding = selfGuiding;
     this.warpSeeker = warpSeeker;
     this.availableFromYear = availableFromYear;

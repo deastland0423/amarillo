@@ -76,6 +76,13 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
                         frame + " takes no armor: only the speed can be varied (FD10.21)");
         }
 
+        // FD2.222: "Any type of drone, EXCEPT a dogfight drone (FD2.5), can be modified to
+        // have double endurance." The only named exception in the rule, and the second time
+        // FD10.21's "only the speed can be varied" is said from the other end.
+        if (additions.contains(FrameAddition.EXTENDED_RANGE) && frame == DroneFrame.HALF_SPACE)
+            throw new IllegalArgumentException(
+                    "a dogfight drone cannot be given extended range (FD2.222)");
+
         // FD10.442: "No more than one such module can be placed on any drone."
         long ecm = payload.stream().filter(m -> m == PayloadModule.ECM).count();
         if (ecm > 1)
@@ -251,6 +258,47 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
             if (a.isExternalArmor())
                 return a.speedWith(frame, propulsion);
         return propulsion.speed;
+    }
+
+    /** 100 turns, the endurance FD2.222 states for a type-III-XX, in impulses. */
+    public static final int TYPE_III_XX_ENDURANCE = 100 * com.sfb.constants.Constants.IMPULSES_PER_TURN;
+
+    /**
+     * Whether this drone is a type-III-XX: FD10.24's "type-III drones... when given extended
+     * range (FD2.222), they become type-III-XX".
+     *
+     * <p>Asked of the ADDITIONS rather than declared, because a type-III-XX is not something a
+     * player buys. It is what a type-III turns into, and the type-III itself is the
+     * {@code TYPE_III_GUIDANCE} surcharge FD10.22 charges half a point for.
+     */
+    public boolean isTypeIiiXx() {
+        return additions.contains(FrameAddition.TYPE_III_GUIDANCE)
+                && additions.contains(FrameAddition.EXTENDED_RANGE);
+    }
+
+    /**
+     * FD2.222: "Extended range costs 1/2 point per drone and <b>doubles the endurance</b>."
+     *
+     * <p>Endurance is the one number a drone's composition did NOT derive when this model was
+     * built, because nothing computed it: 96 impulses for a type-I, 64 for the transitional
+     * type-II, 800 for a type-III, 32 for a dogfight drone are traits of the family. This rule
+     * is the exception — it computes endurance from a frame modification — so the base figure
+     * stays declared and the doubling happens here, which is why this takes the base as an
+     * argument instead of reading one.
+     *
+     * <h2>The type-III-XX is STATED, not doubled</h2>
+     * The same sentence goes on: "(Type-III drones become IIIXX with <b>an endurance of 100
+     * turns</b> and size of two spaces)." A type-III's endurance is 25 turns — FD10.22 calls it
+     * "standard 25-turn range" and Annex #2's FD2.1 chart prints 25 — so 100 turns is four
+     * times the base, not twice it. The rulebook states the figure in the same breath as the
+     * rule that would otherwise derive it, and a stated number wins.
+     */
+    public int enduranceFrom(int baseEndurance) {
+        if (!additions.contains(FrameAddition.EXTENDED_RANGE))
+            return baseEndurance;
+        if (isTypeIiiXx())
+            return TYPE_III_XX_ENDURANCE;
+        return baseEndurance * 2;
     }
 
     /**
