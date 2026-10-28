@@ -235,7 +235,7 @@ public class TypeIiiXxFrameTest {
         assertEquals(12, d.impact());
         assertEquals(12, d.getSpeed());
         assertEquals(100 * Constants.IMPULSES_PER_TURN, d.getEndurance());
-        assertTrue("and it is self-guiding, as every type-III is", d.isSelfGuiding());
+        assertTrue("and it is self-guiding, as every type-III is", d.isSelfGuidingCapable());
     }
 
     /** Nothing in the catalogue is a type-III-XX, so no existing drone moved. */

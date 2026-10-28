@@ -82,8 +82,33 @@ public interface Seeker {
 	 * also erased the ATG it was built with — permanently, since nothing ever set the flag
 	 * back. Asking the two questions separately makes that unsayable.
 	 */
+	/**
+	 * Whether this weapon has yet won the lock-on of its OWN that self-guidance runs on.
+	 *
+	 * <p>True for everything with no acquisition step — a plasma torpedo guides itself from
+	 * launch and F3.42 attaches no condition to it. A drone has to earn it: FD5.12 and FD5.21
+	 * both put the threshold at eight hexes.
+	 */
+	default boolean hasOwnLockOn() { return true; }
+
+	/**
+	 * Whether this weapon is guiding itself RIGHT NOW: it can, it has a lock-on of its own to
+	 * steer by, and nobody is holding it.
+	 *
+	 * <blockquote>F3.421: "A seeking weapon capable of self-guiding is assumed to be under the
+	 * control of a guiding unit until control over it has been released. Once control over a
+	 * self-guiding seeking weapon is released... the seeking weapon controls itself."</blockquote>
+	 *
+	 * <p>Derived rather than stored. It was a settable flag, and the two meanings collided: a
+	 * drone handed to a consort had its flag cleared to mean "somebody controls it now", which
+	 * also erased the ATG it was built with — permanently, since nothing ever set the flag
+	 * back. Asking the questions separately makes that unsayable.
+	 *
+	 * <p>The middle term is why a type-VI released early is lost rather than free: it is
+	 * capable and unheld, but it has nothing of its own to steer by until it closes to eight.
+	 */
 	default boolean isSelfGuiding() {
-		return isSelfGuidingCapable() && getController() == null;
+		return isSelfGuidingCapable() && hasOwnLockOn() && getController() == null;
 	}
 
 	default boolean isWarpSeeker() { return false; }

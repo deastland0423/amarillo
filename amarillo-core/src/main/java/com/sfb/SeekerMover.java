@@ -142,6 +142,20 @@ class SeekerMover {
                     continue;
                 }
 
+                // FD5.12/FD5.21: eight hexes is where a capable drone stops needing to be
+                // told where to go. It does not let go of its controller here -- FD5.12 is
+                // explicit that the controlling ship "may (but is not required to) release
+                // guidance" -- it simply has something of its own to steer by from now on,
+                // which is what makes releasing it survivable.
+                if (target != null && !drone.hasOwnLockOn() && drone.getLocation() != null
+                        && target.getLocation() != null
+                        && drone.wouldAcquireAt(com.sfb.utilities.MapUtils.getRange(
+                                drone.getLocation(), target.getLocation()))) {
+                    drone.acquireOwnLockOn();
+                    log.add("  " + droneLabel(drone) + " has a lock-on of its own to "
+                            + target.getName() + " (FD5.12)");
+                }
+
                 if (target != null && target.getLocation() != null
                         && drone.getLocation().equals(target.getLocation())) {
                     if (target instanceof Drone) {

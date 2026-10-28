@@ -413,7 +413,7 @@ export interface CoiDroneType {
    * has 32, which is one turn, and is the trap most worth surfacing.
    */
   endurance:   number;
-  selfGuiding: boolean;   // needs no controller (FD1.7)
+  selfGuiding: boolean;   // CAPABLE of guiding itself once it closes to 8 hexes (F3.42, FD5.12)
   dogfight:    boolean;   // J4.241's DFD — the type-VI family
   /**
    * FD2.54: what it does to a SHIP, which for a dogfight drone is not its printed warhead — two

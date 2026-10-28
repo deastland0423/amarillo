@@ -406,10 +406,12 @@ class LaunchCoordinator {
         if (rack.isEmpty())
             return ActionResult.fail(rack.getName() + " has no drones loaded");
         if (!launcher.isActiveFireControl()) {
-            // PFC: only self-guiding drones may be launched (D19.221)
-            if (!rack.getAmmo().get(0).isSelfGuiding())
+            // PFC: only self-guiding drones may be launched (D19.221). The question is
+            // whether the weapon is CAPABLE (F3.42) -- it has not closed on anything yet, so
+            // asking whether it is guiding itself right now would refuse every launch.
+            if (!rack.getAmmo().get(0).isSelfGuidingCapable())
                 return ActionResult.fail("Passive fire control — cannot launch non-self-guiding drones (D19.22)");
-            // Self-guiding drones acquire their own lock-on after launch — no pre-launch
+            // Self-guiding drones acquire their own lock-on at eight hexes — no pre-launch
             // lock-on needed
         } else if (!launcher.hasLockOn(target)) {
             return ActionResult.fail("No sensor lock-on to target — cannot launch seeking weapons (D6.121)");
@@ -585,9 +587,19 @@ class LaunchCoordinator {
             return ActionResult.fail(rack.getName() + " cannot launch yet (once per turn, 8-impulse delay)");
         if (!rack.getAmmo().contains(drone))
             return ActionResult.fail("Drone is not in " + rack.getName());
-        if (!launcher.isActiveFireControl() && !drone.isSelfGuiding())
+        if (!launcher.isActiveFireControl() && !drone.isSelfGuidingCapable())
             return ActionResult.fail("Passive fire control — cannot launch non-self-guiding drones (D19.22)");
-        if (!drone.isSelfGuiding()) {
+        acquireOwnLockOnIfClose(drone, launcher, target);
+        // FD5.12: a drone that has not taken over yet "require[s] guidance", so it occupies a
+        // channel. One that locked on at launch (FD5.21) does not, which is the whole of the
+        // close-range exception.
+        //
+        // Deliberately NOT a refusal when the launcher is at capacity, though FD5.21's "the
+        // launching unit must have the ability to control the drone before it can be launched"
+        // could be read that way: control can be handed off on any impulse, so a launch-time
+        // check only adds friction to something the player reaches anyway by launching and
+        // transferring. The overflow interrupt below is where they settle it.
+        if (!drone.hasOwnLockOn()) {
             if (!launcher.acquireControl(drone)) {
                 // Over limit — force-add and queue overflow interrupt for player to resolve
                 launcher.forceAcquireControl(drone);
@@ -613,6 +625,23 @@ class LaunchCoordinator {
      *
      * @param launcher the unit that fired it, which becomes its controller
      */
+    /**
+     * FD5.21: "If launched within eight hexes of their target, ATG drones can lock-on
+     * immediately." FD5.12 puts the type-VI's threshold at the same eight hexes, and a
+     * dogfight drone launched inside it needs nobody to guide it at all — which is what keeps
+     * a fighter with no drone control of its own (the Kzinti AS) able to throw one.
+     */
+    private void acquireOwnLockOnIfClose(Drone drone, Unit launcher, Unit target) {
+        if (drone == null || launcher == null || target == null)
+            return;
+        if (launcher.getLocation() == null || target.getLocation() == null)
+            return;
+        int range = com.sfb.utilities.MapUtils.getRange(
+                launcher.getLocation(), target.getLocation());
+        if (drone.wouldAcquireAt(range))
+            drone.acquireOwnLockOn();
+    }
+
     private ActionResult placeLaunchedDrone(Unit launcher, Unit target, DroneRack rack,
             Drone drone, int facing) {
         return placeLaunchedDrone(launcher, target, null, rack, drone, facing);
@@ -655,7 +684,10 @@ class LaunchCoordinator {
         // F4.12: a ballistic weapon is "released from control immediately on launch", so it
         // gets no controller at all. Setting one here would have handed it back to the
         // launcher's guidance the moment anything asked who was flying it.
-        if (drone.getController() == null && course == null)
+        //
+        // FD5.21 says the same of a drone that locked on at launch: it "does not require
+        // command guidance from the launching ship", so nothing takes hold of it either.
+        if (drone.getController() == null && course == null && !drone.hasOwnLockOn())
             drone.setController(launcher);
         drone.setLauncherName(launcher.getName());
         drone.setLaunchImpulse(game.getAbsoluteImpulse());
@@ -789,7 +821,8 @@ class LaunchCoordinator {
         // D6.121: a drone goes at something the launcher has a lock-on to. A fighter holds
         // its own (J1.31 gives it a sensor rating of six); a self-guiding drone finds its
         // own way and needs none.
-        if (!drone.isSelfGuiding() && !fighter.hasLockOn(target))
+        acquireOwnLockOnIfClose(drone, fighter, target);
+        if (!drone.hasOwnLockOn() && !fighter.hasLockOn(target))
             return ActionResult.fail(fighter.getName() + " has no lock-on to "
                     + target.getName() + " - cannot launch seeking weapons (D6.121)");
         // Who will guide it. Normally the fighter itself; for a model with no guidance equipment
@@ -799,7 +832,7 @@ class LaunchCoordinator {
         // unable to throw a drone at all, which is the opposite of what it is for — the Y161
         // timeline entry calls it "only a manned drone launch platform".
         com.sfb.objects.DroneController guide = null;
-        if (!drone.isSelfGuiding() && !fighter.acquireControl(drone)) {
+        if (!drone.hasOwnLockOn() && !fighter.acquireControl(drone)) {
             if (fighter.guidesItsOwnDrones())
                 return ActionResult.fail(fighter.getName() + " is already guiding all the drones"
                         + " it can (" + fighter.getControlCapacity() + ", J4.25)");

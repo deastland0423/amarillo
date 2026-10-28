@@ -118,16 +118,51 @@ public class SelfGuidanceTest {
     public void aControlledDroneKeepsTheCapabilityWithoutExercisingIt() {
         Drone d = new Drone(DroneType.TypeIII);
         assertTrue("capable from the moment it is built", d.isSelfGuidingCapable());
-        assertTrue("and guiding itself while nobody holds it", d.isSelfGuiding());
+        assertFalse("but it has not closed on anything yet (FD5.12)", d.isSelfGuiding());
+        d.acquireOwnLockOn();
+        assertTrue("now it is guiding itself, with nobody holding it", d.isSelfGuiding());
 
         Ship ship = new Ship();
         ship.setName("Guide");
         d.setController(ship);
         assertFalse("under control it is not guiding itself", d.isSelfGuiding());
         assertTrue("but it is still a type-III", d.isSelfGuidingCapable());
+        assertTrue("and it still has its own lock-on", d.hasOwnLockOn());
 
         d.setController(null);
         assertTrue("released, it takes over again (F3.42)", d.isSelfGuiding());
+    }
+
+    /**
+     * All three terms are load-bearing, and the middle one is the new one: FD5.12's "These
+     * drones require guidance <b>until they achieve their own lock-on</b>". A type-VI released
+     * before it closes is capable, unheld, and still lost — it has nothing to steer by.
+     */
+    @Test
+    public void aCapableDroneReleasedTooEarlyHasNothingToSteerBy() {
+        Drone early = new Drone(DroneType.TypeVI);
+        assertTrue(early.isSelfGuidingCapable());
+        assertNull(early.getController());
+        assertFalse("no lock-on of its own yet", early.hasOwnLockOn());
+        assertFalse("so it is not guiding itself", early.isSelfGuiding());
+    }
+
+    /** FD5.12 and FD5.21 put the same threshold on both families: eight hexes. */
+    @Test
+    public void eightHexesIsWhereADroneTakesOver() {
+        assertEquals(8, Drone.SELF_GUIDANCE_RANGE);
+
+        Drone dogfight = new Drone(DroneType.TypeVI);
+        assertTrue("FD5.12", dogfight.wouldAcquireAt(8));
+        assertFalse("and not a hex further", dogfight.wouldAcquireAt(9));
+
+        Drone homing = new Drone(DroneType.TypeIII);
+        assertTrue("FD5.21", homing.wouldAcquireAt(8));
+        assertFalse(homing.wouldAcquireAt(9));
+
+        Drone plain = new Drone(DroneType.TypeI);
+        assertFalse("a drone with no guidance of its own never takes over, at any range",
+                plain.wouldAcquireAt(1));
     }
 
     /** A plain drone released is a drone with nowhere to go, capability being the difference. */

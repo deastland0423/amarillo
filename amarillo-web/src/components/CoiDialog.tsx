@@ -800,7 +800,7 @@ function DronePicker({ types, onAdd }: {
                 {sample.damageVsShip !== sample.damage
                   ? `${sample.damageVsShip}/${sample.damage} dmg`
                   : `${sample.damage} dmg`}
-                {sample.selfGuiding && ' · self-guiding'}
+                {sample.selfGuiding && ' · guides itself inside 8 hexes'}
               </span>
             </span>
             <span className="coi-drone-speeds">
@@ -815,7 +815,10 @@ function DronePicker({ types, onAdd }: {
                         ? `${dt.damage} damage to a fighter but only ${dt.damageVsShip} `
                           + 'to a ship (FD2.54)'
                         : `${dt.damage} damage`)
-                    + (dt.selfGuiding ? ', needs no controller' : '')}
+                    + (dt.selfGuiding
+                        ? '; guides itself once within 8 hexes of its target, and needs a '
+                          + 'control channel until then (FD5.12)'
+                        : '')}
                 >
                   {/* "Speed 8", not a bare "8": the number means nothing on its own to a player
                       who does not already know the drone naming, and not knowing it is the whole

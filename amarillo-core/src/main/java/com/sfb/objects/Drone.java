@@ -15,6 +15,10 @@ public class Drone extends Unit implements Seeker {
 	private Unit controller; // The ship controlling this drone.
 	private DroneType type; // The standard drone this one is, or is a modification of.
 	private com.sfb.objects.DroneSpec spec; // FD10.2: what it is actually built from.
+	// FD5.12/FD5.21: set once this drone has closed to eight hexes of its target and taken
+	// over. Genuine runtime state, unlike the CAPABILITY, which is a property of what the
+	// drone is made of and never changes.
+	private boolean ownLockOn;
 	private boolean warpSeeker; // True if the drone uses warp-energy tracking (FD2.56) — TypeVI variants.
 	private int endurance; // The number of impulses this weapon will continue to operate.
 	private int launchImpulse; // The (absolute) impulse this drone was launched.
@@ -157,6 +161,41 @@ public class Drone extends Unit implements Seeker {
 	@Override
 	public boolean isSelfGuidingCapable() {
 		return spec != null && spec.isSelfGuidingCapable();
+	}
+
+	/**
+	 * The range at which a drone capable of self-guidance wins a lock-on of its own.
+	 *
+	 * <blockquote>FD5.12, of the type-VI: "These drones require guidance until they achieve
+	 * their own lock-on (<b>at a range of eight hexes</b>). At that point, the controlling ship
+	 * may (but is not required to) release guidance."</blockquote>
+	 *
+	 * <blockquote>FD5.21, of ATG: "A drone equipped with active terminal guidance (ATG),
+	 * <b>after closing to within eight hexes</b> of its assigned target, does not require
+	 * command guidance from the launching ship but will track and follow the target
+	 * independently if it is released (F3.42) at that point."</blockquote>
+	 *
+	 * <p>Two rules, two drone families, the same eight hexes.
+	 */
+	public static final int SELF_GUIDANCE_RANGE = 8;
+
+	/** FD5.12/FD5.21: whether this drone has closed to eight hexes and taken over. */
+	@Override
+	public boolean hasOwnLockOn() {
+		return ownLockOn;
+	}
+
+	/**
+	 * FD5.21: "If launched within eight hexes of their target, ATG drones can lock-on
+	 * immediately." Monotonic for now — losing it again is FD5.23's twelve-hex leash.
+	 */
+	public void acquireOwnLockOn() {
+		this.ownLockOn = true;
+	}
+
+	/** Whether this drone takes over at that range — asked at launch and each impulse. */
+	public boolean wouldAcquireAt(int range) {
+		return isSelfGuidingCapable() && range <= SELF_GUIDANCE_RANGE;
 	}
 
 	@Override
@@ -326,6 +365,7 @@ public class Drone extends Unit implements Seeker {
 
 		state.put("warpSeeker", warpSeeker);
 		state.put("endurance", endurance);
+		state.put("ownLockOn", ownLockOn);
 		state.put("launchImpulse", launchImpulse);
 		state.put("warheadDamage", warheadDamage);
 		state.put("rackSize", rackSize);
@@ -378,6 +418,8 @@ public class Drone extends Unit implements Seeker {
 				drone.isWarpSeeker()));
 		drone.setEndurance(com.sfb.systemgroups.StateIo.integer(state, "endurance",
 				drone.getEndurance()));
+		if (com.sfb.systemgroups.StateIo.flag(state, "ownLockOn", false))
+			drone.acquireOwnLockOn();
 		drone.setLaunchImpulse(com.sfb.systemgroups.StateIo.integer(state, "launchImpulse",
 				drone.getLaunchImpulse()));
 		drone.warheadDamage = com.sfb.systemgroups.StateIo.integer(state, "warheadDamage",

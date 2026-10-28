@@ -449,6 +449,7 @@ public class AttractDronesTest {
         Ship enemy = enemyShip(game, "Kzin", 12, 10);
         Drone drone = enemyDrone(game, "Drone-1", 10, 12, enemy, null);
         drone.setDroneType(DroneType.TypeIII);   // a drone with guidance of its own (FD5.21)
+        drone.acquireOwnLockOn();                // and it has closed inside eight (FD5.21)
         enemy.acquireControl(drone);
         scout.addLockOn(drone);
         assertTrue(game.attractDrone(scout, "1", "Drone-1").isSuccess());

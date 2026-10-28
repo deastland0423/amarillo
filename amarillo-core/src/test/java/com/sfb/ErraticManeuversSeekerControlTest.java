@@ -215,6 +215,7 @@ public class ErraticManeuversSeekerControlTest {
     public void transferringControlDoesNotTakeAwayADronesOwnGuidance() {
         Drone d = launchOne();
         d.setDroneType(com.sfb.objects.DroneType.TypeIII);
+        d.acquireOwnLockOn();
         beginEm(kzinti);
 
         Game.ActionResult r = game.submitControlOverflowChoice(d.getName(), consort.getName());
@@ -234,6 +235,7 @@ public class ErraticManeuversSeekerControlTest {
     public void aTransferredSelfGuidingDroneStillCarriesOnWhenReleased() {
         Drone d = launchOne();
         d.setDroneType(com.sfb.objects.DroneType.TypeIII);
+        d.acquireOwnLockOn();
         beginEm(kzinti);
         assertTrue(game.submitControlOverflowChoice(d.getName(), consort.getName()).isSuccess());
 
@@ -248,6 +250,7 @@ public class ErraticManeuversSeekerControlTest {
     public void aSelfGuidingDroneCarriesOnAlone() {
         Drone d = launchOne();
         d.setDroneType(com.sfb.objects.DroneType.TypeIII);   // ATG of its own (FD5.21)
+        d.acquireOwnLockOn();        // the target is four hexes off, inside FD5.12's eight
         beginEm(kzinti);
 
         Game.ActionResult r = game.submitControlOverflowChoice(d.getName(), null);
