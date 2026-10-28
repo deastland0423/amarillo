@@ -125,7 +125,10 @@ public enum Propulsion {
         double cost = switch (frame) {
             case HALF_SPACE -> costHalf;
             case ONE_SPACE -> costOne;
-            case TWO_SPACE -> costTwo;
+            // FD10.24: "Speed upgrade costs for type-III-XX drones are the same as for the
+            // two-space drone (FD10.52)." Said outright because the frame it grew from is a
+            // one-space drone, and the chart would otherwise be read from the wrong column.
+            case TWO_SPACE, TYPE_III_XX -> costTwo;
         };
         if (cost == UNAVAILABLE)
             throw new IllegalArgumentException(
@@ -138,7 +141,7 @@ public enum Propulsion {
         return switch (frame) {
             case HALF_SPACE -> costHalf != UNAVAILABLE;
             case ONE_SPACE -> costOne != UNAVAILABLE;
-            case TWO_SPACE -> costTwo != UNAVAILABLE;
+            case TWO_SPACE, TYPE_III_XX -> costTwo != UNAVAILABLE;
         };
     }
 }

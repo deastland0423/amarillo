@@ -48,7 +48,43 @@ public enum DroneFrame {
     ONE_SPACE(1.0, 1, 4, true, List.of(), Availability.GENERAL),
 
     /** The heavy frame: two rack spaces, two payload spaces. Type-IV and V. */
-    TWO_SPACE(2.0, 2, 6, true, List.of(), Availability.GENERAL);
+    TWO_SPACE(2.0, 2, 6, true, List.of(), Availability.GENERAL),
+
+    /**
+     * FD10.24: what a type-III becomes when given extended range.
+     *
+     * <blockquote>"Type-III drones are one-space drones, but when given extended range
+     * (FD2.222), they become type-III-XX, which are <b>two-space drones with one payload
+     * space</b>. Speed upgrade costs for type-III-XX drones are the same as for the two-space
+     * drone (FD10.52)."</blockquote>
+     *
+     * <h2>A frame, on the rulebook's own word</h2>
+     * FD10.24 sits in the frames section under the heading "TYPE-III-XX SPECIAL", and FD10.4254
+     * writes the limit on wild boar targeting as "(type-IIIXX <b>frame</b> only)". Six numbers
+     * differ from a plain type-III and every one of them is a property of the airframe, so they
+     * are declared here rather than special-cased wherever they are read.
+     *
+     * <p>Two of the six are exceptions to rules that hold everywhere else:
+     *
+     * <ul>
+     *   <li><b>Hull stays 4</b>, though the drone is now two spaces. FD2.11: "Unarmored type-III
+     *       drones are always destroyed by four damage points whether they are single space
+     *       drones, or two space type-IIIXX drones." The 0.5/1/2 -&gt; 3/4/6 progression every
+     *       other frame follows would give six.</li>
+     *   <li><b>Availability is RESTRICTED</b>, which is LESS restrictive than its parts.
+     *       FD10.641: "a type-III frame (Limited Availability) to which the extended range frame
+     *       modification (General Availability) is added becomes a two-space Restricted
+     *       Availability drone (FD10.24)." Limited plus General making Restricted is not
+     *       derivable from anything, so it is stated.</li>
+     * </ul>
+     *
+     * <p>It is reached by building a type-III with extended range, not by being named: see
+     * {@link DroneSpec#effectiveFrame}. Naming it directly is allowed, but only alongside the
+     * two frame additions that would have produced it, so its half-point surcharges are paid
+     * either way.
+     */
+    TYPE_III_XX(2.0, 1, 4, true, List.of(), Availability.RESTRICTED,
+            100 * com.sfb.constants.Constants.IMPULSES_PER_TURN);
 
     /** Spaces this frame occupies in a drone rack (FD3.0 counts racks in spaces). */
     public final double rackSpaces;
@@ -79,13 +115,27 @@ public enum DroneFrame {
      */
     public final Availability availability;
 
+    /**
+     * Endurance in impulses when the frame fixes it, overriding both the family's declared
+     * figure and FD2.222's doubling. Null on every frame but the type-III-XX, whose 100 turns
+     * FD2.222 states outright.
+     */
+    public final Integer enduranceOverride;
+
     DroneFrame(double rackSpaces, int payloadSpaces, int hull, boolean modular,
                List<PayloadModule> fixedPayload, Availability availability) {
+        this(rackSpaces, payloadSpaces, hull, modular, fixedPayload, availability, null);
+    }
+
+    DroneFrame(double rackSpaces, int payloadSpaces, int hull, boolean modular,
+               List<PayloadModule> fixedPayload, Availability availability,
+               Integer enduranceOverride) {
         this.rackSpaces = rackSpaces;
         this.payloadSpaces = payloadSpaces;
         this.hull = hull;
         this.modular = modular;
         this.fixedPayload = fixedPayload;
         this.availability = availability;
+        this.enduranceOverride = enduranceOverride;
     }
 }

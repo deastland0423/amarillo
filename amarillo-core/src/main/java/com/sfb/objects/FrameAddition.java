@@ -105,7 +105,8 @@ public enum FrameAddition {
                                             case SPEED_12 -> 8;  case SPEED_8  -> 4; }
                     : switch (propulsion) { case SPEED_32 -> 12; case SPEED_20 -> 8;
                                             case SPEED_12 -> 4;  case SPEED_8  -> 2; };
-            case TWO_SPACE -> small
+            // FD10.24 makes the type-III-XX a two-space drone, so it takes the two-space row.
+            case TWO_SPACE, TYPE_III_XX -> small
                     ? switch (propulsion) { case SPEED_32 -> 26; case SPEED_20 -> 16;
                                             case SPEED_12 -> 10; case SPEED_8  -> 6; }
                     : switch (propulsion) { case SPEED_32 -> 20; case SPEED_20 -> 12;

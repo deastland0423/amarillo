@@ -46,11 +46,20 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
         payload = payload == null ? List.of() : List.copyOf(payload);
         additions = additions == null ? Set.of() : Set.copyOf(additions);
 
+        // FD10.24: a type-III given extended range IS a type-III-XX, so resolve that before
+        // anything measures the drone. Naming the frame directly is allowed, but only with the
+        // two additions that would have produced it -- otherwise the second rack space and the
+        // long legs would arrive without their half-point surcharges being paid.
+        if (frame == DroneFrame.TYPE_III_XX && !isTypeIiiXx(additions))
+            throw new IllegalArgumentException("a " + frame + " is a type-III frame with"
+                    + " extended range, and must declare both (FD10.24)");
+        DroneFrame built = effectiveFrame(frame, additions);
+
         // FD10.52 prints a dash rather than a price where an engine is not made for a
         // frame: there is no speed-8 dogfight drone (FD2.227).
-        if (!propulsion.fits(frame))
+        if (!propulsion.fits(built))
             throw new IllegalArgumentException(
-                    propulsion + " is not made for a " + frame + " drone (FD10.52)");
+                    propulsion + " is not made for a " + built + " drone (FD10.52)");
 
         // FD10.21: the half-space frame "cannot be modified"; FD2.51 says the same of the
         // type-VI. Offering it a payload is a mistake in the code rather than an illegal
@@ -144,10 +153,10 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
         double used = 0;
         for (PayloadModule m : payload)
             used += m.spaces;
-        if (used > frame.payloadSpaces)
+        if (used > built.payloadSpaces)
             throw new IllegalArgumentException(
-                    "payload of " + used + " spaces exceeds " + frame + "'s "
-                            + frame.payloadSpaces + " (FD10.4)");
+                    "payload of " + used + " spaces exceeds " + built + "'s "
+                            + built.payloadSpaces + " (FD10.4)");
 
         // FD10.402: some modules "can only be placed in the forward space", and FD10.432,
         // FD11.11, FD14.11 and FD15.11 each say it of their own.
@@ -162,7 +171,7 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
         double forwardSpaces = forwardOnly.stream().mapToDouble(m -> m.spaces).sum();
         if (forwardSpaces > 1.0) {
             boolean spansWholePayload = forwardOnly.size() == 1
-                    && forwardOnly.get(0).spaces == frame.payloadSpaces;
+                    && forwardOnly.get(0).spaces == built.payloadSpaces;
             if (!spansWholePayload)
                 throw new IllegalArgumentException(
                         "more than one payload space of forward-only modules, which cannot all"
@@ -204,6 +213,33 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
     }
 
     /**
+     * The frame this drone actually has, which is not always the one it was built on.
+     *
+     * <blockquote>FD10.24: "Type-III drones are one-space drones, but when given extended range
+     * (FD2.222), they <b>become</b> type-III-XX, which are two-space drones with one payload
+     * space."</blockquote>
+     *
+     * <p>Every measurement of the drone -- its rack footprint, its payload capacity, its hull,
+     * and which column of FD10.52 prices its engine -- reads this rather than the declared
+     * frame. A caller asks for a type-III with extended range, which is how the rules put it,
+     * and gets the frame that transformation produces.
+     */
+    public DroneFrame effectiveFrame() {
+        return effectiveFrame(frame, additions);
+    }
+
+    private static DroneFrame effectiveFrame(DroneFrame frame, Set<FrameAddition> additions) {
+        if (frame == DroneFrame.ONE_SPACE && isTypeIiiXx(additions))
+            return DroneFrame.TYPE_III_XX;
+        return frame;
+    }
+
+    private static boolean isTypeIiiXx(Set<FrameAddition> additions) {
+        return additions.contains(FrameAddition.TYPE_III_GUIDANCE)
+                && additions.contains(FrameAddition.EXTENDED_RANGE);
+    }
+
+    /**
      * FD10.41: "All of the explosive modules on a given drone are combined into a single
      * explosion." So this is a sum, and a drone carrying nothing explodes for nothing — which
      * is FD10.48's null drone, when it comes.
@@ -221,7 +257,7 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
 
     /** Spaces this drone takes in a rack (FD3.0). */
     public double rackSpaces() {
-        return frame.rackSpaces;
+        return effectiveFrame().rackSpaces;     // FD10.24: a type-III-XX takes two
     }
 
     /**
@@ -238,7 +274,7 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
      * behind a strength-six warhead.
      */
     public int hull() {
-        int total = frame.hull;
+        int total = effectiveFrame().hull;
         for (PayloadModule m : allModules())
             total += m.hullBonus;
         for (FrameAddition a : additions)
@@ -256,12 +292,25 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
     public int speed() {
         for (FrameAddition a : additions)
             if (a.isExternalArmor())
-                return a.speedWith(frame, propulsion);
+                return a.speedWith(effectiveFrame(), propulsion);
         return propulsion.speed;
     }
 
-    /** 100 turns, the endurance FD2.222 states for a type-III-XX, in impulses. */
-    public static final int TYPE_III_XX_ENDURANCE = 100 * com.sfb.constants.Constants.IMPULSES_PER_TURN;
+    /**
+     * Whether FD10.641's carve-out has already spoken for this addition's availability.
+     *
+     * <blockquote>"A type-III frame (Limited Availability) to which the extended range frame
+     * modification (General Availability) is added becomes a two-space <b>Restricted</b>
+     * Availability drone (FD10.24)."</blockquote>
+     *
+     * <p>Restricted is less restrictive than Limited, so this is not a combination of the two
+     * tiers -- it REPLACES them. Folding either addition back in afterwards would drag the drone
+     * to Limited and undo the exception, so the frame's own tier stands for both.
+     */
+    private boolean supersededByTheFrame(FrameAddition a) {
+        return effectiveFrame() == DroneFrame.TYPE_III_XX
+                && (a == FrameAddition.TYPE_III_GUIDANCE || a == FrameAddition.EXTENDED_RANGE);
+    }
 
     /**
      * Whether this drone is a type-III-XX: FD10.24's "type-III drones... when given extended
@@ -272,8 +321,7 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
      * {@code TYPE_III_GUIDANCE} surcharge FD10.22 charges half a point for.
      */
     public boolean isTypeIiiXx() {
-        return additions.contains(FrameAddition.TYPE_III_GUIDANCE)
-                && additions.contains(FrameAddition.EXTENDED_RANGE);
+        return effectiveFrame() == DroneFrame.TYPE_III_XX;
     }
 
     /**
@@ -294,10 +342,11 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
      * rule that would otherwise derive it, and a stated number wins.
      */
     public int enduranceFrom(int baseEndurance) {
+        Integer stated = effectiveFrame().enduranceOverride;
+        if (stated != null)
+            return stated;
         if (!additions.contains(FrameAddition.EXTENDED_RANGE))
             return baseEndurance;
-        if (isTypeIiiXx())
-            return TYPE_III_XX_ENDURANCE;
         return baseEndurance * 2;
     }
 
@@ -338,7 +387,7 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
      * is a property of the sum.
      */
     public Availability availabilityIn(int year) {
-        Availability worst = frame.availability;
+        Availability worst = effectiveFrame().availability;
         worst = Availability.moreRestrictive(worst, propulsion.availabilityIn(year));
         // FD8.24: the submunitions' speed is a restricted item in its own right (FD10.65).
         // Cannot bite today -- every module that HAS submunitions is itself Limited, which is
@@ -349,7 +398,8 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
         for (PayloadModule m : allModules())
             worst = Availability.moreRestrictive(worst, m.availability);
         for (FrameAddition a : additions)
-            worst = Availability.moreRestrictive(worst, a.availability);
+            if (!supersededByTheFrame(a))
+                worst = Availability.moreRestrictive(worst, a.availability);
         return worst;
     }
 
@@ -379,7 +429,7 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
      * is recorded rather than implemented.
      */
     public Map<Availability, Double> spacesByAvailability(int year) {
-        Availability floor = frame.availability;
+        Availability floor = effectiveFrame().availability;
         floor = Availability.moreRestrictive(floor, propulsion.availabilityIn(year));
         // FD10.641 counts "speed upgrades" among the frame modifications that set the floor for
         // every space, and the submunitions' engines are a speed upgrade (FD8.44).
@@ -387,7 +437,8 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
             floor = Availability.moreRestrictive(
                     floor, submunitionPropulsion.availabilityIn(year));
         for (FrameAddition a : additions)
-            floor = Availability.moreRestrictive(floor, a.availability);
+            if (!supersededByTheFrame(a))
+                floor = Availability.moreRestrictive(floor, a.availability);
 
         Map<Availability, Double> out = new EnumMap<>(Availability.class);
         // FD10.66: the unit of account is the PAYLOAD SPACE, not the module. Two half-space
@@ -447,7 +498,9 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
      * type-III FD10.54 calls a Basic Set erratum.
      */
     public double pointCost() {
-        double total = propulsion.costOn(frame);
+        // FD10.24: "Speed upgrade costs for type-III-XX drones are the same as for the
+        // two-space drone (FD10.52)", which falls out of pricing the effective frame.
+        double total = propulsion.costOn(effectiveFrame());
         for (PayloadModule m : allModules())
             total += m.cost;
         for (FrameAddition a : additions)
