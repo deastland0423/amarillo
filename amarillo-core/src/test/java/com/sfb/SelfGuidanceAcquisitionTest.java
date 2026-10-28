@@ -178,6 +178,95 @@ public class SelfGuidanceAcquisitionTest {
         assertTrue("released at that point, it carries on (FD5.12)", d.isSelfGuiding());
     }
 
+    // ------------------------------------------------------------------ FD5.23's leash
+
+    /** Launch a type-III close in, so it is guiding itself with nobody holding it. */
+    private Drone loose() {
+        setUpAt(14);
+        Drone d = launch(DroneType.TypeIII);
+        assertTrue("fixture: guiding itself", d.isSelfGuiding());
+        return d;
+    }
+
+    /**
+     * FD5.23: "circumstances cause the drone to be <b>more than twelve hexes</b> from the
+     * target... at the end of an impulse, lock-on is lost and the drone becomes inert."
+     *
+     * <p>"Circumstances" is doing the work: the drone is chasing, so it is the TARGET pulling
+     * away that breaks the thread.
+     */
+    @Test
+    public void aSelfGuidingDroneLosesATargetThatOutrunsTwelveHexes() {
+        Drone d = loose();
+        target.setLocation(new Location(10, 29));       // well past twelve
+        impulse();
+
+        assertFalse("FD1.7: lock-on lost, and it goes inert",
+                game.getSeekers().contains((Seeker) d));
+    }
+
+    /** Twelve is inside the leash; it is MORE than twelve that breaks it. */
+    @Test
+    public void twelveHexesIsStillWithinReach() {
+        Drone d = loose();
+        target.setLocation(new Location(10, 22));
+        impulse();
+
+        assertTrue("fixture: the drone closed, so the gap is twelve or less",
+                com.sfb.utilities.MapUtils.getRange(d.getLocation(),
+                        target.getLocation()) <= Drone.SELF_GUIDANCE_LEASH);
+        assertTrue("so it is still coming", game.getSeekers().contains((Seeker) d));
+    }
+
+    /**
+     * FD5.23's other half: "or the target is outside of the FA arc". A drone turns as it
+     * flies, so this bites when a target gets behind it faster than it can come round.
+     */
+    @Test
+    public void aSelfGuidingDroneLosesATargetThatGetsBehindIt() {
+        Drone d = loose();
+        assertEquals("fixture: flying down the column, toward the target", 13, d.getFacing());
+
+        // Put the target astern, close enough that range is not what kills it.
+        target.setLocation(new Location(10, 4));
+        impulse();
+
+        assertFalse("FD5.23: out of the forward arc, so the lock-on is lost",
+                game.getSeekers().contains((Seeker) d));
+    }
+
+    /**
+     * The leash is explicitly on a drone "after acquiring its target and being released
+     * (F3.42) by the controlling unit to self-guidance". One still being guided by a ship is
+     * governed by the CONTROLLER's qualifications (F3.31) instead, which is a different check
+     * with a different range -- 35 hexes, not twelve.
+     */
+    @Test
+    public void aGuidedDroneIsNotOnTheLeash() {
+        setUpAt(25);
+        Drone d = launch(DroneType.TypeIII);
+        assertEquals("fixture: the launcher is flying it", launcher, d.getController());
+        assertFalse("fixture: and it has not taken over", d.isSelfGuiding());
+
+        target.setLocation(new Location(10, 29));
+        impulse();
+
+        assertTrue("FD5.23 does not reach a drone under guidance",
+                game.getSeekers().contains((Seeker) d));
+    }
+
+    /** Nor a drone that has no guidance of its own to lose. */
+    @Test
+    public void aPlainDroneIsNotOnTheLeashEither() {
+        setUpAt(14);
+        Drone d = launch(DroneType.TypeI);
+        target.setLocation(new Location(10, 29));
+        impulse();
+
+        assertTrue("it is guided, and F3.31's limits are the controller's",
+                game.getSeekers().contains((Seeker) d));
+    }
+
     /** A drone with no guidance of its own never acquires, however close it gets. */
     @Test
     public void aPlainDroneNeverTakesOver() {

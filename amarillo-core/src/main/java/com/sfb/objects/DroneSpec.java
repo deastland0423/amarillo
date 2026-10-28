@@ -392,6 +392,22 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
     public boolean isSelfGuidingCapable() {
         if (effectiveFrame() == DroneFrame.HALF_SPACE)
             return true;
+        return hasActiveTerminalGuidance();
+    }
+
+    /**
+     * Whether this drone's self-guidance is ACTIVE TERMINAL GUIDANCE specifically (FD5.2),
+     * as against the type-VI's energy seeker (FD5.1).
+     *
+     * <p>The two are not interchangeable even though both guide a drone home. FD5.26 gives ATG
+     * drones two points of built-in ECCM; the type-VI is not in that section at all, and gets
+     * something stronger of its own instead — FD5.131 makes a dogfight drone that has won its
+     * own lock-on immune to electronic warfare rather than merely resistant to it.
+     *
+     * <p>A type-III counts: FD2.221, "Type-III drones already have ATG", which is also why
+     * FD10.23 refuses to sell it one.
+     */
+    public boolean hasActiveTerminalGuidance() {
         return additions.contains(FrameAddition.ACTIVE_TERMINAL_GUIDANCE)
                 || additions.contains(FrameAddition.TYPE_III_GUIDANCE);
     }

@@ -198,6 +198,31 @@ public class Drone extends Unit implements Seeker {
 		return isSelfGuidingCapable() && range <= SELF_GUIDANCE_RANGE;
 	}
 
+	/**
+	 * How far a drone guiding itself may be from its target before it loses the thread.
+	 *
+	 * <blockquote>FD5.23: "If, after acquiring its target and being released (F3.42) by the
+	 * controlling unit to self-guidance, circumstances cause the drone to be <b>more than
+	 * twelve hexes</b> from the target (or the target is outside of the FA arc) at the end of
+	 * an impulse, lock-on is lost and the drone becomes inert."</blockquote>
+	 *
+	 * <p>Four hexes of slack over the eight it needed to acquire, and FD5.15 extends the whole
+	 * clause to dogfight drones: "The restrictions of (FD5.23) also apply to this type."
+	 */
+	public static final int SELF_GUIDANCE_LEASH = 12;
+
+	/**
+	 * FD5.26: "ATG drones have two points of built-in ECCM; see (D6.393)."
+	 *
+	 * <p>ATG only. A type-VI is not in FD5.2 at all and has something stronger instead —
+	 * FD5.131 makes a dogfight drone with its own lock-on immune to electronic warfare rather
+	 * than resistant to it, which is its own unbuilt work.
+	 */
+	@Override
+	public int getBuiltInEccm() {
+		return spec != null && spec.hasActiveTerminalGuidance() ? 2 : 0;
+	}
+
 	@Override
 	public boolean isWarpSeeker() {
 		return warpSeeker;

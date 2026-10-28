@@ -182,6 +182,51 @@ public class SelfGuidanceTest {
         assertTrue(t.isSelfGuiding());
     }
 
+    // -------------------------------------------------------------- FD5.26: built-in ECCM
+
+    /**
+     * FD5.26: "ATG drones have two points of built-in ECCM; see (D6.393). This is treated as
+     * per (F3.33)."
+     */
+    @Test
+    public void atgDronesCarryTwoPointsOfEccm() {
+        DroneSpec homing = DroneSpec.of(DroneFrame.ONE_SPACE, Propulsion.SPEED_8,
+                Set.of(FrameAddition.ACTIVE_TERMINAL_GUIDANCE), PayloadModule.EXPLOSIVE_1);
+        assertEquals(2, new Drone(DroneType.TypeI, homing).getBuiltInEccm());
+
+        assertEquals("a type-III already has ATG (FD2.221), so it has the ECCM too",
+                2, new Drone(DroneType.TypeIII).getBuiltInEccm());
+    }
+
+    /** A drone with no guidance of its own has nothing to resist with. */
+    @Test
+    public void anOrdinaryDroneHasNoBuiltInEccm() {
+        assertEquals(0, new Drone(DroneType.TypeI).getBuiltInEccm());
+        assertEquals(0, new Drone(DroneType.TypeIV).getBuiltInEccm());
+    }
+
+    /**
+     * And the type-VI gets none from FD5.26, which is a section about ATG and does not mention
+     * it. FD5.131 gives it something stronger instead — a dogfight drone with its own
+     * lock-on "cannot be distracted by electronic warfare (D6.3)" at all — and that is
+     * unbuilt, so this records the gap rather than papering over it with two points.
+     */
+    @Test
+    public void theTypeVIIsNotAnAtgDroneForEccmPurposes() {
+        assertFalse(DroneType.TypeVI.spec.hasActiveTerminalGuidance());
+        assertTrue("though it does guide itself, by another route (FD5.1)",
+                DroneType.TypeVI.spec.isSelfGuidingCapable());
+        assertEquals(0, new Drone(DroneType.TypeVI).getBuiltInEccm());
+    }
+
+    /** FD5.23's leash, four hexes wider than the eight it took to acquire. */
+    @Test
+    public void theLeashIsTwelveHexes() {
+        assertEquals(12, Drone.SELF_GUIDANCE_LEASH);
+        assertTrue("and a drone acquires well inside it",
+                Drone.SELF_GUIDANCE_RANGE < Drone.SELF_GUIDANCE_LEASH);
+    }
+
     /**
      * And the seeking shuttles are not on F3.42's list, so they are not capable. They used to
      * say so with an override apiece; now they inherit it from {@link Seeker}'s default, which

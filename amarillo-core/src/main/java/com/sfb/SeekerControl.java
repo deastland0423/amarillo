@@ -616,6 +616,64 @@ class SeekerControl {
      * guiding ship's lock-on (P2.3222 → releaseOrphanedDrones); a planet
      * between a controller and its own weapon never matters (P2.34).
      */
+    /**
+     * FD5.23: the leash on a drone that is guiding itself.
+     *
+     * <blockquote>"If, after acquiring its target and being released (F3.42) by the controlling
+     * unit to self-guidance, circumstances cause the drone to be <b>more than twelve hexes</b>
+     * from the target (<b>or the target is outside of the FA arc</b>) at the end of an impulse,
+     * lock-on is lost and the drone becomes inert (i.e., is removed from play under
+     * FD1.7)."</blockquote>
+     *
+     * <p>Both halves bite only on a drone currently guiding ITSELF -- the rule says "after
+     * acquiring its target and being released" -- so a drone still under a ship's guidance is
+     * governed by the controller's own qualifications (F3.31) instead, which is a separate
+     * check. FD5.15 extends the whole clause to dogfight drones.
+     *
+     * <p>Run from the end-of-impulse sweep, where all movement is in and ranges have settled,
+     * because "at the end of an impulse" is what the rule measures.
+     */
+    List<String> sweepSelfGuidanceLeash() {
+        List<String> log = new ArrayList<>();
+        List<Seeker> lost = new ArrayList<>();
+        for (Seeker s : seekers) {
+            if (!(s instanceof Drone))
+                continue;
+            Drone drone = (Drone) s;
+            if (!drone.isSelfGuiding())
+                continue;
+            Unit target = drone.getTarget();
+            if (target == null || drone.getLocation() == null || target.getLocation() == null)
+                continue;
+
+            int range = com.sfb.utilities.MapUtils.getRange(
+                    drone.getLocation(), target.getLocation());
+            if (range > Drone.SELF_GUIDANCE_LEASH) {
+                log.add("  " + drone.getName() + " lost its own lock-on — "
+                        + target.getName() + " is " + range + " hexes off, past the twelve a"
+                        + " self-guiding drone can hold (FD5.23)");
+                lost.add(drone);
+                continue;
+            }
+
+            // Same hex: there is no bearing to judge, and the drone is about to impact anyway.
+            int bearing = com.sfb.utilities.MapUtils.getBearing(
+                    drone.getLocation(), target.getLocation());
+            if (bearing == 0)
+                continue;
+            int relative = com.sfb.utilities.MapUtils.getRelativeBearing(
+                    bearing, drone.getFacing());
+            if (!com.sfb.utilities.ArcUtils.inArc(relative, com.sfb.utilities.ArcUtils.FA)) {
+                log.add("  " + drone.getName() + " lost its own lock-on — "
+                        + target.getName() + " slipped out of its forward arc (FD5.23)");
+                lost.add(drone);
+            }
+        }
+        for (Seeker s : lost)
+            game.removeSeekerFromPlay(s);       // FD1.7: inert, and off the board
+        return log;
+    }
+
     List<String> sweepSelfGuidedLos() {
         List<String> log = new ArrayList<>();
         if (!game.anyPlanetSurface())

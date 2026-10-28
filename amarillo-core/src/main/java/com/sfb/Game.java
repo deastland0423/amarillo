@@ -1122,6 +1122,9 @@ public class Game {
                 // eight impulses whether the source is any use or not.
                 lastSeekerLog.addAll(squadronEw.sweepDesignations());
                 lastSeekerLog.addAll(seekerControl.sweepSelfGuidedLos());
+                // FD5.23: "...at the end of an impulse", which is here -- all movement is in
+                // and the ranges have settled.
+                lastSeekerLog.addAll(seekerControl.sweepSelfGuidanceLeash());
                 lastSeekerLog.addAll(seekerControl.releaseOrphanedDrones());
                 log.addAll(lastSeekerLog);
                 if (!pendingVolleys.isEmpty()) {
