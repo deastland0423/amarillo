@@ -66,6 +66,20 @@ class SeekerMover {
         int impulse = game.getCurrentImpulse();
         List<Seeker> expired = new ArrayList<>();
 
+        // FD2.2: "Endurance = number of turns the drone remains in play." TIME in play, not
+        // distance covered -- so every drone on the board spends one impulse of endurance
+        // here, before any question of whether it moves this impulse.
+        //
+        // A drone does not only move under its own power. One held in a tractor (G7.5) is
+        // skipped by the movement loop below but is still in play and still burning fuel, and
+        // terrain that pushes units around will say the same. Spending endurance inside the
+        // movement block made it a RANGE in hexes instead: a speed-8 type-I lasted 96 hexes,
+        // which is twelve turns rather than the three FD2.1's chart gives it. The error scaled
+        // with 32/speed, so it was exact at speed 32 and worst for the slowest drones.
+        for (Seeker s : seekers)
+            if (s instanceof Drone)
+                ((Drone) s).setEndurance(((Drone) s).getEndurance() - 1);
+
         // Order seekers so that a seeker whose target is also a seeker moves after its
         // target. Simple two-pass: targets first, then hunters.
         Set<Seeker> seekerSet = new HashSet<>(seekers);
@@ -128,8 +142,6 @@ class SeekerMover {
                     continue;
                 }
 
-                drone.setEndurance(drone.getEndurance() - 1);
-
                 if (target != null && target.getLocation() != null
                         && drone.getLocation().equals(target.getLocation())) {
                     if (target instanceof Drone) {
@@ -168,11 +180,6 @@ class SeekerMover {
                     continue;
                 }
 
-                if (drone.getEndurance() <= 0) {
-                    log.add("  " + droneLabel(drone) + " targeting "
-                            + aimLabel(drone) + " ran out of endurance");
-                    expired.add(seeker);
-                }
 
             } else if (seeker instanceof ScatterPack) {
                 ScatterPack pack = (ScatterPack) seeker;
@@ -366,6 +373,19 @@ class SeekerMover {
                     }
                     expired.add(seeker);
                 }
+            }
+        }
+
+        // FD1.71: a drone that has used up its endurance goes inert at the END of the
+        // impulse, so it still moves and can still impact on the impulse that exhausts it.
+        // Swept here rather than inside the movement loop because a drone that did not move
+        // -- tractored, or slower than one hex per impulse -- expires on time just the same.
+        for (Seeker s : seekers) {
+            if (s instanceof Drone && ((Drone) s).getEndurance() <= 0 && !expired.contains(s)) {
+                Drone spent = (Drone) s;
+                log.add("  " + droneLabel(spent) + " targeting " + aimLabel(spent)
+                        + " ran out of endurance");
+                expired.add(s);
             }
         }
 

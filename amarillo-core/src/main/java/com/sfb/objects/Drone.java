@@ -128,8 +128,28 @@ public class Drone extends Unit implements Seeker {
 		return type;
 	}
 
+	/**
+	 * Change what kind of drone this is — and with it every number the kind decides.
+	 *
+	 * <p>This used to assign the type field alone, leaving endurance, speed, warhead, hull and
+	 * rack size at their defaults: a drone that answered TypeI to {@link #getDroneType} and
+	 * ZERO to everything else. Nothing in production builds a drone that way (both constructors
+	 * take the type and derive from it), but two fixtures did, and a zero endurance stayed
+	 * invisible while endurance was spent per hex — a speed-0 drone never moved, so it never
+	 * spent any. Counting endurance per impulse (FD2.2) made those drones expire the instant
+	 * they were looked at, which is how this surfaced.
+	 */
 	public void setDroneType(DroneType type) {
-		this.type = type;
+		DroneType config = (type != null) ? type : DroneType.TypeI;
+		this.type = config;
+		this.spec = config.spec;
+		this.endurance = this.spec.enduranceFrom(config.endurance);
+		this.selfGuiding = config.selfGuiding;
+		this.warpSeeker = config.warpSeeker;
+		this.speed = this.spec.speed();            // Protected in Unit
+		this.warheadDamage = this.spec.warheadStrength();
+		this.rackSize = this.spec.rackSpaces();
+		this.hull = this.spec.hull();
 	}
 
 	@Override
