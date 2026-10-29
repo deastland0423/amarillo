@@ -115,6 +115,26 @@ public interface Seeker {
 
 	default void setWarpSeeker(boolean warpSeeker) {}
 
+	/**
+	 * J3.203: whether this weapon is chasing a decoy because it was DRAWN onto it, rather than
+	 * because somebody aimed it there.
+	 *
+	 * <blockquote>"The WW can be targeted <b>in its own right</b>; in this case any seeking
+	 * weapons would <b>not</b> revert to the protected ship if the weasel was voided."
+	 * </blockquote>
+	 *
+	 * <p>Note what does NOT need storing: the ship to revert TO. J3.202 settles that — "wild
+	 * weasels protect the ship that launched them and no other" — so the decoy's own parent is
+	 * the target every drawn weapon was diverted from, by construction, and a second copy of it
+	 * could only drift. This one bit is the whole of what the parent cannot say.
+	 *
+	 * <p>Default false, which is right for a weapon that has never met a decoy and for the
+	 * scatter-pack, the one seeker no launch path ever diverts.
+	 */
+	default boolean isDivertedToDecoy() { return false; }
+
+	default void setDivertedToDecoy(boolean diverted) {}
+
 	/** Built-in ECCM points carried by the weapon itself (D6.393). Plasma = 3, others = 0. */
 	default int getBuiltInEccm() { return 0; }
 

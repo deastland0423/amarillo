@@ -26,6 +26,9 @@ public class Drone extends Unit implements Seeker {
 	 * lose a lock-on "merely because the target cloaks".
 	 */
 	private boolean cloakLockRetained;
+
+	/** J3.203: set when a wild weasel DREW this drone off, not when it was aimed at one. */
+	private boolean divertedToDecoy;
 	private boolean warpSeeker; // True if the drone uses warp-energy tracking (FD2.56) — TypeVI variants.
 	private int endurance; // The number of impulses this weapon will continue to operate.
 	private int launchImpulse; // The (absolute) impulse this drone was launched.
@@ -219,6 +222,17 @@ public class Drone extends Unit implements Seeker {
 	/** G13.334: whether this drone is holding its target through a cloak. */
 	public boolean isCloakLockRetained() {
 		return cloakLockRetained;
+	}
+
+	/** J3.203: whether this drone was drawn onto the decoy it is chasing. */
+	@Override
+	public boolean isDivertedToDecoy() {
+		return divertedToDecoy;
+	}
+
+	@Override
+	public void setDivertedToDecoy(boolean diverted) {
+		this.divertedToDecoy = diverted;
 	}
 
 	public void setCloakLockRetained(boolean retained) {
@@ -432,6 +446,7 @@ public class Drone extends Unit implements Seeker {
 		state.put("endurance", endurance);
 		state.put("ownLockOn", ownLockOn);
 		state.put("cloakLockRetained", cloakLockRetained);
+		state.put("divertedToDecoy", divertedToDecoy);
 		state.put("launchImpulse", launchImpulse);
 		state.put("warheadDamage", warheadDamage);
 		state.put("rackSize", rackSize);
@@ -488,6 +503,8 @@ public class Drone extends Unit implements Seeker {
 			drone.acquireOwnLockOn();
 		drone.setCloakLockRetained(
 				com.sfb.systemgroups.StateIo.flag(state, "cloakLockRetained", false));
+		drone.setDivertedToDecoy(
+				com.sfb.systemgroups.StateIo.flag(state, "divertedToDecoy", false));
 		drone.setLaunchImpulse(com.sfb.systemgroups.StateIo.integer(state, "launchImpulse",
 				drone.getLaunchImpulse()));
 		drone.warheadDamage = com.sfb.systemgroups.StateIo.integer(state, "warheadDamage",

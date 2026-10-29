@@ -31,6 +31,7 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     private Seeker.SeekerType seekerType = Seeker.SeekerType.PLASMA;
     private boolean identified = false;
     private boolean cloakLockRetained = false; // G13.3343 — won retention vs a cloaked target
+    private boolean divertedToDecoy = false;   // J3.203 — drawn onto a weasel, not aimed at one
     private boolean pseudoPlasma = false; // True if this torpedo is a pseudo-torpedo: behaves like a real torpedo but
                                           // deals zero damage on impact.
 
@@ -314,6 +315,17 @@ public class PlasmaTorpedo extends Unit implements Seeker {
         this.ballisticCourse = course;
     }
 
+    /** J3.203: whether this torpedo was drawn onto the decoy it is chasing. */
+    @Override
+    public boolean isDivertedToDecoy() {
+        return divertedToDecoy;
+    }
+
+    @Override
+    public void setDivertedToDecoy(boolean diverted) {
+        this.divertedToDecoy = diverted;
+    }
+
     // -------------------------------------------------------------------------
     // Saved game (see Seeker.exportState)
     // -------------------------------------------------------------------------
@@ -365,6 +377,7 @@ public class PlasmaTorpedo extends Unit implements Seeker {
         state.put("damageTaken", damageTaken);
         state.put("identified", identified);
         state.put("cloakLockRetained", cloakLockRetained);
+        state.put("divertedToDecoy", divertedToDecoy);
         state.put("pseudoPlasma", pseudoPlasma);
         state.put("ballisticCourse",
                 ballisticCourse == null ? null : ballisticCourse.exportState());
@@ -420,6 +433,8 @@ public class PlasmaTorpedo extends Unit implements Seeker {
                 torpedo.cloakLockRetained);
         torpedo.pseudoPlasma = com.sfb.systemgroups.StateIo.flag(state, "pseudoPlasma",
                 torpedo.pseudoPlasma);
+        torpedo.divertedToDecoy = com.sfb.systemgroups.StateIo.flag(state, "divertedToDecoy",
+                torpedo.divertedToDecoy);
         if (com.sfb.systemgroups.StateIo.flag(state, "identified", false))
             torpedo.identify();
 

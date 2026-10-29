@@ -248,17 +248,17 @@ class LaunchCoordinator {
         activeShuttles.add(ww);
         ship.setActiveWildWeasel(ww);
 
-        // Retarget all seekers aimed at this ship to the WW (J3.111) -- except a dogfight
-        // drone that has its own lock-on, which FD5.131 says "cannot be distracted by...
-        // wild weasels (J3.2)". FD5.133 is the other side: a weasel "could divert a dogfight
-        // drone that did not yet have its own lock-on", so one that has not acquired is
-        // drawn off like anything else.
+        // J3.20: "At the instant that a WW is launched, all seeking weapons targeted on the
+        // ship begin to follow the WW, not the ship." Each one is MARKED as having been drawn
+        // there, because J3.203 turns on the difference between a weapon the weasel took and
+        // one that was aimed at it.
         for (Seeker seeker : seekers) {
             if (seeker.getTarget() != ship)
                 continue;
-            if (seeker instanceof Drone && ((Drone) seeker).ignoresDistraction())
+            if (!decoyDrawsOff(seeker))
                 continue;
             seeker.setTarget(ww);
+            seeker.setDivertedToDecoy(true);
         }
 
         // Deactivate fire control (J3.132) — the setter clears all lock-ons
@@ -272,34 +272,101 @@ class LaunchCoordinator {
     }
 
     /**
-     * Void the active Wild Weasel for this ship (J3.13x). Seekers retarget back
-     * to the ship. Called when the WW is destroyed or the ship voids it by firing.
+     * Void the active Wild Weasel for this ship (J3.13x), sending the weapons it drew back to
+     * the ship. Called when the WW is destroyed or the ship voids it by firing.
+     *
+     * <h2>Which weapons revert, and which do not</h2>
+     * Three outcomes, and only the first of them is the ordinary one:
+     * <ul>
+     *   <li><b>Drawn off by the decoy</b> — back onto the ship. J3.202 is what makes the ship
+     *       recoverable without storing it anywhere: "wild weasels protect the ship that
+     *       launched them and no other", so the parent IS the target each of these was
+     *       diverted from.</li>
+     *   <li><b>Aimed at the weasel in its own right</b> (J3.203) — does not revert. It never
+     *       had a quarrel with the ship, and the voided decoy leaves the map, so it is left
+     *       with nothing to chase.</li>
+     *   <li><b>A dogfight drone with its own lock-on</b> (FD5.131) — "Type-VIs targeted on a
+     *       WW will not revert to their original target if the WW is voided or destroyed."
+     *       It was already tracking the weasel when it won that lock-on, so the weasel is what
+     *       it knows.</li>
+     * </ul>
+     * The last two end the same way: inert, off the board (FD1.7).
      */
     public void voidWildWeasel(Ship ship) {
         com.sfb.objects.shuttles.WildWeaselShuttle ww = ship.getActiveWildWeasel();
         if (ww == null)
             return;
 
-        // Retarget seekers from WW back to parent ship -- but not the dogfight drones.
-        // FD5.131: "Type-VIs targeted on a WW will not revert to their original target if the
-        // WW is voided or destroyed." They were already tracking the weasel when they won
-        // their own lock-on, so the weasel is what they know; with it gone they have nothing
-        // left to chase and go inert (FD1.7).
         List<Seeker> stranded = new ArrayList<>();
         for (Seeker seeker : seekers) {
             if (seeker.getTarget() != ww)
                 continue;
-            if (seeker instanceof Drone && ((Drone) seeker).ignoresDistraction()) {
+            // J3.203, then FD5.131. Asked in that order because they are different questions
+            // about the same weapon: how it came to be chasing the decoy, and what it has
+            // since made of it.
+            if (!seeker.isDivertedToDecoy() || !decoyDrawsOff(seeker)) {
                 stranded.add(seeker);
                 continue;
             }
             seeker.setTarget(ship);
+            seeker.setDivertedToDecoy(false);
         }
         for (Seeker s : stranded)
             game.removeSeekerFromPlay(s);
 
         activeShuttles.remove(ww);
         ship.setActiveWildWeasel(null);
+    }
+
+    /**
+     * J3.201: where a seeking weapon aimed at {@code target} actually goes — which is the
+     * target's decoy, if it has one up and working.
+     *
+     * <blockquote>"All seeking weapons launched with that ship (the one that launched the WW)
+     * as a target while an undestroyed and unvoided WW is on the map will not accept the ship
+     * as a target, but instead follow the WW."</blockquote>
+     *
+     * <p>Every launch asks this one question rather than working it out again, which is what
+     * keeps the redirect and the J3.203 mark from drifting apart: a weapon is marked as drawn
+     * off exactly when, and because, this is what pointed it at the decoy. A weapon the player
+     * aimed at the weasel himself never comes through here at all — the weasel is not a
+     * {@code Ship}, so the first line returns it untouched — and so is never marked, and
+     * never reverts.
+     *
+     * <p>J3.2122 ends it: past the explosion period the decoy is a spent radiation pocket and
+     * newly launched weapons ignore it.
+     *
+     * @param seeker the weapon being launched, marked here if the decoy takes it
+     * @return the unit it will chase
+     */
+    private Unit decoyRedirect(Unit target, Seeker seeker) {
+        if (!(target instanceof Ship))
+            return target;
+        com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
+        if (ww == null || ww.isPostExplosion())
+            return target;
+        if (!decoyDrawsOff(seeker))
+            return target;
+        seeker.setDivertedToDecoy(true);
+        return ww;
+    }
+
+    /**
+     * FD5.131: whether a decoy can take this weapon at all.
+     *
+     * <blockquote>"Dogfight drones that have gained their own lock-ons (even if still under
+     * control of another unit) cannot be distracted by... wild weasels (J3.2)."</blockquote>
+     *
+     * <p>J3.20 states the same exception from the other side, and FD5.133 draws the line: a
+     * weasel "could divert a dogfight drone that did not yet have its own lock-on", so one that
+     * has not acquired is drawn off like anything else.
+     *
+     * <p>Asked at the launch redirect as well as the launch sweep, because a type-VI thrown
+     * from inside eight hexes locks on before it is ever pointed anywhere (FD5.12) — the
+     * weasel is up, and it goes for the ship regardless.
+     */
+    private boolean decoyDrawsOff(Seeker seeker) {
+        return !(seeker instanceof Drone && ((Drone) seeker).ignoresDistraction());
     }
 
     /**
@@ -688,18 +755,10 @@ class LaunchCoordinator {
         if (droneArc != null)
             return droneArc;
         drone.setFacing(droneFacing);
-        // J3.201: redirect to WW if target ship has an active/exploding WW (not
-        // post-explosion)
-        Unit droneTarget = target;
-        if (target instanceof Ship) {
-            com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
-            if (ww != null && !ww.isPostExplosion())
-                droneTarget = ww;
-        }
         // A ballistic drone is aimed at a hex and has no target unit at all, which is also
         // why no Wild Weasel can draw it off (P2.732 leans on exactly this).
         drone.setBallisticCourse(course);
-        drone.setTarget(course != null ? null : droneTarget);
+        drone.setTarget(course != null ? null : decoyRedirect(target, drone));
         // F4.12: a ballistic weapon is "released from control immediately on launch", so it
         // gets no controller at all. Setting one here would have handed it back to the
         // launcher's guidance the moment anything asked who was flying it.
@@ -1018,17 +1077,9 @@ class LaunchCoordinator {
         torpedo.setLocation(fighter.getLocation());
         torpedo.setFacing(torpFacing);
 
-        // J3.201: a target with an active weasel up takes the torpedo onto the decoy instead.
-        Unit torpTarget = target;
-        if (target instanceof Ship) {
-            com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
-            if (ww != null && !ww.isPostExplosion())
-                torpTarget = ww;
-        }
         // FP4.23 and F4.12: no target to re-acquire, and nobody guiding it.
         torpedo.setBallisticCourse(course);
-        if (course != null)
-            torpTarget = null;
+        Unit torpTarget = course != null ? null : decoyRedirect(target, torpedo);
         torpedo.setTarget(torpTarget);
         if (course == null)
             torpedo.setController(fighter);
@@ -1203,19 +1254,10 @@ class LaunchCoordinator {
         torpedo.setName(launcher.getName() + "-Plasma-" + game.nextSeekerSeq());
         torpedo.setLocation(launcher.getLocation());
         torpedo.setFacing(torpFacing);
-        // J3.201: redirect to WW if target ship has an active/exploding WW (not
-        // post-explosion)
-        Unit torpTarget = target;
-        if (target instanceof Ship) {
-            com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
-            if (ww != null && !ww.isPostExplosion())
-                torpTarget = ww;
-        }
         // FP4.23: a ballistically launched torpedo cannot acquire its own target, and F4.12
         // releases it from control — so it gets neither a target nor a controller.
         torpedo.setBallisticCourse(course);
-        if (course != null)
-            torpTarget = null;
+        Unit torpTarget = course != null ? null : decoyRedirect(target, torpedo);
         torpedo.setTarget(torpTarget);
         if (course == null)
             torpedo.setController(launcher);
@@ -1390,17 +1432,9 @@ class LaunchCoordinator {
         torpedo.setName(launcher.getName() + "-PlD-" + game.nextSeekerSeq());
         torpedo.setLocation(launcher.getLocation());
         torpedo.setFacing(torpFacing);
-        // J3.201: a target with a live weasel takes the torpedo onto the decoy instead.
-        Unit torpTarget = target;
-        if (target instanceof Ship) {
-            com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
-            if (ww != null && !ww.isPostExplosion())
-                torpTarget = ww;
-        }
         // FP4.23 and F4.12, as for a tube-launched torpedo.
         torpedo.setBallisticCourse(course);
-        if (course != null)
-            torpTarget = null;
+        Unit torpTarget = course != null ? null : decoyRedirect(target, torpedo);
         torpedo.setTarget(torpTarget);
         if (course == null)
             torpedo.setController(launcher);
@@ -1710,15 +1744,7 @@ class LaunchCoordinator {
         shuttle.setName(launchName(launcher, shuttle));
                                                                                   // hidden
         shuttle.setLocation(launcher.getLocation());
-        // J3.201: redirect to WW if target ship has an active/exploding WW (not
-        // post-explosion)
-        Unit ssTarget = target;
-        if (target instanceof Ship) {
-            com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
-            if (ww != null && !ww.isPostExplosion())
-                ssTarget = ww;
-        }
-        shuttle.setTarget(ssTarget);
+        shuttle.setTarget(decoyRedirect(target, shuttle));
         shuttle.setController(launcher);
         shuttle.setLaunchImpulse(game.getAbsoluteImpulse());
         seekers.add(shuttle);

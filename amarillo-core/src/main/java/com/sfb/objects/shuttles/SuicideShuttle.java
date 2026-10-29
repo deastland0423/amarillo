@@ -16,6 +16,8 @@ public class SuicideShuttle extends Shuttle implements Seeker {
 
     private Unit   target;
     private Unit   controller;
+    /** J3.203: set when a wild weasel DREW this shuttle off, not when it was aimed at one. */
+    private boolean divertedToDecoy = false;
     // identify()/isIdentified() inherited from Shuttle (single source of truth, G24.25).
 
     // Arming state
@@ -141,6 +143,17 @@ public class SuicideShuttle extends Shuttle implements Seeker {
         this.ballisticCourse = course;
     }
 
+    /** J3.203: whether this shuttle was drawn onto the decoy it is chasing. */
+    @Override
+    public boolean isDivertedToDecoy() {
+        return divertedToDecoy;
+    }
+
+    @Override
+    public void setDivertedToDecoy(boolean diverted) {
+        this.divertedToDecoy = diverted;
+    }
+
     // -------------------------------------------------------------------------
     // Saved game (see Seeker.exportState)
     // -------------------------------------------------------------------------
@@ -175,6 +188,7 @@ public class SuicideShuttle extends Shuttle implements Seeker {
         state.put("totalEnergy", totalEnergy);
         state.put("lastArmingEnergy", lastArmingEnergy);
         state.put("upkeepPaidThisTurn", upkeepPaidThisTurn);
+        state.put("divertedToDecoy", divertedToDecoy);
         state.put("ballisticCourse",
                 ballisticCourse == null ? null : ballisticCourse.exportState());
         return state;
@@ -207,6 +221,8 @@ public class SuicideShuttle extends Shuttle implements Seeker {
                 "lastArmingEnergy", 0);
         shuttle.upkeepPaidThisTurn = com.sfb.systemgroups.StateIo.flag(state,
                 "upkeepPaidThisTurn", false);
+        shuttle.divertedToDecoy = com.sfb.systemgroups.StateIo.flag(state,
+                "divertedToDecoy", false);
         shuttle.setBallisticCourse(com.sfb.objects.BallisticCourse.fromState(
                 com.sfb.systemgroups.StateIo.child(state, "ballisticCourse"), groundTarget));
         return shuttle;
