@@ -78,6 +78,22 @@ public class CoiRequest {
     }
     public List<ShuttlePrepRequest> specialShuttlePrep = new ArrayList<>();
 
+    /**
+     * Drones in {@link #droneRackLoadouts} that {@code toLoadout} could not read, each with the
+     * rule that refuses it.
+     *
+     * <p>Filled by {@code toLoadout} and reported by the COI endpoint beside the rest of its
+     * warnings. An unreadable name used to be dropped in silence, which was survivable while a
+     * name was one of fourteen enum constants the dialog itself supplied; a composed drone
+     * (FD10.2) is assembled from a payload, so the ways to ask for a drone that cannot exist
+     * are now many and the player is the one who needs to hear about it.
+     *
+     * <p>Not serialized: Jackson is populating this object, not reading it, and the field is an
+     * output of {@code toLoadout} rather than part of the request.
+     */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public final List<String> droneRefusals = new ArrayList<>();
+
     public CoiLoadout toLoadout() {
         CoiLoadout out = new CoiLoadout();
         out.extraBoardingParties = extraBoardingParties;
@@ -94,8 +110,12 @@ public class CoiRequest {
             catch (NumberFormatException e) { continue; }
             List<com.sfb.objects.DroneLoad> types = new ArrayList<>();
             for (String name : entry.getValue()) {
-                try { types.add(com.sfb.objects.DroneLoad.parse(name)); }
-                catch (IllegalArgumentException e) { /* skip unknown types */ }
+                String refusal = com.sfb.objects.DroneLoad.refusalFor(name);
+                if (refusal != null) {
+                    droneRefusals.add(name + ": " + refusal);
+                    continue;
+                }
+                types.add(com.sfb.objects.DroneLoad.parse(name));
             }
             out.setDroneRackLoads(rackIndex, types);
         }

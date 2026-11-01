@@ -238,6 +238,24 @@ public record DroneLoad(DroneType basis, DroneSpec spec) {
         return new DroneLoad(basis, spec);
     }
 
+    /**
+     * Why {@link #parse} will not read this, or null if it will.
+     *
+     * <p>For a caller that has to carry on — the COI endpoint reports what it could not use
+     * as a warning beside the setup it did apply, and a drone the player asked for must not
+     * disappear without a word. Every refusal in here is a rules refusal with its clause
+     * number in the message, from {@link DroneSpec}'s own checks, so the warning is worth
+     * showing rather than a stack trace with the clause filed off.
+     */
+    public static String refusalFor(String text) {
+        try {
+            parse(text);
+            return null;
+        } catch (IllegalArgumentException e) {
+            return e.getMessage();
+        }
+    }
+
     /** {@code valueOf} without the exception, so a token can be offered to each enum in turn. */
     private static <E extends Enum<E>> E lookup(Class<E> type, String name) {
         try {

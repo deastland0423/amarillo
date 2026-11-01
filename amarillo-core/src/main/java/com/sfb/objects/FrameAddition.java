@@ -26,21 +26,21 @@ public enum FrameAddition {
      * added to type-III drone, which already has a special type of guidance." Priced here,
      * unbuilt: see FD5.2 for what it does.
      */
-    ACTIVE_TERMINAL_GUIDANCE(0.50, Availability.RESTRICTED, 0),
+    ACTIVE_TERMINAL_GUIDANCE("Active terminal guidance", 0.50, Availability.RESTRICTED, 0),
 
     /**
      * FD2.222: doubles the endurance, and FD10.24 makes a type-III that takes it a TWO-space
      * drone with one payload space. Priced here, unbuilt, because that frame change is the
      * interesting part and belongs with it.
      */
-    EXTENDED_RANGE(0.50, Availability.GENERAL, 0),
+    EXTENDED_RANGE("Extended range", 0.50, Availability.GENERAL, 0),
 
     /**
      * The type-III's own surcharge, "for standard 25-turn range and special guidance"
      * (FD10.22). The one addition the current roster uses, and the reason an extra type-III
      * costs 2.0 where an extra type-II costs 1.5 (FD2.11) on the same frame at the same speed.
      */
-    TYPE_III_GUIDANCE(0.50, Availability.LIMITED, 0),
+    TYPE_III_GUIDANCE("Type-III guidance", 0.50, Availability.LIMITED, 0),
 
     /**
      * FD12.13: half a payload space of armor bolted to the OUTSIDE, "i.e., in excess of the
@@ -55,10 +55,13 @@ public enum FrameAddition {
      * external armor in Limited where internal armor is merely Restricted (FD10.621). The same
      * two damage points of protection (FD12.21), four times harder to obtain.
      */
-    EXTERNAL_ARMOR_HALF(0.25, Availability.LIMITED, 2),
+    EXTERNAL_ARMOR_HALF("External armor (1/2 space)", 0.25, Availability.LIMITED, 2),
 
     /** FD12.13's larger external module: four more hull (FD12.21), and a steeper speed cost. */
-    EXTERNAL_ARMOR_1(0.50, Availability.LIMITED, 4);
+    EXTERNAL_ARMOR_1("External armor", 0.50, Availability.LIMITED, 4);
+
+    /** What to call this addition on screen, as {@code PayloadModule} carries one. */
+    public final String label;
 
     /** Points, from FD10.53's chart. */
     public final double cost;
@@ -117,9 +120,24 @@ public enum FrameAddition {
         };
     }
 
-    FrameAddition(double cost, Availability availability, int hullBonus) {
+    FrameAddition(String label, double cost, Availability availability, int hullBonus) {
+        this.label = label;
         this.cost = cost;
         this.availability = availability;
         this.hullBonus = hullBonus;
+    }
+
+    /**
+     * Whether a player may bolt this to a frame as a choice of their own.
+     *
+     * <p>False for exactly one of them. {@link #TYPE_III_GUIDANCE} is not an option, it is what
+     * a type-III IS — FD10.22 charges half a point "for standard 25-turn range and special
+     * guidance", and the 800-impulse endurance and the self-guiding behaviour that come with it
+     * are stated by the drone, not derived from the addition. Offering it would let a player buy
+     * the surcharge onto a type-I and get neither, and let a type-III be built without the thing
+     * that makes it one. {@code DroneLoad} refuses both.
+     */
+    public boolean isPlayerChoice() {
+        return this != TYPE_III_GUIDANCE;
     }
 }

@@ -1588,6 +1588,86 @@ public class GameController {
                     }
                     s.put("availableDroneTypes", droneTypes);
 
+                    // FD10.4's payload modules and FD10.53's frame additions: the third axis
+                    // of a drone, which until DroneLoad arrived could not be ORDERED however
+                    // well it was built. Sent as a catalogue so the dialog can offer them;
+                    // every rule about which may share a drone with which stays in DroneSpec,
+                    // and a composition the player should not have been offered is refused on
+                    // submission with its clause number.
+                    //
+                    // The availability TIER is resolved for this scenario's year here, because
+                    // FD10.6's ladder is a rules fact and the view holding a year table would
+                    // be the view deciding one.
+                    List<Map<String, Object>> modules = new ArrayList<>();
+                    for (com.sfb.objects.PayloadModule m
+                            : com.sfb.objects.PayloadModule.values()) {
+                        if (!m.isPlayerChoice())
+                            continue;
+                        Map<String, Object> mod = new java.util.LinkedHashMap<>();
+                        mod.put("name", m.name());
+                        mod.put("label", m.label);
+                        mod.put("spaces", m.spaces);
+                        mod.put("cost", m.cost);
+                        mod.put("availability", m.availability.name());
+                        // FD10.41: what it contributes to the drone's single explosion. Zero
+                        // for a module that is not a warhead at all, which an ECM drone is not.
+                        mod.put("strength", m.strength);
+                        // FD12.21, and zero for everything but armor.
+                        mod.put("hullBonus", m.hullBonus);
+                        // FD10.402: it must be in the forward payload space, so a drone cannot
+                        // carry more than one payload space of them.
+                        mod.put("requiresForward", m.requiresForward);
+                        // FD10.443: an ECM module cannot share a drone with armor of either
+                        // kind, which is the one prohibition a picker wants to see coming.
+                        mod.put("armor", m.isArmor());
+                        // FD10.431: type-VI drones carried instead of a warhead, which bring
+                        // FD8.44's second set of engines with them.
+                        mod.put("submunitions", m.submunitions);
+                        modules.add(mod);
+                    }
+                    s.put("availableDroneModules", modules);
+
+                    List<Map<String, Object>> additions = new ArrayList<>();
+                    for (com.sfb.objects.FrameAddition a
+                            : com.sfb.objects.FrameAddition.values()) {
+                        if (!a.isPlayerChoice())
+                            continue;
+                        Map<String, Object> add = new java.util.LinkedHashMap<>();
+                        add.put("name", a.name());
+                        add.put("label", a.label);
+                        add.put("cost", a.cost);
+                        add.put("availability", a.availability.name());
+                        add.put("hullBonus", a.hullBonus);
+                        // FD12.13: it hangs outside the payload, so it costs no space — and
+                        // FD12.132 charges it in speed instead, which the dialog shows per
+                        // drone because the chart depends on the frame AND the engine.
+                        add.put("externalArmor", a.isExternalArmor());
+                        additions.add(add);
+                    }
+                    s.put("availableDroneAdditions", additions);
+
+                    // FD8.11: "five type-VI drones (any speed available for the year)". The
+                    // submunitions' own engine, which FD8.24 buys separately from the bus's and
+                    // FD8.44 requires them all to share. Speed 8 is not on the list: FD10.52
+                    // prints a dash in the half-space column, and FD2.227 puts a type-VI's slow
+                    // at 12.
+                    List<Map<String, Object>> subSpeeds = new ArrayList<>();
+                    for (com.sfb.objects.Propulsion p
+                            : com.sfb.objects.Propulsion.values()) {
+                        if (!p.fits(com.sfb.objects.DroneFrame.HALF_SPACE))
+                            continue;
+                        if (!p.existsIn(spec.year))
+                            continue;
+                        if (maxSpeed != null && p.speed > maxSpeed)
+                            continue;
+                        Map<String, Object> sp = new java.util.LinkedHashMap<>();
+                        sp.put("name", p.name());
+                        sp.put("speed", p.speed);
+                        sp.put("availability", p.availabilityIn(spec.year).name());
+                        subSpeeds.add(sp);
+                    }
+                    s.put("availableSubmunitionSpeeds", subSpeeds);
+
                     // Shuttles eligible for pre-game conversion, with supported types per shuttle
                     List<Map<String, Object>> convertibleShuttles = new ArrayList<>();
                     for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
@@ -1776,8 +1856,16 @@ public class GameController {
 
             Map<String, com.sfb.scenario.CoiLoadout> loadouts = new java.util.LinkedHashMap<>();
             String cartel = null;
+            // A drone the request named and the rules refuse (FD10.2). Collected here rather
+            // than dropped, because a composed drone is assembled rather than picked from a
+            // list, so "nothing arrived in rack 2" is now a thing a player can cause and needs
+            // to be told about.
+            Map<String, java.util.List<String>> droneRefusals = new java.util.LinkedHashMap<>();
             for (Map.Entry<String, CoiRequest> entry : body.entrySet()) {
                 loadouts.put(entry.getKey(), entry.getValue().toLoadout());
+                if (!entry.getValue().droneRefusals.isEmpty())
+                    droneRefusals.put(entry.getKey(),
+                            new ArrayList<>(entry.getValue().droneRefusals));
                 if (cartel == null && entry.getValue().cartel != null) {
                     cartel = entry.getValue().cartel;
                 }
@@ -1799,7 +1887,10 @@ public class GameController {
 
             // What could not be applied, while there is still time to change it. Warnings,
             // not errors: the setup stands, it simply came out different from the request.
-            Map<String, java.util.List<String>> problems = session.previewCoi(loadouts);
+            Map<String, java.util.List<String>> problems =
+                    new java.util.LinkedHashMap<>(session.previewCoi(loadouts));
+            for (Map.Entry<String, java.util.List<String>> e : droneRefusals.entrySet())
+                problems.computeIfAbsent(e.getKey(), k -> new ArrayList<>()).addAll(e.getValue());
 
             session.submitCoi(token, loadouts);
             broadcastLobby(session);

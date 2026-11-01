@@ -104,6 +104,39 @@ class CoiRequestWireTest {
         assertEquals(3, loadout.specialShuttlePrep.get(0).energyPerTurn);
     }
 
+    /**
+     * A drone the rules refuse is REPORTED, not dropped.
+     *
+     * <p>Silence was survivable while a name was one of fourteen enum constants the dialog
+     * itself supplied: the only way to send an unknown one was a bug in our own code. A
+     * composed drone (FD10.2) is assembled from a payload, so asking for one that cannot exist
+     * is now something a player can do, and "rack 0 came back empty" is not an answer.
+     */
+    @Test
+    void aDroneTheRulesRefuseIsReportedRatherThanDropped() throws Exception {
+        CoiRequest request = parseStrictly(
+                "{\"droneRackLoadouts\": {\"0\": [\"TypeI\", \"TypeI+ECM+ARMOR_1\"]}}");
+        CoiLoadout loadout = request.toLoadout();
+
+        assertEquals(List.of(DroneLoad.of(DroneType.TypeI)), loadout.droneRackLoadouts.get(0),
+                "the legal drone is still loaded");
+        assertEquals(1, request.droneRefusals.size(),
+                "and the illegal one is accounted for: " + request.droneRefusals);
+        assertTrue(request.droneRefusals.get(0).contains("TypeI+ECM+ARMOR_1"),
+                "the warning names the drone: " + request.droneRefusals.get(0));
+        assertTrue(request.droneRefusals.get(0).contains("FD10.443"),
+                "and the clause that refuses it: " + request.droneRefusals.get(0));
+    }
+
+    /** Nothing to report when everything reads, including a composed drone. */
+    @Test
+    void aLegalLoadoutRefusesNothing() throws Exception {
+        CoiRequest request = parseStrictly(PAYLOAD);
+        request.toLoadout();
+
+        assertTrue(request.droneRefusals.isEmpty(), request.droneRefusals.toString());
+    }
+
     /** An omitted key is not an error — the dialog leaves out what the player did not use. */
     @Test
     void anEmptySelectionIsStillValid() throws Exception {

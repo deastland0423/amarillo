@@ -36,17 +36,17 @@ package com.sfb.objects;
 public enum PayloadModule {
 
     /** FD10.41: half a payload space, explosion strength six. */
-    EXPLOSIVE_HALF(0.5, 6, 0, 0.25, Availability.GENERAL, false, 0),
+    EXPLOSIVE_HALF("Explosive (1/2 space)", 0.5, 6, 0, 0.25, Availability.GENERAL, false, 0),
 
     /** FD10.41: one payload space, strength twelve. The usual meaning of "explosive module". */
-    EXPLOSIVE_1(1.0, 12, 0, 0.50, Availability.GENERAL, false, 0),
+    EXPLOSIVE_1("Explosive", 1.0, 12, 0, 0.50, Availability.GENERAL, false, 0),
 
     /**
      * FD10.41's two-space explosive. "There is no difference between two 1/2-space and one
      * 1.0-space module", so this and a pair of {@link #EXPLOSIVE_1}s are the same drone — both
      * are offered because the chart offers both and a loadout may be recorded either way.
      */
-    EXPLOSIVE_2(2.0, 24, 0, 1.00, Availability.GENERAL, false, 0),
+    EXPLOSIVE_2("Explosive (2 spaces)", 2.0, 24, 0, 1.00, Availability.GENERAL, false, 0),
 
     /**
      * FD10.42: a probe module, which FD6.0 explains and this file only has to build.
@@ -70,7 +70,7 @@ public enum PayloadModule {
      * guidance system the drone may use, FD10.425 lists the options for a probe on a type-III
      * frame. All three happen at launch.
      */
-    PROBE(1.0, 0, 0, 0.50, Availability.RESTRICTED, false, 0),
+    PROBE("Probe", 1.0, 0, 0, 0.50, Availability.RESTRICTED, false, 0),
 
     /**
      * FD10.44: an ECM module, which FD9.0 explains and this file only has to build.
@@ -89,7 +89,7 @@ public enum PayloadModule {
      * game except an (internal or external) armor module. ECM drones will not work with armor
      * modules." {@code DroneSpec} refuses the combination.
      */
-    ECM(1.0, 0, 0, 0.50, Availability.RESTRICTED, false, 0),
+    ECM("ECM", 1.0, 0, 0, 0.50, Availability.RESTRICTED, false, 0),
 
     /**
      * FD8.0 / FD10.431: the smaller multi-warhead module — one payload space, three
@@ -102,7 +102,7 @@ public enum PayloadModule {
      * <p>Limited Availability (FD10.631), forward payload space only (FD10.432), and no drone
      * may carry two.
      */
-    MW_SMALL(1.0, 0, 0, 2.50, Availability.LIMITED, true, 3),
+    MW_SMALL("Multi-warhead (3)", 1.0, 0, 0, 2.50, Availability.LIMITED, true, 3),
 
     /**
      * FD10.431's larger module: two payload spaces, five submunitions. FD8.11's Kzinti
@@ -112,7 +112,7 @@ public enum PayloadModule {
      * "must be in the forward payload space(s)" — the plural is the rule allowing for exactly
      * this.
      */
-    MW_LARGE(2.0, 0, 0, 3.50, Availability.LIMITED, true, 5),
+    MW_LARGE("Multi-warhead (5)", 2.0, 0, 0, 3.50, Availability.LIMITED, true, 5),
 
     /**
      * FD11.0 / FD10.45: the one-space swordfish module, which carries a <b>phaser-3</b> and
@@ -128,7 +128,7 @@ public enum PayloadModule {
      * <p>Its warhead strength is ZERO because what it carries is a phaser, not an explosive —
      * the damage happens when the phaser fires, which is FD11.2 and is not modelled.
      */
-    SWORDFISH_PHASER3(1.0, 0, 0, 1.00, Availability.LIMITED, true, 0),
+    SWORDFISH_PHASER3("Swordfish (phaser-3)", 1.0, 0, 0, 1.00, Availability.LIMITED, true, 0),
 
     /**
      * FD11.0's two-space swordfish, carrying a <b>phaser-2</b>.
@@ -136,13 +136,13 @@ public enum PayloadModule {
      * <p>FD11.3 again by difference: "one point more than a two-PS explosive module" — 1.00
      * plus 1.00 is FD10.51's 2.00.
      */
-    SWORDFISH_PHASER2(2.0, 0, 0, 2.00, Availability.LIMITED, true, 0),
+    SWORDFISH_PHASER2("Swordfish (phaser-2)", 2.0, 0, 0, 2.00, Availability.LIMITED, true, 0),
 
     /** FD12.11/FD12.21: the smaller internal armor module. No warhead, four more hull... */
-    ARMOR_HALF(0.5, 0, 2, 0.25, Availability.RESTRICTED, false, 0),
+    ARMOR_HALF("Armor (1/2 space)", 0.5, 0, 2, 0.25, Availability.RESTRICTED, false, 0),
 
     /** ...and the larger, at one payload space. FD12.21: "adds four damage points". */
-    ARMOR_1(1.0, 0, 4, 0.50, Availability.RESTRICTED, false, 0),
+    ARMOR_1("Armor", 1.0, 0, 4, 0.50, Availability.RESTRICTED, false, 0),
 
     /**
      * The type-VI's fixed warhead, which is not a module a player can choose and is here so that
@@ -158,7 +158,13 @@ public enum PayloadModule {
      * <p>So this constant is a nominal, not a strength. The rule lives in {@code Drone}, where it
      * already worked before this model existed and was deliberately left alone.
      */
-    DOGFIGHT_WARHEAD(0.5, 8, 0, 0.25, Availability.GENERAL, false, 0);
+    DOGFIGHT_WARHEAD("Dogfight warhead", 0.5, 8, 0, 0.25, Availability.GENERAL, false, 0);
+
+    /**
+     * What to call this module on screen, so that a picker does not have to un-snake-case an
+     * enum and print "Mw Small". The same reason {@code DroneType.Family} carries one.
+     */
+    public final String label;
 
     /** Payload spaces consumed (FD10.4), and the chart column this module is priced in. */
     public final double spaces;
@@ -229,8 +235,9 @@ public enum PayloadModule {
      */
     public final int submunitions;
 
-    PayloadModule(double spaces, int strength, int hullBonus, double cost,
+    PayloadModule(String label, double spaces, int strength, int hullBonus, double cost,
             Availability availability, boolean requiresForward, int submunitions) {
+        this.label = label;
         this.spaces = spaces;
         this.strength = strength;
         this.hullBonus = hullBonus;
@@ -238,5 +245,18 @@ public enum PayloadModule {
         this.availability = availability;
         this.requiresForward = requiresForward;
         this.submunitions = submunitions;
+    }
+
+    /**
+     * Whether a player may put this module on a drone at all.
+     *
+     * <p>False for exactly one of them. {@link #DOGFIGHT_WARHEAD} is what the half-space frame
+     * carries (FD10.21) rather than something bought: FD2.51 puts it plainly — "There are no
+     * variants (FD2.22) of type-VI drones except for speed upgrades". It is in this enum so
+     * that the frame has something to hold, and a picker that offered it would be offering to
+     * build a drone {@code DroneSpec} refuses.
+     */
+    public boolean isPlayerChoice() {
+        return this != DOGFIGHT_WARHEAD;
     }
 }
