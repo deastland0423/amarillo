@@ -430,6 +430,9 @@ function ShipCoiPanel({
             const used    = droneSpaceUsed(loadout, ship)
                           + antiDrones * adSpace;
             const remaining = rack.spaces - used;
+            // Whether the player has started building this rack. An untouched one keeps what
+            // the ship came with (S2.11), so the builder's own figures say nothing about it yet.
+            const touched = loadout.length > 0 || antiDrones > 0;
 
             function setAntiDrones(n: number) {
               const next = Math.max(0, n);
@@ -477,7 +480,13 @@ function ShipCoiPanel({
                       prefixing unconditionally gave "Rack Rack 1". Conditional rather than
                       simply dropped, in case a rack is ever designated like a phaser ("A"). */}
                   {rack.designator.toLowerCase().startsWith('rack') ? '' : 'Rack '}{rack.designator}
-                  {' — '}{spacesUsedLabel(used)} / {rack.spaces} spaces
+                  {/* The fraction is what the BUILDER has filled, so it only means something
+                      once there is a build. An untouched rack showed "0 / 4 spaces" directly
+                      above "Carrying 4 x TypeIF", which reads as an empty magazine; its
+                      capacity alone is the honest thing to show, and the line below says what
+                      is in it. */}
+                  {' — '}{touched ? `${spacesUsedLabel(used)} / ${rack.spaces}` : rack.spaces}
+                  {' spaces'}
                 </div>
                 <div className="coi-rack-loadout">
                   {loadout.map((name, i) => {
