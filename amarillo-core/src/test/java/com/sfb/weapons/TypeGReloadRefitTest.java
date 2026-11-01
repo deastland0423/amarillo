@@ -113,7 +113,19 @@ public class TypeGReloadRefitTest {
         assertEquals(DroneRack.DroneRackType.TYPE_A, rack.getRackType());
         assertEquals("a type-A cannot fire anti-drones, so they are gone",
                 0, rack.getAddReloads());
-        assertTrue("and the old reload sets went with the refit", rack.getReloads().isEmpty());
+        // What goes is what no longer FITS. The rack itself is replaced, so it arrives loaded
+        // with the single reload set a type-A carries (FD3.6: the B-refit has type-F racks
+        // "replaced with standard type-A racks"), not stripped of reloads altogether.
+        //
+        // This line used to assert the opposite, and it was the same fault this class's own
+        // header describes: "A refitted rack advertised three reloads and held none, which no
+        // test noticed because the advertised figure was the believable one." That was fixed for
+        // the type-G's no-op refit by returning early, and left open for every rack that really
+        // did change type -- with this assertion written down as though it were the rule.
+        assertEquals("a type-A carries one reload set, and it is a real one",
+                1, rack.getReloads().size());
+        assertEquals("identical to whatever is loaded in the rack (FD3.72)",
+                rack.getAmmo().size(), rack.getReloads().get(0).size());
     }
 
     /** An empty rack takes the count and waits: setAmmo builds the sets when loading arrives. */
@@ -124,5 +136,89 @@ public class TypeGReloadRefitTest {
         rack.addReloadSets(1);
 
         assertTrue("nothing loaded, so nothing to mirror", rack.getReloads().isEmpty());
+    }
+
+    // ------------------------------------------------------------ a rack that GROWS
+
+    /**
+     * The half nobody had written down: a refit that makes the rack BIGGER.
+     *
+     * <p>FD3.6 calls it a replacement -- Klingon ships with the B-refit "have their type-F drone
+     * racks replaced with standard type-A racks (often with type-B after the Y175 refits)" -- and
+     * a replacement arrives loaded, as every rack in the game does. The old code only ever
+     * trimmed, so a Kzinti BC's Y175 refit turned two four-space racks into six-space type-Bs
+     * and left four drones in each: a third of the magazine empty on every drone ship with a
+     * rack refit, visible in the Commander's Options dialog as a six-space rack carrying four.
+     */
+    @Test
+    public void aRefitToABiggerRackArrivesFullyLoaded() {
+        DroneRack rack = new DroneRack(DroneRack.DroneRackType.TYPE_A);
+        List<Drone> ammo = new ArrayList<>();
+        for (int i = 0; i < 4; i++)
+            ammo.add(new Drone(DroneType.TypeI));
+        rack.setAmmo(ammo);
+        assertEquals(4, rack.getSpaces());
+
+        rack.upgradeRackType(DroneRack.DroneRackType.TYPE_B);
+
+        assertEquals("FD3.2: the larger B rack has a capacity of six spaces", 6, rack.getSpaces());
+        assertEquals("and it is carrying them", 6, rack.getAmmo().size());
+        for (Drone d : rack.getAmmo())
+            assertEquals("filled with what it already held (FD2.41)",
+                    DroneType.TypeI, d.getDroneType());
+    }
+
+    /** And its reload sets are rebuilt to match, at the new size (FD3.72). */
+    @Test
+    public void theReloadSetsOfAGrownRackMatchItsNewLoading() {
+        DroneRack rack = new DroneRack(DroneRack.DroneRackType.TYPE_A);
+        List<Drone> ammo = new ArrayList<>();
+        for (int i = 0; i < 4; i++)
+            ammo.add(new Drone(DroneType.TypeI));
+        rack.setAmmo(ammo);
+
+        rack.upgradeRackType(DroneRack.DroneRackType.TYPE_B);
+
+        assertEquals("a type-B carries two sets", 2, rack.getReloads().size());
+        for (List<Drone> set : rack.getReloads())
+            assertEquals("each identical to the loading", 6, set.size());
+        assertEquals("and the advertised figure agrees with what is held",
+                rack.getReloads().size(), rack.getNumberOfReloads());
+    }
+
+    /**
+     * A rack that holds a MIX keeps it, because FD2.41 leaves the loading to the player -- "Drones
+     * may be mixed in drone racks as the players may elect" -- and a refit is not the moment to
+     * change their mind for them. The top-up copies what is there.
+     */
+    @Test
+    public void aGrownRackIsToppedUpWithWhatItWasCarrying() {
+        DroneRack rack = new DroneRack(DroneRack.DroneRackType.TYPE_A);
+        rack.setAmmo(new ArrayList<>(List.of(
+                new Drone(DroneType.TypeIV), new Drone(DroneType.TypeIM))));
+
+        rack.upgradeRackType(DroneRack.DroneRackType.TYPE_B);
+
+        assertEquals("two spaces of type-IV, then four one-space drones", 5,
+                rack.getAmmo().size());
+        assertEquals(DroneType.TypeIV, rack.getAmmo().get(0).getDroneType());
+        for (int i = 1; i < 5; i++)
+            assertEquals("topped up with the type-IM it was carrying",
+                    DroneType.TypeIM, rack.getAmmo().get(i).getDroneType());
+    }
+
+    /** A rack that SHRINKS still loses what no longer fits, which is what the trim was for. */
+    @Test
+    public void aRefitToASmallerRackStillLosesTheOverflow() {
+        DroneRack rack = new DroneRack(DroneRack.DroneRackType.TYPE_B);
+        List<Drone> ammo = new ArrayList<>();
+        for (int i = 0; i < 6; i++)
+            ammo.add(new Drone(DroneType.TypeI));
+        rack.setAmmo(ammo);
+
+        rack.upgradeRackType(DroneRack.DroneRackType.TYPE_A);
+
+        assertEquals(4, rack.getSpaces());
+        assertEquals("two drones no longer fit", 4, rack.getAmmo().size());
     }
 }

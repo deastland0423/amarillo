@@ -6,6 +6,7 @@ import java.util.List;
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.objects.Drone;
+import com.sfb.objects.DroneType;
 import com.sfb.utilities.ArcUtils;
 
 public class DroneRack extends Weapon implements Launcher, DirectFire {
@@ -239,12 +240,38 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 			this.addAmmo = 0;
 			this.addReloads = 0;
 		}
-		// Trim loaded ammo to new space limit
-		double usedSpaces = ammoList.stream().mapToDouble(d -> d.getRackSize()).sum();
-		while (usedSpaces > spaces && !ammoList.isEmpty()) {
-			usedSpaces -= ammoList.remove(ammoList.size() - 1).getRackSize();
+		// A refit REPLACES the rack rather than resizing it. FD3.6: Klingon ships with the
+		// B-refit "have their type-F drone racks replaced with standard type-A racks (often with
+		// type-B after the Y175 refits)". A replacement arrives the way every other rack does --
+		// loaded to ITS capacity, with the reload sets ITS type carries behind it.
+		//
+		// Only the trim below used to happen, and the consequences were quiet and large. A Kzinti
+		// BC's Y175 refit turns two type-A racks into six-space type-Bs, and both sailed with the
+		// four drones the four-space rack had held: a third of the magazine empty, on every
+		// drone ship in the game with a rack refit. Worse, `reloads.clear()` left every refitted
+		// rack claiming the reload sets of its new type and holding none of them, so a refitted
+		// ship could not reload at all -- which is the very fault the type-G guard at the top of
+		// this method was added to prevent, still open for any rack that genuinely changed type.
+		List<Drone> kept = new ArrayList<>(ammoList);
+		double usedSpaces = kept.stream().mapToDouble(d -> d.getRackSize()).sum();
+		while (usedSpaces > spaces && !kept.isEmpty())
+			usedSpaces -= kept.remove(kept.size() - 1).getRackSize();
+
+		// Fill a bigger one with what it is already carrying, because FD2.41 leaves the mix to
+		// the player and a refit is not the moment to change their mind for them. An empty rack
+		// has nothing to copy and takes the type-I-slows every rack is built with (FD2.22).
+		DroneType fill = kept.isEmpty() || kept.get(kept.size() - 1).getDroneType() == null
+				? DroneType.TypeI
+				: kept.get(kept.size() - 1).getDroneType();
+		while (usedSpaces + fill.rack <= spaces + 1e-9) {
+			kept.add(new Drone(fill));
+			usedSpaces += fill.rack;
 		}
-		reloads.clear();
+
+		// setAmmo rebuilds the reload sets from the loading, which is FD3.72's rule stated for
+		// the type-G and true of every type: a set is "identical to whatever is loaded in the
+		// rack itself".
+		setAmmo(kept);
 	}
 
 	/**
