@@ -57,7 +57,7 @@
   },
   "commanderOptions": {
     "budgetPercent": 10,
-    "maxDroneSpeed": 20,
+   
     "allowTBombs": true,
     "allowCommandos": true
   }

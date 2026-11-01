@@ -62,5 +62,5 @@
   ],
 
   "shuttleRules": { "warpBoosterPacks": true, "megapacks": false, "mrsShuttles": true, "pfs": false },
-  "commanderOptions": { "budgetPercent": 20, "maxDroneSpeed": 20, "allowTBombs": true, "allowCommandos": true }
+  "commanderOptions": { "budgetPercent": 20, "allowTBombs": true, "allowCommandos": true }
 }
