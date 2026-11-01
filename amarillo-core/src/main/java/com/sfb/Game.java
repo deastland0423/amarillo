@@ -28,7 +28,6 @@ import com.sfb.properties.Location;
 import com.sfb.properties.RetrievalMethod;
 import com.sfb.properties.SystemTarget;
 import com.sfb.objects.ShipLibrary;
-import com.sfb.objects.ShipSpec;
 import com.sfb.utilities.MapUtils;
 import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.PlasmaLauncher;
@@ -397,16 +396,6 @@ public class Game {
         if (!ShipLibrary.isLoaded())
             ShipLibrary.loadAllSpecs("data/factions");
         setupFromScenario(scenario, ScenarioLoader.loadShips(scenario), null);
-    }
-
-    /**
-     * Instantiate a Ship from a ShipSpec loaded from the library.
-     * The caller is responsible for setting location, facing, speed, and owner.
-     */
-    public Ship createShip(ShipSpec spec) {
-        Ship ship = new Ship();
-        ship.init(spec.toInitMap());
-        return ship;
     }
 
     // --- Turn progression ---
