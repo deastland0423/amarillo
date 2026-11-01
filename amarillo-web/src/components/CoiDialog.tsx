@@ -5,7 +5,7 @@ import { gameApi } from '../api/gameApi';
 import { Stepper } from './Stepper';
 import { tierFor, quotaOf, describeCartel } from './cartelQuota';
 import { seatAll } from './optionMountSeating';
-import { budgetBasisLabel, defaultAmmoLabel } from './coiLabels';
+import { budgetBasisLabel, defaultAmmoLabel, droneChipLabel } from './coiLabels';
 import { withRackLoad, withoutRack } from './coiRackLoad';
 import {
   isModified, parseDroneName, formatDroneName, payloadUsed, rackSpacesOf,
@@ -494,7 +494,7 @@ function ShipCoiPanel({
                           + (editingDrone === key ? ' coi-drone-chip-open' : '')}>
                         {isModified(comp)
                           ? describeDrone(comp, dModules, dAdditions)
-                          : `${name} (${dt?.damage}dmg, spd ${dt?.speed})`}
+                          : droneChipLabel(name, ship.availableDroneTypes)}
                         {editable && (
                           <button className="coi-drone-edit"
                             title="Choose this drone's payload (FD10.4)"
@@ -793,10 +793,9 @@ function ShipCoiPanel({
                       <div className="coi-rack-header">{spacesUsedLabel(spaceUsed)} / 6 spaces loaded</div>
                       <div className="coi-rack-loadout">
                         {prep.drones.map((name, i) => {
-                          const dt = ship.availableDroneTypes.find(t => t.name === name);
                           return (
                             <span key={i} className="coi-drone-chip">
-                              {name} ({dt?.damage}dmg, spd {dt?.speed})
+                              {droneChipLabel(name, ship.availableDroneTypes)}
                               <button className="coi-drone-remove" onClick={() => removeScatterDrone(shuttleName, i)}>✕</button>
                             </span>
                           );

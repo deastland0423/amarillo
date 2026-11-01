@@ -255,6 +255,135 @@ public class DroneSpeedYearTest {
         assertEquals("and the hull BPV is not where it lives", 116, cs.getBpv());
     }
 
+    // ------------------------------------------------------------ the scenario's own cap
+
+    /**
+     * A scenario may cap what flies, and a ship must not be fitted past it.
+     *
+     * <h2>What this is here for</h2>
+     * Found in a browser, not in a test. {@code nivram_assault} is Y180 with
+     * {@code commanderOptions.maxDroneSpeed: 20}, and two correct-looking things disagreed: the
+     * loader read Y180 and fitted speed-32 drones, while the picker honoured the cap and offered
+     * nothing above 20. The ship sailed with drones its own scenario forbade, the dialog had no
+     * catalogue row to name them with, and every chip read "TypeIF (undefineddmg, spd undefined)".
+     *
+     * <p>The cap is not a rule of the game but a restriction on what flies, so it narrows the
+     * fitting rather than changing what the year makes standard: a capped ship is charged for the
+     * speed it actually carries, because {@code chargeDroneSpeed} prices the rack.
+     */
+    @Test
+    public void aScenarioCapNarrowsWhatTheYearWouldHaveFitted() {
+        Ship cs = kzintiCs();
+        ScenarioLoader.applyDroneSpeed(cs, 180, 20);
+
+        for (Drone d : allDronesOf(cs)) {
+            assertSame("Y180 would fit type-IFs; the cap says 20", DroneType.TypeIM,
+                    d.getDroneType());
+            assertEquals(20, d.getSpeed());
+        }
+        assertEquals("and it pays for the speed it has, not the speed it could have had",
+                8, cs.getDroneSpeedBpv());
+    }
+
+    /** No cap is the year's own answer, which is the ordinary case. */
+    @Test
+    public void noCapLeavesTheYearInCharge() {
+        Ship capped = kzintiCs();
+        ScenarioLoader.applyDroneSpeed(capped, 180, null);
+        Ship plain = kzintiCs();
+        ScenarioLoader.applyDroneSpeed(plain, 180);
+
+        assertEquals(16, capped.getDroneSpeedBpv());
+        assertEquals(16, plain.getDroneSpeedBpv());
+    }
+
+    /**
+     * A cap below the frame's own slowest engine cannot invent a drone the chart has no row for.
+     * FD2.227's type-VI is speed 12 and there is no speed-8 version of it to fall to, so a cap of
+     * 8 leaves it where it is rather than throwing.
+     */
+    @Test
+    public void aCapCannotFitADroneTheChartDoesNotPrice() {
+        Ship cs = kzintiCs();
+        DroneRack rack = racksOf(cs).get(0);
+        rack.setAmmo(new java.util.ArrayList<>(List.of(
+                new Drone(DroneType.TypeVI), new Drone(DroneType.TypeVI))));
+
+        ScenarioLoader.applyDroneSpeed(cs, 180, 8);
+
+        assertSame(DroneType.TypeVI, rack.getAmmo().get(0).getDroneType());
+        assertEquals(12, rack.getAmmo().get(0).getSpeed());
+    }
+
+    /**
+     * A cap does not smuggle in the one upgrade the year rules refuse to fit.
+     *
+     * <p>Moderate speed is not on FD2.22's list of improvements — a type-II is a different drone,
+     * with two turns of endurance where the type-I has three — so a cap of 12 means "nothing
+     * faster than 12", not "fit speed-12 drones". Narrowing the fitting must not widen it.
+     */
+    @Test
+    public void aCapOfTwelveDoesNotTurnTypeIsIntoTypeIIs() {
+        Ship cs = kzintiCs();
+        ScenarioLoader.applyDroneSpeed(cs, 180, 12);
+
+        for (Drone d : allDronesOf(cs)) {
+            assertSame("a type-II is not an upgrade the year fits", DroneType.TypeI,
+                    d.getDroneType());
+            assertEquals(96, d.getEndurance());
+        }
+        assertEquals("and nothing is owed for a speed it did not take", 0, cs.getDroneSpeedBpv());
+    }
+
+    /**
+     * And the cap never makes a ship SLOWER than it already is: a rack that somehow holds a
+     * faster drone keeps it, because this fits drones rather than confiscating them. The COI
+     * step is where an over-cap loadout is refused, with the clause.
+     */
+    @Test
+    public void theCapFitsRatherThanConfiscates() {
+        Ship cs = kzintiCs();
+        DroneRack rack = racksOf(cs).get(0);
+        rack.setAmmo(new java.util.ArrayList<>(List.of(new Drone(DroneType.TypeIF))));
+
+        ScenarioLoader.applyDroneSpeed(cs, 180, 20);
+
+        assertSame(DroneType.TypeIF, rack.getAmmo().get(0).getDroneType());
+    }
+
+    /**
+     * End to end, through the loader a scenario actually goes through: the cap in the spec
+     * reaches the rack, which is the wiring the browser found missing.
+     */
+    @Test
+    public void theCapInTheScenarioSpecReachesTheRack() {
+        ScenarioSpec spec = year(180);
+        spec.commanderOptions.maxDroneSpeed = 20;
+        spec.sides = new java.util.ArrayList<>();
+        ScenarioSpec.SideSpec side = new ScenarioSpec.SideSpec();
+        side.faction = "Kzinti";
+        side.name = "Kzintis";
+        side.ships = new java.util.ArrayList<>();
+        ScenarioSpec.ShipSetup setup = new ScenarioSpec.ShipSetup();
+        setup.type = "CS";
+        setup.shipName = "KHS Quasar";
+        setup.startHex = "1016";
+        setup.startHeading = "A";
+        side.ships.add(setup);
+        spec.sides.add(side);
+
+        // The real library, because this test is about the wiring and a sample builder would
+        // bypass the loader it is testing. Relative to amarillo-core, as every other
+        // library-using test in the suite spells it.
+        com.sfb.objects.ShipLibrary.loadAllSpecs("../data/factions");
+        java.util.List<Ship> loaded = ScenarioLoader.loadShips(spec).get(0);
+        assertEquals("the fixture must actually load a ship", 1, loaded.size());
+        Ship cs = loaded.get(0);
+
+        for (Drone d : allDronesOf(cs))
+            assertEquals("the scenario caps drones at 20", 20, d.getSpeed());
+    }
+
     // ------------------------------------------------------------ the undated browse
 
     /**

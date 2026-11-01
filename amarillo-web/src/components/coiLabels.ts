@@ -40,6 +40,22 @@ export function budgetBasisLabel(ship: CoiShipData): string {
 }
 
 /**
+ * One loaded drone, as a chip reads.
+ *
+ * <h2>Why the catalogue can come up empty</h2>
+ * It did, in a browser: a Y180 scenario capping drone speed at 20 had its racks filled with
+ * speed-32 drones, and the picker — which honours the cap — had no row for them. Every chip read
+ * "TypeIF (undefineddmg, spd undefined)". The fitting bug is fixed in `ScenarioLoader`, but the
+ * rendering should not have invented the word "undefined" either: a name the catalogue does not
+ * list is still a name, and showing it bare is both honest and the thing that made the real bug
+ * findable at a glance.
+ */
+export function droneChipLabel(name: string, types: CoiDroneType[]): string {
+  const dt = types.find(t => t.name === name);
+  return dt ? `${name} (${dt.damage}dmg, spd ${dt.speed})` : name;
+}
+
+/**
  * What a rack is carrying before anybody touches it (S2.11).
  *
  * <h2>Why this is worth a line of its own</h2>
@@ -58,10 +74,8 @@ export function defaultAmmoLabel(ammo: string[], types: CoiDroneType[]): string 
   const counts = new Map<string, number>();
   for (const name of ammo) counts.set(name, (counts.get(name) ?? 0) + 1);
   return [...counts.entries()].map(([name, n]) => {
-    const dt = types.find(t => t.name === name);
     // A composed drone (FD10.2) is not in the catalogue, so it has no damage or speed to show.
     // Its name is still the whole truth about it, which is why there is no fallback detail.
-    const detail = dt ? ` (${dt.damage}dmg, spd ${dt.speed})` : '';
-    return `${n} × ${name}${detail}`;
+    return `${n} × ${droneChipLabel(name, types)}`;
   }).join(', ');
 }

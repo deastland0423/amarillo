@@ -57,7 +57,9 @@ public class ScenarioLoader {
             }
             for (ScenarioSpec.ShipSetup setup : side.ships) {
                 String faction = (setup.faction != null && !setup.faction.isBlank()) ? setup.faction : side.faction;
-                Ship ship = buildShip(faction, setup, spec.year);
+                Ship ship = buildShip(faction, setup, spec.year,
+                        spec.commanderOptions != null
+                                ? spec.commanderOptions.maxDroneSpeed : null);
                 if (ship != null) ships.add(ship);
             }
             result.add(ships);
@@ -65,7 +67,8 @@ public class ScenarioLoader {
         return result;
     }
 
-    private static Ship buildShip(String faction, ScenarioSpec.ShipSetup setup, int year) {
+    private static Ship buildShip(String faction, ScenarioSpec.ShipSetup setup, int year,
+            Integer maxDroneSpeed) {
         ShipSpec shipSpec = ShipLibrary.get(faction, setup.type);
         if (shipSpec == null) {
             System.err.println("ScenarioLoader: no spec found for "
@@ -96,7 +99,7 @@ public class ScenarioLoader {
         // drift from this one again. applyWeaponStatus stays here: it is scenario setup, not a
         // fact about the hull in that year, and it must follow the fighter re-seat so it arms the
         // craft the carrier ends up with.
-        outfitForYear(ship, faction, year, shipSpec);
+        outfitForYear(ship, faction, year, shipSpec, maxDroneSpeed);
         // The loadout the SHIPYARD fixed (G15.4), before weapon status so a mounted weapon is
         // armed with the rest, and after outfitForYear so the year rules are already in place -
         // equip reapplies the ones a later-built weapon would otherwise miss.
@@ -197,12 +200,22 @@ public class ScenarioLoader {
      *                which simply means no faction default applies.
      */
     public static void outfitForYear(Ship ship, String faction, int year, ShipSpec spec) {
+        outfitForYear(ship, faction, year, spec, null);
+    }
+
+    /**
+     * @param maxDroneSpeed the scenario's drone speed cap, or null for the year's own answer.
+     *                      Only {@link #applyDroneSpeed} reads it; every other year rule here is
+     *                      a fact about the hull in that year and no scenario overrides those.
+     */
+    public static void outfitForYear(Ship ship, String faction, int year, ShipSpec spec,
+            Integer maxDroneSpeed) {
         applyFighterComplement(ship, year);
         if (spec != null)
             applyYearUpgrades(ship, faction == null ? "" : faction, year, spec);
         applyEsgCapacitors(ship, year);
         applyFusionHolding(ship, year);
-        applyDroneSpeed(ship, year);
+        applyDroneSpeed(ship, year, maxDroneSpeed);
         // Annex #8B: "Orion disruptors with ranges more than 22 include DERFACS from Y168."
         // A year rule like the two above, not a refit. It finds nothing on an Orion built
         // today, because every Orion disruptor arrives through an option mount and mounts are
@@ -314,6 +327,18 @@ public class ScenarioLoader {
      * is where FD10.644's ready-rack accounting will have to go anyway.
      */
     static void applyDroneSpeed(Ship ship, int year) {
+        applyDroneSpeed(ship, year, null);
+    }
+
+    /**
+     * @param maxDroneSpeed a scenario's cap on what may fly, or null for the year's own answer.
+     *                      A ship must not be fitted with drones its own scenario forbids: the
+     *                      COI step refuses a loadout over the cap and the dialog will not offer
+     *                      one, so a rack filled past it is a ship carrying drones nobody can
+     *                      name. That is what shipped: nivram_assault is Y180 with a cap of 20,
+     *                      and its ships sailed with speed-32 drones the picker had no row for.
+     */
+    static void applyDroneSpeed(Ship ship, int year, Integer maxDroneSpeed) {
         // No undated-year guard, unlike applyEsgCapacitors and applyUimAvailability, and that is
         // deliberate: a year of 0 is "nobody has picked a date yet", and Propulsion.generalIn
         // answers an undated year with the frame's own baseline -- so nothing is upgraded and
@@ -323,18 +348,18 @@ public class ScenarioLoader {
         // anUndatedShipIsLeftExactlyAsItsDataStatesIt pins the behaviour either way.
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (!(w instanceof DroneRack rack)) continue;
-            upgradeLoad(rack.getAmmo(), year);
+            upgradeLoad(rack.getAmmo(), year, maxDroneSpeed);
             // FD2.45: "the reloads... are presumed to be of the same type without additional
             // cost." So they follow the rack and are charged for nothing, which is also why
             // chargeDroneSpeed below counts the loaded drones only.
             for (List<Drone> set : rack.getReloads())
-                upgradeLoad(set, year);
+                upgradeLoad(set, year, maxDroneSpeed);
         }
         chargeDroneSpeed(ship, year);
     }
 
-    /** Refit one rack-load to the year's speed, in place. */
-    private static void upgradeLoad(List<Drone> load, int year) {
+    /** Refit one rack-load to the year's speed, in place, within the scenario's cap. */
+    private static void upgradeLoad(List<Drone> load, int year, Integer maxDroneSpeed) {
         if (load == null) return;
         for (int i = 0; i < load.size(); i++) {
             Drone was = load.get(i);
@@ -342,6 +367,20 @@ public class ScenarioLoader {
             com.sfb.objects.DroneSpec spec = was.getSpec();
             com.sfb.objects.Propulsion want =
                     com.sfb.objects.Propulsion.generalIn(year, spec.effectiveFrame());
+            // The scenario's cap is not a rule of the game but a restriction on what flies, so
+            // it narrows the fitting rather than changing what the year makes standard. Capping
+            // DOWN only: a cap below the frame's own slowest engine cannot invent a drone the
+            // chart has no row for, and FD2.227's type-VI has no speed-8 version to fall to.
+            if (maxDroneSpeed != null && want.speed > maxDroneSpeed) {
+                com.sfb.objects.Propulsion capped =
+                        com.sfb.objects.Propulsion.baselineFor(spec.effectiveFrame());
+                for (com.sfb.objects.Propulsion p : com.sfb.objects.Propulsion.values())
+                    if (p.fits(spec.effectiveFrame()) && p.speed <= maxDroneSpeed
+                            && p.speed > capped.speed && p.speed <= want.speed
+                            && p.isImprovement())
+                        capped = p;
+                want = capped;
+            }
             if (want.speed <= spec.propulsion().speed) continue;
             // Through the catalogue where there is an entry, because the sibling carries the
             // endurance with it (DroneType.atSpeed): a medium-speed standard drone is a type-IM

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { budgetBasisLabel, defaultAmmoLabel } from './coiLabels';
+import { budgetBasisLabel, defaultAmmoLabel, droneChipLabel } from './coiLabels';
 import type { CoiDroneType, CoiShipData } from '../api/gameApi';
 
 /**
@@ -95,5 +95,27 @@ describe('defaultAmmoLabel', () => {
 
   it('has nothing to say about an empty rack', () => {
     expect(defaultAmmoLabel([], TYPES)).toBe('');
+  });
+});
+
+/**
+ * The word "undefined" reached a player's screen once: a Y180 scenario capping drone speed at 20
+ * had its racks filled with speed-32 drones the picker had no row for, and every chip read
+ * "TypeIF (undefineddmg, spd undefined)". The fitting bug is fixed in core; this is the other
+ * half, because a name the catalogue does not list is still a name.
+ */
+describe('droneChipLabel', () => {
+  it('shows the catalogue numbers when it has them', () => {
+    expect(droneChipLabel('TypeIF', TYPES)).toBe('TypeIF (12dmg, spd 32)');
+  });
+
+  it('never prints the word undefined', () => {
+    expect(droneChipLabel('TypeIF', [])).toBe('TypeIF');
+    expect(droneChipLabel('TypeIF', [])).not.toContain('undefined');
+  });
+
+  /** A drone from FD10.4's workshop has no catalogue row either, and wants the same answer. */
+  it('names a composed drone plainly', () => {
+    expect(droneChipLabel('TypeIV+ECM', TYPES)).toBe('TypeIV+ECM');
   });
 });
