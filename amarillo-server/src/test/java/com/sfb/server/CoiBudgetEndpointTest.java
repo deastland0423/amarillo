@@ -79,6 +79,47 @@ class CoiBudgetEndpointTest {
 
     // ---------------------------------------------------------------- what is published
 
+    /**
+     * S2.11's drone charge reaches the dialog, and reaches it SEPARATELY.
+     *
+     * <p>It has to be its own field because S3.211 keeps it out of {@code coiBudgetBasis} — the
+     * percentage is taken of a figure "not including the cost of mandatory drone speed upgrades"
+     * — so folding it into either BPV number would be wrong and leaving it out altogether would
+     * make the one charge a player does not choose invisible to them.
+     */
+    @Test
+    void theLobbyPublishesTheDroneSpeedChargeApartFromTheBudgetBasis() {
+        com.sfb.scenario.ScenarioSpec spec = specFor("Kzinti", "CS", "KHS Quasar");
+        Map<String, Object> row = coiRowFor(spec, "KHS Quasar");
+        com.sfb.objects.Ship cs = shipFrom(spec, "KHS Quasar");
+
+        // Y180: fast drones are General (FD10.65), so four type-A racks of four cost 16 (FD2.454).
+        assertEquals(16, ((Number) row.get("droneSpeedBpv")).intValue(),
+                "FD2.454: a Kzinti CS with fast drones is 132, not 116");
+        assertEquals(cs.getBpv(), ((Number) row.get("bpv")).intValue(),
+                "and the hull BPV it is published beside does NOT carry it");
+        assertEquals(com.sfb.scenario.CoiBudget.effectiveAdjustedCombatBpv(cs),
+                ((Number) row.get("coiBudgetBasis")).doubleValue(), 0.001,
+                "nor does the basis the option percentage is taken of (S3.211)");
+    }
+
+    /**
+     * And the drones the dialog offers to leave alone are the ones the ship is actually carrying
+     * (S2.11) — which is what lets a player skip the drone section and still know what they have.
+     */
+    @Test
+    void theRacksDefaultAmmoIsTheSpeedTheYearFitted() {
+        com.sfb.scenario.ScenarioSpec spec = specFor("Kzinti", "CS", "KHS Quasar");
+        Map<String, Object> row = coiRowFor(spec, "KHS Quasar");
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> racks = (List<Map<String, Object>>) row.get("droneRacks");
+        assertEquals(4, racks.size(), "a CS has four racks");
+        for (Map<String, Object> rack : racks)
+            assertEquals(List.of("TypeIF", "TypeIF", "TypeIF", "TypeIF"), rack.get("defaultAmmo"),
+                    "Y180: fast drones are standard issue");
+    }
+
     @Test
     void theLobbyPublishesTheBudgetOnS3211sBasis() {
         com.sfb.scenario.ScenarioSpec spec = specFor("Kzinti", "CVS", "KHS Watchful");

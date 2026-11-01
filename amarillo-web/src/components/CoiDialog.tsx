@@ -5,6 +5,8 @@ import { gameApi } from '../api/gameApi';
 import { Stepper } from './Stepper';
 import { tierFor, quotaOf, describeCartel } from './cartelQuota';
 import { seatAll } from './optionMountSeating';
+import { budgetBasisLabel, defaultAmmoLabel } from './coiLabels';
+import { withRackLoad, withoutRack } from './coiRackLoad';
 import {
   isModified, parseDroneName, formatDroneName, payloadUsed, rackSpacesOf,
   describeDrone, moduleRefusal, additionRefusal,
@@ -93,25 +95,6 @@ function defaultShipCoi(): ShipCoi {
     optionMountArcs:      {},
     fighterFacilityType:  '',
   };
-}
-
-/**
- * Where a ship's budget came from, for the tooltip on the figure (S3.211).
- *
- * Worth saying because the basis is not the number beside it on the SSD: the budget is a share
- * of the "Effective Adjusted Combat BPV", which adds the ship's fighters to its hull. A carrier's
- * budget is therefore well above a share of its printed BPV, and without this the difference
- * looks like a bug.
- *
- * The server computes all of it; this only spells out the sum it sent.
- */
-function budgetBasisLabel(ship: CoiShipData): string {
-  if (ship.coiBudgetBasis == null || ship.coiBudgetPercent == null) return '';
-  const fighters = ship.coiFighterBpv ?? 0;
-  const basis = fighters > 0
-    ? `${ship.coiBudgetBasis} BPV (hull ${ship.bpv} + fighters ${fighters})`
-    : `${ship.coiBudgetBasis} BPV`;
-  return `Commander's Options: ${ship.coiBudgetPercent}% of ${basis} — S3.211`;
 }
 
 function coiCost(c: ShipCoi): number {
@@ -454,6 +437,22 @@ function ShipCoiPanel({
                 { ...coi.antiDroneLoadouts, [rack.index]: next } });
             }
 
+            /** Put a whole load in the builder at once, for the buttons below the rack. */
+            function setRack(next: string[]) {
+              onChange({ ...coi,
+                droneRackLoadouts: withRackLoad(coi.droneRackLoadouts, rack.index, next) });
+            }
+            /**
+             * Forget this rack, which is NOT the same as emptying it -- see coiRackLoad. An
+             * absent rack index keeps the drones the ship arrived with; a rack set to [] sails
+             * with none at all.
+             */
+            function clearRack() {
+              onChange({ ...coi,
+                droneRackLoadouts: withoutRack(coi.droneRackLoadouts, rack.index) });
+              setEditingDrone(null);
+            }
+
             function addDrone(typeName: string) {
               const dt = ship.availableDroneTypes.find(t => t.name === typeName);
               if (!dt || dt.rack > remaining) return;
@@ -507,12 +506,36 @@ function ShipCoiPanel({
                     );
                   })}
                   {loadout.length === 0 && antiDrones === 0 && (
-                    <span className="coi-note">Empty — using scenario defaults</span>
+                    <span className="coi-note">
+                      Carrying {defaultAmmoLabel(rack.defaultAmmo, ship.availableDroneTypes)}
+                    </span>
                   )}
                   {loadout.length === 0 && antiDrones > 0 && (
                     <span className="coi-note">No drones — anti-drones only</span>
                   )}
                 </div>
+                {/* The way out of an empty builder for a player who wants to change ONE drone.
+                    Without it the only route to "the standard load but with an ECM drone in it"
+                    was to add four chips by hand first, which is the sort of thing that makes
+                    people skip the screen. Loading the set changes nothing by itself: it is the
+                    same drones, now editable. */}
+                {(loadout.length > 0 || rack.defaultAmmo.length > 0) && (
+                  <div className="coi-rack-actions">
+                    {loadout.length === 0 ? (
+                      <button className="secondary"
+                        title="Copy what the rack already holds into the builder, to change it"
+                        onClick={() => setRack([...rack.defaultAmmo])}>
+                        Edit this load
+                      </button>
+                    ) : (
+                      <button className="secondary"
+                        title="Go back to the drones the ship sails with (S2.11)"
+                        onClick={clearRack}>
+                        Back to standard
+                      </button>
+                    )}
+                  </div>
+                )}
                 {/* FD10.4's payload, for the one drone whose pencil is open. Under the rack
                     rather than inside the chip: the chips are a wrapping row and a panel in the
                     middle of one would push the rest of the loadout around as it opened. */}

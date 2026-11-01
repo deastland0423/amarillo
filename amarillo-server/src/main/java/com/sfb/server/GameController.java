@@ -1506,6 +1506,12 @@ public class GameController {
                     s.put("coiBudgetBasis",
                             com.sfb.scenario.CoiBudget.effectiveAdjustedCombatBpv(ship));
                     s.put("coiFighterBpv", com.sfb.scenario.CoiBudget.carriedFighterBpv(ship));
+                    // S2.11's mandatory drone speed charge, which is deliberately NOT part of
+                    // coiBudgetBasis above (S3.211) and so would be invisible without a field of
+                    // its own. Worth showing because it is the one thing on this screen the
+                    // player is charged for without choosing it, and because it explains why a
+                    // drone ship is dearer to lose than its printed BPV: S2.14 scores it.
+                    s.put("droneSpeedBpv", ship.getDroneSpeedBpv());
                     s.put("allowTBombs", spec.commanderOptions == null
                             || spec.commanderOptions.allowTBombs);
                     s.put("allowCommandos", spec.commanderOptions == null

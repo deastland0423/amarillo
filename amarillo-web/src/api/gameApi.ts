@@ -568,6 +568,14 @@ export interface CoiShipData {
   coiBudgetPercent?:   number;
   coiBudgetBasis?:     number;
   coiFighterBpv?:      number;
+  /**
+   * S2.11's mandatory drone speed charge: what the ship pays for the drones its year flies.
+   *
+   * Deliberately NOT part of `coiBudgetBasis` (S3.211 excludes "the cost of mandatory drone
+   * speed upgrades" from the figure the percentage is taken of), so it needs a field of its own
+   * or it is invisible. Optional, so a stale server simply shows nothing.
+   */
+  droneSpeedBpv?:      number;
   allowTBombs:         boolean;
   allowCommandos:      boolean;
   maxTBombs:           number;

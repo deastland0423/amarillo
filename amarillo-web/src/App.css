@@ -1725,6 +1725,21 @@ h3 {
   min-height: 1.5rem;
 }
 
+/* The two buttons under a rack: show me what I have, or give it back to me.
+   Narrow and left-aligned, because the global `button { flex: 1 }` would otherwise
+   stretch a single one across the whole rack block. */
+.coi-rack-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.coi-rack-actions button {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  padding: 0.12rem 0.5rem;
+}
+
 .coi-drone-chip {
   display: inline-flex;
   align-items: center;
