@@ -422,6 +422,71 @@ export interface CoiDroneType {
    * drone. Sent rather than derived so the picker never holds a rules number.
    */
   damageVsShip: number;
+  /**
+   * Payload spaces this drone has to fill (FD10.4), and whether its payload can be chosen at
+   * all — FD10.21's half-space dogfight frame "cannot be modified", so `modular` is false for
+   * the type-VIs and they take no modules and no additions.
+   */
+  payloadSpaces?: number;
+  modular?:       boolean;
+  /**
+   * Which of the catalogue's modules and additions THIS drone will accept, each decided on the
+   * server by building the candidate and seeing whether the rules allow it. A combination can
+   * still be illegal where each part alone is fine (FD10.443 bars ECM beside armor), and that is
+   * refused on submission with its clause number rather than enumerated here.
+   */
+  legalModules?:   string[];
+  legalAdditions?: string[];
+  /**
+   * FD10.24: rack spaces this drone fills once given extended range, which for a type-III is
+   * TWO — "they become type-III-XX, which are two-space drones with one payload space". The
+   * only modification that changes a drone's footprint, so the figure is sent rather than
+   * derived. Absent when extended range is not legal for the drone at all (FD2.222).
+   */
+  rackWithExtendedRange?: number;
+}
+
+/** FD10.4: one payload module a drone may carry, as the options endpoint advertises it. */
+export interface CoiDroneModule {
+  name:  string;
+  label: string;
+  /** Payload spaces it fills (FD10.4) and FD10.51's price. */
+  spaces: number;
+  cost:   number;
+  /** FD10.6's tier IN THIS SCENARIO'S YEAR, resolved on the server. */
+  availability: string;
+  /** FD10.41: what it contributes to the drone's single explosion. Zero for an ECM or probe. */
+  strength:  number;
+  /** FD12.21, and zero for everything but armor. */
+  hullBonus: number;
+  /**
+   * FD10.402: it must sit in the forward payload space, so a drone cannot carry more than one
+   * payload space of them — unless one module spans the whole payload, which is forward by
+   * filling everything (FD10.432's "space(s)").
+   */
+  requiresForward: boolean;
+  /** FD10.443: armor, which an ECM module cannot share a drone with. */
+  armor: boolean;
+  /** FD10.431: type-VI drones carried instead of a warhead — three or five. */
+  submunitions: number;
+}
+
+/** FD10.53: something bolted to the frame, which fills no payload space. */
+export interface CoiDroneAddition {
+  name:  string;
+  label: string;
+  cost:  number;
+  availability: string;
+  hullBonus:    number;
+  /** FD12.13's external armor, which costs speed instead of space (FD12.132). */
+  externalArmor: boolean;
+}
+
+/** FD8.11: an engine for the submunitions, bought separately from the bus's own (FD8.24). */
+export interface CoiSubmunitionSpeed {
+  name:  string;
+  speed: number;
+  availability: string;
 }
 
 
@@ -536,6 +601,14 @@ export interface CoiShipData {
     models:      { role: string; type: string; name: string }[];
   };
   availableDroneTypes: CoiDroneType[];
+  /**
+   * FD10.4's third axis. The picker has always had two {EM} the numeral carries the family and
+   * the suffix carries speed {EM} and the payload was never one, because no loadout could name a
+   * module. Absent from a server that predates them, so the editor is simply not offered.
+   */
+  availableDroneModules?:     CoiDroneModule[];
+  availableDroneAdditions?:   CoiDroneAddition[];
+  availableSubmunitionSpeeds?: CoiSubmunitionSpeed[];
   convertibleShuttles: { name: string; types: string[] }[];
   maxPreparedShuttles: number;        // WS2=1, WS3=2, else 0
   optionMounts?:       CoiOptionMount[];  // Orion only (G15.4)

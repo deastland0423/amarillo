@@ -200,6 +200,86 @@ class CoiDroneModuleEndpointTest {
                 speeds.stream().map(sp -> (String) sp.get("name")).toList());
     }
 
+    // ------------------------------------------------------------------ per-drone legality
+
+    /** A type-I has one payload space, so a two-space module will not go on it (FD10.4). */
+    @Test
+    @SuppressWarnings("unchecked")
+    void aOneSpaceDroneIsOfferedOnlyWhatFits() {
+        Map<String, Object> typeI =
+                named(listOf(coiFor(180, null), "availableDroneTypes"), "TypeI");
+
+        assertEquals(1, typeI.get("payloadSpaces"));
+        assertEquals(true, typeI.get("modular"));
+        List<String> modules = (List<String>) typeI.get("legalModules");
+        assertTrue(modules.contains("ECM"));
+        assertTrue(modules.contains("SWORDFISH_PHASER3"));
+        assertFalse(modules.contains("EXPLOSIVE_2"), "two spaces into one: " + modules);
+        assertFalse(modules.contains("MW_LARGE"), "FD10.431's large module is two spaces");
+        assertTrue(modules.contains("MW_SMALL"));
+    }
+
+    /** And a type-IV takes both sizes. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void aTwoSpaceDroneIsOfferedTheBigModules() {
+        Map<String, Object> typeIv =
+                named(listOf(coiFor(180, null), "availableDroneTypes"), "TypeIV");
+
+        assertEquals(2, typeIv.get("payloadSpaces"));
+        List<String> modules = (List<String>) typeIv.get("legalModules");
+        assertTrue(modules.contains("EXPLOSIVE_2"));
+        assertTrue(modules.contains("MW_LARGE"));
+    }
+
+    /**
+     * FD10.21: the half-space frame "cannot be modified", and FD2.51 says the same from the
+     * other end. A dogfight drone is offered nothing at all.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void aDogfightDroneTakesNothing() {
+        Map<String, Object> typeVi =
+                named(listOf(coiFor(180, null), "availableDroneTypes"), "TypeVI");
+
+        assertEquals(false, typeVi.get("modular"));
+        assertTrue(((List<String>) typeVi.get("legalModules")).isEmpty());
+        assertTrue(((List<String>) typeVi.get("legalAdditions")).isEmpty(),
+                "FD2.222 bars extended range and FD5.22 bars ATG");
+        assertFalse(typeVi.containsKey("rackWithExtendedRange"),
+                "a dogfight drone cannot be given extended range (FD2.222)");
+    }
+
+    /** FD10.23: "ATG cannot be added to type-III drone, which already has" guidance. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void aTypeIiiIsNotOfferedAtg() {
+        List<Map<String, Object>> types = listOf(coiFor(180, null), "availableDroneTypes");
+
+        assertFalse(((List<String>) named(types, "TypeIII").get("legalAdditions"))
+                        .contains("ACTIVE_TERMINAL_GUIDANCE"),
+                "a type-III already guides itself (FD2.221)");
+        assertTrue(((List<String>) named(types, "TypeI").get("legalAdditions"))
+                        .contains("ACTIVE_TERMINAL_GUIDANCE"),
+                "FD5.22: any drone other than a type-VI may be equipped with ATG");
+    }
+
+    /**
+     * FD10.24: extended range turns a type-III into a type-III-XX, "which are two-space drones
+     * with one payload space". The only modification that changes how much rack a drone fills,
+     * which is why the figure is sent rather than derived.
+     */
+    @Test
+    void extendedRangeOnATypeIiiFillsTwoRackSpaces() {
+        List<Map<String, Object>> types = listOf(coiFor(180, null), "availableDroneTypes");
+
+        assertEquals(2.0, (Double) named(types, "TypeIII").get("rackWithExtendedRange"), 0.0001);
+        assertEquals(1.0, (Double) named(types, "TypeI").get("rackWithExtendedRange"), 0.0001,
+                "every other drone keeps its footprint");
+        assertEquals(1, named(types, "TypeIII").get("payloadSpaces"),
+                "and it is still a one-payload-space drone");
+    }
+
     // ------------------------------------------------------------------ nothing was lost
 
     /** The two existing axes are untouched: the catalogue is an addition, not a replacement. */

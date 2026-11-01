@@ -1584,6 +1584,57 @@ public class GameController {
                         // hardcoded in the picker, which would be the view holding a rules number.
                         dtMap.put("damageVsShip", dt.isDogfightDrone()
                                 ? com.sfb.objects.Drone.DOGFIGHT_DAMAGE_VS_SHIP : dt.damage);
+
+                        // What may be built ON this drone (FD10.2). The payload space it has
+                        // to fill, whether its payload can be chosen at all — FD10.21's
+                        // half-space frame "cannot be modified" — and then the modules and
+                        // additions it will actually accept.
+                        dtMap.put("payloadSpaces", dt.spec.effectiveFrame().payloadSpaces);
+                        dtMap.put("modular", dt.spec.frame().modular);
+
+                        // Asked by BUILDING each candidate and seeing whether the rules allow
+                        // it, through the same parser the dialog's own strings go through. So
+                        // the list cannot drift from what a submission will accept, and nothing
+                        // here restates a prohibition that lives in DroneSpec: FD2.222 bars
+                        // extended range from a dogfight drone, FD10.23 bars ATG from a
+                        // type-III, FD10.4 bars a two-space module from a one-space frame, and
+                        // each falls out of its own refusal.
+                        //
+                        // A COMBINATION can still be illegal where each part alone is fine
+                        // (FD10.443's ECM-and-armor is the one that bites), and that is caught
+                        // on submission and reported with its clause. Enumerating every pair
+                        // here would be a worse answer than the refusal already in hand.
+                        List<String> legalModules = new ArrayList<>();
+                        for (com.sfb.objects.PayloadModule m
+                                : com.sfb.objects.PayloadModule.values()) {
+                            if (!m.isPlayerChoice())
+                                continue;
+                            if (com.sfb.objects.DroneLoad.refusalFor(
+                                    dt.name() + "+" + m.name()) == null)
+                                legalModules.add(m.name());
+                        }
+                        dtMap.put("legalModules", legalModules);
+
+                        List<String> legalAdditions = new ArrayList<>();
+                        for (com.sfb.objects.FrameAddition a
+                                : com.sfb.objects.FrameAddition.values()) {
+                            if (!a.isPlayerChoice())
+                                continue;
+                            if (com.sfb.objects.DroneLoad.refusalFor(
+                                    dt.name() + "+" + a.name()) == null)
+                                legalAdditions.add(a.name());
+                        }
+                        dtMap.put("legalAdditions", legalAdditions);
+
+                        // FD10.24: extended range turns a type-III into a type-III-XX, "which
+                        // are two-space drones with one payload space". The only modification
+                        // in the game that changes how much of a RACK a drone fills, so the
+                        // dialog is sent the figure rather than left to derive a frame change.
+                        String extended = dt.name() + "+" + com.sfb.objects.FrameAddition.EXTENDED_RANGE.name();
+                        if (com.sfb.objects.DroneLoad.refusalFor(extended) == null)
+                            dtMap.put("rackWithExtendedRange",
+                                    com.sfb.objects.DroneLoad.parse(extended).rackSpaces());
+
                         droneTypes.add(dtMap);
                     }
                     s.put("availableDroneTypes", droneTypes);

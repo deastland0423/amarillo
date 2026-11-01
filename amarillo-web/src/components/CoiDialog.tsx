@@ -1,9 +1,15 @@
 import { Fragment, useState, useEffect } from 'react';
-import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiDroneRack, Cartel } from '../api/gameApi';
+import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiDroneRack,
+  CoiDroneModule, CoiDroneAddition, Cartel } from '../api/gameApi';
 import { gameApi } from '../api/gameApi';
 import { Stepper } from './Stepper';
 import { tierFor, quotaOf, describeCartel } from './cartelQuota';
 import { seatAll } from './optionMountSeating';
+import {
+  isModified, parseDroneName, formatDroneName, payloadUsed, rackSpacesOf,
+  describeDrone, moduleRefusal, additionRefusal,
+} from './droneComposition';
+import type { DroneComposition } from './droneComposition';
 import type { Tier, Quota } from './cartelQuota';
 
 // G15.44's tiers and quota live in ./cartelQuota, shared with the fleet builder: a loadout is
@@ -127,11 +133,19 @@ function spacesUsedLabel(used: number): string {
   return Number.isInteger(used) ? String(used) : used.toFixed(1);
 }
 
-function droneSpaceUsed(drones: string[], allTypes: CoiDroneType[]): number {
-  return drones.reduce((sum, name) => {
-    const dt = allTypes.find(t => t.name === name);
-    return sum + (dt?.rack ?? 0);
-  }, 0);
+/**
+ * Rack spaces a list of loaded drones fills (FD3.0).
+ *
+ * Takes the whole ship rather than just the type list because a drone's name can now carry a
+ * payload (FD10.2), and reading the footprint off a composed name needs the catalogues to take
+ * the name apart — and, for a type-III given extended range, the server's figure for the
+ * frame it has become (FD10.24).
+ */
+function droneSpaceUsed(drones: string[], ship: CoiShipData): number {
+  const modules   = ship.availableDroneModules ?? [];
+  const additions = ship.availableDroneAdditions ?? [];
+  return drones.reduce((sum, name) => sum
+    + rackSpacesOf(parseDroneName(name, modules, additions), ship.availableDroneTypes), 0);
 }
 
 /**
@@ -177,6 +191,16 @@ function ShipCoiPanel({
 }) {
   const cost     = coiCost(coi);
   const overBudget = cost > ship.coiBudget;
+  // FD10.4's catalogue, sent by the server for this scenario's year. Absent from a server that
+  // predates payload modules, in which case the drone picker keeps its two axes and no pencil
+  // appears — rather than a pencil that opens a panel with nothing in it.
+  const dModules:   CoiDroneModule[]   = ship.availableDroneModules ?? [];
+  const dAdditions: CoiDroneAddition[] = ship.availableDroneAdditions ?? [];
+  const canEditPayload = dModules.length > 0 || dAdditions.length > 0;
+  // Which loaded drone has its payload editor open, as "rackIndex:position". One at a time:
+  // the editor is a panel under the rack it belongs to, and two open at once would separate a
+  // drone from its own controls.
+  const [editingDrone, setEditingDrone] = useState<string | null>(null);
   const hasWs3Heavy = ship.weaponStatus === 3 && ship.heavyWeapons.length > 0;
   // S4.32: two free overload points per photon tube, poolable across the ship's tubes.
   const photonTubes      = ship.heavyWeapons.filter(w => w.type === 'Photon');
@@ -420,7 +444,7 @@ function ShipCoiPanel({
             // both. The server adds them up the same way and refuses the loadout otherwise.
             const antiDrones = coi.antiDroneLoadouts[rack.index] ?? 0;
             const adSpace    = rack.antiDroneSpace ?? 0.5;
-            const used    = droneSpaceUsed(loadout, ship.availableDroneTypes)
+            const used    = droneSpaceUsed(loadout, ship)
                           + antiDrones * adSpace;
             const remaining = rack.spaces - used;
 
@@ -439,6 +463,12 @@ function ShipCoiPanel({
             function removeDrone(idx: number) {
               const next = loadout.filter((_, i) => i !== idx);
               onChange({ ...coi, droneRackLoadouts: { ...coi.droneRackLoadouts, [rack.index]: next } });
+              setEditingDrone(null);
+            }
+            /** Replace one loaded drone with a modified version of itself (FD10.2). */
+            function setDrone(idx: number, comp: DroneComposition) {
+              const next = loadout.map((n, i) => i === idx ? formatDroneName(comp) : n);
+              onChange({ ...coi, droneRackLoadouts: { ...coi.droneRackLoadouts, [rack.index]: next } });
             }
 
             return (
@@ -452,10 +482,26 @@ function ShipCoiPanel({
                 </div>
                 <div className="coi-rack-loadout">
                   {loadout.map((name, i) => {
-                    const dt = ship.availableDroneTypes.find(t => t.name === name);
+                    const comp = parseDroneName(name, dModules, dAdditions);
+                    const dt = ship.availableDroneTypes.find(t => t.name === comp.basis);
+                    const key = `${rack.index}:${i}`;
+                    // FD10.21: only a drone on a frame that CHOOSES its payload has anything to
+                    // edit. A type-VI "cannot be modified" and gets no pencil, rather than one
+                    // that opens an empty panel.
+                    const editable = canEditPayload && (dt?.modular ?? false);
                     return (
-                      <span key={i} className="coi-drone-chip">
-                        {name} ({dt?.damage}dmg, spd {dt?.speed})
+                      <span key={i}
+                        className={'coi-drone-chip'
+                          + (editingDrone === key ? ' coi-drone-chip-open' : '')}>
+                        {isModified(comp)
+                          ? describeDrone(comp, dModules, dAdditions)
+                          : `${name} (${dt?.damage}dmg, spd ${dt?.speed})`}
+                        {editable && (
+                          <button className="coi-drone-edit"
+                            title="Choose this drone's payload (FD10.4)"
+                            onClick={() => setEditingDrone(
+                              editingDrone === key ? null : key)}>✎</button>
+                        )}
                         <button className="coi-drone-remove" onClick={() => removeDrone(i)}>✕</button>
                       </span>
                     );
@@ -467,6 +513,42 @@ function ShipCoiPanel({
                     <span className="coi-note">No drones — anti-drones only</span>
                   )}
                 </div>
+                {/* FD10.4's payload, for the one drone whose pencil is open. Under the rack
+                    rather than inside the chip: the chips are a wrapping row and a panel in the
+                    middle of one would push the rest of the loadout around as it opened. */}
+                {(() => {
+                  if (editingDrone == null) return null;
+                  const [rackKey, posKey] = editingDrone.split(':');
+                  if (Number(rackKey) !== rack.index) return null;
+                  const pos = Number(posKey);
+                  const name = loadout[pos];
+                  if (name == null) return null;
+                  const comp = parseDroneName(name, dModules, dAdditions);
+                  const dt = ship.availableDroneTypes.find(t => t.name === comp.basis);
+                  if (!dt) return null;
+                  // What this ONE drone may take, which the server decided by building each
+                  // candidate: FD10.4 bars a two-space module from a one-space frame, FD10.23
+                  // bars ATG from a type-III, FD2.222 bars extended range from a dogfight drone.
+                  const legalModules = dModules.filter(
+                    m => (dt.legalModules ?? []).includes(m.name));
+                  const legalAdditions = dAdditions.filter(
+                    a => (dt.legalAdditions ?? []).includes(a.name));
+                  // FD10.24 is the one modification that changes the footprint, so the space it
+                  // would take has to be affordable before it can be offered.
+                  const own = rackSpacesOf(comp, ship.availableDroneTypes);
+                  return (
+                    <DronePayloadEditor
+                      drone={dt}
+                      comp={comp}
+                      modules={legalModules}
+                      additions={legalAdditions}
+                      submunitionSpeeds={ship.availableSubmunitionSpeeds ?? []}
+                      rackSpaceFree={remaining + own}
+                      onChange={next => setDrone(pos, next)}
+                      onClose={() => setEditingDrone(null)}
+                    />
+                  );
+                })()}
                 {remaining > 0 && (
                   <DronePicker
                     types={ship.availableDroneTypes.filter(dt => dt.rack <= remaining
@@ -679,7 +761,7 @@ function ShipCoiPanel({
                 )}
 
                 {selected && prep && prep.type === 'scatterpack' && (() => {
-                  const spaceUsed = droneSpaceUsed(prep.drones, ship.availableDroneTypes);
+                  const spaceUsed = droneSpaceUsed(prep.drones, ship);
                   const spaceLeft = 6 - spaceUsed;
                   const pool = computeDronePool(ship.droneRacks, coi.droneRackLoadouts);
                   const committed = computePackCommitments(coi.shuttlePrep);
@@ -835,6 +917,188 @@ function DronePicker({ types, onAdd }: {
           </Fragment>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * One loaded drone's payload (FD10.2) — the third axis of the picker.
+ *
+ * The numeral in a drone's name carries its family and the suffix carries its speed, and that is
+ * all a loadout could say until core learned to name a composed drone. Armor, ECM, probe,
+ * swordfish and multi-warhead modules were built, priced and capped long before anyone could
+ * ORDER one.
+ *
+ * What this deliberately does NOT show: the hull, the warhead, the speed or the price of what is
+ * being built. Every one of those is derived from the composition by rules this view does not
+ * hold and must not — FD12.21 adds hull per armor module, FD10.41 combines the warheads into
+ * one explosion, FD12.132's chart takes a fast one-space drone from 32 to 12 for a full external
+ * module, and FD2.22 charges the difference from the type-I-slows already in the ship's BPV. A
+ * number here would be a second answer waiting to disagree with the server's.
+ *
+ * So it shows what was ticked, the space it fills, and how hard each part is to come by. The
+ * ship's own budget line already reports what the server says it all costs.
+ */
+function DronePayloadEditor({
+  drone, comp, modules, additions, submunitionSpeeds, rackSpaceFree, onChange, onClose,
+}: {
+  drone:     CoiDroneType;
+  comp:      DroneComposition;
+  modules:   CoiDroneModule[];
+  additions: CoiDroneAddition[];
+  submunitionSpeeds: { name: string; speed: number; availability: string }[];
+  /** Rack spaces this drone may grow into, its own footprint included (FD3.0). */
+  rackSpaceFree: number;
+  onChange: (next: DroneComposition) => void;
+  onClose:  () => void;
+}) {
+  const capacity = drone.payloadSpaces ?? 0;
+  const used     = payloadUsed(comp, modules);
+
+  // FD10.431: a multi-warhead module carries type-VI drones instead of a warhead, and FD8.24
+  // buys them an engine of their own. Nothing to choose until one is aboard.
+  const carriesSubmunitions = comp.modules.some(
+    n => (modules.find(m => m.name === n)?.submunitions ?? 0) > 0);
+
+  function countOf(name: string): number {
+    return comp.modules.filter(n => n === name).length;
+  }
+  function addModule(m: CoiDroneModule) {
+    onChange({ ...comp, modules: [...comp.modules, m.name] });
+  }
+  function dropModule(name: string) {
+    const at = comp.modules.lastIndexOf(name);
+    if (at < 0) return;
+    const next = comp.modules.filter((_, i) => i !== at);
+    // FD8.21: a submunition speed belongs to a drone that carries submunitions. Taking the last
+    // MW module off takes the engines with it, rather than leaving a choice with nothing to
+    // apply to — which core refuses outright.
+    const stillHasMw = next.some(
+      n => (modules.find(m => m.name === n)?.submunitions ?? 0) > 0);
+    onChange({ ...comp, modules: next,
+      submunitionSpeed: stillHasMw ? comp.submunitionSpeed : null });
+  }
+  function toggleAddition(a: CoiDroneAddition, on: boolean) {
+    let next = comp.additions.filter(n => n !== a.name);
+    if (on) {
+      // FD12.131: "No more than one external armor module can be added to any one drone." So
+      // ticking one unticks the other rather than being refused on submission.
+      if (a.externalArmor)
+        next = next.filter(
+          n => !(additions.find(x => x.name === n)?.externalArmor ?? false));
+      next = [...next, a.name];
+    }
+    onChange({ ...comp, additions: next });
+  }
+
+  const tier = (t: string) => t === 'GENERAL' ? '' : ` · ${t.toLowerCase()}`;
+  const sp = (n: number) => n === 0.5 ? '½sp' : `${n}sp`;
+
+  return (
+    <div className="coi-payload-editor">
+      <div className="coi-payload-head">
+        <strong>{comp.basis}</strong>
+        <span className="coi-note">
+          {' — payload '}{spacesUsedLabel(used)} / {capacity}
+          {capacity === 1 ? ' space' : ' spaces'}
+        </span>
+        <button className="coi-drone-remove" onClick={onClose} title="Done">{'✕'}</button>
+      </div>
+
+      {modules.length > 0 && (
+        <>
+          <div className="coi-note">
+            Payload (FD10.4). A module you name REPLACES what the drone came with, so a drone
+            with nothing ticked here carries its standard warhead.
+          </div>
+          {modules.map(m => {
+            const n = countOf(m.name);
+            // Every reason the rules have for not letting this module on THIS drone, in one
+            // tested place: FD10.443, FD12.131, FD10.4 and FD10.402. They live in
+            // moduleRefusal now because one of them was missing from here and nothing on this
+            // side could be asked the question.
+            const refusal = moduleRefusal(comp, m, modules, additions, capacity);
+            return (
+              <div key={m.name} className="coi-payload-row">
+                <button className="secondary coi-drone-add-btn"
+                        disabled={n <= 0}
+                        onClick={() => dropModule(m.name)}>{'−'}</button>
+                <span className="coi-payload-count">{n}</span>
+                <button className="secondary coi-drone-add-btn"
+                        disabled={refusal != null}
+                        title={refusal ?? undefined}
+                        onClick={() => addModule(m)}>+</button>
+                <span className="coi-payload-label">{m.label}</span>
+                <span className="coi-note">
+                  {sp(m.spaces)}
+                  {m.strength > 0 && ` · ${m.strength} dmg`}
+                  {m.hullBonus > 0 && ` · +${m.hullBonus} hull`}
+                  {m.submunitions > 0 && ` · ${m.submunitions} type-VIs`}
+                  {m.requiresForward && ' · forward only'}
+                  {tier(m.availability)}
+                </span>
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {additions.length > 0 && (
+        <>
+          <div className="coi-note" style={{ marginTop: '0.3rem' }}>
+            Frame (FD10.53). Bolted on rather than carried, so it fills no payload space.
+          </div>
+          {additions.map(a => {
+            const on = comp.additions.includes(a.name);
+            // FD10.24: extended range turns a type-III into a two-space drone. Shown on the
+            // label as well as checked for room, because it is the one modification that costs
+            // a player RACK space and nothing else on the row would say so.
+            const grows = a.name === 'EXTENDED_RANGE'
+              && (drone.rackWithExtendedRange ?? drone.rack) > drone.rack;
+            const refusal = additionRefusal(comp, a, modules,
+              drone.rack, rackSpaceFree, drone.rackWithExtendedRange);
+            return (
+              <label key={a.name} className="coi-label coi-check">
+                <input type="checkbox" checked={on}
+                  disabled={refusal != null}
+                  title={refusal ?? undefined}
+                  onChange={e => toggleAddition(a, e.target.checked)} />
+                {a.label}
+                <span className="coi-note">
+                  {a.hullBonus > 0 && ` — +${a.hullBonus} hull`}
+                  {a.externalArmor && ' · costs speed (FD12.132)'}
+                  {grows && ' · two rack spaces (FD10.24)'}
+                  {tier(a.availability)}
+                </span>
+              </label>
+            );
+          })}
+        </>
+      )}
+
+      {carriesSubmunitions && submunitionSpeeds.length > 0 && (
+        <div className="coi-row" style={{ marginTop: '0.3rem' }}>
+          <label className="coi-label">Submunition speed (FD8.11)</label>
+          <select value={comp.submunitionSpeed ?? ''}
+            onChange={e => onChange({ ...comp, submunitionSpeed: e.target.value || null })}>
+            {/* FD8.45: nothing bought means they fly at a type-VI's own baseline, which FD2.227
+                puts at 12 rather than 8. That is the free option, not a missing one. */}
+            <option value="">Standard</option>
+            {submunitionSpeeds.map(p => (
+              <option key={p.name} value={p.name}>
+                Speed {p.speed}{p.availability !== 'GENERAL'
+                  ? ` (${p.availability.toLowerCase()})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {carriesSubmunitions && (
+        <div className="coi-note">
+          FD8.24: every submunition buys its own engine on top of the drone's, which is what
+          makes a multi-warhead drone expensive.
+        </div>
+      )}
     </div>
   );
 }

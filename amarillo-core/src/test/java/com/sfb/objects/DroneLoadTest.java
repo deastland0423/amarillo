@@ -3,6 +3,7 @@ package com.sfb.objects;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -186,6 +187,74 @@ public class DroneLoadTest {
         assertFalse("but its submunitions' engines had not been invented (FD10.651)",
                 load.availableIn(100));
         assertTrue(load.availableIn(180));
+    }
+
+    // ------------------------------------------------------- the dialog's own spelling
+
+    /**
+     * Every name the COI dialog can write, read back as the drone it means.
+     *
+     * <p>{@code droneComposition.ts} is the client half of this grammar, and the two halves can
+     * drift in a way neither side's own tests would notice: the dialog writes a string, this
+     * reads it, and nothing else sits between them. So these are the exact strings that file's
+     * tests assert it produces, copied rather than derived — a shared constant would only
+     * prove the two agree with each other.
+     *
+     * <p>The ORDER need not match, and does not. The client writes its frame additions in the
+     * order they were ticked while {@link #format} writes them in declaration order, and both
+     * mean the same drone because the additions are a set. What must match is the drone.
+     */
+    @Test
+    public void everyNameTheDialogWritesIsReadAsTheDroneItMeans() {
+        for (String text : new String[] {
+                "TypeIM",
+                "TypeIV+ARMOR_HALF+ARMOR_HALF+EXTENDED_RANGE",
+                "TypeIV+ARMOR_HALF+ARMOR_HALF+ARMOR_HALF",
+                "TypeIV+MW_LARGE+SPEED_32",
+                "TypeIII+EXPLOSIVE_1+TYPE_III_GUIDANCE",
+                "TypeIII+EXTENDED_RANGE",
+                "TypeI+EXTENDED_RANGE",
+                "TypeI+EXPLOSIVE_1+EXTERNAL_ARMOR_HALF",
+                "TypeI+ECM",
+                "TypeIV+EXTERNAL_ARMOR_HALF+ACTIVE_TERMINAL_GUIDANCE",
+        }) {
+            assertNull("the dialog can write this, so core must read it: " + text,
+                    DroneLoad.refusalFor(text));
+            DroneLoad load = DroneLoad.parse(text);
+            assertEquals("and re-reading its own spelling must give the same drone: " + text,
+                    load, DroneLoad.parse(load.format()));
+        }
+    }
+
+    /**
+     * The one the dialog has to be TOLD, because it is the only modification in the game that
+     * changes how much of a rack a drone fills: FD10.24's "they become type-III-XX, which are
+     * two-space drones with one payload space".
+     */
+    @Test
+    public void extendedRangeOnATypeIiiTakesTwoRackSpaces() {
+        assertEquals(2.0, DroneLoad.parse("TypeIII+EXTENDED_RANGE").rackSpaces(), 0.0001);
+        assertEquals("and every other drone keeps its footprint",
+                1.0, DroneLoad.parse("TypeI+EXTENDED_RANGE").rackSpaces(), 0.0001);
+        assertEquals("FD2.222: doubled, and the frame does not override it",
+                DroneType.TypeI.endurance * 2,
+                DroneLoad.parse("TypeI+EXTENDED_RANGE").build().getEndurance());
+    }
+
+    /**
+     * FD12.131: "External armor cannot be placed on a drone equipped with internal armor."
+     *
+     * <p>Here because the test above found the dialog offering it. FD12.12's armored type-IV is
+     * the obvious thing to want to bolt more armor to, and the editor had only the FD10.443
+     * check — which is about ECM and says nothing about this. Pinned at the core end so the
+     * next client to grow a payload editor has something to fail against.
+     */
+    @Test
+    public void externalArmorCannotGoOnAnInternallyArmoredDrone() {
+        String refusal = DroneLoad.refusalFor("TypeIV+ARMOR_HALF+EXTERNAL_ARMOR_HALF");
+
+        assertNotNull("FD12.131 refuses this", refusal);
+        assertTrue(refusal, refusal.contains("FD12.131"));
     }
 
     // ------------------------------------------------------- what it refuses

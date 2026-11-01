@@ -1754,6 +1754,76 @@ h3 {
   gap: 0.3rem;
 }
 
+/* The pencil on a loaded drone, which opens its payload (FD10.4). Deliberately quieter than the
+   remove button beside it: editing is the rarer thing to want, and a chip with two equally loud
+   glyphs reads as a choice between them. */
+.coi-drone-edit {
+  background: none;
+  border: none;
+  color: #6e7681;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+.coi-drone-edit:hover { color: #d5a03a; }
+
+/* The chip whose payload is open, marked in the same amber the rack header uses rather than in
+   green or red: the panel below belongs to THIS drone, which is a statement about attention and
+   not about readiness (green) or trouble (red). */
+.coi-drone-chip-open {
+  border-color: #d5a03a;
+  background: #2a2318;
+}
+
+/* The payload editor: one drone's modules, under the rack it sits in. */
+.coi-payload-editor {
+  margin: 0.3rem 0 0.4rem;
+  padding: 0.35rem 0.5rem;
+  background: #0d1117;
+  border: 1px solid #d5a03a;
+  border-radius: 4px;
+}
+
+.coi-payload-head {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: #c9d1d9;
+  margin-bottom: 0.25rem;
+}
+
+.coi-payload-head .coi-drone-remove { margin-left: auto; }
+
+/* A row per module: the count between its two buttons, so the number a player is changing sits
+   where their eye already is. */
+.coi-payload-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+.coi-payload-count {
+  min-width: 1rem;
+  text-align: center;
+  color: #e6edf3;
+}
+
+.coi-payload-label {
+  color: #c9d1d9;
+  min-width: 9rem;
+}
+
+/* Sized to content like the picker's, not stretched by the global `button { flex: 1 }` — the
+   plus and minus are one glyph each and would otherwise fill the row. */
+.coi-payload-row .coi-drone-add-btn {
+  flex: 0 0 auto;
+  min-width: 1.4rem;
+}
+
 .coi-drone-add-btn {
   font-size: 0.72rem;
   padding: 0.15rem 0.5rem;
