@@ -56,7 +56,7 @@ public class CoiAntiDroneLoadoutTest {
     private CoiLoadout loadoutOf(int antiDrones, DroneType... drones) {
         CoiLoadout out = new CoiLoadout();
         if (drones.length > 0)
-            out.droneRackLoadouts.put(0, List.of(drones));
+            out.setDroneRackLoadout(0, List.of(drones));
         if (antiDrones > 0)
             out.antiDroneLoadouts.put(0, antiDrones);
         return out;

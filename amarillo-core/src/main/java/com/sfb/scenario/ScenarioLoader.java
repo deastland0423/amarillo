@@ -627,7 +627,7 @@ public class ScenarioLoader {
                     continue;
                 }
                 DroneRack rack = racks.get(rackIndex);
-                List<DroneType> requestedTypes =
+                List<com.sfb.objects.DroneLoad> requestedTypes =
                         loadout.droneRackLoadouts.getOrDefault(rackIndex, java.util.List.of());
                 int antiDrones = loadout.antiDroneLoadouts.getOrDefault(rackIndex, 0);
 
@@ -647,23 +647,28 @@ public class ScenarioLoader {
                 List<Drone> drones = new ArrayList<>();
                 double totalRackSize = 0;
                 boolean valid = true;
-                for (DroneType dt : requestedTypes) {
+                for (com.sfb.objects.DroneLoad dt : requestedTypes) {
                     if (!dt.availableIn(year)) {
                         note(ship, "COI: " + dt + " not available in year " + year
                                 + " — rack " + rackIndex + " skipped");
                         valid = false; break;
                     }
-                    if (maxSpeed != null && dt.speed > maxSpeed) {
-                        note(ship, "COI: " + dt + " speed " + dt.speed
+                    // The drone's SPEED, not the engine bought for it — which are the same
+                    // number on every catalogue drone and part company once FD12.132's
+                    // external armor is bolted on. The scenario's cap is not a rule of the
+                    // game but a restriction on what flies, so the armored figure is the one
+                    // it should be reading.
+                    if (maxSpeed != null && dt.speed() > maxSpeed) {
+                        note(ship, "COI: " + dt + " speed " + dt.speed()
                                 + " exceeds cap " + maxSpeed + " — rack " + rackIndex + " skipped");
                         valid = false; break;
                     }
-                    if (!rack.accepts(dt)) {
+                    if (!rack.accepts(dt.basis())) {
                         note(ship, "COI: " + dt + " cannot be loaded in rack type "
                                 + rack.getRackType() + " — rack " + rackIndex + " skipped");
                         valid = false; break;
                     }
-                    totalRackSize += dt.rack;
+                    totalRackSize += dt.rackSpaces();
                 }
                 if (!valid) continue;
 
@@ -681,7 +686,7 @@ public class ScenarioLoader {
                             + totalWithAntiDrones + " > " + rack.getSpaces() + ") — skipped");
                     continue;
                 }
-                for (DroneType dt : requestedTypes) drones.add(new Drone(dt));
+                for (com.sfb.objects.DroneLoad dt : requestedTypes) drones.add(dt.build());
                 rack.setAmmo(drones);
                 rack.setAddAmmo(0);
                 if (antiDrones > 0)

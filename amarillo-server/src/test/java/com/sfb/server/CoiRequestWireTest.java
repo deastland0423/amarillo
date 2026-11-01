@@ -2,6 +2,7 @@ package com.sfb.server;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sfb.objects.DroneLoad;
 import com.sfb.objects.DroneType;
 import com.sfb.properties.WeaponArmingType;
 import com.sfb.scenario.CoiLoadout;
@@ -38,7 +39,10 @@ class CoiRequestWireTest {
               "convertBpToCommando": 1,
               "extraCommandoSquads": 1,
               "extraTBombs": 3,
-              "droneRackLoadouts": { "0": ["TypeI", "TypeIV"] },
+              "droneRackLoadouts": {
+                "0": ["TypeI", "TypeIV"],
+                "2": ["TypeIV+ARMOR_HALF+ARMOR_HALF+ARMOR_HALF+EXPLOSIVE_HALF"]
+              },
               "antiDroneLoadouts": { "1": 4 },
               "weaponArmingModes": { "A": "OVERLOAD", "C": "STANDARD" },
               "photonOverload": { "A": 4.0, "B": 2.5 },
@@ -85,8 +89,11 @@ class CoiRequestWireTest {
         assertEquals(1, loadout.convertBpToCommando);
         assertEquals(1, loadout.extraCommandoSquads);
         assertEquals(3, loadout.extraTBombs);
-        assertEquals(List.of(DroneType.TypeI, DroneType.TypeIV),
+        assertEquals(List.of(DroneLoad.of(DroneType.TypeI), DroneLoad.of(DroneType.TypeIV)),
                 loadout.droneRackLoadouts.get(0));
+        assertEquals(DroneLoad.parse("TypeIV+ARMOR_HALF+ARMOR_HALF+ARMOR_HALF+EXPLOSIVE_HALF"),
+                loadout.droneRackLoadouts.get(2).get(0),
+                "FD10.4's payload modules travel as text on the name they modify");
         assertEquals(Integer.valueOf(4), loadout.antiDroneLoadouts.get(1),
                 "anti-drones travel on their own map (FD3.70) and must survive the wire");
         assertEquals(WeaponArmingType.OVERLOAD, loadout.weaponArmingModes.get("A"));

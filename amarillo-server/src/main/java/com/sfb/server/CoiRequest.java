@@ -25,7 +25,15 @@ public class CoiRequest {
     /** S4.10-S4.12: which fighters start ready, in order of preference. */
     public List<String> armedFighters = new ArrayList<>();
 
-    /** Rack index (as string key) → list of DroneType names. */
+    /**
+     * Rack index (as string key) → the drones to load, in rack order.
+     *
+     * <p>Each entry is a {@link com.sfb.objects.DroneLoad} in its textual form: a catalogue
+     * drone's name on its own, or that name plus what was done to it —
+     * {@code "TypeIV+ARMOR_HALF+ARMOR_HALF+ARMOR_HALF+EXPLOSIVE_HALF"} is FD12.12's armored
+     * type-IV. Which is why the shape here did not have to change when payload modules became
+     * orderable: {@code "TypeIM"} still means what it always meant.
+     */
     public Map<String, List<String>> droneRackLoadouts = new LinkedHashMap<>();
 
     /**
@@ -84,12 +92,12 @@ public class CoiRequest {
             int rackIndex;
             try { rackIndex = Integer.parseInt(entry.getKey()); }
             catch (NumberFormatException e) { continue; }
-            List<DroneType> types = new ArrayList<>();
+            List<com.sfb.objects.DroneLoad> types = new ArrayList<>();
             for (String name : entry.getValue()) {
-                try { types.add(DroneType.valueOf(name)); }
+                try { types.add(com.sfb.objects.DroneLoad.parse(name)); }
                 catch (IllegalArgumentException e) { /* skip unknown types */ }
             }
-            out.droneRackLoadouts.put(rackIndex, types);
+            out.setDroneRackLoads(rackIndex, types);
         }
 
         if (antiDroneLoadouts != null) {

@@ -1,5 +1,6 @@
 package com.sfb.scenario;
 
+import com.sfb.objects.DroneLoad;
 import com.sfb.objects.DroneType;
 import com.sfb.properties.WeaponArmingType;
 
@@ -19,7 +20,8 @@ import java.util.Map;
  *   Extra commando squad:   1.0 BPV each,  limit 2
  *   T-bomb:                 4.0 BPV each,  no hard cap (+ 1 free dummy per purchased)
  *   Extra deck crew:        0.5 BPV each,  limit 4, capable carriers only (J4.816)
- *   Drone type selection:   free, within year + speed limits
+ *   Drone selection:        FD2.22's surcharge over the type-I-slows already paid for,
+ *                           within the year, speed and availability limits
  */
 public class CoiLoadout {
 
@@ -78,10 +80,15 @@ public class CoiLoadout {
 
     /**
      * Drone loadout per rack, keyed by the rack's index in the ship's weapon list
-     * (counting only DroneRack entries). Value is the list of DroneType to load into
-     * that rack. If a rack index is absent, the rack keeps its default ammo.
+     * (counting only DroneRack entries). Value is the drones to load into that rack, in
+     * rack order. If a rack index is absent, the rack keeps its default ammo.
+     *
+     * <p>A {@link DroneLoad} rather than a {@link DroneType} because FD10.4's payload modules
+     * are a third axis the enum cannot express: ECM, armor, probe and swordfish drones are
+     * built, priced and capped, and until this held something that could NAME one they were
+     * unreachable from any loadout a player could submit.
      */
-    public Map<Integer, List<DroneType>> droneRackLoadouts = new LinkedHashMap<>();
+    public Map<Integer, List<DroneLoad>> droneRackLoadouts = new LinkedHashMap<>();
 
     /**
      * Rack index to anti-drone rounds loaded, type-G only (FD3.70).
@@ -221,14 +228,14 @@ public class CoiLoadout {
      */
     public double droneUpgradeCost() {
         double total = 0;
-        for (List<DroneType> rack : droneRackLoadouts.values()) {
+        for (List<DroneLoad> rack : droneRackLoadouts.values()) {
             if (rack == null || rack.isEmpty())
                 continue;
             double loaded = 0;
             double spaces = 0;
-            for (DroneType d : rack) {
-                loaded += d.spec.pointCost();
-                spaces += d.rack;
+            for (DroneLoad d : rack) {
+                loaded += d.pointCost();
+                spaces += d.rackSpaces();
             }
             total += Math.max(0, loaded - spaces * TYPE_I_SLOW_COST_PER_SPACE);
         }
@@ -257,9 +264,21 @@ public class CoiLoadout {
     }
 
     /**
-     * Set the loadout for a specific drone rack index.
+     * Set the loadout for a specific drone rack index, from catalogue drones.
+     *
+     * <p>Kept alongside {@link #setDroneRackLoads} because most loadouts are exactly this —
+     * a list of the drones the enum already names — and because erasure will not let the two
+     * share a name.
      */
     public void setDroneRackLoadout(int rackIndex, List<DroneType> types) {
-        droneRackLoadouts.put(rackIndex, new ArrayList<>(types));
+        List<DroneLoad> loads = new ArrayList<>();
+        for (DroneType type : types)
+            loads.add(DroneLoad.of(type));
+        droneRackLoadouts.put(rackIndex, loads);
+    }
+
+    /** Set the loadout for a specific drone rack index, modified drones included (FD10.2). */
+    public void setDroneRackLoads(int rackIndex, List<DroneLoad> loads) {
+        droneRackLoadouts.put(rackIndex, new ArrayList<>(loads));
     }
 }

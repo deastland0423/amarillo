@@ -1393,10 +1393,19 @@ public class GameController {
                             dr.put("designator", w.getDesignator());
                             dr.put("spaces", rack.getSpaces());
                             dr.put("reloadCount", rack.getNumberOfReloads());
-                            // Default ammo as list of type names (what's in the rack before any COI)
+                            // What is in the rack before any COI, each drone in the same
+                            // textual form a loadout sends back — so a composed drone
+                            // (FD10.2) is reported as what it is rather than as the catalogue
+                            // drone it was built from, which would have the dialog show an
+                            // armored type-IV as a plain one and then quietly replace it.
                             List<String> defAmmo = new ArrayList<>();
                             for (com.sfb.objects.Drone d : rack.getAmmo()) {
-                                defAmmo.add(d.getDroneType() != null ? d.getDroneType().name() : "TypeI");
+                                if (d.getDroneType() == null) {
+                                    defAmmo.add("TypeI");
+                                    continue;
+                                }
+                                defAmmo.add(new com.sfb.objects.DroneLoad(
+                                        d.getDroneType(), d.getSpec()).format());
                             }
                             dr.put("defaultAmmo", defAmmo);
                             // Ask the rack, which is where FD2.51 and FD3.5 live. This used
@@ -1698,7 +1707,7 @@ public class GameController {
      * Submit COI selections for this player's ships.
      * Body: { "shipName": { "extraBoardingParties": N, "convertBpToCommando": N,
      * "extraCommandoSquads": N, "extraTBombs": N,
-     * "droneRackLoadouts": { "0": ["TypeIM", ...] },
+     * "droneRackLoadouts": { "0": ["TypeIM", "TypeIV+ECM", ...] },
      * "weaponArmingModes": { "A": "OVERLOAD", "B": "SPECIAL" } } }
      * Can be called multiple times before start(); later calls overwrite earlier
      * ones.
