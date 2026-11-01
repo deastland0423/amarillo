@@ -166,6 +166,17 @@ public class DroneCostTest {
     }
 
     /**
+     * A year in which no speed upgrade is yet in general service, so FD2.22's whole surcharge
+     * falls on the Commander's Option budget.
+     *
+     * <p>It has to be said, because after Y120 part of the bill moves: S3.221 charges the year's
+     * generally available speed to the SHIP and leaves only what is bought ahead of general
+     * availability here. The tests below are about FD2.22's arithmetic rather than about that
+     * division, so they ask for it undivided -- and {@code DroneSpeedYearTest} covers the split.
+     */
+    private static final int BEFORE_UPGRADES_ARE_STANDARD = 100;
+
+    /**
      * FD2.22 at the Commander's Option: a rack arrives full of type-I-slow drones the BPV
      * already paid for, and the player pays the difference for anything better.
      *
@@ -178,8 +189,8 @@ public class DroneCostTest {
                 DroneType.TypeIM, DroneType.TypeIM, DroneType.TypeIM, DroneType.TypeIM));
 
         assertEquals("FD2.223: 1/2 point per drone, four drones",
-                2.0, loadout.droneUpgradeCost(), EXACT);
-        assertEquals("and it reaches the budget", 2.0, loadout.totalCost(), EXACT);
+                2.0, loadout.droneUpgradeCost(BEFORE_UPGRADES_ARE_STANDARD), EXACT);
+        assertEquals("and it reaches the budget", 2.0, loadout.totalCost(BEFORE_UPGRADES_ARE_STANDARD), EXACT);
     }
 
     /** Loading the drones the ship came with costs nothing at all (FD2.31). */
@@ -188,7 +199,7 @@ public class DroneCostTest {
         com.sfb.scenario.CoiLoadout loadout = new com.sfb.scenario.CoiLoadout();
         loadout.setDroneRackLoadout(0, java.util.List.of(
                 DroneType.TypeI, DroneType.TypeI, DroneType.TypeI, DroneType.TypeI));
-        assertEquals(0.0, loadout.droneUpgradeCost(), EXACT);
+        assertEquals(0.0, loadout.droneUpgradeCost(BEFORE_UPGRADES_ARE_STANDARD), EXACT);
     }
 
     /**
@@ -201,13 +212,13 @@ public class DroneCostTest {
         com.sfb.scenario.CoiLoadout heavy = new com.sfb.scenario.CoiLoadout();
         heavy.setDroneRackLoadout(0, java.util.List.of(DroneType.TypeIV, DroneType.TypeIV));
         assertEquals("two type-IVs fill four spaces for what four type-Is cost",
-                0.0, heavy.droneUpgradeCost(), EXACT);
+                0.0, heavy.droneUpgradeCost(BEFORE_UPGRADES_ARE_STANDARD), EXACT);
 
         com.sfb.scenario.CoiLoadout dogfight = new com.sfb.scenario.CoiLoadout();
         dogfight.setDroneRackLoadout(0, java.util.List.of(
                 DroneType.TypeVI, DroneType.TypeVI, DroneType.TypeVI, DroneType.TypeVI));
         assertEquals("and four type-VIs fill two spaces for what two type-Is cost",
-                0.0, dogfight.droneUpgradeCost(), EXACT);
+                0.0, dogfight.droneUpgradeCost(BEFORE_UPGRADES_ARE_STANDARD), EXACT);
     }
 
     /** Every rack is charged, because FD2.45 prices "a single loading of EACH launch rack". */
@@ -218,7 +229,7 @@ public class DroneCostTest {
         loadout.setDroneRackLoadout(1, java.util.List.of(DroneType.TypeIM, DroneType.TypeIM));
 
         assertEquals("two fast at one point each, plus two medium at a half",
-                3.0, loadout.droneUpgradeCost(), EXACT);
+                3.0, loadout.droneUpgradeCost(BEFORE_UPGRADES_ARE_STANDARD), EXACT);
     }
 
     /**

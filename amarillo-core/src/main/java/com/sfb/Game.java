@@ -2144,7 +2144,10 @@ public class Game {
             coiByTeam.merge(teamName, ship.getCoiSpend(), Double::sum); // the buyer's side
             combatBpvByTeam.merge(teamName, ship.getBattlePointValue(), Integer::sum); // step-A force total
 
-            // GABPV: base BPV (already includes y175 refit) + fighter BPV
+            // GABPV: base BPV (already includes y175 refit) + fighter BPV + drone speed.
+            // S2.14 lists exactly what belongs: "the cost of drone speed upgrades (FD2.22)" and
+            // "the effect of crew quality (G21.0)" are in, "Commander's Optional Purchases
+            // (S3.2)" are out -- those are scored separately, under step B.
             int fighterBpv = 0;
             for (com.sfb.objects.shuttles.Shuttle s : ship.getShuttles().getAllShuttles()) {
                 if (s instanceof com.sfb.objects.shuttles.Fighter f)
@@ -2157,7 +2160,8 @@ public class Game {
                     fighterBpv += f.getBpv();
                 }
             }
-            int gabpv = victoryBpvBasis(ship, teamName) + fighterBpv;
+            int gabpv = victoryBpvBasis(ship, teamName) + fighterBpv
+                    + ship.getDroneSpeedBpv();
 
             // Scoring math lives in VictoryCalculator (S2.21 order, S2.24 rounding)
             String status = VictoryCalculator.status(ship).name();

@@ -144,4 +144,101 @@ public enum Propulsion {
             case TWO_SPACE, TYPE_III_XX -> costTwo != UNAVAILABLE;
         };
     }
+
+    /**
+     * The slowest engine FD10.52's chart builds for this frame, which is the speed a ship's
+     * stated BPV already covers.
+     *
+     * <blockquote>FD2.22: "All costs are based on additions to the basic cost of a type-I-slow
+     * drone. The BPV of all ships includes type-I-slow drones; the surcharges for improvements
+     * below must be paid in all cases (except X-ships)."</blockquote>
+     *
+     * <p>Speed-8 for the frames that have one; speed-12 for the half-space, whose speed-8 row
+     * the chart prints as a dash. FD2.227 says the same thing in words -- "type-III or type-VI
+     * slow drones are Speed 12 as noted in (FD2.1), not Speed 8".
+     *
+     * <h2>Why the FRAME and not the drone's family</h2>
+     * Half of that sentence is a frame fact and half of it is not, and reading it as one would
+     * cost the game half a point per type-III. The type-VI's speed-12 is free because nothing
+     * slower is built for a half-space frame. The type-III's is not, and FD10.54 settles it
+     * outright: "It actually costs 0.5 points to trade a type-I drone for a type-III, but this
+     * results in a Speed 8 type-III drone. (Technically, there is no such thing, but it is
+     * theoretically possible to build one.) Trading a Speed 8 type-I drone for a Speed 12
+     * type-III costs 1.0 points, not 0.5 points." So a type-III pays for moderate speed like
+     * every other one-space drone, and the baseline is keyed on the frame alone.
+     */
+    public static Propulsion baselineFor(DroneFrame frame) {
+        // values() runs slowest-first, so the first that fits is the cheapest the chart prices.
+        for (Propulsion p : values())
+            if (p.fits(frame))
+                return p;
+        throw new IllegalArgumentException("FD10.52 prices no engine for a " + frame + " drone");
+    }
+
+    /**
+     * FD2.22's surcharge for this engine over the frame's free baseline: what is paid to fly
+     * something faster than the drones the ship's BPV came with.
+     *
+     * <p>Checks out against FD2.454's worked example, which is the one place the rulebook does
+     * this arithmetic for a whole ship: a Kzinti CS has a "BPV of 116. However, it has four
+     * drone racks, each of which holds four drones. Equipped with medium-speed drones, the BPV
+     * increases by eight points (1/2-point per drone) to 124. The BPV of a Kzinti CS armed with
+     * fast drones is 132." Sixteen one-space drones at 0.50 and at 1.00 apiece -- which is
+     * speed-20 and speed-32 priced against speed-8 in the one-space column, and nothing else.
+     */
+    public double surchargeOn(DroneFrame frame) {
+        return costOn(frame) - baselineFor(frame).costOn(frame);
+    }
+
+    /**
+     * The fastest engine in general service in a given year that this frame is built for
+     * (FD10.65) -- the speed a ship is normally assumed to sail with.
+     *
+     * <blockquote>S2.11: "The BPV of all ships (unless otherwise noted) does not include the
+     * drone speed upgrade charges; ships are required to pay these charges based on the date of
+     * the scenario. Players may use slower drones in special cases (asteroids, webs, bases)
+     * where faster drones are not appropriate."</blockquote>
+     *
+     * <p>GENERAL, not merely invented, because a faster drone inside its limited or restricted
+     * window is a Commander's Option rather than standard issue. S3.221: "Drone speed upgrade
+     * charges are not included within the limit on Commander's Options... Exception: Faster
+     * drones available as limited or restricted weapons in years prior to their general
+     * introduction are purchased as Commander's Options."
+     *
+     * <p>Never slower than {@link #baselineFor}, which is what answers a half-space frame
+     * before Y120: no engine is in general service yet and its slowest is speed-12 regardless.
+     */
+    public static Propulsion generalIn(int year, DroneFrame frame) {
+        Propulsion best = baselineFor(frame);
+        for (Propulsion p : values())
+            if (p.isImprovement() && p.fits(frame) && p.speed > best.speed
+                    && p.availabilityIn(year) == Availability.GENERAL)
+                best = p;
+        return best;
+    }
+
+    /**
+     * Whether FD2.22 counts this engine as an IMPROVEMENT -- one of the things a ship is normally
+     * fitted with once its year comes, rather than a different drone a player might buy.
+     *
+     * <h2>Speed-12 is not on FD2.22's list, and that is not an oversight</h2>
+     * The rule enumerates its improvements and there are four: "(FD2.221) Active terminal
+     * guidance... (FD2.222) Extended range... (FD2.223) Medium speed (the speed is increased to
+     * twenty)... (FD2.224) Fast speed (the speed is increased to 32)". Moderate speed is absent,
+     * because the moderate engine is not an upgrade bolted to a type-I -- it is what makes a
+     * type-II a type-II, and FD2.1 gives that drone TWO turns of endurance where the type-I has
+     * three. Trading up to it costs a third of the drone's legs, which is a tactical choice and
+     * not standard issue.
+     *
+     * <p>FD10.65 does say moderate speed "became General Availability items in Y120", and that
+     * is about how easy the engine is to GET -- the same ladder FD10.6 runs every drone component
+     * up. It does not put a type-II in every rack from Y120, and reading it that way billed a
+     * Y125 Kzinti CS eight points to swap three turns of endurance for two.
+     *
+     * <p>So it still has a price ({@link #surchargeOn} prices what FD10.52 prices) and a player
+     * may still order one out of their option budget. What it does not do is arrive uninvited.
+     */
+    public boolean isImprovement() {
+        return this == SPEED_20 || this == SPEED_32;
+    }
 }

@@ -158,4 +158,24 @@ public enum DroneType {
   public boolean isTypeVI() {
     return this == TypeVI || this == TypeVIM || this == TypeVIF;
   }
+
+  /**
+   * The same kind of drone at a different speed — a type-I at speed 32 is a type-IF — or null if
+   * history never fielded one.
+   *
+   * <h2>Keyed on the family, and why that is the whole point</h2>
+   * "The same kind" is what {@link Family} means: FD2.1's chart is read down the numeral and
+   * across the speed, and the four one-space standard drones (type-I, II, IM, IF) are told apart
+   * by nothing but the engine. Going through the catalogue rather than simply refitting the spec
+   * is what brings ENDURANCE along, which no rule derives from frame, propulsion or payload — a
+   * medium-speed standard drone is a type-IM with three turns of fuel, not a type-II with two.
+   * Refitting a type-II's engine in place would have produced a drone the catalogue has no entry
+   * for and the rules no line about.
+   */
+  public DroneType atSpeed(Propulsion engine) {
+    for (DroneType d : values())
+      if (d.family == family && d.spec.propulsion() == engine)
+        return d;
+    return null;
+  }
 }

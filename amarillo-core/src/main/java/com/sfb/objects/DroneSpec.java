@@ -583,6 +583,38 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
         return total;
     }
 
+    /** The same drone with a different engine fitted (FD2.22), everything else intact. */
+    public DroneSpec withPropulsion(Propulsion engine) {
+        return engine == propulsion ? this
+                : new DroneSpec(frame, engine, payload, additions, submunitionPropulsion);
+    }
+
+    /**
+     * How much of this drone's speed surcharge the SHIP's BPV carries in a given year, as
+     * against the part a player buys out of their Commander's Option budget.
+     *
+     * <h2>Two rules dividing one surcharge between two pockets</h2>
+     * S2.11 makes the year's speed the normal fitting and charges it to the ship: "ships are
+     * required to pay these charges based on the date of the scenario". S3.221 then keeps that
+     * charge outside the 20% -- "they are paid for separately" -- with one exception, which is
+     * the whole reason this is a function of the year rather than a constant: "Faster drones
+     * available as limited or restricted weapons in years prior to their general introduction
+     * are purchased as Commander's Options."
+     *
+     * <p>So the BPV carries the surcharge up to the year's generally available speed and not a
+     * point further. A speed-32 drone in Y180 is standard issue and costs a player's budget
+     * nothing; the same drone in Y179, while fast speed is still Restricted, costs its last half
+     * point out of the 20%. And a player who keeps slower drones than the year allows -- which
+     * FD2.454 lets them do, and S2.11 names the cases for -- is charged for what they fly rather
+     * than for what they could have had.
+     */
+    public double speedCostIn(int year) {
+        DroneFrame built = effectiveFrame();
+        Propulsion general = Propulsion.generalIn(year, built);
+        Propulsion covered = propulsion.speed <= general.speed ? propulsion : general;
+        return covered.surchargeOn(built);
+    }
+
     /** How many type-VI drones this one carries as its payload (FD8.21). */
     public int submunitionCount() {
         int total = 0;

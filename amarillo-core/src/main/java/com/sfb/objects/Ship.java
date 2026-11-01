@@ -205,6 +205,7 @@ public class Ship extends Unit implements DroneController {
 	private Faction faction = Faction.Federation; // The faction to which this ship belongs.
 	private int battlePointValue = 0; // BPV, a measure of how powerful the ship is in combat.
 	private int economicPointValue = 0; // EPV (split-BPV ships only); falls back to BPV if unset.
+	private int droneSpeedBpv = 0; // S2.11's mandatory drone speed charge; see getDroneSpeedBpv.
 	// Fleet-building classifications (S8.0). Used when a force is assembled, not in play.
 	private boolean leader = false;      // leader variant (S8.36)
 	private boolean escort = false;      // carrier escort (S8.311)
@@ -1054,6 +1055,38 @@ public class Ship extends Unit implements DroneController {
 
 	public int getEconomicBpv() {
 		return this.economicPointValue;
+	}
+
+	/**
+	 * What this ship pays for the speed of the drones it sails with (S2.11), held apart from the
+	 * hull BPV because two rules want it in different places.
+	 *
+	 * <blockquote>S2.11: "The BPV of all ships (unless otherwise noted) does not include the
+	 * drone speed upgrade charges; ships are required to pay these charges based on the date of
+	 * the scenario."</blockquote>
+	 *
+	 * <h2>In the victory total, out of the option budget</h2>
+	 * S2.14 lists "the cost of drone speed upgrades (FD2.22)" among the things the Gross Adjusted
+	 * BPV includes, so it counts for scoring. S3.211 takes the Commander's Option percentage of
+	 * "the ship, its refits, and its fighters, <b>but not including the cost of mandatory drone
+	 * speed upgrades</b> or crew quality adjustments", so it must not count for budgets.
+	 *
+	 * <p>Which is why this is not simply added into {@link #getBpv}. {@code CoiBudget} has
+	 * carried a note to this effect since before the charge existed: "When drone speed upgrades
+	 * arrive they must be kept OUT of this basis, or a mandatory upgrade will inflate the very
+	 * budget it is excluded from." A Kzinti CS with fast drones is 132 points to an enemy scoring
+	 * victory and 116 points to its own quartermaster.
+	 *
+	 * <p>Derived rather than declared: {@code ScenarioLoader.chargeDroneSpeed} reads it off what
+	 * is actually in the racks, and may run again after the Commander's Options have changed
+	 * them. Nothing in the ship data says it and nothing should.
+	 */
+	public int getDroneSpeedBpv() {
+		return this.droneSpeedBpv;
+	}
+
+	public void setDroneSpeedBpv(int droneSpeedBpv) {
+		this.droneSpeedBpv = droneSpeedBpv;
 	}
 
 	/**

@@ -157,8 +157,9 @@ class CoiBudgetEndpointTest {
         double remaining = budget - 5.0;
         loadout.extraTBombs = (int) (remaining / com.sfb.scenario.CoiLoadout.COST_TBOMB);
 
-        assertTrue(loadout.totalCost() <= budget,
-                "test built an over-budget loadout: " + loadout.totalCost() + " > " + budget);
+        assertTrue(loadout.totalCost(spec.year) <= budget,
+                "test built an over-budget loadout: " + loadout.totalCost(spec.year)
+                        + " > " + budget);
         assertNull(session.validateCoiBudget(Map.of("KHS Watchful", loadout)),
                 "a loadout inside the published budget must be accepted");
     }

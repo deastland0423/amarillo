@@ -757,7 +757,8 @@ public class GameSession {
                 com.sfb.scenario.CoiLoadout loadout = loadouts.get(ship.getName());
                 if (loadout == null)
                     continue;
-                String refusal = com.sfb.scenario.CoiBudget.refusalFor(ship, loadout, percent);
+                String refusal = com.sfb.scenario.CoiBudget.refusalFor(
+                        ship, loadout, percent, loadedSpec.year);
                 if (refusal != null)
                     refusals.add(refusal);
             }

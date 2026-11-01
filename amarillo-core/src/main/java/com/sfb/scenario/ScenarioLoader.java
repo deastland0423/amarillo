@@ -202,6 +202,7 @@ public class ScenarioLoader {
             applyYearUpgrades(ship, faction == null ? "" : faction, year, spec);
         applyEsgCapacitors(ship, year);
         applyFusionHolding(ship, year);
+        applyDroneSpeed(ship, year);
         // Annex #8B: "Orion disruptors with ranges more than 22 include DERFACS from Y168."
         // A year rule like the two above, not a refit. It finds nothing on an Orion built
         // today, because every Orion disruptor arrives through an option mount and mounts are
@@ -278,6 +279,106 @@ public class ScenarioLoader {
                 fusion.setHoldingSystem(hasHolding);
             }
         }
+    }
+
+    /**
+     * Fit the drones the scenario's year flies, and charge the ship for them (S2.11).
+     *
+     * <h2>The rule</h2>
+     * <blockquote>S2.11: "The BPV of all ships (unless otherwise noted) does not include the
+     * drone speed upgrade charges; ships are required to pay these charges based on the date of
+     * the scenario. Players may use slower drones in special cases (asteroids, webs, bases)
+     * where faster drones are not appropriate."</blockquote>
+     *
+     * <p>FD2.454 fills in what that means in practice, including the part that reads like a
+     * contradiction and is not: "Ships are not required to pay for the drone speed that is
+     * general availability, and might for tactical reasons have some slower drones on board...
+     * A drone-using ship used during a period when medium- or high-speed drones are used is not
+     * forced to purchase those faster drones (which in effect increases their BPV)." The year's
+     * speed is the NORMAL fitting, charged to the ship rather than to its option budget; a
+     * player may decline it and sail with something slower, which they do by naming a loadout in
+     * the Commander's Options step. FD2.454 again: "Normally, all drones on a given ship are of
+     * the same speed."
+     *
+     * <h2>What this used to do instead</h2>
+     * Nothing. {@code WeaponFactory} filled every rack with type-I-slows and no year rule ever
+     * looked at them again, so a Y185 Kzinti CVA sailed with speed-8 drones against ships moving
+     * 31 -- drones this file's own {@code DroneType} header calls "obsolete once medium-speed
+     * drones arrive in Y165". The default is the loadout most players will use, because it is
+     * what they get by not opening the drone dialog at all, and it was the worst one available.
+     *
+     * <h2>What is NOT upgraded</h2>
+     * Drones aboard fighters, scatter-packs and MRS shuttles. FD2.45 charges "a single loading of
+     * each launch rack and/or fighter", so the rule plainly reaches them; they are left for the
+     * fighter-rearming path, which stocks them from the carrier's own supply on its own terms and
+     * is where FD10.644's ready-rack accounting will have to go anyway.
+     */
+    static void applyDroneSpeed(Ship ship, int year) {
+        // No undated-year guard, unlike applyEsgCapacitors and applyUimAvailability, and that is
+        // deliberate: a year of 0 is "nobody has picked a date yet", and Propulsion.generalIn
+        // answers an undated year with the frame's own baseline -- so nothing is upgraded and
+        // nothing is owed, by arithmetic rather than by a branch. The two methods that DO guard
+        // have to, because they subtract BPV for a date that has not arrived. This one does not,
+        // and a guard here would be a line no test could tell from its absence.
+        // anUndatedShipIsLeftExactlyAsItsDataStatesIt pins the behaviour either way.
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof DroneRack rack)) continue;
+            upgradeLoad(rack.getAmmo(), year);
+            // FD2.45: "the reloads... are presumed to be of the same type without additional
+            // cost." So they follow the rack and are charged for nothing, which is also why
+            // chargeDroneSpeed below counts the loaded drones only.
+            for (List<Drone> set : rack.getReloads())
+                upgradeLoad(set, year);
+        }
+        chargeDroneSpeed(ship, year);
+    }
+
+    /** Refit one rack-load to the year's speed, in place. */
+    private static void upgradeLoad(List<Drone> load, int year) {
+        if (load == null) return;
+        for (int i = 0; i < load.size(); i++) {
+            Drone was = load.get(i);
+            if (was == null || was.getDroneType() == null || was.getSpec() == null) continue;
+            com.sfb.objects.DroneSpec spec = was.getSpec();
+            com.sfb.objects.Propulsion want =
+                    com.sfb.objects.Propulsion.generalIn(year, spec.effectiveFrame());
+            if (want.speed <= spec.propulsion().speed) continue;
+            // Through the catalogue where there is an entry, because the sibling carries the
+            // endurance with it (DroneType.atSpeed): a medium-speed standard drone is a type-IM
+            // with three turns of fuel, not a type-II with two. A drone built in the workshop
+            // (FD10.2) keeps its payload and swaps only the engine.
+            DroneType basis = was.getDroneType();
+            DroneType sibling = basis.atSpeed(want);
+            load.set(i, new Drone(sibling != null ? sibling : basis, spec.withPropulsion(want)));
+        }
+    }
+
+    /**
+     * Price the drones the ship is actually carrying, and put the figure on the ship (S2.11).
+     *
+     * <p>Idempotent, and deliberately so: it SETS the charge from what is in the racks rather
+     * than adding to it, so the Commander's Options step can call it again after swapping the
+     * year's fast drones for something slower and get the right answer rather than a double one.
+     *
+     * <p>Loaded drones only. FD2.45: "The cost of improved drones (FD2.22) is paid only for a
+     * single loading of each launch rack and/or fighter; the reloads (and drones stored on a
+     * carrier for use by its fighters) are presumed to be of the same type without additional
+     * cost." FD2.454's worked example counts the same way -- a Kzinti CS's sixteen points for
+     * fast drones is its four racks of four, not the reloads behind them.
+     *
+     * <p>Rounded half-up at the SHIP, not per rack or per drone: FD10.641 is the only rounding
+     * convention the drone rules give ("Round fractions of 0.49- down and 0.50+ up"), and a rack
+     * of three medium drones owes a point and a half whatever is in the rack beside it.
+     */
+    static void chargeDroneSpeed(Ship ship, int year) {
+        double owed = 0;
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof DroneRack rack)) continue;
+            for (Drone d : rack.getAmmo())
+                if (d != null && d.getSpec() != null)
+                    owed += d.getSpec().speedCostIn(year);
+        }
+        ship.setDroneSpeedBpv((int) Math.round(owed));
     }
 
     /** BPV a single UIM is worth (D6.5), read off the "u" refit variants. */
@@ -933,6 +1034,14 @@ public class ScenarioLoader {
         // for what is counted and the two things that are not.
         for (String violation : DroneAvailabilityLimit.violations(ship, spec.year))
             note(ship, "COI: " + violation);
+
+        // S2.11's charge follows what the ship is ACTUALLY carrying, so re-derive it now that
+        // the racks hold their final loads. A player who swapped the year's fast drones for
+        // something slower -- which FD2.454 lets them do, "might for tactical reasons have some
+        // slower drones on board" -- stops paying for speed they no longer have. Idempotent by
+        // construction: it sets the figure rather than adding to it, so running after
+        // applyDroneSpeed already ran cannot double-charge.
+        chargeDroneSpeed(ship, spec.year);
 
         // Record the COI spend so the enemy is awarded these points at scenario end
         // (S2.20 step B). Option-mount weapon costs are excluded — they ride the ship's

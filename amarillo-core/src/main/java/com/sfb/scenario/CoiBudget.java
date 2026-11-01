@@ -24,10 +24,11 @@ import com.sfb.objects.shuttles.Shuttle;
  *   <li><b>plus its fighters</b>, which the hull BPV does NOT include — a Kzinti CV is 147 with
  *       twelve 6-point AAS aboard, so its true basis is 219 and its budget 43, not 29.</li>
  * </ul>
- * The two exclusions need no code yet: neither mandatory drone speed upgrades (S3.211, see the
- * drone-cost work) nor crew quality adjustments are implemented. When drone speed upgrades
- * arrive they must be kept OUT of this basis, or a mandatory upgrade will inflate the very
- * budget it is excluded from.
+ * Of the two exclusions, the first now has code and is honoured by omission: a ship's mandatory
+ * drone speed charge lives on {@link Ship#getDroneSpeedBpv} rather than in its BPV, precisely so
+ * that nothing here has to remember to take it out again. Crew quality adjustments are still
+ * unimplemented and will want the same treatment when they arrive -- a figure of their own, not
+ * a number folded into the hull.
  */
 public final class CoiBudget {
 
@@ -136,11 +137,14 @@ public final class CoiBudget {
      * <p>
      * Phrased for a player rather than a log: it names the ship, what the loadout costs and what
      * the ship had to spend, because "over budget" alone leaves them to work out by how much.
+     *
+     * @param year the scenario's year, which decides how much of a drone loadout the budget pays
+     *             for at all (S3.221) -- see {@link CoiLoadout#droneUpgradeCost}
      */
-    public static String refusalFor(Ship ship, CoiLoadout loadout, int percent) {
+    public static String refusalFor(Ship ship, CoiLoadout loadout, int percent, int year) {
         if (ship == null || loadout == null) return null;
         double allowance = allowanceFor(ship, percent);
-        double cost = loadout.totalCost();
+        double cost = loadout.totalCost(year);
         if (cost <= allowance) return null;
         return ship.getName() + " spends " + trim(cost)
                 + " on Commander's Options but may spend only " + trim(allowance)

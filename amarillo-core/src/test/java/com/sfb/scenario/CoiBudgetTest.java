@@ -97,12 +97,18 @@ public class CoiBudgetTest {
         assertEquals(CoiBudget.allowanceFor(bc, 20), CoiBudget.allowanceFor(bc), 0.001);
     }
 
+    /**
+     * Any year will do here: the drone bill is the only line a year changes (S3.221), and not
+     * one loadout in this class buys a drone.
+     */
+    private static final int YEAR = 180;
+
     @Test
     public void nullsAreToleratedRatherThanThrown() {
         assertEquals(0, CoiBudget.carriedFighterBpv(null));
         assertEquals(0.0, CoiBudget.effectiveAdjustedCombatBpv(null), 0.001);
-        assertNull(CoiBudget.refusalFor(null, new CoiLoadout(), 20));
-        assertNull(CoiBudget.refusalFor(kzintiBc(), null, 20));
+        assertNull(CoiBudget.refusalFor(null, new CoiLoadout(), 20, YEAR));
+        assertNull(CoiBudget.refusalFor(kzintiBc(), null, 20, YEAR));
     }
 
     // ---------------------------------------------------------------- the refusal
@@ -112,8 +118,8 @@ public class CoiBudgetTest {
         Ship bc = kzintiBc();                 // allowance 25
         CoiLoadout loadout = new CoiLoadout();
         loadout.extraTBombs = 6;              // 24
-        assertEquals(24.0, loadout.totalCost(), 0.001);
-        assertNull(CoiBudget.refusalFor(bc, loadout, 20));
+        assertEquals(24.0, loadout.totalCost(YEAR), 0.001);
+        assertNull(CoiBudget.refusalFor(bc, loadout, 20, YEAR));
     }
 
     @Test
@@ -122,8 +128,8 @@ public class CoiBudgetTest {
         CoiLoadout loadout = new CoiLoadout();
         loadout.extraTBombs = 6;              // 24
         loadout.extraBoardingParties = 2;     // 1 → 25 exactly
-        assertEquals(25.0, loadout.totalCost(), 0.001);
-        assertNull("the limit is inclusive", CoiBudget.refusalFor(bc, loadout, 20));
+        assertEquals(25.0, loadout.totalCost(YEAR), 0.001);
+        assertNull("the limit is inclusive", CoiBudget.refusalFor(bc, loadout, 20, YEAR));
     }
 
     @Test
@@ -132,7 +138,7 @@ public class CoiBudgetTest {
         CoiLoadout loadout = new CoiLoadout();
         loadout.extraTBombs = 7;              // 28
 
-        String refusal = CoiBudget.refusalFor(bc, loadout, 20);
+        String refusal = CoiBudget.refusalFor(bc, loadout, 20, YEAR);
         assertNotNull(refusal);
         assertTrue("names the ship: " + refusal, refusal.contains("KHS Longsword"));
         assertTrue("says what it costs: " + refusal, refusal.contains("28"));
@@ -150,11 +156,11 @@ public class CoiBudgetTest {
         loadout.extraTBombs = 7;              // 28
 
         Ship bare = kzintiBc();
-        assertNotNull("25 of budget cannot buy 28", CoiBudget.refusalFor(bare, loadout, 20));
+        assertNotNull("25 of budget cannot buy 28", CoiBudget.refusalFor(bare, loadout, 20, YEAR));
 
         Ship cv = kzintiBc();
         addFighters(cv, 12);                  // basis 200, allowance 40
-        assertNull("40 of budget can", CoiBudget.refusalFor(cv, loadout, 20));
+        assertNull("40 of budget can", CoiBudget.refusalFor(cv, loadout, 20, YEAR));
     }
 
     @Test
@@ -166,16 +172,16 @@ public class CoiBudgetTest {
         loadout.extraCommandoSquads = 2;      // 2.0
         loadout.extraDeckCrews = 4;           // 2.0
         loadout.extraTBombs = 4;              // 16.0
-        assertEquals(26.0, loadout.totalCost(), 0.001);
-        assertNotNull("26 over an allowance of 25", CoiBudget.refusalFor(bc, loadout, 20));
+        assertEquals(26.0, loadout.totalCost(YEAR), 0.001);
+        assertNotNull("26 over an allowance of 25", CoiBudget.refusalFor(bc, loadout, 20, YEAR));
     }
 
     /** An empty loadout costs nothing and is always affordable, budget or no budget. */
     @Test
     public void anEmptyLoadoutIsAlwaysAffordable() {
         Ship bc = kzintiBc();
-        assertEquals(0.0, new CoiLoadout().totalCost(), 0.001);
-        assertNull(CoiBudget.refusalFor(bc, new CoiLoadout(), 0));
+        assertEquals(0.0, new CoiLoadout().totalCost(YEAR), 0.001);
+        assertNull(CoiBudget.refusalFor(bc, new CoiLoadout(), 0, YEAR));
     }
 
     // ---------------------------------------------------------------- the old callers agree

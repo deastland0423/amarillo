@@ -176,14 +176,19 @@ public class CoiLoadout {
     public static final int MAX_EXTRA_COMMANDOS       = 2;
     public static final int MAX_EXTRA_DECK_CREWS      = 4;
 
-    /** Total BPV cost of this loadout. */
-    public double totalCost() {
+    /**
+     * Total BPV cost of this loadout, against the ship's Commander's Option budget.
+     *
+     * @param year the scenario's year, which decides how much of the drone bill the SHIP pays
+     *             rather than the budget (S3.221); see {@link #droneUpgradeCost}
+     */
+    public double totalCost(int year) {
         return extraBoardingParties * COST_EXTRA_BP
              + convertBpToCommando  * COST_CONVERT_TO_COMMANDO
              + extraCommandoSquads  * COST_EXTRA_COMMANDO
              + extraTBombs          * COST_TBOMB
              + extraDeckCrews       * COST_EXTRA_DECK_CREW
-             + droneUpgradeCost();
+             + droneUpgradeCost(year);
     }
 
     /**
@@ -221,23 +226,42 @@ public class CoiLoadout {
      * answer for every other type. A starbase COI that fills a twenty-space H-rack would be
      * overcharged, and that is the case to fix first if H-racks ever reach the builder.
      *
+     * <h2>What the SHIP pays instead, and why the year is a parameter</h2>
+     * The baseline is not the whole of what this does not charge for. S3.221: "Drone speed
+     * upgrade charges are not included within the limit on Commander's Options (they are paid
+     * for separately or included in the victory conditions of a fixed scenario). Exception:
+     * Faster drones available as limited or restricted weapons in years prior to their general
+     * introduction are purchased as Commander's Options." So the speed the scenario's year flies
+     * is on the ship's bill ({@code Ship.getDroneSpeedBpv}), and only speed bought AHEAD of its
+     * general availability falls here -- which is what makes this a function of the year.
+     *
+     * <p>A rack of type-IFs in Y180 therefore costs a player's budget nothing: fast drones are
+     * standard issue, the ship is charged for them, and {@code ScenarioLoader.applyDroneSpeed}
+     * had already loaded them before the player asked. The same rack in Y179 costs half a point
+     * per drone, fast speed being Restricted that year. Before this took a year, both cost a
+     * point per drone out of the 20% -- the budget paying a bill S3.211 excludes from the very
+     * figure it is a percentage of.
+     *
      * <h2>No refunds</h2>
      * A loadout cheaper than the baseline — null drones (FD10.48) cost 0.75 where a type-I-slow
      * costs 1.00 — contributes zero rather than a credit. FD2.22 calls these "surcharges" and
      * nothing in the rules offers points back for arming a ship worse than it came.
      */
-    public double droneUpgradeCost() {
+    public double droneUpgradeCost(int year) {
         double total = 0;
         for (List<DroneLoad> rack : droneRackLoadouts.values()) {
             if (rack == null || rack.isEmpty())
                 continue;
             double loaded = 0;
-            double spaces = 0;
+            double free = 0;
             for (DroneLoad d : rack) {
                 loaded += d.pointCost();
-                spaces += d.rackSpaces();
+                // The spaces the hull's own type-I-slows filled, plus the speed the scenario's
+                // year puts on them at the ship's expense rather than the budget's (S3.221).
+                free += d.rackSpaces() * TYPE_I_SLOW_COST_PER_SPACE
+                      + d.spec().speedCostIn(year);
             }
-            total += Math.max(0, loaded - spaces * TYPE_I_SLOW_COST_PER_SPACE);
+            total += Math.max(0, loaded - free);
         }
         return total;
     }
@@ -259,8 +283,8 @@ public class CoiLoadout {
     /**
      * True if this loadout's cost is within the allowed budget.
      */
-    public boolean isWithinBudget(int shipBpv, int budgetPercent) {
-        return totalCost() <= budget(shipBpv, budgetPercent);
+    public boolean isWithinBudget(int shipBpv, int budgetPercent, int year) {
+        return totalCost(year) <= budget(shipBpv, budgetPercent);
     }
 
     /**

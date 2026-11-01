@@ -41,7 +41,7 @@ public class CoiDeckCrewTest {
 
         CoiLoadout loadout = new CoiLoadout();
         loadout.extraDeckCrews = 4;
-        assertEquals("four crews for two points", 2.0, loadout.totalCost(), 0.001);
+        assertEquals("four crews for two points", 2.0, loadout.totalCost(180), 0.001);
 
         ScenarioLoader.applyCoi(rn, loadout, generousScenario());
 

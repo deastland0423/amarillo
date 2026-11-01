@@ -131,9 +131,9 @@ public class CoiComposedDroneTest {
         CoiLoadout loadout = rackLoad("TypeI+SWORDFISH_PHASER3");
 
         assertEquals("1.50 for the drone less the 1.00 already in the ship's BPV",
-                0.50, loadout.droneUpgradeCost(), 0.0001);
+                0.50, loadout.droneUpgradeCost(180), 0.0001);
         assertEquals("and it is in the total the server checks the budget against",
-                0.50, loadout.totalCost(), 0.0001);
+                0.50, loadout.totalCost(180), 0.0001);
     }
 
     /**
@@ -150,7 +150,7 @@ public class CoiComposedDroneTest {
         CoiLoadout loadout =
                 rackLoad("TypeIV+ARMOR_HALF+ARMOR_HALF+ARMOR_HALF+EXPLOSIVE_HALF");
 
-        assertEquals(0.0, loadout.droneUpgradeCost(), 0.0001);
+        assertEquals(0.0, loadout.droneUpgradeCost(180), 0.0001);
     }
 
     // ------------------------------------------------------------------ it is capped
