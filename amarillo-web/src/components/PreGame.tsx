@@ -61,6 +61,8 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   const [coiWarnings,     setCoiWarnings]     = useState<string[]>([]);
 
   const [error,  setError]  = useState('');
+  /** Something worth saying that is not a failure — see the yearNote below. */
+  const [notice, setNotice] = useState('');
   const [busy,   setBusy]   = useState(false);
 
   // ---- Load scenario list ----
@@ -143,7 +145,7 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
 
   async function handleFleetBattle() {
     if (chosenFleets.length === 0) { setError('Choose at least one fleet.'); return; }
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setNotice('');
     try {
       const res = await gameApi.loadFleetsIntoGame(session.gameId, session.playerToken, {
         scenarioId: situationId || undefined,
@@ -154,7 +156,10 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
         terrain: fleetTerrain,
       });
       setError('');
-      void res;
+      // The situation's date binds the fleets brought to it, and may not be the year the host
+      // typed. Shown rather than discarded: the battle they get is fought in a different decade
+      // from the one on the form, and every refit and drone aboard follows from it.
+      setNotice(res.yearNote ?? '');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not assemble the battle.');
     } finally {
@@ -541,6 +546,7 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
         )}
 
         {error && <p className="error">{error}</p>}
+        {notice && <p className="coi-note">{notice}</p>}
 
         {/*
           Leave is OUTSIDE the host's Start row, and that is the whole point of this block.

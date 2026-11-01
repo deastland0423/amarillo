@@ -757,6 +757,12 @@ export const gameApi = {
     fleets: Array<{ fleetId: string; name: string; legal: boolean }>;
     terrain: string;
     terrainSeed: number;
+    /**
+     * Present when a written situation's own date overruled the year the host asked for
+     * (S8.131). The situation is a historical moment, so its date binds the fleets brought to
+     * it -- but being judged against a year you did not type would otherwise be a mystery.
+     */
+    yearNote?: string;
   }> {
     return request(`/api/games/${gameId}/fleets`, {
       method: 'POST',

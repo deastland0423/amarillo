@@ -614,6 +614,22 @@ public class GameController {
 
             com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
 
+            // A WRITTEN situation's date is binding (S8.131). A situation is a historical
+            // moment, so bringing a fleet from a later decade to it is the same error as
+            // bringing a ship that does not exist yet -- and the drone speed a ship sails with
+            // is fitted from this year too (S2.11), so a disagreement arms the fleet for one
+            // decade and judges it in another.
+            //
+            // A situation may state NO year, which is the general case: "a convoy meets a
+            // raider" is not a date, and then the players settle it when they build their
+            // fleets. Zero means not said, as it does everywhere else here.
+            int effectiveYear = template != null && template.year > 0 ? template.year : req.year;
+            String yearNote = template != null && template.year > 0 && req.year > 0
+                    && req.year != template.year
+                    ? template.name + " is set in Y" + template.year
+                            + ", so the fleets are judged against that rather than Y" + req.year
+                    : null;
+
             List<com.sfb.scenario.FleetsToScenario.Entry> entries = new ArrayList<>();
             List<Map<String, Object>> reports = new ArrayList<>();
             boolean allLegal = true;
@@ -641,7 +657,7 @@ public class GameController {
                 asPlayed.factions = fleet.factions;
                 asPlayed.flagship = fleet.flagship;
                 asPlayed.ships = fleet.ships;
-                asPlayed.year = req.year > 0 ? req.year : fleet.year;
+                asPlayed.year = effectiveYear > 0 ? effectiveYear : fleet.year;
                 asPlayed.budget = req.budget > 0 ? req.budget : fleet.budget;
 
                 Map<String, Object> verdict = judge(asPlayed);
@@ -664,6 +680,9 @@ public class GameController {
                 Map<String, Object> body = new java.util.LinkedHashMap<>();
                 body.put("error", "One or more fleets are not legal for these conditions");
                 body.put("fleets", reports);
+                // Overruling what the host asked for without saying so would make an illegal
+                // fleet look like a mystery: they typed one year and were judged on another.
+                if (yearNote != null) body.put("yearNote", yearNote);
                 return ResponseEntity.badRequest().body(body);
             }
 
@@ -674,8 +693,8 @@ public class GameController {
 
             com.sfb.scenario.FleetsToScenario.Conditions conditions =
                     new com.sfb.scenario.FleetsToScenario.Conditions(
-                            req.year, req.budget, req.mapCols, req.mapRows, req.weaponStatus,
-                            terrain);
+                            effectiveYear, req.budget, req.mapCols, req.mapRows,
+                            req.weaponStatus, terrain);
 
             if (template == null)
                 template = com.sfb.scenario.FleetsToScenario.pickupTemplate(entries, conditions);
@@ -688,6 +707,10 @@ public class GameController {
             body.put("fleets", reports);
             body.put("terrain", req.terrain != null ? req.terrain : "OPEN_SPACE");
             body.put("terrainSeed", terrainSeed);   // so a host can lay the same map again
+            // The host asked for one year and the situation imposed another. They are entitled
+            // to know on the way IN, not only when a fleet is refused: a legal battle fought in
+            // a decade nobody typed is the quieter half of the same surprise.
+            if (yearNote != null) body.put("yearNote", yearNote);
             return ResponseEntity.ok(body);
         });
     }
