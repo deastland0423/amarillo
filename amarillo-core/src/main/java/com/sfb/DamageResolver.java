@@ -383,7 +383,8 @@ class DamageResolver {
                 int roll = new com.sfb.utilities.DiceRoller().rollOneDie();
                 shuttle.setCurrentHull(Math.max(0, shuttle.getCurrentHull() - roll));
                 if (shuttle.getCurrentHull() <= 0) {
-                    if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                    if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle liveWw
+                            && !liveWw.isVoided()) {
                         // J3.21: a destroyed WW is NOT removed (and not voided) — it flips
                         // to its 4-impulse explosion period; ECM continues (J3.2111) and
                         // seekers keep following it. Post-explosion pockets can't die again.
@@ -406,7 +407,8 @@ class DamageResolver {
             }
             shuttle.setCurrentHull(Math.max(0, shuttle.getCurrentHull() - damage));
             if (shuttle.getCurrentHull() <= 0) {
-                if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle liveWw
+                        && !liveWw.isVoided()) {
                     // J3.21: a destroyed WW is NOT removed (and not voided) — it flips
                     // to its 4-impulse explosion period; ECM continues (J3.2111) and
                     // seekers keep following it. Post-explosion pockets can't die again.

@@ -13,6 +13,7 @@ import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
+import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.objects.shuttles.WildWeaselShuttle;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
@@ -220,37 +221,45 @@ public class WildWeaselRevertTest {
 
     /**
      * J3.203. The weapon never had a quarrel with the ship, so voiding the decoy gives it
-     * nothing to transfer to — and a voided weasel leaves the map, so it has nothing left to
-     * chase at all and goes inert (FD1.7).
+     * nothing to transfer to — and J3.221 leaves the shuttle in space, so it simply carries
+     * on after the thing it was aimed at.
      */
     @Test
     public void aDroneAimedAtTheWeaselDoesNotRevertToTheShip() {
         droneFixture();
-        Drone d = launchDroneAt(weasel(), DroneType.TypeI);
+        WildWeaselShuttle ww = weasel();
+        Drone d = launchDroneAt(ww, DroneType.TypeI);
 
-        assertEquals("fixture: it is chasing the decoy", weasel(), d.getTarget());
+        assertEquals("fixture: it is chasing the decoy", ww, d.getTarget());
         assertFalse("but nothing drew it there", d.isDivertedToDecoy());
 
         game.voidWildWeasel(decoyed);
 
         assertNotEquals("J3.203: it does not revert to the protected ship",
                 decoyed, d.getTarget());
-        assertFalse("FD1.7: nothing left to chase", inPlay(d));
+        assertEquals("J3.221: the shuttle is still out there, so it keeps after it",
+                ww, d.getTarget());
+        assertTrue("and 'out there' means it: voiding is not destruction (J3.221)",
+                game.getActiveShuttles().contains((Shuttle) ww));
+        assertTrue(inPlay(d));
     }
 
     /** And the same for a torpedo deliberately spent on the decoy. */
     @Test
     public void aTorpedoAimedAtTheWeaselDoesNotRevertToTheShip() {
         plasmaFixture();
-        PlasmaTorpedo t = launchPlasmaAt(weasel());
+        WildWeaselShuttle ww = weasel();
+        PlasmaTorpedo t = launchPlasmaAt(ww);
 
-        assertEquals(weasel(), t.getTarget());
+        assertEquals(ww, t.getTarget());
         assertFalse(t.isDivertedToDecoy());
 
         game.voidWildWeasel(decoyed);
 
         assertNotEquals(decoyed, t.getTarget());
-        assertFalse(inPlay(t));
+        assertEquals(ww, t.getTarget());
+        assertTrue(game.getActiveShuttles().contains((Shuttle) ww));
+        assertTrue(inPlay(t));
     }
 
     /**
@@ -260,15 +269,17 @@ public class WildWeaselRevertTest {
     @Test
     public void twoDronesOnTheSameDecoyPartCompany() {
         droneFixture();
+        WildWeaselShuttle ww = weasel();
         Drone drawn = launchDroneAt(decoyed, DroneType.TypeI);
-        Drone aimed = launchDroneAt(consort, weasel(), DroneType.TypeI);
+        Drone aimed = launchDroneAt(consort, ww, DroneType.TypeI);
         assertEquals("fixture: both chasing the decoy", drawn.getTarget(), aimed.getTarget());
 
         game.voidWildWeasel(decoyed);
 
-        assertEquals(decoyed, drawn.getTarget());
+        assertEquals("drawn off, so it goes home (J3.22)", decoyed, drawn.getTarget());
+        assertEquals("aimed at the decoy, so it stays with it (J3.203)", ww, aimed.getTarget());
         assertTrue(inPlay(drawn));
-        assertFalse(inPlay(aimed));
+        assertTrue(inPlay(aimed));
     }
 
     // ------------------------------------------------- FD5.131, now asked at launch too

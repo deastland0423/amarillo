@@ -152,20 +152,25 @@ public class DogfightDroneNonDistractionTest {
      * is voided or destroyed."
      *
      * <p>A drone that was already chasing the weasel when it won its own lock-on knows the
-     * weasel and nothing else. With the weasel gone it has nothing left to chase, so it goes
-     * inert (FD1.7) rather than turning on the ship.
+     * weasel and nothing else. J3.221 leaves the voided shuttle in space — "the shuttle
+     * continues to move as per its original instructions (J3.111) until it is destroyed or
+     * recovered by any means" — so it keeps after the weasel rather than turning on the ship.
      */
     @Test
     public void aDogfightDroneDoesNotRevertFromAVoidedWeasel() {
         Drone green = dogfightDroneChasingFed(false);
         launchWeasel();
-        assertEquals("fixture: on the weasel", fed.getActiveWildWeasel(), green.getTarget());
+        com.sfb.objects.shuttles.WildWeaselShuttle ww = fed.getActiveWildWeasel();
+        assertEquals("fixture: on the weasel", ww, green.getTarget());
 
         green.acquireOwnLockOn();           // it locks on to the weasel it is chasing
         game.voidWildWeasel(fed);
 
-        assertFalse("FD5.131: it does not come back for the ship",
-                game.getSeekers().contains((Seeker) green));
+        assertNotEquals("FD5.131: it does not come back for the ship", fed, green.getTarget());
+        assertEquals("J3.221: and the weasel is still there to chase", ww, green.getTarget());
+        assertTrue("which is only true because voiding is not destruction (J3.221)",
+                game.getActiveShuttles().contains((com.sfb.objects.shuttles.Shuttle) ww));
+        assertTrue(game.getSeekers().contains((Seeker) green));
     }
 
     /** Everything else does revert, which is the J3.13x behaviour this must not disturb. */

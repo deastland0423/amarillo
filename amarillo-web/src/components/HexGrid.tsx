@@ -830,7 +830,7 @@ function drawObjects(
         ctx.stroke();
         ctx.setLineDash([]);
       } else {
-        // Active WW — shuttle token + purple ring
+        // The craft itself, active or voided
         if (wwToken) {
           ctx.translate(cx, cy);
           ctx.rotate(angle + Math.PI / 2);
@@ -842,13 +842,18 @@ function drawObjects(
           ctx.arc(cx, cy, imgR, 0, 2 * Math.PI);
           ctx.fill();
         }
-        ctx.strokeStyle = '#a78bfa';
-        ctx.lineWidth   = 2;
-        ctx.setLineDash([4, 3]);
-        ctx.beginPath();
-        ctx.arc(cx, cy, ringR, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        // The purple ring is the decoy field, so a voided weasel does not get one: it has
+        // "ceased to function" (J3.22) and is an ordinary shuttle still flying its course
+        // (J3.221). Drawing the ring would promise protection that is no longer there.
+        if (!ww.voided) {
+          ctx.strokeStyle = '#a78bfa';
+          ctx.lineWidth   = 2;
+          ctx.setLineDash([4, 3]);
+          ctx.beginPath();
+          ctx.arc(cx, cy, ringR, 0, 2 * Math.PI);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
       }
 
       ctx.restore();
@@ -1027,6 +1032,7 @@ function shuttleTooltipLines(
   if (shuttle.type === 'WILD_WEASEL') {
     if (shuttle.exploding)          lines.push('Status:   EXPLODING (J3.21)');
     else if (shuttle.postExplosion) lines.push('Status:   spent');
+    else if (shuttle.voided)        lines.push('Status:   voided (J3.22)');
   }
   // G4.233: what a lab or a scout channel bought. A seeking course narrows an enemy
   // shuttle to a suicide shuttle or a scatter pack without saying which — that is the

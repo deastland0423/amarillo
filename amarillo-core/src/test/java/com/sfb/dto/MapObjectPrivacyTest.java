@@ -142,8 +142,13 @@ public class MapObjectPrivacyTest {
         rule(GameStateDto.PlasmaTorpedoDto.class, Visibility.REVEALED, "targetName");
 
         // ---- Wild weasel: public from launch, its interference announcing it (J3.0).
+        // "voided" is public for the same reason: a weasel that has ceased to function
+        // (J3.22) stops producing its six points of ECM and stops taking seeking weapons off
+        // the ship, both of which the other player watches happen. It is still a craft in
+        // flight (J3.221), and that it is no longer a decoy is not a secret.
         rule(GameStateDto.WildWeaselDto.class, Visibility.PUBLIC,
-            "facing", "speed", "parentShipName", "parentPlayer", "exploding", "postExplosion");
+            "facing", "speed", "parentShipName", "parentPlayer", "exploding", "postExplosion",
+            "voided");
 
         // ---- Mines placed during a battle are seen by everyone; whether one is real is
         // never sent at all. Pre-battle minefields will be owner-only and are not built.

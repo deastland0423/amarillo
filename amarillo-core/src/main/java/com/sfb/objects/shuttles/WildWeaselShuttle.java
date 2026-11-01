@@ -19,6 +19,24 @@ public class WildWeaselShuttle extends Shuttle {
     private boolean postExplosion  = false;
     private int explosionEndsAtImpulse = -1;
 
+    /**
+     * J3.22: set once this weasel has ceased to function — but NOT been destroyed.
+     *
+     * <blockquote>J3.221: "A voided WW is <b>not destroyed</b> merely as a result of this
+     * voiding. In such case, the shuttle continues to move as per its original instructions
+     * (J3.111) until it is destroyed or recovered by any means. The shuttle can be recovered
+     * by tractor (J1.62), or a pilot could be transported aboard; see (J1.86)."</blockquote>
+     *
+     * <p>So this is a live craft that is no longer a decoy. It still flies its pre-set course,
+     * it can still be shot at — J3.22's own cross-reference calls firing on it a way "to
+     * prevent its capture" — and it is worth ten victory points to an enemy that recovers it
+     * (J3.222), because of what is in its computers. What it no longer does is any of the
+     * things that made it a weasel: no ECM (J3.23), nothing diverted to it (J3.201), and no
+     * explosion period if a seeking weapon reaches it, there being no electronic field left to
+     * detonate one (J3.30).
+     */
+    private boolean voided = false;
+
     public WildWeaselShuttle(Ship parentShip) {
         this.parentShip = parentShip;
         setHull(6);
@@ -61,6 +79,11 @@ public class WildWeaselShuttle extends Shuttle {
 
     public boolean isExploding()     { return exploding; }
     public boolean isPostExplosion() { return postExplosion; }
+
+    /** J3.22: whether this weasel has ceased to function. See {@link #voided}. */
+    public boolean isVoided()        { return voided; }
+
+    public void setVoided(boolean voided) { this.voided = voided; }
 
     /** True once the 4-impulse explosion duration has elapsed. */
     public boolean isExplosionOver(int currentImpulse) {
@@ -140,6 +163,10 @@ public class WildWeaselShuttle extends Shuttle {
         state.put("exploding", exploding);
         state.put("postExplosion", postExplosion);
         state.put("explosionEndsAtImpulse", explosionEndsAtImpulse);
+        // J3.221, and the one piece of this a loader must not get wrong: a voided weasel is
+        // still a craft in flight, but it is NOT its ship's active decoy. Game.applyState
+        // reads this before deciding whether to hand it back.
+        state.put("voided", voided);
         return state;
     }
 
@@ -152,5 +179,6 @@ public class WildWeaselShuttle extends Shuttle {
         postExplosion = com.sfb.systemgroups.StateIo.flag(state, "postExplosion", postExplosion);
         explosionEndsAtImpulse = com.sfb.systemgroups.StateIo.integer(state,
                 "explosionEndsAtImpulse", explosionEndsAtImpulse);
+        voided = com.sfb.systemgroups.StateIo.flag(state, "voided", voided);
     }
 }

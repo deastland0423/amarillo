@@ -2857,7 +2857,11 @@ public class Game {
                         new com.sfb.objects.shuttles.WildWeaselShuttle(parent);
                 weasel.applyState(saved);
                 craft = weasel;
-                parent.setActiveWildWeasel(weasel);
+                // J3.221: a voided weasel comes back as what it is, a craft still flying its
+                // course, and NOT as the ship's active decoy. Handing it back would restore
+                // six points of ECM (J3.23) the ship stopped being entitled to.
+                if (!weasel.isVoided())
+                    parent.setActiveWildWeasel(weasel);
             } else {
                 craft = com.sfb.objects.shuttles.Shuttle.fromState(saved);
                 if (craft == null) {

@@ -88,7 +88,9 @@ public class WildWeaselRangeTest {
         Game.ActionResult r = game.advancePhase();
 
         assertNull("WW beyond 35 hexes must be voided (J3.13)", fed.getActiveWildWeasel());
-        assertFalse(game.getActiveShuttles().contains(ww));
+        assertTrue("J3.221: voiding is not destruction, so the shuttle is still out there",
+                game.getActiveShuttles().contains(ww));
+        assertTrue(ww.isVoided());
         assertTrue("Log must explain the void: " + r.getMessage(),
                 r.getMessage().contains("voided (J3.13)"));
     }

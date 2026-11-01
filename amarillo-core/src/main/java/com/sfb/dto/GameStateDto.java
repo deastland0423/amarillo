@@ -83,6 +83,7 @@ public class GameStateDto {
         public String parentPlayer;
         public boolean exploding;
         public boolean postExplosion;
+        public boolean voided;
     }
 
     // -------------------------------------------------------------------------
@@ -2732,6 +2733,10 @@ public class GameStateDto {
         dto.parentPlayer = ww.getOwner() != null ? ww.getOwner().getName() : null;
         dto.exploding = ww.isExploding();
         dto.postExplosion = ww.isPostExplosion();
+        // J3.221: still a craft in space, no longer a decoy. Not secret -- a weasel is
+        // "immediately detectable as such when launched" (J3.17), and what it stopped doing
+        // is plain from the outside.
+        dto.voided = ww.isVoided();
         return dto;
     }
 

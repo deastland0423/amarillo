@@ -163,6 +163,11 @@ class ShuttleMover {
         for (Shuttle shuttle : new ArrayList<>(activeShuttles)) {
             if (!(shuttle instanceof WildWeaselShuttle))
                 continue;
+            // J3.221: a voided weasel is still out here flying its course, but there is
+            // nothing left to void. Without this the range check would announce the same
+            // voiding every impulse for the rest of the game.
+            if (((WildWeaselShuttle) shuttle).isVoided())
+                continue;
             Ship parent = ((WildWeaselShuttle) shuttle).getParentShip();
             if (parent == null || parent.getLocation() == null || shuttle.getLocation() == null)
                 continue;

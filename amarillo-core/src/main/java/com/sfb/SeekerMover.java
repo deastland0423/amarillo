@@ -59,7 +59,7 @@ class SeekerMover {
         // (otherwise a weasel whose pursuers all expired mid-explosion would stay
         // "exploding" — with full ECM — forever).
         boolean wwPresent = activeShuttles.stream()
-                .anyMatch(sh -> sh instanceof WildWeaselShuttle);
+                .anyMatch(sh -> sh instanceof WildWeaselShuttle ww && !ww.isVoided());
         if (seekers.isEmpty() && !wwPresent)
             return log;
 
@@ -164,7 +164,8 @@ class SeekerMover {
                                 + droneLabel(targetDrone) + " — both destroyed");
                         expired.add(seeker);
                         expired.add(targetDrone);
-                    } else if (target instanceof WildWeaselShuttle) {
+                    } else if (target instanceof WildWeaselShuttle liveWw
+                            && !liveWw.isVoided()) {
                         WildWeaselShuttle ww = (WildWeaselShuttle) target;
                         if (!ww.isExploding()) {
                             ww.startExplosion(impulse);
@@ -298,7 +299,7 @@ class SeekerMover {
                 // untouched — which IS the rule: it "will normally never explode" (F4.21).
                 if (target != null && target.getLocation() != null
                         && ss.getLocation().equals(target.getLocation())) {
-                    if (target instanceof WildWeaselShuttle) {
+                    if (target instanceof WildWeaselShuttle liveWw && !liveWw.isVoided()) {
                         WildWeaselShuttle ww = (WildWeaselShuttle) target;
                         if (!ww.isExploding()) {
                             ww.startExplosion(impulse);
@@ -363,7 +364,7 @@ class SeekerMover {
 
                 if (target != null && target.getLocation() != null
                         && torp.getLocation().equals(target.getLocation())) {
-                    if (target instanceof WildWeaselShuttle) {
+                    if (target instanceof WildWeaselShuttle liveWw && !liveWw.isVoided()) {
                         WildWeaselShuttle ww = (WildWeaselShuttle) target;
                         if (!ww.isExploding()) {
                             ww.startExplosion(impulse);

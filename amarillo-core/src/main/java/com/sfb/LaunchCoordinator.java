@@ -283,19 +283,34 @@ class LaunchCoordinator {
      *       launched them and no other", so the parent IS the target each of these was
      *       diverted from.</li>
      *   <li><b>Aimed at the weasel in its own right</b> (J3.203) — does not revert. It never
-     *       had a quarrel with the ship, and the voided decoy leaves the map, so it is left
-     *       with nothing to chase.</li>
+     *       had a quarrel with the ship, and J3.221 leaves the shuttle in space, so it simply
+     *       carries on after it.</li>
      *   <li><b>A dogfight drone with its own lock-on</b> (FD5.131) — "Type-VIs targeted on a
      *       WW will not revert to their original target if the WW is voided or destroyed."
      *       It was already tracking the weasel when it won that lock-on, so the weasel is what
-     *       it knows.</li>
+     *       it knows, and it keeps after it.</li>
      * </ul>
-     * The last two end the same way: inert, off the board (FD1.7).
+     *
+     * <h2>And the weasel itself stays</h2>
+     * J3.221: "A voided WW is <b>not destroyed</b> merely as a result of this voiding. In such
+     * case, the shuttle continues to move as per its original instructions (J3.111) until it is
+     * destroyed or recovered by any means." Which is why the last two outcomes above are
+     * "carries on" and not "goes inert": there is still something there to chase.
+     *
+     * <p>A weasel that was already DESTROYED is the other case, and it does leave. J3.212 keeps
+     * its counter on the map only "until all seeking weapons targeted on the WW have reached
+     * the explosion hex, accepted other targets, or reached the limit of their endurance" —
+     * and voiding sends the last of them away, so nothing is left to hold it there.
      */
     public void voidWildWeasel(Ship ship) {
         com.sfb.objects.shuttles.WildWeaselShuttle ww = ship.getActiveWildWeasel();
         if (ww == null)
             return;
+
+        // J3.21/J3.212: whether this weasel is a dying one. It decides what happens to the
+        // weapons with no original target to go back to, because it decides whether the hex
+        // they are chasing still has anything in it.
+        boolean destroyed = ww.isExploding() || ww.isPostExplosion();
 
         List<Seeker> stranded = new ArrayList<>();
         for (Seeker seeker : seekers) {
@@ -305,17 +320,22 @@ class LaunchCoordinator {
             // about the same weapon: how it came to be chasing the decoy, and what it has
             // since made of it.
             if (!seeker.isDivertedToDecoy() || !decoyDrawsOff(seeker)) {
-                stranded.add(seeker);
+                if (destroyed)
+                    stranded.add(seeker);
                 continue;
             }
+            // J3.22: "all seeking weapons targeted on it will immediately return to their
+            // original target", which J3.202 makes this ship, necessarily.
             seeker.setTarget(ship);
             seeker.setDivertedToDecoy(false);
         }
         for (Seeker s : stranded)
             game.removeSeekerFromPlay(s);
 
-        activeShuttles.remove(ww);
+        ww.setVoided(true);
         ship.setActiveWildWeasel(null);
+        if (destroyed)
+            activeShuttles.remove(ww);
     }
 
     /**
@@ -2190,8 +2210,16 @@ class LaunchCoordinator {
                 .findFirst().orElse(null);
         if (shuttle == null)
             return ActionResult.fail("Shuttle not found on the map: " + shuttleName);
-        if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
-            return ActionResult.fail("Wild Weasels cannot be recovered while active (J3.25)");
+        // J1.611 names the weasel among the craft that cannot land under their own power and
+        // adds "they can be landed by tractor beam (J1.62)", which is this procedure. J3.221
+        // says it again of a voided one: "The shuttle can be recovered by tractor (J1.62)".
+        //
+        // An ACTIVE weasel is J3.25, which is a different outcome and not built: pulling one
+        // inside does not void it off the weapons chasing it, it makes them "accept the ship as
+        // their target". Until that is wired, the active decoy stays out here.
+        if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle activeWw
+                && !activeWw.isVoided())
+            return ActionResult.fail("An active Wild Weasel cannot be pulled in (J3.25)");
         if (shuttle.isBeingRecovered())
             return ActionResult.fail(shuttleName + " is already being recovered");
         if (shuttle.getTractoringUnit() != ship)

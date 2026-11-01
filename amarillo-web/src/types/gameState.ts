@@ -678,6 +678,7 @@ export interface WildWeaselObject extends MapObjectBase {
   parentPlayer:   string | null;
   exploding?:     boolean;
   postExplosion?: boolean;
+  voided?:        boolean;   // J3.22: ceased to function, but still a craft in flight (J3.221)
 }
 
 export type MapObject =
