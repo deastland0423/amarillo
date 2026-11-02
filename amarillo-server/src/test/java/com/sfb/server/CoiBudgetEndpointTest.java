@@ -332,7 +332,7 @@ class CoiBudgetEndpointTest {
                         new AssertionError("expected a preset that loads drones: " + presets));
         double advertised = ((Number) withDrones.get("surcharge")).doubleValue();
 
-        CoiRequest request = new CoiRequest();
+        com.sfb.scenario.CoiChoices request = new com.sfb.scenario.CoiChoices();
         request.droneRackLoadouts.put("0", (List<String>) withDrones.get("drones"));
         com.sfb.scenario.CoiLoadout loadout = request.toLoadout();
         assertTrue(request.droneRefusals.isEmpty(),

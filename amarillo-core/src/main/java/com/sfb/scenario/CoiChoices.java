@@ -1,8 +1,7 @@
-package com.sfb.server;
+package com.sfb.scenario;
 
 import com.sfb.objects.DroneType;
 import com.sfb.properties.WeaponArmingType;
-import com.sfb.scenario.CoiLoadout;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -11,9 +10,24 @@ import java.util.Map;
 
 
 /**
- * JSON body for a single ship's COI selections in POST /api/games/{id}/coi.
+ * One ship's Commander's Option selections (S3.2), in the form they are written down.
+ *
+ * <h2>One shape for two callers</h2>
+ * This is the JSON body of a single ship's entry in POST /api/games/{id}/coi, and it is also what
+ * a saved fleet records against each ship (S8.12: "Players can purchase extra equipment for their
+ * ships under (S3.2)"). It lives in core rather than beside the endpoint because the second caller
+ * is a file on disk, and because a second implementation of {@link #toLoadout} would be free to
+ * read the same file differently.
+ *
+ * <h2>Choices, never totals</h2>
+ * Everything here is what the player ASKED for. Nothing derived is recorded: not the cost, not the
+ * drones that resulted. The same choices legitimately cost different amounts in different years --
+ * S8.132 makes a later year's refits mandatory and S8.133 its drone speeds standard -- so the
+ * figure is recomputed by {@code ScenarioLoader.applyCoi} at the date of the battle being fought.
+ * A fleet file that stored the figure instead handed the enemy victory points (S2.20 B) for drones
+ * the reloaded ship was not carrying.
  */
-public class CoiRequest {
+public class CoiChoices {
 
     public int    extraBoardingParties = 0;
     public int    convertBpToCommando  = 0;

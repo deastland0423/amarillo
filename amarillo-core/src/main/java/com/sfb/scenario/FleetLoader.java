@@ -79,7 +79,25 @@ public final class FleetLoader {
             com.sfb.scenario.ScenarioLoader.equipDeclaredMounts(
                     ship, entry.optionMounts, entry.optionMountArcs, spec.year);
 
-            ship.setCoiSpend(entry.coiSpend);
+            // The Commander's Options the fleet BOUGHT (S8.12), applied here so that everything
+            // which prices or validates the fleet sees what the ship is actually carrying.
+            //
+            // applyCoi SETS coiSpend from what the choices manage to buy in THIS year, and that is
+            // the whole reason the file records choices rather than a figure. Trusting the saved
+            // number put the enemy's victory points (S2.20 B) and the ship's racks out of step: the
+            // racks came back at their year's defaults while the spend survived, so a reloaded
+            // fleet was scored for drones nobody was carrying. It also could not be right in two
+            // years at once -- S8.132 makes a later year's refits mandatory and S8.133 its drone
+            // speeds standard, so the same choices cost more in Y180 than in Y175.
+            if (entry.coi != null) {
+                ScenarioSpec at = new ScenarioSpec();
+                at.year = spec.year;
+                ScenarioLoader.applyCoi(ship, entry.coi.toLoadout(), at);
+            } else {
+                // A file from before the choices were recorded. Its figure is all there is, and
+                // keeping it is better than silently scoring the ship as having bought nothing.
+                ship.setCoiSpend(entry.coiSpend);
+            }
             ships.add(ship);
 
             // The flagship may be named by the name the player gave it or by its type, since

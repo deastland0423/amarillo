@@ -82,7 +82,27 @@ public class FleetSpec {
         /** What the player called it; blank means the ship file's own name. */
         public String name;
         /** Points spent on Commander's Option items (S3.2). */
-        public double coiSpend;
+    /**
+     * What this ship spent on Commander's Options, as of whatever year it was last priced in.
+     *
+     * @deprecated Derived, and so wrong as soon as the fleet is used in another year. Written for
+     *     files older than {@link #coi} and read only when that is absent; {@code FleetLoader}
+     *     otherwise lets {@code ScenarioLoader.applyCoi} set the figure from what the choices
+     *     actually buy at the date of the battle. Do not read it for anything else.
+     */
+    @Deprecated
+    public double coiSpend;
+
+    /**
+     * The Commander's Options this ship was BOUGHT with (S8.12, S3.2), as choices.
+     *
+     * <p>Null in a file written before this existed, and in one for a ship that bought nothing.
+     * The precedent is {@link #refits} and {@link #optionMounts} beside it: a purchase is recorded
+     * as what the player chose, and every figure that follows from it is computed again whenever
+     * the fleet is used. S8.132 and S8.133 are why -- a fleet carried into a later year owes that
+     * year's refits and drone speeds, so it costs more than it did the day it was saved.
+     */
+    public CoiChoices coi;
 
         /**
          * Refit codes ticked for this ship (S3.24), applied to {@link #type} when the fleet

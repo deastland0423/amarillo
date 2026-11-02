@@ -1971,7 +1971,7 @@ public class GameController {
     public ResponseEntity<Map<String, Object>> submitCoi(
             @PathVariable String id,
             @RequestHeader("X-Player-Token") String token,
-            @RequestBody Map<String, CoiRequest> body) {
+            @RequestBody Map<String, com.sfb.scenario.CoiChoices> body) {
 
         GameSession session = sessionService.getSession(id);
         if (session == null)
@@ -1992,7 +1992,7 @@ public class GameController {
             // list, so "nothing arrived in rack 2" is now a thing a player can cause and needs
             // to be told about.
             Map<String, java.util.List<String>> droneRefusals = new java.util.LinkedHashMap<>();
-            for (Map.Entry<String, CoiRequest> entry : body.entrySet()) {
+            for (Map.Entry<String, com.sfb.scenario.CoiChoices> entry : body.entrySet()) {
                 loadouts.put(entry.getKey(), entry.getValue().toLoadout());
                 if (!entry.getValue().droneRefusals.isEmpty())
                     droneRefusals.put(entry.getKey(),

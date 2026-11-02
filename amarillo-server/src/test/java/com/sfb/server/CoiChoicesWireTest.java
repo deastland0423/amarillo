@@ -18,16 +18,16 @@ import static org.junit.jupiter.api.Assertions.*;
  * <p>
  * Written after a playtest found free WS-III photon overload energy (S4.32) selected in the
  * dialog and simply gone by the time the energy allocation form opened. The rule itself was
- * right and covered by ScenarioLoaderTest; CoiRequest just had no {@code photonOverload}
+ * right and covered by ScenarioLoaderTest; CoiChoices just had no {@code photonOverload}
  * field, so Jackson dropped the key on arrival. Nothing failed — an empty map is exactly
  * what "no overload was asked for" looks like.
  * <p>
  * The guard against a repeat is the strict parse below: the payload here mirrors what
  * CoiDialog.tsx builds in its submit function, and a key with no field to land in fails the
  * build instead of vanishing. When the dialog learns to send something new, this fixture and
- * CoiRequest have to learn it together.
+ * CoiChoices have to learn it together.
  */
-class CoiRequestWireTest {
+class CoiChoicesWireTest {
 
     /**
      * One ship's entry exactly as the dialog sends it, with every optional key present.
@@ -55,16 +55,16 @@ class CoiRequestWireTest {
             """;
 
     /** Unknown keys are an error here, which is the whole point of this test. */
-    private static CoiRequest parseStrictly(String json) throws Exception {
+    private static com.sfb.scenario.CoiChoices parseStrictly(String json) throws Exception {
         ObjectMapper mapper = new ObjectMapper()
                 .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        return mapper.readValue(json, CoiRequest.class);
+        return mapper.readValue(json, com.sfb.scenario.CoiChoices.class);
     }
 
     @Test
     void everyKeyTheDialogSendsHasAFieldToLandIn() throws Exception {
         assertNotNull(parseStrictly(PAYLOAD),
-                "a key with no field on CoiRequest is silently dropped in production");
+                "a key with no field on CoiChoices is silently dropped in production");
     }
 
     /**
@@ -114,7 +114,7 @@ class CoiRequestWireTest {
      */
     @Test
     void aDroneTheRulesRefuseIsReportedRatherThanDropped() throws Exception {
-        CoiRequest request = parseStrictly(
+        com.sfb.scenario.CoiChoices request = parseStrictly(
                 "{\"droneRackLoadouts\": {\"0\": [\"TypeI\", \"TypeI+ECM+ARMOR_1\"]}}");
         CoiLoadout loadout = request.toLoadout();
 
@@ -131,7 +131,7 @@ class CoiRequestWireTest {
     /** Nothing to report when everything reads, including a composed drone. */
     @Test
     void aLegalLoadoutRefusesNothing() throws Exception {
-        CoiRequest request = parseStrictly(PAYLOAD);
+        com.sfb.scenario.CoiChoices request = parseStrictly(PAYLOAD);
         request.toLoadout();
 
         assertTrue(request.droneRefusals.isEmpty(), request.droneRefusals.toString());
