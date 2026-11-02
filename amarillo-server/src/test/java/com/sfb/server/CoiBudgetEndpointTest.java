@@ -34,10 +34,19 @@ class CoiBudgetEndpointTest {
 
     /** A one-ship scenario, so the budget under test belongs to a known hull. */
     private com.sfb.scenario.ScenarioSpec specFor(String faction, String type, String shipName) {
+        return specFor(faction, type, shipName, 180);
+    }
+
+    /**
+     * The same, in a year the caller names. The date decides what the ship IS — FD3.0 replaces
+     * most type-A racks in Y175 — so a test about drones has to be able to say when it is.
+     */
+    private com.sfb.scenario.ScenarioSpec specFor(
+            String faction, String type, String shipName, int year) {
         com.sfb.scenario.ScenarioSpec spec = new com.sfb.scenario.ScenarioSpec();
         spec.mapCols = 42;
         spec.mapRows = 32;
-        spec.year = 180;
+        spec.year = year;
         com.sfb.scenario.ScenarioSpec.SideSpec side = new com.sfb.scenario.ScenarioSpec.SideSpec();
         side.faction = faction;
         side.name = faction + "s";
@@ -93,9 +102,19 @@ class CoiBudgetEndpointTest {
         Map<String, Object> row = coiRowFor(spec, "KHS Quasar");
         com.sfb.objects.Ship cs = shipFrom(spec, "KHS Quasar");
 
-        // Y180: fast drones are General (FD10.65), so four type-A racks of four cost 16 (FD2.454).
-        assertEquals(16, ((Number) row.get("droneSpeedBpv")).intValue(),
-                "FD2.454: a Kzinti CS with fast drones is 132, not 116");
+        // Y180: fast drones are General (FD10.65), so every drone aboard costs a point
+        // (FD2.224). Twenty of them, not the sixteen FD2.454's example quotes: that example is
+        // of an UNREFITTED CS, and FD3.0 replaced "most type-A drone racks ... with improved
+        // types in Y175", which here is two four-space type-Cs and two six-space type-Bs. The
+        // rule says as much in its own parenthesis — "by the time fast drones were available,
+        // all CS-class ships had been refitted as BCs". The example itself is pinned at the year
+        // it describes by fd2454sWorkedExampleHoldsInTheYearItDescribes below.
+        //
+        // This read 16 until the rack refit was fixed, for the wrong reason: a grown rack was
+        // never topped up, so two six-space racks sailed with four drones each and the figure
+        // agreed with FD2.454 by accident.
+        assertEquals(20, ((Number) row.get("droneSpeedBpv")).intValue(),
+                "FD2.224: a point per drone, over all twenty a refitted CS carries");
         assertEquals(cs.getBpv(), ((Number) row.get("bpv")).intValue(),
                 "and the hull BPV it is published beside does NOT carry it");
         assertEquals(com.sfb.scenario.CoiBudget.effectiveAdjustedCombatBpv(cs),
@@ -104,8 +123,38 @@ class CoiBudgetEndpointTest {
     }
 
     /**
+     * FD2.454's worked example, in the year it is about: "a Kzinti CS has a BPV of 116. However,
+     * it has four drone racks, each of which holds four drones. Equipped with medium-speed
+     * drones, the BPV increases by eight points (1/2-point per drone) to 124."
+     *
+     * <p>Y170: medium speed has been General since Y167 (FD10.651) and the Y175 rack refit has
+     * not happened, so the ship the example describes is the ship that loads — four type-A racks
+     * of four, at half a point each.
+     */
+    @Test
+    void fd2454sWorkedExampleHoldsInTheYearItDescribes() {
+        com.sfb.scenario.ScenarioSpec spec = specFor("Kzinti", "CS", "KHS Quasar", 170);
+        Map<String, Object> row = coiRowFor(spec, "KHS Quasar");
+
+        assertEquals(8, ((Number) row.get("droneSpeedBpv")).intValue(),
+                "FD2.454: sixteen medium drones at half a point, 116 becoming 124");
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> racks = (List<Map<String, Object>>) row.get("droneRacks");
+        assertEquals(4, racks.size(), "a CS has four racks");
+        for (Map<String, Object> rack : racks)
+            assertEquals(List.of("TypeIM", "TypeIM", "TypeIM", "TypeIM"), rack.get("defaultAmmo"),
+                    "and each holds four, before FD3.0's Y175 replacement");
+    }
+
+    /**
      * And the drones the dialog offers to leave alone are the ones the ship is actually carrying
      * (S2.11) — which is what lets a player skip the drone section and still know what they have.
+     *
+     * <p>Counted off each rack's own capacity rather than against a fixed four, because after
+     * FD3.0's Y175 refit the four racks are no longer the same size: two four-space type-Cs and
+     * two six-space type-Bs. A FULL rack is the claim — a refitted rack that reported six spaces
+     * and held four is the bug this guards.
      */
     @Test
     void theRacksDefaultAmmoIsTheSpeedTheYearFitted() {
@@ -115,9 +164,19 @@ class CoiBudgetEndpointTest {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> racks = (List<Map<String, Object>>) row.get("droneRacks");
         assertEquals(4, racks.size(), "a CS has four racks");
-        for (Map<String, Object> rack : racks)
-            assertEquals(List.of("TypeIF", "TypeIF", "TypeIF", "TypeIF"), rack.get("defaultAmmo"),
-                    "Y180: fast drones are standard issue");
+        int drones = 0;
+        for (Map<String, Object> rack : racks) {
+            int spaces = ((Number) rack.get("spaces")).intValue();
+            @SuppressWarnings("unchecked")
+            List<String> ammo = (List<String>) rack.get("defaultAmmo");
+            assertEquals(spaces, ammo.size(),
+                    "rack " + rack.get("designator") + " reports " + spaces
+                            + " spaces, so it should arrive with that many drones");
+            for (String drone : ammo)
+                assertEquals("TypeIF", drone, "Y180: fast drones are standard issue");
+            drones += ammo.size();
+        }
+        assertEquals(20, drones, "two type-Cs of four and two type-Bs of six");
     }
 
     @Test

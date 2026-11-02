@@ -38,6 +38,15 @@ import com.sfb.weapons.Weapon;
  * drone) to 124. The BPV of a Kzinti CS armed with fast drones is 132." Three of the tests below
  * are that sentence, so the model is checked against the rulebook's own figures rather than
  * against my reading of the charts.
+ *
+ * <p><b>It is the UNREFITTED hull, and that matters when comparing figures.</b> These tests call
+ * {@code applyDroneSpeed} on the sample builder's ship, which has the four type-A racks the
+ * example describes. A CS actually LOADED into a Y180 scenario does not: FD3.0 replaced "most
+ * type-A drone racks ... with improved types in Y175", so it fields two four-space type-Cs and
+ * two six-space type-Bs and pays for twenty drones rather than sixteen. The rule knows, and says
+ * so in the same paragraph — "by the time fast drones were available, all CS-class ships had been
+ * refitted as BCs". {@code CoiBudgetEndpointTest} pins that twenty; the sixteen here is the
+ * arithmetic the rulebook shows its work for.
  */
 public class DroneSpeedYearTest {
 
