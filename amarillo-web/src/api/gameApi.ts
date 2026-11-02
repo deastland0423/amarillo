@@ -444,6 +444,27 @@ export interface CoiDroneType {
    * derived. Absent when extended range is not legal for the drone at all (FD2.222).
    */
   rackWithExtendedRange?: number;
+  /**
+   * FD2.22's surcharge in its four terms, which are the four `DroneSpec.pointCost` is defined
+   * as. Sent in parts because the dialog prices drones the player ASSEMBLES (FD10.2) and no
+   * catalogue holds one of those; `coiDroneCost.ts` adds them to the modules' own costs.
+   *
+   * `speedCredit` is what the SHIP's BPV carries instead of the budget (S2.11/S3.221), already
+   * resolved for the scenario's year — so nothing on this side ever sees a date.
+   *
+   * All optional together: a server from before this sends none of them, and the cost mirror
+   * then stays silent rather than guessing.
+   */
+  engineCost?:   number;
+  payloadCost?:  number;
+  frameCost?:    number;
+  speedCredit?:  number;
+  /**
+   * The engine and the credit for the frame FD10.24 grows a type-III into. Present exactly when
+   * `rackWithExtendedRange` is.
+   */
+  engineCostWithExtendedRange?:  number;
+  speedCreditWithExtendedRange?: number;
 }
 
 /** FD10.4: one payload module a drone may carry, as the options endpoint advertises it. */
@@ -487,6 +508,11 @@ export interface CoiSubmunitionSpeed {
   name:  string;
   speed: number;
   availability: string;
+  /**
+   * FD8.44: what the bus pays for EACH submunition it carries, over the speed-12 that FD2.227
+   * makes a type-VI's slowest. Multiplied by the module's own `submunitions` count.
+   */
+  surchargePerSubmunition?: number;
 }
 
 

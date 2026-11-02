@@ -1664,6 +1664,32 @@ public class GameController {
                             dtMap.put("rackWithExtendedRange",
                                     com.sfb.objects.DroneLoad.parse(extended).rackSpaces());
 
+                        // FD2.22's surcharge, in the four parts DroneSpec.pointCost is made of,
+                        // so the dialog can price a drone the player is still ASSEMBLING. No
+                        // catalogue holds a composed drone, so no single figure can be sent for
+                        // one; these are its terms, and the view adds them to the modules' own
+                        // costs it already has. coiDroneCost.ts does the adding and is pinned to
+                        // FD2.11's published values at that end.
+                        dtMap.put("engineCost", dt.spec.engineCost());
+                        dtMap.put("payloadCost", dt.spec.payloadCost());
+                        dtMap.put("frameCost", dt.spec.frameCost());
+                        // What the SHIP's BPV carries rather than the budget (S2.11/S3.221), so
+                        // the year is already baked in and the view never sees a date.
+                        dtMap.put("speedCredit", dt.spec.speedCostIn(spec.year));
+
+                        // The same two for the frame FD10.24 grows: a type-III given extended
+                        // range "become[s] type-III-XX, which are two-space drones", and FD10.52
+                        // prices its engine from the two-space column. Sent only where the
+                        // combination is legal, which is the same test rackWithExtendedRange
+                        // above already makes.
+                        if (com.sfb.objects.DroneLoad.refusalFor(extended) == null) {
+                            com.sfb.objects.DroneSpec grown =
+                                    com.sfb.objects.DroneLoad.parse(extended).spec();
+                            dtMap.put("engineCostWithExtendedRange", grown.engineCost());
+                            dtMap.put("speedCreditWithExtendedRange",
+                                    grown.speedCostIn(spec.year));
+                        }
+
                         droneTypes.add(dtMap);
                     }
                     s.put("availableDroneTypes", droneTypes);
@@ -1744,6 +1770,13 @@ public class GameController {
                         sp.put("name", p.name());
                         sp.put("speed", p.speed);
                         sp.put("availability", p.availabilityIn(spec.year).name());
+                        // FD8.44: the bus pays this for EVERY submunition it carries, over the
+                        // speed-12 that FD2.227 makes a type-VI's slowest. The view multiplies
+                        // it by the module's own submunition count, which it already has.
+                        sp.put("surchargePerSubmunition",
+                                p.costOn(com.sfb.objects.DroneFrame.HALF_SPACE)
+                                - com.sfb.objects.Propulsion.SPEED_12.costOn(
+                                        com.sfb.objects.DroneFrame.HALF_SPACE));
                         subSpeeds.add(sp);
                     }
                     s.put("availableSubmunitionSpeeds", subSpeeds);

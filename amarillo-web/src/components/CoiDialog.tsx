@@ -7,6 +7,7 @@ import { tierFor, quotaOf, describeCartel } from './cartelQuota';
 import { seatAll } from './optionMountSeating';
 import { budgetBasisLabel, defaultAmmoLabel, droneChipLabel } from './coiLabels';
 import { withRackLoad, withoutRack } from './coiRackLoad';
+import { coiCost } from './coiTotal';
 import {
   isModified, parseDroneName, formatDroneName, payloadUsed, rackSpacesOf,
   describeDrone, moduleRefusal, additionRefusal,
@@ -97,14 +98,6 @@ function defaultShipCoi(): ShipCoi {
   };
 }
 
-function coiCost(c: ShipCoi): number {
-  return c.extraBoardingParties * 0.5
-       + c.convertBpToCommando  * 0.5
-       + c.extraCommandoSquads  * 1.0
-       + c.extraTBombs          * 4.0
-       + c.extraDeckCrews       * 0.5;
-}
-
 /**
  * Rack space used, to one decimal only when it needs one.
  * <p>
@@ -172,7 +165,7 @@ function ShipCoiPanel({
   coi:      ShipCoi;
   onChange: (next: ShipCoi) => void;
 }) {
-  const cost     = coiCost(coi);
+  const cost     = coiCost(coi, ship);
   const overBudget = cost > ship.coiBudget;
   // FD10.4's catalogue, sent by the server for this scenario's year. Absent from a server that
   // predates payload modules, in which case the drone picker keeps its two axes and no pencil
@@ -1226,7 +1219,8 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
   }
 
   const anyOverBudget = sides.some(side =>
-    side.ships.some(ship => coiCost(coiMap[ship.shipName] ?? defaultShipCoi()) > ship.coiBudget)
+    side.ships.some(ship =>
+      coiCost(coiMap[ship.shipName] ?? defaultShipCoi(), ship) > ship.coiBudget)
   );
   const anyOverQuota = sides.some(side => {
     const q = sideQuota(side);

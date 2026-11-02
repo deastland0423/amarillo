@@ -272,16 +272,32 @@ public class CoiLoadout {
     public static double rackUpgradeCost(List<DroneLoad> rack, int year) {
         if (rack == null || rack.isEmpty())
             return 0;
-        double loaded = 0;
-        double free = 0;
-        for (DroneLoad d : rack) {
-            loaded += d.pointCost();
-            // The spaces the hull's own type-I-slows filled, plus the speed the scenario's
-            // year puts on them at the ship's expense rather than the budget's (S3.221).
-            free += d.rackSpaces() * TYPE_I_SLOW_COST_PER_SPACE
-                  + d.spec().speedCostIn(year);
-        }
-        return Math.max(0, loaded - free);
+        double total = 0;
+        for (DroneLoad d : rack)
+            total += surchargeOn(d, year);
+        return Math.max(0, total);
+    }
+
+    /**
+     * What ONE drone costs over the type-I-slows it displaces — and deliberately NOT clamped.
+     *
+     * <h2>The clamp belongs to the rack, so it cannot be applied here</h2>
+     * A drone under its baseline has to be able to report a negative figure, because the rack it
+     * sits in is what the rules clamp: FD2.11's trades ("two type-Is with one type-IV is 0.00")
+     * net out WITHIN a rack, and a drone clamped on its own would make a type-IV costed as two
+     * type-Is dearer than the pair it replaces.
+     *
+     * <p>Which is also why this is public. The COI dialog prices a drone the player is still
+     * assembling, by adding up the parts core sent it, and the figure it arrives at is this one;
+     * it then clamps per rack exactly as {@link #rackUpgradeCost} does. Keeping both tiers on
+     * one name for one concept is the point.
+     */
+    public static double surchargeOn(DroneLoad drone, int year) {
+        // The spaces the hull's own type-I-slows filled, plus the speed the scenario's year
+        // puts on them at the ship's expense rather than the budget's (S3.221).
+        return drone.pointCost()
+             - drone.rackSpaces() * TYPE_I_SLOW_COST_PER_SPACE
+             - drone.spec().speedCostIn(year);
     }
 
     /**

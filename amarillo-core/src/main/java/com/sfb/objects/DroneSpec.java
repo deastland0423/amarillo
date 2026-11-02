@@ -572,14 +572,48 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
      * type-III FD10.54 calls a Basic Set erratum.
      */
     public double pointCost() {
+        return engineCost() + payloadCost() + frameCost()
+                + submunitionUpgradeCost();     // FD8.44, paid per submunition
+    }
+
+    /**
+     * The four terms of {@link #pointCost} separately.
+     *
+     * <h2>Why they are public</h2>
+     * The COI dialog shows a player what their drone choices cost against the budget, and it has
+     * to be able to price a drone the player is ASSEMBLING — which is not in any catalogue, so no
+     * single figure can be sent for it. The parts are sent instead and the view adds them up:
+     * this engine, these modules, these additions. That is a sum of figures core computed, not a
+     * second implementation of the charts, and {@code coiDroneCost.ts} is held to FD2.11's
+     * published values at its own end.
+     *
+     * <p>Defined as the decomposition OF {@code pointCost} rather than beside it, so the two
+     * cannot drift: a term added to the price has to be added to one of these or the sum stops
+     * being the price. {@code DroneCostDecompositionTest} pins that for every catalogue drone.
+     */
+    public double engineCost() {
         // FD10.24: "Speed upgrade costs for type-III-XX drones are the same as for the
         // two-space drone (FD10.52)", which falls out of pricing the effective frame.
-        double total = propulsion.costOn(effectiveFrame());
+        return propulsion.costOn(effectiveFrame());
+    }
+
+    /** What sits in the payload spaces (FD10.4), submunition engines excluded. */
+    public double payloadCost() {
+        double total = 0;
         for (PayloadModule m : allModules())
             total += m.cost;
+        return total;
+    }
+
+    /**
+     * FD10.53's frame additions. Zero for most drones: "under the point cost system, the frame
+     * is effectively free" (FD10.22), and a type-III's half point for its guidance is the
+     * exception the rule names.
+     */
+    public double frameCost() {
+        double total = 0;
         for (FrameAddition a : additions)
             total += a.cost;
-        total += submunitionUpgradeCost();      // FD8.44, paid per submunition
         return total;
     }
 
