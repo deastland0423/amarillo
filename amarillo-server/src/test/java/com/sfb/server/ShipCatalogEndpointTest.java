@@ -123,14 +123,24 @@ class ShipCatalogEndpointTest {
                 "and S3.211's allowance with it");
     }
 
-    /** No date chosen quotes each ship as its own service year built it, not an empty bay. */
+    /**
+     * No date chosen quotes each ship as its own service year built it, not an empty bay.
+     *
+     * <h2>Asked of the COMPLEMENT, not the shelf price</h2>
+     * This compared the two prices, which held until the price learned about drones. An undated
+     * ship carries type-I-slows, which FD2.31 has in the BPV already, so it owes nothing; the
+     * same hull at Y170 carries mediums and owes 8 (S8.133). The two prices are eight apart and
+     * always will be. It is the FIGHTERS this is about, so it asks about those — the core-side
+     * twin is {@code CarrierPriceByYearTest.withNoDateTheShipKeepsItsServiceYearComplement}.
+     */
     @Test
     void withNoYearTheShelfShowsTheServiceYearComplement() {
         Map<String, Object> undated = find("Kzinti", "CVS");
         Map<String, Object> atService = shipsInYear(170, "Kzinti").stream()
                 .filter(s -> "CVS".equals(s.get("type"))).findFirst().orElseThrow();
 
-        assertEquals(atService.get("cost"), undated.get("cost"));
+        assertEquals(atService.get("fighterBpv"), undated.get("fighterBpv"),
+                "an undated ship carries the complement of its own service year");
         assertTrue((Integer) undated.get("fighterBpv") > 0);
     }
 

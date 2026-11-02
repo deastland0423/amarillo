@@ -52,11 +52,19 @@ class FleetValidationEndpointTest {
         new GameController(null, null).validateFleet(spec).getBody();
     }
 
-    /** A Klingon request, for the leader rules their two leader lines exercise. */
+    /**
+     * A Klingon request, for the leader rules their two leader lines exercise.
+     *
+     * <p>The budget is deliberately far above what these forces cost. These tests assert
+     * COMMAND structure (S8.36), and an S8.11 budget violation would fail them for an unrelated
+     * reason — which it did: S8.362's eight-hull worked example came to 907 once S2.11's drone
+     * speed joined the purchase price, and a test about which leader rides free started
+     * reporting that the fleet was too expensive.
+     */
     private FleetSpec klingon(String flagship, String... types) {
         FleetSpec r = request(flagship, types);
         r.factions = new java.util.ArrayList<>(List.of("Klingon"));
-        r.budget = 900;
+        r.budget = 5000;
         r.year = 180;
         return r;
     }
@@ -118,11 +126,15 @@ class FleetValidationEndpointTest {
         assertTrue(body.toString().contains("CW"), "the war cruiser line is the short one: " + body);
     }
 
-    /** A Kzinti request, for the carrier group rules that only their hulls exercise. */
+    /**
+     * A Kzinti request, for the carrier group rules that only their hulls exercise. The budget is
+     * out of the way for the same reason as {@link #klingon}: these assert escort and group
+     * rules, not cost.
+     */
     private FleetSpec kzinti(String flagship, String... types) {
         FleetSpec r = request(flagship, types);
         r.factions = new java.util.ArrayList<>(List.of("Kzinti"));
-        r.budget = 900;
+        r.budget = 5000;
         return r;
     }
 

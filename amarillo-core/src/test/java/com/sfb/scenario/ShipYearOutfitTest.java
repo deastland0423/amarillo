@@ -119,11 +119,14 @@ public class ShipYearOutfitTest {
         entry.type = "NCD";
         spec.ships.add(entry);
 
+        // Each figure is the hull plus S2.11's drone charge, which S8.133 keeps out of the BPV:
+        // twenty-four mediums at a half in Y174, and the Y175 refit widens the magazines to
+        // thirty-two, so 16 in Y176. The refit itself is the 4 between 119 and 123.
         spec.year = 174;
-        assertEquals("as built", 119,
+        assertEquals("as built, and 24 mediums at a half", 131,
                 FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0)), 1e-9);
         spec.year = 176;
-        assertEquals("with the Y175 refit it will actually fight with", 123,
+        assertEquals("with the Y175 refit it will actually fight with, and 32 mediums", 139,
                 FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0)), 1e-9);
 
         Ship viaLoader = FleetLoader.resolve(spec).ships().get(0);

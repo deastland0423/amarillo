@@ -172,8 +172,37 @@ public final class FleetValidator {
     // -------------------------------------------------------------------------
 
     /**
-     * What a ship costs to buy: its combat BPV plus the fighters in its bays, which are also
-     * bought at combat value (S8.11).
+     * What a ship costs to buy: its combat BPV, the fighters in its bays, which are also bought
+     * at combat value (S8.11), and S2.11's mandatory drone speed charge.
+     *
+     * <h2>The drone speed was missing, and the rule is explicit about it</h2>
+     * S8.133, among the things a date settles: "The drone speeds that are available for purchase.
+     * Note: <b>the only drones that are included in the BPV of a unit are type-I slow</b> (or
+     * type-VI moderate in the case of type-E drone racks). See (FD2.45) and (FD10.6) for the
+     * costs of improved drones to include speed upgrades". FD2.454 works it: a Kzinti CS at 116
+     * "increases by eight points (1/2-point per drone) to 124" with medium drones. So a drone
+     * fleet was being bought at a discount -- the whole of its improved drones, free -- because
+     * this read the bare hull while {@code Ship.getDroneSpeedBpv} sat beside it unread.
+     *
+     * <h2>Why it is read HERE rather than fixed at purchase</h2>
+     * The figure follows the LOADOUT, not just the year: {@code chargeDroneSpeed} counts the
+     * drones actually in the racks, and the charge is per drone, so eight type-IVs owe half what
+     * sixteen type-Is do while FD2.11 trades the drones themselves at par. Filling the racks with
+     * heavy drones is therefore a real purchasing decision. {@code applyCoi} re-prices after a
+     * loadout is applied and {@code totalCost} is taken at validation time, so reading it here
+     * picks that decision up instead of a figure fixed before it was made.
+     *
+     * <h2>What it still does not count</h2>
+     * FD2.45 charges "a single loading of each launch rack <b>and/or fighter</b>", and
+     * {@code chargeDroneSpeed} walks only the ship's own racks -- so a carrier's drone-armed
+     * fighters still fly their year's drones for nothing. That is a gap in the CHARGE rather than
+     * in this sum, and patching it here would put it in the wrong place.
+     *
+     * <h2>And it must not reach the option allowance</h2>
+     * S3.211 takes the Commander's Option percentage of a basis "not including the cost of
+     * mandatory drone speed upgrades", so {@link #coiAllowance} has to be blind to this. It is:
+     * the allowance goes through {@code CoiBudget}, which owns that basis and never reads here.
+     *
      * <p>
      * Scouts are the exception (G24.35, cited by S8.11). Their chart entry reads A/B, where A
      * is "the economic value (what it costs to build)" and B the combat value — so a scout is
@@ -189,7 +218,8 @@ public final class FleetValidator {
         // So a filled mount is part of what the ship COSTS, and a budget that read the bare
         // hull let an Orion force grow after it had been declared legal. Returns a double
         // because the deltas are fractional: a Phaser-2 is -0.25.
-        return hull + optionMountCost(ship) + carriedFighterBpv(ship);
+        return hull + optionMountCost(ship) + carriedFighterBpv(ship)
+                + ship.getDroneSpeedBpv();
     }
 
     /** What this ship's filled option mounts add to its price (G15.411); 0 for everyone else. */

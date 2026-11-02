@@ -191,6 +191,86 @@ public class FleetCoiPurchaseTest {
         assertEquals("and twenty fast drones at a point", 20, now.getDroneSpeedBpv());
     }
 
+    // ---------------------------------------------------------------- and the fleet pays it
+
+    /**
+     * S8.133: improved drones are not in the unit's BPV, so a fleet buying one pays for them.
+     *
+     * <p>"The drone speeds that are available for purchase. Note: the only drones that are
+     * included in the BPV of a unit are type-I slow." A Y180 CS sails with twenty type-I-fasts at
+     * a point apiece (FD2.454's rate, this hull's count after FD3.0's Y175 rack refit), and every
+     * one of those points was being handed over for nothing.
+     */
+    @Test
+    public void theFleetPaysForTheDroneSpeedItSailsWith() {
+        Ship ship = loadOne(fleetAt(180, cs("KHS Priced")));
+
+        assertEquals("premise: twenty fast drones at a point", 20, ship.getDroneSpeedBpv());
+        assertEquals("the hull plus what S2.11 charges for its drones",
+                ship.getBpv() + 20.0, FleetValidator.costOf(ship), 1e-9);
+    }
+
+    /** And a year whose drones are standard issue costs nothing extra (S8.133, FD2.31). */
+    @Test
+    public void aYearOfTypeISlowsAddsNothing() {
+        Ship ship = loadOne(fleetAt(160, cs("KHS Early")));
+
+        assertEquals("premise: Y160 flies type-I-slows, which ARE in the BPV",
+                0, ship.getDroneSpeedBpv());
+        assertEquals(ship.getBpv() + 0.0, FleetValidator.costOf(ship), 1e-9);
+    }
+
+    /**
+     * The owner's trade, now visible in the price: heavy drones cost the fleet less.
+     *
+     * <p>Half as many drones in the same spaces, a speed charge taken per drone (FD2.454), and
+     * the drones themselves exchanged at par (FD2.11) -- so the fleet pays ten points less and
+     * buys nothing with its options to do it. Before this the decision was invisible AND free,
+     * since neither figure reached the point-buy.
+     */
+    @Test
+    public void heavyDronesMakeTheShipCheaperToBuy() {
+        double standard = FleetValidator.costOf(loadOne(fleetAt(175, cs("KHS Standard"))));
+
+        FleetSpec.ShipEntry entry = cs("KHS Heavy");
+        entry.coi = new CoiChoices();
+        int index = 0;
+        for (Weapon w : loadOne(fleetAt(175, cs("KHS Probe"))).getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRack rack) {
+                List<String> load = new ArrayList<>();
+                for (int i = 0; i < rack.getSpaces() / 2; i++)
+                    load.add("TypeIVM");
+                entry.coi.droneRackLoadouts.put(String.valueOf(index++), load);
+            }
+
+        Ship heavy = loadOne(fleetAt(175, entry));
+
+        assertEquals("ten drones where there were twenty, at half a point each",
+                5, heavy.getDroneSpeedBpv());
+        assertEquals("so the ship costs five points less to buy",
+                standard - 5.0, FleetValidator.costOf(heavy), 1e-9);
+    }
+
+    /**
+     * S3.211 keeps the mandatory charge OUT of the option allowance, and that must stay true now
+     * that the charge is in the purchase price.
+     *
+     * <p>"The percentage is taken of the BPV of the ship, its refits, and its fighters, but not
+     * including the cost of mandatory drone speed upgrades or crew quality adjustments." Two
+     * ships of one hull in two years differ by twenty points of drone speed and must have the
+     * same allowance.
+     */
+    @Test
+    public void theOptionAllowanceDoesNotSeeTheDroneSpeed() {
+        Ship early = loadOne(fleetAt(160, cs("KHS Early")));
+        Ship late  = loadOne(fleetAt(180, cs("KHS Late")));
+
+        assertEquals("premise: the two differ by the whole drone charge",
+                20, late.getDroneSpeedBpv() - early.getDroneSpeedBpv());
+        assertEquals("S3.211 excludes it from the basis",
+                FleetValidator.coiAllowance(early), FleetValidator.coiAllowance(late), 1e-9);
+    }
+
     /**
      * And the owner's trade: half as many drones, half the speed bill.
      *

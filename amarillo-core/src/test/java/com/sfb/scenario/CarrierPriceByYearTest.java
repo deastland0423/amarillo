@@ -74,16 +74,24 @@ public class CarrierPriceByYearTest {
      * From Y175 the hull also carries its own drone-rack refit, which the CVS prices at 6. That
      * is not part of the fighter arithmetic — it applies to a hull with no bay at all — so the
      * three later figures are each the fighter era's price plus the same 6.
+     *
+     * <p>And each carries S2.11's drone speed charge, which S8.133 keeps out of the hull's BPV:
+     * "the only drones that are included in the BPV of a unit are type-I slow". It moves twice
+     * over the span. Y170 and Y173 are sixteen mediums at half a point, 8. From Y177 the Y175
+     * rack refit has widened the magazines to twenty, so 10. From Y180 fast drones are standard
+     * issue at a point each, so 20.
      */
     @Test
     public void theKzintiCvsIsPricedAcrossItsFighterEras() {
-        assertEquals("Y170, eleven AAS at 6 and an AAS-E at 8, on a 169 hull", 243,
-                FleetValidator.costOf(cvsInFleetOf(170)), 1e-9);
-        assertEquals("Y173, HAAS", 267, FleetValidator.costOf(cvsInFleetOf(173)), 1e-9);
-        assertEquals("Y177, TAAS, plus the Y175 rack refit at 6", 285,
-                FleetValidator.costOf(cvsInFleetOf(177)), 1e-9);
-        assertEquals("Y180, TADS, plus the refit", 309, FleetValidator.costOf(cvsInFleetOf(180)), 1e-9);
-        assertEquals("Y183, TADSC, plus the refit", 321, FleetValidator.costOf(cvsInFleetOf(183)), 1e-9);
+        assertEquals("Y170, eleven AAS at 6 and an AAS-E at 8, on a 169 hull, and 8 of drones",
+                251, FleetValidator.costOf(cvsInFleetOf(170)), 1e-9);
+        assertEquals("Y173, HAAS", 275, FleetValidator.costOf(cvsInFleetOf(173)), 1e-9);
+        assertEquals("Y177, TAAS, plus the Y175 rack refit at 6, and 20 drones at a half",
+                295, FleetValidator.costOf(cvsInFleetOf(177)), 1e-9);
+        assertEquals("Y180, TADS, plus the refit, and twenty FAST drones at a point",
+                329, FleetValidator.costOf(cvsInFleetOf(180)), 1e-9);
+        assertEquals("Y183, TADSC, plus the refit and the same drones",
+                341, FleetValidator.costOf(cvsInFleetOf(183)), 1e-9);
     }
 
     /**
@@ -106,16 +114,28 @@ public class CarrierPriceByYearTest {
     /**
      * A fleet with no date yet quotes each ship as its own service year built it. That is the
      * honest thing to show while browsing — not a house default year, and not an empty bay.
+     *
+     * <h2>Asked of the COMPLEMENT rather than of the price</h2>
+     * This compared the two purchase prices, which worked until the price learned about drones.
+     * An undated ship is carrying type-I-slows, because {@code Propulsion.generalIn} answers an
+     * undated year with the frame's baseline — and FD2.31 has those in the BPV already, so it
+     * owes nothing. The same hull at Y170 is carrying mediums and owes 8 (S8.133). The two
+     * prices are legitimately eight apart, and always will be; it is the FIGHTERS this test is
+     * about, so it asks about those.
      */
     @Test
     public void withNoDateTheShipKeepsItsServiceYearComplement() {
         Ship undated = cvsInFleetOf(0);
         Ship atService = cvsInFleetOf(170);   // the CVS entered service in Y170
 
-        assertEquals("undated must match the ship's own service year",
-                FleetValidator.costOf(atService), FleetValidator.costOf(undated), 1e-9);
+        assertEquals("undated must carry the complement of its own service year",
+                FleetValidator.carriedFighterBpv(atService),
+                FleetValidator.carriedFighterBpv(undated), 1e-9);
         assertTrue("and that is not an empty bay",
                 FleetValidator.carriedFighterBpv(undated) > 0);
+        assertEquals("the only thing the date changes here is S2.11's drone charge",
+                FleetValidator.costOf(atService) - atService.getDroneSpeedBpv(),
+                FleetValidator.costOf(undated) - undated.getDroneSpeedBpv(), 1e-9);
     }
 
     /**
@@ -129,6 +149,11 @@ public class CarrierPriceByYearTest {
      *
      * <p>Kept as a control by comparing two dates on the SAME side of the refit, and the crossing
      * is now asserted rather than denied.
+     *
+     * <p>Amended a second time for the same kind of reason: a hull with no fighters still carries
+     * DRONES, and S8.133 keeps improved ones out of its BPV, so the date moves the price through
+     * them too. Y170 and Y174 agree because both fly mediums out of the same racks; Y183 is
+     * dearer by the refit AND by twenty fast drones at a point where twenty mediums cost a half.
      */
     @Test
     public void aShipWithoutFightersMovesOnlyWhenTheDateCrossesARefit() {
@@ -149,7 +174,8 @@ public class CarrierPriceByYearTest {
 
         assertEquals("no fighters and no refit crossed, so nothing for the date to change",
                 early, stillEarly, 1e-9);
-        assertEquals("the bare hull", 135, early, 1e-9);
-        assertEquals("plus the Y175 rack refit the BC declares", 139, late, 1e-9);
+        assertEquals("a 135 hull and sixteen mediums at a half (S2.11)", 143, early, 1e-9);
+        assertEquals("plus the Y175 rack refit the BC declares, and twenty fast drones at a point",
+                159, late, 1e-9);
     }
 }
