@@ -4,6 +4,8 @@ import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiDroneRac
 import { gameApi } from '../api/gameApi';
 import { Stepper } from './Stepper';
 import { tierFor, quotaOf, describeCartel } from './cartelQuota';
+import { defaultShipCoi, seedShipCoi } from './coiShipState';
+import type { ArmMode, ShipCoi, ShuttlePrep } from './coiShipState';
 import { seatAll } from './optionMountSeating';
 import { budgetBasisLabel, defaultAmmoLabel, droneChipLabel, presetLabel }
   from './coiLabels';
@@ -48,56 +50,16 @@ interface Props {
   onSubmit:    (submission: CoiSubmission) => Promise<void>;
   onSkip:      () => void;
   busy:        boolean;
-}
-
-type ArmMode = 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING';
-
-interface ShuttlePrep {
-  type:          string;       // 'suicide' | 'scatterpack' | 'wildweasel'
-  energyPerTurn: number;       // suicide only
-  drones:        string[];     // scatterpack only
-}
-
-interface ShipCoi {
-  extraBoardingParties: number;
-  convertBpToCommando:  number;
-  extraCommandoSquads:  number;
-  extraTBombs:          number;
-  extraDeckCrews:       number;
-  armedFighters:        string[];
-  weaponArmingModes:    Record<string, ArmMode>;
-  photonOverload:       Record<string, number>;   // free WS-III overload energy per tube (S4.32)
-  droneRackLoadouts:    Record<number, string[]>;   // rackIndex → drone type names
-  antiDroneLoadouts:    Record<number, number>;     // rackIndex → anti-drone rounds (FD3.70)
-  shuttlePrep:          Record<string, ShuttlePrep | null>; // shuttleName → prep or null (not selected)
-  optionMounts:         Record<string, string>;     // mount designator → option name (G15.4)
-  optionMountArcs:      Record<string, string>;     // designator → "FORWARD"|"OUTBOARD" (R8.R3)
   /**
-   * J4.621: which fighter model this ship's fighter facilities serve. '' means "not chosen",
-   * which leaves the line's standard fighter — the server treats absent and unavailable the
-   * same way, so there is nothing to represent for a default beyond the empty string.
+   * Choices already made for these ships, to start from (S8.12).
+   *
+   * Absent before a battle, where every ship starts unbought. Present in the fleet builder, where
+   * reopening the dialog has to show what the fleet already carries rather than silently offering
+   * to replace it with nothing.
    */
-  fighterFacilityType:  string;
+  initial?:    CoiSubmission;
 }
 
-function defaultShipCoi(): ShipCoi {
-  return {
-    extraBoardingParties: 0,
-    convertBpToCommando:  0,
-    extraCommandoSquads:  0,
-    extraTBombs:          0,
-    extraDeckCrews:       0,
-    armedFighters:        [],
-    weaponArmingModes:    {},
-    photonOverload:       {},
-    droneRackLoadouts:    {},
-    antiDroneLoadouts:    {},
-    shuttlePrep:          {},
-    optionMounts:         {},
-    optionMountArcs:      {},
-    fighterFacilityType:  '',
-  };
-}
 
 /** Tooltip text for a preset button, kept out of the JSX so quoting stays simple. */
 const PRESET_COST_TITLE = 'Load this rack — ';
@@ -1181,12 +1143,12 @@ function DronePayloadEditor({
   );
 }
 
-export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
+export default function CoiDialog({ sides, onSubmit, onSkip, busy, initial }: Props) {
   const [coiMap, setCoiMap] = useState<Record<string, ShipCoi>>(() => {
     const init: Record<string, ShipCoi> = {};
     for (const side of sides) {
       for (const ship of side.ships) {
-        init[ship.shipName] = defaultShipCoi();
+        init[ship.shipName] = seedShipCoi(initial?.[ship.shipName]);
       }
     }
     return init;

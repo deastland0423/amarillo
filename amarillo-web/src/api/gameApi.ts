@@ -245,7 +245,21 @@ export interface FleetShipEntry {
   faction?:  string;   // blank means the fleet's first empire
   type:      string;
   name?:     string;   // blank means the ship file's own name
+  /**
+   * @deprecated What this ship spent, as of whatever year it was last priced in. Derived, so
+   * wrong the moment the fleet is used in another year; the server reads it only for files
+   * written before `coi` existed. Write `coi` instead.
+   */
   coiSpend?: number;
+  /**
+   * The Commander's Options this ship was BOUGHT with (S8.12), as choices.
+   *
+   * The same shape the COI endpoint takes, because it is the same purchase: S8.12 lists
+   * Commander's Options under the general conditions for building a force, beside "units are
+   * purchased for their combat BPV". `FleetValidator.totalCost` has always charged the spending
+   * against the fleet budget — this is what it was charging for.
+   */
+  coi?: CoiShipChoices;
   /**
    * Orion option-mount choices bought with the ship (G15.4), mount designator → Annex #8B name.
    * G15.415 puts a mount change in a shipyard "taking several weeks or months", so the loadout
@@ -683,23 +697,37 @@ export interface CoiShuttlePrepEntry {
 }
 
 /** Per-ship COI selections to POST to /api/games/{id}/coi */
+/**
+ * One ship's Commander's Option choices (S3.2), in the form they are written down.
+ *
+ * Named rather than left inline because it is now recorded in two places: posted to the COI
+ * endpoint when a battle is arranged, and saved against a ship in a fleet file (S8.12). Core's
+ * `com.sfb.scenario.CoiChoices` is the same shape on the other side of the wire — field for
+ * field, which is what lets a fleet file be read by the same `toLoadout`.
+ *
+ * Everything here is what the player ASKED for. Nothing derived is carried: the cost is computed
+ * from the choices at the year of whatever battle they are used in (S8.132, S8.133).
+ */
+export interface CoiShipChoices {
+  extraBoardingParties?: number;
+  convertBpToCommando?:  number;
+  extraCommandoSquads?:  number;
+  extraTBombs?:          number;
+  extraDeckCrews?:       number;
+  fighterFacilityType?:  string;
+  armedFighters?:        string[];
+  droneRackLoadouts?:    Record<string, string[]>;
+  antiDroneLoadouts?:    Record<string, number>;   // rackIndex -> anti-drone rounds (FD3.70)
+  weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING'>;
+  photonOverload?:       Record<string, number>;  // free WS-III overload energy per tube (S4.32)
+  specialShuttlePrep?:   CoiShuttlePrepEntry[];
+  optionMounts?:         Record<string, string>;  // mount designator → option name (G15.4)
+  optionMountArcs?:      Record<string, string>;  // designator → "FORWARD"|"OUTBOARD" (R8.R3)
+  cartel?:               string;                   // the fleet's cartel, echoed per ship (G15.44)
+}
+
 export interface CoiSubmission {
-  [shipName: string]: {
-    extraBoardingParties?: number;
-    convertBpToCommando?:  number;
-    extraCommandoSquads?:  number;
-    extraTBombs?:          number;
-    extraDeckCrews?:       number;
-    armedFighters?:        string[];
-    droneRackLoadouts?:    Record<string, string[]>;
-    antiDroneLoadouts?:    Record<string, number>;   // rackIndex -> anti-drone rounds (FD3.70)
-    weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING'>;
-    photonOverload?:       Record<string, number>;  // free WS-III overload energy per tube (S4.32)
-    specialShuttlePrep?:   CoiShuttlePrepEntry[];
-    optionMounts?:         Record<string, string>;  // mount designator → option name (G15.4)
-    optionMountArcs?:      Record<string, string>;  // designator → "FORWARD"|"OUTBOARD" (R8.R3)
-    cartel?:               string;                   // the fleet's cartel, echoed per ship (G15.44)
-  };
+  [shipName: string]: CoiShipChoices;
 }
 
 /** One seeking weapon this ship's aegis may try to identify (D13.3). */
@@ -787,6 +815,20 @@ export const gameApi = {
 
   validateFleet(spec: FleetSpec): Promise<FleetValidation> {
     return request('/api/games/fleets/validate', {
+      method: 'POST',
+      body: JSON.stringify(spec),
+    });
+  },
+
+  /**
+   * What each ship of the fleet being EDITED may buy with its option points (S8.12).
+   *
+   * Posts the whole spec because the fleet is not saved yet and has no game behind it. The server
+   * converts it into the scenario it would become and asks the one COI builder, so the builder
+   * and the pre-battle lobby cannot disagree about what is on offer.
+   */
+  fleetCoiData(spec: FleetSpec): Promise<CoiSideData[]> {
+    return request('/api/games/fleets/coi-data', {
       method: 'POST',
       body: JSON.stringify(spec),
     });

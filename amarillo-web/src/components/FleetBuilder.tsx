@@ -1,10 +1,12 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gameApi } from '../api/gameApi';
+import CoiDialog from './CoiDialog';
+import { coiInitialFor, withCoiApplied } from './fleetCoiMapping';
 import { familiesOf, matchesSearch, resolveFamily, toggleRefit, variantOf } from './shelfFamilies';
 import { isGeneratedName, nameForNewShip } from './fleetNaming';
 import type {
   CatalogShip, Cartel, FleetSpec, FleetSummary, FleetValidation, FleetViolation,
-  HullOptionMounts,
+  HullOptionMounts, CoiSideData, CoiSubmission,
 } from '../api/gameApi';
 import { tierFor, quotaOf, describeQuota, describeCartel } from './cartelQuota';
 import { seatAll } from './optionMountSeating';
@@ -80,6 +82,18 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
   const [error, setError]     = useState('');
   const [busy, setBusy]       = useState(false);
   const [saved, setSaved]     = useState('');
+  /**
+   * The Commander's Options dialog for the fleet being built (S8.12), or null when shut.
+   *
+   * <h2>The resolved names are kept, and the reason is name collisions</h2>
+   * The dialog is keyed by ship NAME, and the names it is given are the ones the fleet resolver
+   * produced — which are not always the names in the spec. An entry may have no name at all
+   * (meaning the ship file's own) and two ships of one type get " #2" appended so a violation can
+   * point at one of them. So the answer is mapped back by POSITION, using the order the resolver
+   * reports, and `coiNames[i]` is the name standing for `spec.ships[i]`.
+   */
+  const [coiSides, setCoiSides] = useState<CoiSideData[] | null>(null);
+  const [coiNames, setCoiNames] = useState<string[]>([]);
   /**
    * The hull being inspected, or null. Held separately from the shelf row that opened it because
    * the viewer shows what the row cannot — shields, armament, bays — and that arrives from its own
@@ -549,6 +563,37 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
     });
   }
 
+  /**
+   * Ask the server what this fleet may buy, then open the dialog on it (S8.12).
+   *
+   * The whole spec is posted because it is not saved yet. What comes back is the same payload the
+   * pre-battle lobby gets, from the same builder, so the two cannot offer different things.
+   */
+  async function openCoi() {
+    setError('');
+    setBusy(true);
+    try {
+      const sides = await gameApi.fleetCoiData(spec);
+      const ships = sides[0]?.ships ?? [];
+      if (ships.length !== spec.ships.length) {
+        setError('The fleet could not be priced — try saving and reopening it.');
+        return;
+      }
+      setCoiNames(ships.map(sh => sh.shipName));
+      setCoiSides(sides);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not read the options for this fleet.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Both halves of the join live in fleetCoiMapping, where they are tested. */
+  async function applyCoi(submission: CoiSubmission) {
+    setSpec(sp => ({ ...sp, ships: withCoiApplied(sp.ships, coiNames, submission) }));
+    setCoiSides(null);
+  }
+
   async function save() {
     if (!spec.name.trim()) { setError('Give the fleet a name first.'); return; }
     setBusy(true); setError(''); setSaved('');
@@ -667,12 +712,36 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
         <h1>{spec.name || 'New fleet'}</h1>
         <div className="fb-topbar-actions">
           {saved && <span className="fb-saved">{saved}</span>}
+          {/* S8.12 lists Commander's Options under the conditions for building a force, beside
+              "units are purchased for their combat BPV" — so they are bought here, and
+              FleetValidator.totalCost has always charged them against the fleet's budget. */}
+          <button className="fb-btn" disabled={busy || spec.ships.length === 0}
+                  title={spec.ships.length === 0
+                    ? 'Buy a ship first — the allowance is a share of its BPV (S3.2)'
+                    : "Commander's Options for this fleet (S8.12)"}
+                  onClick={openCoi}>
+            Options
+          </button>
           <button className="fb-btn fb-btn-primary" disabled={busy} onClick={save}>Save</button>
           <button className="fb-btn" onClick={() => { setView('list'); refreshFleets(); }}>Back</button>
         </div>
       </div>
 
       {error && <p className="error">{error}</p>}
+
+      {/* The same dialog the pre-battle lobby uses, seeded with what the fleet already carries so
+          that reopening it shows the purchases rather than offering to replace them with nothing.
+          There is no player token here: a fleet is being built, not submitted to a game. */}
+      {coiSides && (
+        <CoiDialog
+          sides={coiSides}
+          playerToken=""
+          initial={coiInitialFor(spec.ships, coiNames)}
+          busy={busy}
+          onSubmit={applyCoi}
+          onSkip={() => setCoiSides(null)}
+        />
+      )}
 
       {/* Conditions. Terrain and map size are agreed per battle (S8.15, S8.135),
           so they are not here — a fleet outlives the map it was built for. */}

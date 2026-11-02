@@ -470,6 +470,37 @@ public class GameController {
         return ResponseEntity.ok(judge(spec));
     }
 
+    /**
+     * What each ship of a fleet UNDER CONSTRUCTION may buy with its option points (S8.12).
+     *
+     * <h2>Why a POST, and why it builds a scenario first</h2>
+     * The fleet being edited is not saved yet and has no game behind it, so neither the by-id
+     * route nor the session route can answer for it — the spec arrives in the body instead.
+     * And rather than a second implementation of the COI payload, the fleet is converted into
+     * the scenario it would become ({@code FleetsToScenario}) and the one builder answers for
+     * both. A fleet is one side, so the response has one entry.
+     *
+     * <h2>Weapon status is deliberately left at its default</h2>
+     * S8.134 has weapon status "defined by die roll or by mutual agreement" when the battle is
+     * arranged, so it is a condition of the fight rather than part of what the fleet costs. At
+     * the default the dialog simply does not offer the WS-3 arming controls, which is correct:
+     * a player buying a fleet is choosing drones and T-bombs, not how the photons are held.
+     */
+    @PostMapping("/fleets/coi-data")
+    public ResponseEntity<List<Map<String, Object>>> fleetCoiData(
+            @RequestBody com.sfb.scenario.FleetSpec spec) {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        try {
+            ScenarioSpec asBattle = com.sfb.scenario.FleetsToScenario.build(
+                    List.of(new com.sfb.scenario.FleetsToScenario.Entry(
+                            spec, spec.name == null || spec.name.isBlank() ? "Fleet" : spec.name)),
+                    com.sfb.scenario.FleetsToScenario.Conditions.defaults(spec.year, spec.budget));
+            return ResponseEntity.ok(coiDataFor(asBattle));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
     /** Resolve a fleet, validate it, and describe the result the way every caller wants it. */
     private Map<String, Object> judge(com.sfb.scenario.FleetSpec spec) {
         com.sfb.scenario.FleetLoader.Resolution resolved = com.sfb.scenario.FleetLoader.resolve(spec);
