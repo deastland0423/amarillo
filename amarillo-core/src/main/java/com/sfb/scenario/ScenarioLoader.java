@@ -744,7 +744,7 @@ public class ScenarioLoader {
             }
         }
 
-        // --- Drone rack loadouts (free; year/speed limits enforced) ---
+        // --- Drone rack loadouts (FD2.22's surcharge; year/speed limits enforced) ---
         if (!loadout.droneRackLoadouts.isEmpty() || !loadout.antiDroneLoadouts.isEmpty()) {
             Integer maxSpeed = spec.commanderOptions != null ? spec.commanderOptions.maxDroneSpeed : null;
             int year = spec.year;
@@ -826,6 +826,25 @@ public class ScenarioLoader {
                             + totalWithAntiDrones + " > " + rack.getSpaces() + ") — skipped");
                     continue;
                 }
+                // FD2.22's surcharge over the type-I-slows the hull already paid for, billed
+                // here rather than given away. Two things read it, and the second is the one
+                // that was wrong: the gate below is the last line of defence for a loadout
+                // written into a scenario file, which never passes the endpoint's refusal
+                // (CoiBudget.refusalFor already counts this) — but `spent` also becomes
+                // ship.setCoiSpend at the end of this method, and S2.20 step B hands that to
+                // the ENEMY as victory points. Uncharged, a player could arm every rack with
+                // type-IVs and be scored as though the ship had sailed with type-I-slows.
+                //
+                // Per rack, because this loop skips racks: see CoiLoadout.rackUpgradeCost.
+                double rackCost = CoiLoadout.rackUpgradeCost(requestedTypes, year);
+                if (spent + rackCost > budget) {
+                    note(ship, "COI: skipping the loadout for rack " + rackIndex
+                            + " — it costs " + rackCost + " and only " + (budget - spent)
+                            + " of the budget is left");
+                    continue;
+                }
+                spent += rackCost;
+
                 for (com.sfb.objects.DroneLoad dt : requestedTypes) drones.add(dt.build());
                 rack.setAmmo(drones);
                 rack.setAddAmmo(0);

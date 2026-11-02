@@ -249,21 +249,39 @@ public class CoiLoadout {
      */
     public double droneUpgradeCost(int year) {
         double total = 0;
-        for (List<DroneLoad> rack : droneRackLoadouts.values()) {
-            if (rack == null || rack.isEmpty())
-                continue;
-            double loaded = 0;
-            double free = 0;
-            for (DroneLoad d : rack) {
-                loaded += d.pointCost();
-                // The spaces the hull's own type-I-slows filled, plus the speed the scenario's
-                // year puts on them at the ship's expense rather than the budget's (S3.221).
-                free += d.rackSpaces() * TYPE_I_SLOW_COST_PER_SPACE
-                      + d.spec().speedCostIn(year);
-            }
-            total += Math.max(0, loaded - free);
-        }
+        for (List<DroneLoad> rack : droneRackLoadouts.values())
+            total += rackUpgradeCost(rack, year);
         return total;
+    }
+
+    /**
+     * The same surcharge for ONE rack, which is the figure a per-rack decision needs.
+     *
+     * <p>{@code ScenarioLoader.applyCoi} applies a loadout rack by rack — a rack whose drones
+     * are unavailable that year, or will not fit, is skipped while its neighbours load — so the
+     * bill has to divide the same way. Charging a rack that never loaded would hand the enemy
+     * victory points (S2.20 B) for drones the ship is not carrying.
+     *
+     * <h2>The clamp is per rack on purpose</h2>
+     * A loadout cheaper than the baseline contributes zero rather than a credit, and that is
+     * asked HERE rather than of the sum. A type-IV carrying one half-space explosive instead of
+     * two full ones is the easiest way to be under: two rack spaces, 1.25 points of drone, 2.00
+     * points of type-I-slows displaced. Asked of the sum, a rack of those would subsidise a rack
+     * of swordfish drones beside it — which is the refund FD2.22 does not offer, wearing a hat.
+     */
+    public static double rackUpgradeCost(List<DroneLoad> rack, int year) {
+        if (rack == null || rack.isEmpty())
+            return 0;
+        double loaded = 0;
+        double free = 0;
+        for (DroneLoad d : rack) {
+            loaded += d.pointCost();
+            // The spaces the hull's own type-I-slows filled, plus the speed the scenario's
+            // year puts on them at the ship's expense rather than the budget's (S3.221).
+            free += d.rackSpaces() * TYPE_I_SLOW_COST_PER_SPACE
+                  + d.spec().speedCostIn(year);
+        }
+        return Math.max(0, loaded - free);
     }
 
     /**
