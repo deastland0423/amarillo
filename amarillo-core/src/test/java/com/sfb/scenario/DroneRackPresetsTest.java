@@ -106,6 +106,47 @@ public class DroneRackPresetsTest {
                 assertEquals("fast is still Restricted in Y179: " + d, 20, d.speed());
     }
 
+    /**
+     * The standard load's speed, year by year: type-I-slow to Y166, type-I-medium from Y167,
+     * type-I-fast from Y180 on. FD10.65's General column, which is the only column a ship is
+     * fitted from without spending anything (S2.11), and the ladder the owner stated.
+     *
+     * <p>Nothing between those steps, which is the point of the test: speed 12 has been General
+     * since Y120 and never appears, because FD2.22 does not count it as an improvement and a
+     * type-II is a drone a player buys rather than one a year fits (FD2.31).
+     */
+    @Test
+    public void theStandardLoadFollowsTheYearsOwnLadder() {
+        assertEquals("Y120", DroneType.TypeI, standardFamilyPick(120));
+        assertEquals("Y145", DroneType.TypeI, standardFamilyPick(145));
+        assertEquals("Y166", DroneType.TypeI, standardFamilyPick(166));
+        assertEquals("Y167", DroneType.TypeIM, standardFamilyPick(167));
+        assertEquals("Y179", DroneType.TypeIM, standardFamilyPick(179));
+        assertEquals("Y180", DroneType.TypeIF, standardFamilyPick(180));
+        assertEquals("Y200", DroneType.TypeIF, standardFamilyPick(200));
+    }
+
+    /**
+     * Which standard-family drone a Kzinti rack is offered in this year.
+     *
+     * <p>The rack is first loaded with heavy drones so the standard preset cannot be suppressed
+     * as a repeat of what it already holds -- which is what would happen on a real ship, since
+     * {@code applyDroneSpeed} fits exactly this drone before the player is asked anything.
+     */
+    private static DroneType standardFamilyPick(int year) {
+        Ship ship = kzinCs();
+        DroneRack rack = firstRack(ship);
+        rack.setAmmo(new ArrayList<>(List.of(
+                DroneLoad.of(DroneType.TypeIV).build(),
+                DroneLoad.of(DroneType.TypeIV).build())));
+
+        for (DroneRackPresets.Preset p : DroneRackPresets.forRack(rack, year))
+            for (DroneLoad d : p.drones())
+                if (d.basis().family == DroneType.Family.STANDARD)
+                    return d.basis();
+        throw new AssertionError("no standard-family preset offered in Y" + year);
+    }
+
     /** One per family the rack can hold, so a Kzinti rack offers its heavy drones. */
     @Test
     public void aHeavyLoadoutIsOffered() {
@@ -179,46 +220,54 @@ public class DroneRackPresetsTest {
     }
 
     /**
-     * A preset can cost real points, and in the early years it does.
+     * Never a speed-12 drone, which is the whole of FD2.31 and FD2.22 said as a test.
      *
-     * <p>At Y145 the fastest drone the standard family hands out freely is the speed-12 type-II —
-     * speed 12 has been General since Y120 — while the ship itself was only charged for speed 8,
-     * because S2.11 fits the year and medium drones do not arrive until Y165. So the difference
-     * is the player's to pay, and FD2.11 names it: "one type-I with one type-II is 0.50", four of
-     * them 2.00.
+     * <p>FD2.31 has every rack "presumed to be loaded with type-I-slow drones... included in the
+     * BPV of the ship", and FD2.22's list of what a year refits a ship with names four things,
+     * of which moderate speed is not one. So a type-II is not a faster type-I: it is its own
+     * drone with two turns of endurance against the type-I's three (FD2.1), and FD2.11 charges
+     * half a point to load one. Same for the type-V against the type-IV.
      *
-     * <p>Worth pinning because for most of the game's span these buttons ARE free, which made it
-     * easy to conclude they always would be. They are free from the year a speed becomes standard
-     * issue, when the engine the preset buys and the credit S2.11 already granted cancel out —
-     * which is the test below.
+     * <p>This selected the family's fastest member, which in Y145 is the type-II — speed 12 has
+     * been General since Y120 — and so offered a shorter-legged drone as an upgrade and billed
+     * two points for a rack of them.
      */
     @Test
-    public void aPresetCanCostTheBudgetSomething() {
-        DroneRack rack = firstRack(kzinCs());
-        double dearest = 0;
-        for (DroneRackPresets.Preset p : DroneRackPresets.forRack(rack, 145))
-            dearest = Math.max(dearest, p.surcharge());
-
-        assertEquals("FD2.11: four type-IIs where four type-Is were is 4 x 0.50",
-                2.0, dearest, EXACT);
+    public void noPresetOffersASpeed12SpecialDrone() {
+        for (int year : new int[] {100, 120, 145, 160, 166, 170, 175, 179, 180, 185}) {
+            for (Ship ship : List.of(kzinCs(), fedOcl())) {
+                DroneRack rack = firstRack(ship);
+                for (DroneRackPresets.Preset p : DroneRackPresets.forRack(rack, year))
+                    for (DroneLoad d : p.drones())
+                        assertFalse(d + " in Y" + year + " is a special purchase (FD2.11),"
+                                        + " not the speed the year fits",
+                                d.basis() == DroneType.TypeII || d.basis() == DroneType.TypeV);
+            }
+        }
     }
 
     /**
-     * And from the year its speed is standard issue, the same button is free.
+     * And so a preset never costs the budget anything.
      *
-     * <p>Y180 hands out fast drones to everyone, so S2.11 has already charged the ship for speed
-     * 32 and a preset filling the rack with it adds nothing. The rest of FD2.11's uncapped trades
-     * are at par for the same kind of reason: "two type-Is with one type-IV is 0.00", "one type-I
-     * with two type-VIs is 0.00", and every General payload item is explosive at the half point a
-     * space that a type-I-slow sets.
+     * <p>It offers the drone the year itself would fit, and FD2.11 exchanges those at par: "two
+     * type-Is with one type-IV is 0.00", "one type-I with two type-VIs is 0.00". A General speed
+     * is one S2.11 has already charged the ship for, so the engine the preset buys and the credit
+     * it carries cancel. Every General payload item is explosive at the half point a space a
+     * type-I-slow sets. The only uncapped drones that cost — the type-II and type-V — are the
+     * ones the test above keeps out.
+     *
+     * <p>So replacing {@code forRack}'s price with a literal zero is an equivalent mutation
+     * today, and survives on purpose: this test is what will notice the day it stops being one.
      */
     @Test
-    public void andFromTheYearItsSpeedIsStandardIssueItIsFree() {
-        for (Ship ship : List.of(kzinCs(), fedOcl())) {
-            DroneRack rack = firstRack(ship);
-            for (DroneRackPresets.Preset p : DroneRackPresets.forRack(rack, 180))
-                assertEquals(p.drones() + " is at FD2.11 par once Y180 pays for the speed",
-                        0.0, p.surcharge(), EXACT);
+    public void everyPresetIsFreeBecauseTheLadderIsAtPar() {
+        for (int year : new int[] {100, 120, 145, 160, 166, 170, 175, 179, 180, 185}) {
+            for (Ship ship : List.of(kzinCs(), fedOcl())) {
+                DroneRack rack = firstRack(ship);
+                for (DroneRackPresets.Preset p : DroneRackPresets.forRack(rack, year))
+                    assertEquals(p.drones() + " in Y" + year + " must be at FD2.11 par",
+                            0.0, p.surcharge(), EXACT);
+            }
         }
     }
 
