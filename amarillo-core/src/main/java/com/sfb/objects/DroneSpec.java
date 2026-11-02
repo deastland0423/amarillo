@@ -597,13 +597,44 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
         return propulsion.costOn(effectiveFrame());
     }
 
-    /** What sits in the payload spaces (FD10.4), submunition engines excluded. */
+    /**
+     * What the payload section costs the budget (FD10.4): what is aboard, or what the frame
+     * shipped with, whichever is dearer. Submunition engines are excluded (FD8.44).
+     *
+     * <h2>The floor is FD10.48, and it is a rule rather than a safety net</h2>
+     * <blockquote>"NULL MODULES: A player could, for whatever reason, simply <b>remove and
+     * discard</b> the explosive warhead and launch the drone with no payload at all. It would act
+     * as a normal drone and could not be detected as having no warhead."</blockquote>
+     *
+     * <p>That discard happens to a drone which has already been BOUGHT. A gutted type-IV is not a
+     * cheaper drone; it is a type-IV with a hole in it, and FD2.11 charges for the type-IV. So an
+     * under-filled payload section is billed as though it were full — which is the only reading
+     * under which FD2.11's exchange table makes sense, because not one of its lines gives points
+     * back. Priced from the parts instead, a half-filled type-IV came out 0.75 BELOW the two
+     * type-I-slows it displaces, and that negative was then free to buy a dearer drone in the
+     * space beside it.
+     *
+     * <p>Taken from the FRAME rather than from the catalogue drone this was based on, because
+     * every modular drone in {@link DroneType} ships explosive and explosive is the cheapest thing
+     * per space any module offers (0.50; the dearest, a multi-warhead, is 2.50). So the frame's
+     * own payload spaces give the same answer with no basis to look up, and a type-III-XX floors
+     * at the ONE payload space FD10.24 leaves it rather than at its grown frame's two.
+     */
     public double payloadCost() {
-        double total = 0;
+        double aboard = 0;
         for (PayloadModule m : allModules())
-            total += m.cost;
-        return total;
+            aboard += m.cost;
+        return Math.max(aboard, STOCK_WARHEAD_COST_PER_SPACE * effectiveFrame().payloadSpaces);
     }
+
+    /**
+     * What one payload space of explosive costs, and so the floor {@link #payloadCost} applies.
+     * FD2.11 prices a type-I at 1.0 against a 0.50 speed-8 engine, leaving half a point for its
+     * warhead; {@link PayloadModule#EXPLOSIVE_HALF}, {@link PayloadModule#EXPLOSIVE_1} and
+     * {@link PayloadModule#EXPLOSIVE_2} all carry that same rate, which is what makes this one
+     * number rather than a per-frame table.
+     */
+    public static final double STOCK_WARHEAD_COST_PER_SPACE = 0.50;
 
     /**
      * FD10.53's frame additions. Zero for most drones: "under the point cost system, the frame

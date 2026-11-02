@@ -26,17 +26,19 @@ import { parseDroneName, rackSpacesOf, type DroneComposition } from './droneComp
  * frame uses — follows `rackSpacesOf`, which has made the same call for rack spaces since
  * payload modules arrived.
  *
- * <h2>The clamp is per RACK, and that is not a detail</h2>
- * A drone can be worth less than the type-I-slows it displaces: a type-IV carrying one half-space
- * explosive fills two rack spaces while costing 1.25 points, 0.75 under. FD2.11's trades net out
- * within a rack — "two type-Is with one type-IV is 0.00" — so the sum is taken first and clamped
- * once, per rack. Clamped per drone, a type-IV would cost more than the pair it replaces;
- * clamped once over the whole ship, a cheap rack would subsidise an expensive one. Core's
- * `CoiLoadout.surchargeOn` is deliberately unclamped for the same reason, and
- * `rackUpgradeCost` does the clamping.
+ * <h2>An under-filled drone is billed as though it were full (FD10.48)</h2>
+ * A player may leave payload space empty — "remove and discard the explosive warhead and launch
+ * the drone with no payload at all" — and that discard happens to a drone already bought. So the
+ * payload term floors at what the frame shipped with, which is what `dt.payloadCost` carries.
+ *
+ * <p>This used to price the hole as a discount, so a half-filled type-IV came out 0.75 BELOW the
+ * two type-I-slows it displaces, and a clamp on the rack total hid it. Inside the rack that
+ * negative still paid for a dearer drone in the next space — one rack space buying another,
+ * which is the refund FD2.22 does not offer, wearing a hat. With the floor at source there is
+ * nothing to clamp, and `rackSurcharge` is a plain sum like core's `rackUpgradeCost`.
  */
 
-/** One drone's surcharge over the type-I-slows it displaces, UNCLAMPED — see the header. */
+/** One drone's surcharge over the type-I-slows it displaces. Never negative — see the header. */
 export function droneSurcharge(
   c:         DroneComposition,
   types:     CoiDroneType[],
@@ -57,11 +59,13 @@ export function droneSurcharge(
     : (dt.speedCredit ?? 0);
 
   // Naming a module REPLACES the payload (FD10.4), which is the same rule the editor already
-  // shows: ticking one module on a type-IV leaves the other space empty rather than keeping
-  // the explosive that was there. So the catalogue's payload is what an untouched drone has.
-  const payload = c.modules.length > 0
-    ? c.modules.reduce((sum, n) => sum + (modules.find(m => m.name === n)?.cost ?? 0), 0)
-    : (dt.payloadCost ?? 0);
+  // shows: ticking one module on a type-IV leaves the other space empty rather than keeping the
+  // explosive that was there. And FD10.48 bills that empty space anyway, so the catalogue's
+  // payload is a floor rather than a fallback — which is also what makes naming no module at all
+  // come out as an untouched drone, with no branch needed to say so.
+  const chosen = c.modules.reduce(
+    (sum, n) => sum + (modules.find(m => m.name === n)?.cost ?? 0), 0);
+  const payload = Math.max(chosen, dt.payloadCost ?? 0);
 
   // FD10.53's additions are bought on top. The catalogue's own — a type-III's guidance — are in
   // frameCost and never appear here, because the only non-player-choice addition in the game is
@@ -85,7 +89,7 @@ export function droneSurcharge(
  */
 export const TYPE_I_SLOW_COST_PER_SPACE = 1.0;
 
-/** One rack's cost: the drones' surcharges summed, then clamped once — see the header. */
+/** One rack's cost: the drones' surcharges, plainly summed — see the header. */
 export function rackSurcharge(drones: string[], ship: CoiShipData): number {
   if (drones.length === 0) return 0;
   const modules   = ship.availableDroneModules ?? [];
@@ -94,7 +98,7 @@ export function rackSurcharge(drones: string[], ship: CoiShipData): number {
   const total = drones.reduce((sum, name) => sum + droneSurcharge(
     parseDroneName(name, modules, additions),
     ship.availableDroneTypes, modules, additions, subSpeeds), 0);
-  return Math.max(0, total);
+  return total;
 }
 
 /**

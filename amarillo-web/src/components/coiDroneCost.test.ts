@@ -91,11 +91,13 @@ describe('droneSurcharge', () => {
   });
 
   /**
-   * And it must be able to go NEGATIVE, because the rules clamp the rack and not the drone: two
-   * rack spaces filled by 1.25 points of drone is 0.75 under the type-I-slows displaced.
+   * FD10.48: a half-filled type-IV is billed as a type-IV. Priced from its parts it would be
+   * 1.25 points against 2.00 of displaced type-I-slows — a 0.75 credit for carrying a worse
+   * drone, which no line of FD2.11's table gives. The warhead was bought before it was
+   * discarded. `anUnderFilledPayloadIsBilledAsThoughItWereFull` on the core side.
    */
-  it('reports a drone cheaper than its baseline as a negative', () => {
-    expect(cost('TypeIV+EXPLOSIVE_HALF')).toBe(-0.75);
+  it('bills an under-filled drone as though it were full', () => {
+    expect(cost('TypeIV+EXPLOSIVE_HALF')).toBe(0);
   });
 
   /**
@@ -132,11 +134,12 @@ describe('droneSurcharge', () => {
 
 describe('rackSurcharge', () => {
   /**
-   * The clamp is taken once over the rack, which is what FD2.11's trades mean: an under-filled
-   * type-IV and a swordfish in one magazine net out below zero and the rack owes nothing.
+   * A plain sum, and the claim that broke before: the gutted type-IV used to report −0.75 and a
+   * clamp on the rack total hid it, so the swordfish beside it flew free on points the type-IV
+   * never saved. `aRackIsThePlainSumOfItsDrones` on the core side, same answer.
    */
-  it('nets the rack out before clamping it', () => {
-    expect(rackSurcharge(['TypeIV+EXPLOSIVE_HALF', 'TypeI+SWORDFISH_PHASER3'], SHIP)).toBe(0);
+  it('does not let a gutted drone pay for the drone in the next space', () => {
+    expect(rackSurcharge(['TypeIV+EXPLOSIVE_HALF', 'TypeI+SWORDFISH_PHASER3'], SHIP)).toBe(0.50);
   });
 
   it('charges a rack that is over the baseline', () => {
@@ -151,8 +154,8 @@ describe('rackSurcharge', () => {
 
 describe('droneLoadoutCost', () => {
   /**
-   * And once per rack rather than once per ship: a cheap rack must not pay for the rack beside
-   * it. This is `aCheapRackDoesNotSubsidiseAnExpensiveOneBesideIt` on the core side, same answer.
+   * And a cheap rack must not pay for the rack beside it either. This is
+   * `aCheapRackDoesNotSubsidiseAnExpensiveOneBesideIt` on the core side, same answer.
    */
   it('does not let a cheap rack subsidise an expensive one', () => {
     expect(droneLoadoutCost({

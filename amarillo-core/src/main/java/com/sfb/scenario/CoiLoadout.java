@@ -243,9 +243,11 @@ public class CoiLoadout {
      * figure it is a percentage of.
      *
      * <h2>No refunds</h2>
-     * A loadout cheaper than the baseline — null drones (FD10.48) cost 0.75 where a type-I-slow
-     * costs 1.00 — contributes zero rather than a credit. FD2.22 calls these "surcharges" and
-     * nothing in the rules offers points back for arming a ship worse than it came.
+     * FD2.22 calls these "surcharges" and nothing in the rules offers points back for arming a
+     * ship worse than it came — not one line of FD2.11's exchange table is negative. That is
+     * enforced where the one way to go under arises, which is an under-filled payload section:
+     * see {@link com.sfb.objects.DroneSpec#payloadCost}. Nothing downstream of it has to subtract
+     * a floor, and {@code DroneCostDecompositionTest} sweeps every legal drone to keep it so.
      */
     public double droneUpgradeCost(int year) {
         double total = 0;
@@ -262,12 +264,14 @@ public class CoiLoadout {
      * bill has to divide the same way. Charging a rack that never loaded would hand the enemy
      * victory points (S2.20 B) for drones the ship is not carrying.
      *
-     * <h2>The clamp is per rack on purpose</h2>
-     * A loadout cheaper than the baseline contributes zero rather than a credit, and that is
-     * asked HERE rather than of the sum. A type-IV carrying one half-space explosive instead of
-     * two full ones is the easiest way to be under: two rack spaces, 1.25 points of drone, 2.00
-     * points of type-I-slows displaced. Asked of the sum, a rack of those would subsidise a rack
-     * of swordfish drones beside it — which is the refund FD2.22 does not offer, wearing a hat.
+     * <h2>A plain sum, because no drone can be negative</h2>
+     * This used to clamp the total at zero, which looked like the same no-refunds rule said once
+     * per rack and was in fact a bug with a floor over it. A gutted type-IV reported −0.75, the
+     * clamp hid it at the rack boundary, and inside the rack that negative was free to pay for a
+     * dearer drone in the space beside it — one rack space buying another, which is precisely
+     * what the rule forbids. FD10.48 says why there was never a credit to net out: discarding a
+     * warhead happens to a drone already bought. So the floor moved to the payload term that can
+     * be under-filled ({@link com.sfb.objects.DroneSpec#payloadCost}) and the sum here is honest.
      */
     public static double rackUpgradeCost(List<DroneLoad> rack, int year) {
         if (rack == null || rack.isEmpty())
@@ -275,22 +279,25 @@ public class CoiLoadout {
         double total = 0;
         for (DroneLoad d : rack)
             total += surchargeOn(d, year);
-        return Math.max(0, total);
+        return total;
     }
 
     /**
-     * What ONE drone costs over the type-I-slows it displaces — and deliberately NOT clamped.
+     * What ONE drone costs over the type-I-slows it displaces. Never negative, and not because
+     * anything here says so.
      *
-     * <h2>The clamp belongs to the rack, so it cannot be applied here</h2>
-     * A drone under its baseline has to be able to report a negative figure, because the rack it
-     * sits in is what the rules clamp: FD2.11's trades ("two type-Is with one type-IV is 0.00")
-     * net out WITHIN a rack, and a drone clamped on its own would make a type-IV costed as two
-     * type-Is dearer than the pair it replaces.
+     * <h2>Why there is no floor at this line</h2>
+     * FD2.11's exchange table has no negative line — "two type-Is with one type-IV is 0.00" is
+     * as good as a trade gets — so a legal drone priced correctly is never worth less than what
+     * it displaces. The one way to come out under is to leave payload space empty, and FD10.48
+     * prices that at source: the warhead was bought before it was discarded. With that in place
+     * a floor here, or on the rack, has nothing to clamp;
+     * {@code DroneCostDecompositionTest.noLegalDroneIsWorthLessThanWhatItDisplaces} sweeps every
+     * drone the parser will build, in every year that moves the ladder, to hold that claim.
      *
      * <p>Which is also why this is public. The COI dialog prices a drone the player is still
-     * assembling, by adding up the parts core sent it, and the figure it arrives at is this one;
-     * it then clamps per rack exactly as {@link #rackUpgradeCost} does. Keeping both tiers on
-     * one name for one concept is the point.
+     * assembling, by adding up the parts core sent it, and the figure it arrives at is this one.
+     * Keeping both tiers on one name for one concept is the point.
      */
     public static double surchargeOn(DroneLoad drone, int year) {
         // The spaces the hull's own type-I-slows filled, plus the speed the scenario's year

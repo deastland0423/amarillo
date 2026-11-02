@@ -159,9 +159,11 @@ public class CoiDroneSpendTest {
     /**
      * FD2.22 calls these "surcharges", and nothing in the rules hands points back for arming a
      * ship worse than it came. A type-IV carrying one half-space explosive is the easy way to be
-     * under: two rack spaces, 1.25 points of drone, 2.00 points of type-I-slows displaced.
+     * under: two rack spaces, 1.25 points of parts, 2.00 points of type-I-slows displaced.
      *
-     * <p>Unclamped it would be a credit of 1.50 — which would then buy boarding parties.
+     * <p>Priced from those parts it would be a credit of 1.50 — which would then buy boarding
+     * parties. FD10.48 is why it is not: the warhead was bought before it was discarded, so each
+     * of these costs exactly what a type-IV costs, which against two type-I-slows is nothing.
      */
     @Test
     public void aLoadoutCheaperThanItsBaselineEarnsNoRefund() {
@@ -174,9 +176,8 @@ public class CoiDroneSpendTest {
     }
 
     /**
-     * And the clamp is asked of each rack rather than of the sum, which is a different claim: an
-     * under-filled rack must not pay for the rack beside it. Rack 0 is 1.50 under, rack 1 is
-     * half a point over, and the answer is half a point rather than nothing.
+     * And an under-filled rack must not pay for the rack beside it. Rack 0 would have been 1.50
+     * under, rack 1 is half a point over, and the answer is half a point rather than nothing.
      */
     @Test
     public void aCheapRackDoesNotSubsidiseAnExpensiveOneBesideIt() {
@@ -189,6 +190,29 @@ public class CoiDroneSpendTest {
         ScenarioLoader.applyCoi(ship, loadout, year(180));
 
         assertEquals("the swordfish is still paid for in full",
+                0.50, ship.getCoiSpend(), EXACT);
+    }
+
+    /**
+     * The same thing one scale down, which is where the old per-rack clamp let it through: a
+     * gutted drone must not pay for the drone in the NEXT SPACE of its own rack.
+     *
+     * <p>Rack 0 holds a gutted type-IV in two spaces and a swordfish type-I in the third. The
+     * type-IV reported −0.75, the swordfish +0.50, and the rack total was clamped at zero — so
+     * the swordfish flew free on points the type-IV never really saved. Both are billed on their
+     * own now, so the answer is the swordfish's half point.
+     */
+    @Test
+    public void aGuttedDroneDoesNotSubsidiseTheDroneInTheNextSpace() {
+        Ship ship = new Ship();
+        ship.init(KzintiShips.getKzinCS());
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.setDroneRackLoads(0,
+                loads("TypeIV+EXPLOSIVE_HALF", "TypeI+SWORDFISH_PHASER3", "TypeI"));
+
+        ScenarioLoader.applyCoi(ship, loadout, year(180));
+
+        assertEquals("the swordfish is paid for even sharing a rack with a gutted type-IV",
                 0.50, ship.getCoiSpend(), EXACT);
     }
 

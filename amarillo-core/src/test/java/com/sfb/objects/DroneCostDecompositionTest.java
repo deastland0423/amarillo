@@ -110,12 +110,21 @@ public class DroneCostDecompositionTest {
     }
 
     /**
-     * And a drone can be worth LESS than the type-I-slows it displaces, which is why
-     * {@code surchargeOn} is unclamped: two rack spaces filled by 1.25 points of drone.
+     * FD10.48: a half-filled type-IV is billed as a type-IV. One half-space explosive in a
+     * two-space frame is 1.25 points of parts against 2.00 of displaced type-I-slows, so priced
+     * from the parts it came out at −0.75 — a credit for carrying a worse drone, which FD2.11's
+     * table never gives. The warhead was bought before it was discarded, so it is paid for.
      */
     @Test
-    public void anUnderFilledPayloadIsNegativeRatherThanClamped() {
-        assertEquals(-0.75, surcharge("TypeIV+EXPLOSIVE_HALF", 180), EXACT);
+    public void anUnderFilledPayloadIsBilledAsThoughItWereFull() {
+        assertEquals(0.0, surcharge("TypeIV+EXPLOSIVE_HALF", 180), EXACT);
+    }
+
+    /** The extreme of the same rule: a drone launched with nothing aboard still cost its price. */
+    @Test
+    public void anEmptyPayloadSectionIsBilledAsThoughItWereFull() {
+        assertEquals(0.0, surcharge("TypeIV", 180), EXACT);
+        assertEquals(1.00, DroneLoad.parse("TypeIV").spec().payloadCost(), EXACT);
     }
 
     /**
@@ -141,18 +150,22 @@ public class DroneCostDecompositionTest {
     }
 
     /**
-     * The rack is what the rules clamp, not the drone. One under-filled type-IV and one swordfish
-     * net out to below zero and the rack owes nothing; the same two in separate racks owe half a
-     * point, because only the dear one is over.
+     * A rack is the plain sum of its drones, and that is the claim that broke before.
+     *
+     * <p>The gutted type-IV used to report −0.75 and the rack total was clamped at zero, so a
+     * swordfish drone in the next space along rode home free: one rack space spending what
+     * another had notionally saved. Billed per FD10.48 the type-IV is zero rather than negative,
+     * there is nothing to spend, and the swordfish's half point is charged whether it sits
+     * beside the type-IV or in a rack of its own.
      */
     @Test
-    public void theClampIsTakenOncePerRack() {
+    public void aRackIsThePlainSumOfItsDrones() {
         List<DroneLoad> together = List.of(
                 DroneLoad.parse("TypeIV+EXPLOSIVE_HALF"),
                 DroneLoad.parse("TypeI+SWORDFISH_PHASER3"));
 
-        assertEquals("-0.75 and +0.50 net below zero", 0.0,
-                CoiLoadout.rackUpgradeCost(together, 180), EXACT);
+        assertEquals("the gutted type-IV must not pay for the swordfish beside it",
+                0.50, CoiLoadout.rackUpgradeCost(together, 180), EXACT);
         assertEquals(0.0,
                 CoiLoadout.rackUpgradeCost(List.of(DroneLoad.parse("TypeIV+EXPLOSIVE_HALF")), 180),
                 EXACT);
@@ -160,5 +173,52 @@ public class DroneCostDecompositionTest {
                 CoiLoadout.rackUpgradeCost(
                         List.of(DroneLoad.parse("TypeI+SWORDFISH_PHASER3")), 180),
                 EXACT);
+    }
+
+    /**
+     * The invariant that lets {@code rackUpgradeCost} be a plain sum: no legal drone is worth
+     * less than the type-I-slows it displaces. FD2.11's exchange table has no negative line, so
+     * this is the rule rather than an accident of the charts.
+     *
+     * <p>Swept rather than argued, because the argument is only as good as the chart it reads:
+     * every module prices at 0.50 a payload space or dearer and every modular catalogue drone
+     * ships explosive at exactly 0.50, so a filled drone cannot undercut its stock price — true
+     * today, and one cheap module away from false. Three modifiers deep over every drone the
+     * parser will build, in the years that move FD10.65's ladder. Dropping the floor in
+     * {@code DroneSpec.payloadCost} turns this red.
+     */
+    @Test
+    public void noLegalDroneIsWorthLessThanWhatItDisplaces() {
+        List<String> mods = DroneLoad.modifierNames();
+        int[] years = {160, 166, 170, 175, 179, 180, 185};
+        int built = 0;
+
+        for (DroneType dt : DroneType.values()) {
+            List<String> texts = new java.util.ArrayList<>();
+            texts.add(dt.name());
+            for (int i = 0; i < mods.size(); i++) {
+                texts.add(dt.name() + "+" + mods.get(i));
+                for (int j = i; j < mods.size(); j++) {
+                    texts.add(dt.name() + "+" + mods.get(i) + "+" + mods.get(j));
+                    for (int k = j; k < mods.size(); k++)
+                        texts.add(dt.name() + "+" + mods.get(i) + "+" + mods.get(j)
+                                + "+" + mods.get(k));
+                }
+            }
+            for (String text : texts) {
+                if (DroneLoad.refusalFor(text) != null)
+                    continue;
+                DroneLoad drone = DroneLoad.parse(text);
+                built++;
+                for (int year : years) {
+                    double surcharge = CoiLoadout.surchargeOn(drone, year);
+                    if (surcharge < -EXACT)
+                        throw new AssertionError(text + " in Y" + year + " is worth " + surcharge
+                                + " less than the type-I-slows it displaces, which FD2.11 has no"
+                                + " line for — and a rack could spend it on the drone beside it");
+                }
+            }
+        }
+        assertEquals("the sweep must actually be building drones", 3704, built);
     }
 }
