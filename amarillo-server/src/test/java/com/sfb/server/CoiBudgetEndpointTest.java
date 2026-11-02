@@ -288,6 +288,64 @@ class CoiBudgetEndpointTest {
         assertNull(session.validateCoiBudget(null));
     }
 
+    // ---------------------------------------------------------------- ready-made loadouts
+
+    /** Every rack row carries the loadouts core says are legal for it in this year. */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> presetsOfFirstRack(
+            com.sfb.scenario.ScenarioSpec spec, String shipName) {
+        List<Map<String, Object>> racks =
+                (List<Map<String, Object>>) coiRowFor(spec, shipName).get("droneRacks");
+        assertNotNull(racks, shipName + " must publish its drone racks");
+        assertFalse(racks.isEmpty(), shipName + " must have a drone rack to offer presets for");
+        return (List<Map<String, Object>>) racks.get(0).get("presets");
+    }
+
+    @Test
+    void theLobbyPublishesReadyMadeRackLoadouts() {
+        com.sfb.scenario.ScenarioSpec spec = specFor("Kzinti", "CVS", "KHS Watchful");
+        List<Map<String, Object>> presets = presetsOfFirstRack(spec, "KHS Watchful");
+
+        assertNotNull(presets, "a rack must publish its presets, even if empty");
+        assertFalse(presets.isEmpty(), "a Kzinti rack should have something to offer");
+        for (Map<String, Object> p : presets) {
+            assertNotNull(p.get("drones"), "a preset names its drones: " + p);
+            assertNotNull(p.get("antiDrones"), "a preset says how many ADDs it holds: " + p);
+            assertNotNull(p.get("surcharge"), "a preset carries its price: " + p);
+        }
+    }
+
+    /**
+     * And the price on the button is the price the ship is charged, which is the whole point of
+     * sending it: core prices the preset, the lobby publishes that figure, and submitting the
+     * preset bills exactly it to {@code coiSpend} for S2.20 step B to score.
+     */
+    @SuppressWarnings("unchecked")
+    @Test
+    void aPublishedPresetCostsWhatItSaidItWould() {
+        com.sfb.scenario.ScenarioSpec spec = specFor("Kzinti", "CVS", "KHS Watchful");
+        List<Map<String, Object>> presets = presetsOfFirstRack(spec, "KHS Watchful");
+
+        Map<String, Object> withDrones = presets.stream()
+                .filter(p -> !((List<String>) p.get("drones")).isEmpty())
+                .findFirst().orElseThrow(() ->
+                        new AssertionError("expected a preset that loads drones: " + presets));
+        double advertised = ((Number) withDrones.get("surcharge")).doubleValue();
+
+        CoiRequest request = new CoiRequest();
+        request.droneRackLoadouts.put("0", (List<String>) withDrones.get("drones"));
+        com.sfb.scenario.CoiLoadout loadout = request.toLoadout();
+        assertTrue(request.droneRefusals.isEmpty(),
+                "the lobby must publish drone names the endpoint can read back: "
+                        + request.droneRefusals);
+
+        com.sfb.objects.Ship ship = shipFrom(spec, "KHS Watchful");
+        com.sfb.scenario.ScenarioLoader.applyCoi(ship, loadout, spec);
+
+        assertEquals(advertised, ship.getCoiSpend(), 1e-9,
+                "the preset must be billed what the button said");
+    }
+
     /** With no scenario loaded there is no ship to price a loadout against. */
     @Test
     void noScenarioMeansNoRefusal() {

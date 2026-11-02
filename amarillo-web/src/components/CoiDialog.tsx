@@ -1,12 +1,13 @@
 import { Fragment, useState, useEffect } from 'react';
 import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiDroneRack,
-  CoiDroneModule, CoiDroneAddition, Cartel } from '../api/gameApi';
+  CoiDroneModule, CoiDroneAddition, CoiRackPreset, Cartel } from '../api/gameApi';
 import { gameApi } from '../api/gameApi';
 import { Stepper } from './Stepper';
 import { tierFor, quotaOf, describeCartel } from './cartelQuota';
 import { seatAll } from './optionMountSeating';
-import { budgetBasisLabel, defaultAmmoLabel, droneChipLabel } from './coiLabels';
-import { withRackLoad, withoutRack } from './coiRackLoad';
+import { budgetBasisLabel, defaultAmmoLabel, droneChipLabel, presetLabel }
+  from './coiLabels';
+import { withRackLoad, withoutRack, withPreset } from './coiRackLoad';
 import { coiCost } from './coiTotal';
 import {
   isModified, parseDroneName, formatDroneName, payloadUsed, rackSpacesOf,
@@ -98,6 +99,12 @@ function defaultShipCoi(): ShipCoi {
   };
 }
 
+/** Tooltip text for a preset button, kept out of the JSX so quoting stays simple. */
+const PRESET_COST_TITLE = 'Load this rack — ';
+const PRESET_COST_TAIL  = " BPV of this ship's Commander's Options (S3.2)";
+const PRESET_FREE_TITLE = "Load this rack — nothing against this ship's Commander's Options";
+const PRESET_DOT        = ' · ';
+
 /**
  * Rack space used, to one decimal only when it needs one.
  * <p>
@@ -177,6 +184,18 @@ function ShipCoiPanel({
   // the editor is a panel under the rack it belongs to, and two open at once would separate a
   // drone from its own controls.
   const [editingDrone, setEditingDrone] = useState<string | null>(null);
+
+  // Which racks have their drone picker open, collapsed by default. The picker is a labelled row
+  // of buttons per drone family, and a Kzinti player bringing three ships of four racks had
+  // twelve of them stacked open -- a great deal of scrolling to reach anything below. The chips,
+  // the presets and the price stay visible while it is shut; only building drone-by-drone needs
+  // the room, and FD2.41's mix-as-you-elect is the minority case.
+  const [openRacks, setOpenRacks] = useState<number[]>([]);
+  function toggleRack(index: number) {
+    setOpenRacks(prev => prev.includes(index)
+      ? prev.filter(i => i !== index)
+      : [...prev, index]);
+  }
   const hasWs3Heavy = ship.weaponStatus === 3 && ship.heavyWeapons.length > 0;
   // S4.32: two free overload points per photon tube, poolable across the ship's tubes.
   const photonTubes      = ship.heavyWeapons.filter(w => w.type === 'Photon');
@@ -426,6 +445,7 @@ function ShipCoiPanel({
             // Whether the player has started building this rack. An untouched one keeps what
             // the ship came with (S2.11), so the builder's own figures say nothing about it yet.
             const touched = loadout.length > 0 || antiDrones > 0;
+            const expanded = openRacks.includes(rack.index);
 
             function setAntiDrones(n: number) {
               const next = Math.max(0, n);
@@ -443,6 +463,15 @@ function ShipCoiPanel({
              * absent rack index keeps the drones the ship arrived with; a rack set to [] sails
              * with none at all.
              */
+            /**
+             * Load a ready-made set (FD2.41), drones and FD3.70's anti-drones in one move. The
+             * drones and the price both came from core; nothing is decided here.
+             */
+            function applyPreset(preset: CoiRackPreset) {
+              onChange({ ...coi, ...withPreset(coi, rack.index, preset) });
+              setEditingDrone(null);
+            }
+
             function clearRack() {
               onChange({ ...coi,
                 droneRackLoadouts: withoutRack(coi.droneRackLoadouts, rack.index) });
@@ -512,8 +541,12 @@ function ShipCoiPanel({
                       Carrying {defaultAmmoLabel(rack.defaultAmmo, ship.availableDroneTypes)}
                     </span>
                   )}
-                  {loadout.length === 0 && antiDrones > 0 && (
-                    <span className="coi-note">No drones — anti-drones only</span>
+                  {/* FD3.70's rounds have no chip of their own -- they are a count, not a list --
+                      and their +/- control lives in the part of the rack a preset does not open.
+                      So a magazine loaded with ADDs says so here, or a player who clicked an
+                      anti-drone preset would see an apparently empty rack. */}
+                  {antiDrones > 0 && (
+                    <span className="coi-note">{antiDrones} × anti-drone</span>
                   )}
                 </div>
                 {/* The way out of an empty builder for a player who wants to change ONE drone.
@@ -521,9 +554,9 @@ function ShipCoiPanel({
                     was to add four chips by hand first, which is the sort of thing that makes
                     people skip the screen. Loading the set changes nothing by itself: it is the
                     same drones, now editable. */}
-                {(loadout.length > 0 || rack.defaultAmmo.length > 0) && (
-                  <div className="coi-rack-actions">
-                    {loadout.length === 0 ? (
+                <div className="coi-rack-actions">
+                  {loadout.length === 0
+                    ? rack.defaultAmmo.length > 0 && (
                       <button className="secondary"
                         title="Copy what the rack already holds into the builder, to change it"
                         onClick={() => setRack([...rack.defaultAmmo])}>
@@ -536,8 +569,29 @@ function ShipCoiPanel({
                         Back to standard
                       </button>
                     )}
-                  </div>
-                )}
+                  {/* Ready-made loads, from core: which ones are legal here and what each costs
+                      were both decided on the server (DroneRackPresets), and only General
+                      Availability drones are ever offered because FD10.62's caps are a property
+                      of the whole ship. The price shown is this rack's own bill (S3.2); the
+                      counter at the foot of the dialog is what the ship owes altogether. */}
+                  {(rack.presets ?? []).map((p, i) => (
+                    <button key={i} className="secondary"
+                      title={p.surcharge > 0
+                        ? PRESET_COST_TITLE + p.surcharge + PRESET_COST_TAIL
+                        : PRESET_FREE_TITLE}
+                      onClick={() => applyPreset(p)}>
+                      {presetLabel(p.drones, p.antiDrones)}
+                      {p.surcharge > 0 ? PRESET_DOT + p.surcharge : ''}
+                    </button>
+                  ))}
+                  <button className="secondary"
+                    title={expanded
+                      ? 'Hide the drone picker'
+                      : 'Choose this rack one drone at a time (FD2.41)'}
+                    onClick={() => toggleRack(rack.index)}>
+                    {expanded ? 'Done' : 'Build…'}
+                  </button>
+                </div>
                 {/* FD10.4's payload, for the one drone whose pencil is open. Under the rack
                     rather than inside the chip: the chips are a wrapping row and a panel in the
                     middle of one would push the rest of the loadout around as it opened. */}
@@ -574,7 +628,7 @@ function ShipCoiPanel({
                     />
                   );
                 })()}
-                {remaining > 0 && (
+                {expanded && remaining > 0 && (
                   <DronePicker
                     types={ship.availableDroneTypes.filter(dt => dt.rack <= remaining
                       && (rack.canLoadTypeVI || !dt.dogfight))}
@@ -584,7 +638,7 @@ function ShipCoiPanel({
                 {/* FD3.70: only a type-G has the anti-drone targeting system, and its
                     loading "must always be planned" — this is where that planning
                     happens, since nothing reloads an ADD into it in play (E5.74). */}
-                {rack.canLoadAntiDrones && (
+                {expanded && rack.canLoadAntiDrones && (
                   <div className="coi-drone-add-row" style={{ alignItems: 'center' }}>
                     <span className="coi-note" style={{ marginRight: 6 }}>
                       Anti-drones ({adSpace}sp each)

@@ -70,6 +70,25 @@ export function droneChipLabel(name: string, types: CoiDroneType[]): string {
  * <p>Grouped by name, because four identical chips tell a player less than "4 × TypeIF" does.
  * Insertion order is kept, so the list reads in the order the rack holds them.
  */
+/**
+ * A ready-made loadout, as its button reads: "4 × TypeIVF", "8 × anti-drone".
+ *
+ * Terser than {@link defaultAmmoLabel} on purpose. That one explains a load the player did not
+ * choose, so it spends words on damage and speed; this one sits on a button beside three others
+ * and has to be scannable. The name is the whole identity of a drone anyway — a composed one
+ * (FD10.2) has nothing else to show — and the picker below is where the details live.
+ *
+ * <p>FD3.70's anti-drones come last because they share the magazine rather than replace it: a
+ * type-G preset can hold both, and "2 × TypeIVF, 4 × anti-drone" reads in loading order.
+ */
+export function presetLabel(drones: string[], antiDrones: number): string {
+  const counts = new Map<string, number>();
+  for (const name of drones) counts.set(name, (counts.get(name) ?? 0) + 1);
+  const parts = [...counts.entries()].map(([name, n]) => `${n} × ${name}`);
+  if (antiDrones > 0) parts.push(`${antiDrones} × anti-drone`);
+  return parts.join(', ');
+}
+
 export function defaultAmmoLabel(ammo: string[], types: CoiDroneType[]): string {
   const counts = new Map<string, number>();
   for (const name of ammo) counts.set(name, (counts.get(name) ?? 0) + 1);

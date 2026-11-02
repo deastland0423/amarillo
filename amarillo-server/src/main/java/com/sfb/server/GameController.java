@@ -1440,6 +1440,24 @@ public class GameController {
                             dr.put("canLoadAntiDrones", rack.acceptsAntiDrones());
                             dr.put("antiDroneSpace",
                                     com.sfb.weapons.DroneRack.ANTI_DRONE_SPACE);
+                            // Ready-made loadouts for this rack in this year, so the dialog can
+                            // fill a magazine with one click instead of four. Core decides which
+                            // ones are legal (FD3.5, FD10.65, FD3.0) and prices each against the
+                            // budget; the view only renders them. No label is sent because the
+                            // dialog already knows how to write a drone list as "4 x Type-IF".
+                            List<Map<String, Object>> presets = new ArrayList<>();
+                            for (com.sfb.scenario.DroneRackPresets.Preset p
+                                    : com.sfb.scenario.DroneRackPresets.forRack(rack, spec.year)) {
+                                Map<String, Object> pm = new java.util.LinkedHashMap<>();
+                                List<String> names = new ArrayList<>();
+                                for (com.sfb.objects.DroneLoad d : p.drones())
+                                    names.add(d.format());
+                                pm.put("drones", names);
+                                pm.put("antiDrones", p.antiDrones());
+                                pm.put("surcharge", p.surcharge());
+                                presets.add(pm);
+                            }
+                            dr.put("presets", presets);
                             drones.add(dr);
                         }
                     }

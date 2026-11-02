@@ -383,6 +383,22 @@ export interface CoiHeavyWeapon {
   isPlasma:   boolean;
 }
 
+/**
+ * A ready-made loadout for one rack, from core (`DroneRackPresets`).
+ *
+ * Every figure here was decided on the server: which drones are legal in this rack in this year
+ * (FD3.5, FD10.65, FD3.0) and what the load costs the ship's option budget (S3.2). Only General
+ * Availability drones are ever offered, because FD10.62's percentage caps are a property of the
+ * whole SHIP and a per-rack button cannot judge them.
+ *
+ * It carries no label: the dialog already writes drone lists, so `presetLabel` makes one.
+ */
+export interface CoiRackPreset {
+  drones:     string[];   // drone names, in the same form a loadout sends back
+  antiDrones: number;     // FD3.70 rounds sharing the magazine
+  surcharge:  number;     // BPV against this ship's Commander's Options
+}
+
 export interface CoiDroneRack {
   index:        number;
   designator:   string;
@@ -392,6 +408,7 @@ export interface CoiDroneRack {
   canLoadTypeVI: boolean;  // only TYPE_E, TYPE_G, TYPE_H
   canLoadAntiDrones?: boolean; // FD3.70: only a type-G has the anti-drone targeting system
   antiDroneSpace?:    number;  // spaces one anti-drone round costs (0.5)
+  presets?:           CoiRackPreset[];  // absent on a server that predates them
 }
 
 export interface CoiDroneType {

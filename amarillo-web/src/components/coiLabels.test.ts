@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { budgetBasisLabel, defaultAmmoLabel, droneChipLabel } from './coiLabels';
+import { budgetBasisLabel, defaultAmmoLabel, droneChipLabel, presetLabel }
+  from './coiLabels';
 import type { CoiDroneType, CoiShipData } from '../api/gameApi';
 
 /**
@@ -117,5 +118,34 @@ describe('droneChipLabel', () => {
   /** A drone from FD10.4's workshop has no catalogue row either, and wants the same answer. */
   it('names a composed drone plainly', () => {
     expect(droneChipLabel('TypeIV+ECM', TYPES)).toBe('TypeIV+ECM');
+  });
+});
+
+/**
+ * A preset button has to be scannable beside three others, so it names the drones and nothing
+ * else. FD3.70's anti-drones come last because they share the magazine rather than replace it.
+ */
+describe('presetLabel', () => {
+  it('groups identical drones into a count', () => {
+    expect(presetLabel(['TypeIF', 'TypeIF', 'TypeIF', 'TypeIF'], 0))
+      .toBe('4 × TypeIF');
+  });
+
+  it('keeps a mixed load in loading order', () => {
+    expect(presetLabel(['TypeIVF', 'TypeIVF', 'TypeIF'], 0))
+      .toBe('2 × TypeIVF, 1 × TypeIF');
+  });
+
+  it('names anti-drone rounds, which are a count rather than a list (FD3.70)', () => {
+    expect(presetLabel([], 8)).toBe('8 × anti-drone');
+  });
+
+  it('puts the anti-drones after the drones sharing their magazine', () => {
+    expect(presetLabel(['TypeIVF'], 4)).toBe('1 × TypeIVF, 4 × anti-drone');
+  });
+
+  /** A composed drone (FD10.2) is in no catalogue, and its name is the whole truth about it. */
+  it('shows a composed drone by the name it was built under', () => {
+    expect(presetLabel(['TypeIV+ECM'], 0)).toBe('1 × TypeIV+ECM');
   });
 });

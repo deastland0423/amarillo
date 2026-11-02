@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { withRackLoad, withoutRack } from './coiRackLoad';
+import { withRackLoad, withoutRack, withPreset } from './coiRackLoad';
 
 /**
  * Core's rule, from the other end: "If a rack index is absent, the rack keeps its default
@@ -57,5 +57,54 @@ describe('withoutRack', () => {
     withoutRack(before, 0);
 
     expect(before).toEqual({ 0: ['TypeI'] });
+  });
+});
+
+/**
+ * FD3.70 has drones and anti-drone rounds sharing one magazine, so a preset describes the whole
+ * of it and both maps have to move together. Leaving an old ADD count beside new drones is how a
+ * magazine ends up holding more than it has room for, and the refusal that follows says nothing
+ * about which half was at fault.
+ */
+describe('withPreset', () => {
+  const state = {
+    droneRackLoadouts: { 0: ['TypeI'], 1: ['TypeIV'] },
+    antiDroneLoadouts: { 0: 4, 1: 2 },
+  };
+
+  it('replaces the drones and the anti-drones of one rack together', () => {
+    expect(withPreset(state, 0, { drones: ['TypeIF', 'TypeIF'], antiDrones: 0 })).toEqual({
+      droneRackLoadouts: { 0: ['TypeIF', 'TypeIF'], 1: ['TypeIV'] },
+      antiDroneLoadouts: { 1: 2 },
+    });
+  });
+
+  /** Zero rounds is the absence of a choice, so the key goes rather than holding a 0. */
+  it('removes the anti-drone entry rather than storing a zero', () => {
+    const after = withPreset(state, 1, { drones: ['TypeI'], antiDrones: 0 });
+    expect(Object.prototype.hasOwnProperty.call(after.antiDroneLoadouts, 1)).toBe(false);
+  });
+
+  /**
+   * An anti-drone-only load sets the drones to [], which is NOT the same as deleting the key:
+   * absent means "keep what the ship came with" (S2.11) and [] means "sail with none". A rack
+   * full of ADDs has deliberately no drones in it.
+   */
+  it('empties the drones rather than forgetting the rack, for an ADD-only load', () => {
+    const after = withPreset(state, 0, { drones: [], antiDrones: 8 });
+    expect(after.droneRackLoadouts[0]).toEqual([]);
+    expect(after.antiDroneLoadouts[0]).toBe(8);
+  });
+
+  it('leaves the other racks alone', () => {
+    const after = withPreset(state, 0, { drones: ['TypeIF'], antiDrones: 0 });
+    expect(after.droneRackLoadouts[1]).toEqual(['TypeIV']);
+    expect(after.antiDroneLoadouts[1]).toBe(2);
+  });
+
+  it('does not mutate what it was given', () => {
+    withPreset(state, 0, { drones: ['TypeIF'], antiDrones: 8 });
+    expect(state.droneRackLoadouts[0]).toEqual(['TypeI']);
+    expect(state.antiDroneLoadouts[0]).toBe(4);
   });
 });
