@@ -354,10 +354,65 @@ public abstract class Weapon {
 	public int shotsAvailableNow() {
 		if (!canFire())
 			return 0;
+		return shotsLeftNow();
+	}
+
+	/**
+	 * The rate arithmetic alone, with no question of whether the weapon may fire at all.
+	 *
+	 * Split out so {@link #apparentShotsAvailableNow()} can reach it past an ammunition
+	 * check that an opponent is not entitled to see.
+	 */
+	protected int shotsLeftNow() {
 		int left = maxShotsPerTurn - shotsThisTurn;
 		if (maxShotsPerQuarterTurn > 0)
 			left = Math.min(left, maxShotsPerQuarterTurn - shotsInQuarterTurn());
 		return Math.max(0, left);
+	}
+
+	/**
+	 * Readiness as an OPPONENT may compute it: from what they have watched happen, and
+	 * nothing else.
+	 *
+	 * <h2>Why readiness needs a second answer at all</h2>
+	 * Almost everything that makes a weapon unready is public. The box was shot off the SSD
+	 * and the damage was announced; the shot was fired and everyone saw it; the cooldown that
+	 * follows is arithmetic on a known impulse number. For those weapons this is just
+	 * {@link #readyToFireAtTarget()}, which is why that is the default here.
+	 *
+	 * <p>Two things are not public, and both of them reach readiness through
+	 * {@code canFire()}:
+	 * <ul>
+	 *   <li><b>Ammunition aboard.</b> An empty rack cannot fire, but the magazine is the
+	 *       owner's business — which is already settled policy, since the DTO withholds the
+	 *       round counts themselves. Publishing "not ready" would then say the withheld
+	 *       number is zero, which is the one value worth hiding.</li>
+	 *   <li><b>A reload plotted for this turn (FD2.421).</b> Sharper still: the plot takes
+	 *       the rack "out of service for that turn" and "cannot be reversed", so an opponent
+	 *       who learned of it would know that launcher cannot touch them for the rest of the
+	 *       turn — a free read on the whole turn's defence, bought without firing a shot.</li>
+	 * </ul>
+	 *
+	 * <p>So a weapon whose readiness depends on either must override this and answer as
+	 * though it were loaded and not reloading. What it must NOT do is hide the cooldown: a
+	 * launcher that has just fired is plainly on one, and concealing that would be a lie in
+	 * the opposite direction.
+	 *
+	 * @see #apparentShotsAvailableNow()
+	 */
+	public boolean apparentReadyToFireAtTarget() {
+		return readyToFireAtTarget();
+	}
+
+	/**
+	 * The shot count to match {@link #apparentReadyToFireAtTarget()}, for the same reasons.
+	 *
+	 * <p>This is the half that leaks most widely, because {@link #shotsAvailableNow()} runs
+	 * through {@code canFire()} for every weapon there is — so a drone rack of any type, not
+	 * just a type-G, reported zero shots the moment its owner plotted a reload.
+	 */
+	public int apparentShotsAvailableNow() {
+		return shotsAvailableNow();
 	}
 
 	/** Shots fired in the quarter turn ending on the current impulse. */

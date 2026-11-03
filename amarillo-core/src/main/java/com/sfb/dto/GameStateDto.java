@@ -1868,7 +1868,10 @@ public class GameStateDto {
             // readyToFireAtTarget, not canFire: this field decides whether the Fire Orders
             // panel lets a weapon be ticked, and a type-G in anti-drone mode answers false
             // to canFire for the rest of the turn while being perfectly able to shoot.
-            wd.readyToFire = w.isFunctional() && armedIfNeeded && w.readyToFireAtTarget();
+            // An enemy's copy is computed from what they have watched happen, never from the
+            // magazine or a plotted reload (FD2.421). See Weapon.apparentReadyToFireAtTarget.
+            wd.readyToFire = w.isFunctional() && armedIfNeeded
+                    && (hideSecrets ? w.apparentReadyToFireAtTarget() : w.readyToFireAtTarget());
             // Assigned for EVERY weapon, not only the ones that arm. It is a Boolean now,
             // where null means "not disclosed", so leaving it unset on a phaser made the
             // client treat the viewer's own weapons as an enemy's.
@@ -1959,7 +1962,8 @@ public class GameStateDto {
             }
             wd.maxShotsPerTurn = w.getMaxShotsPerTurn();
             wd.shotsThisTurn = w.getShotsThisTurn();
-            wd.shotsAvailableNow = w.shotsAvailableNow();
+            wd.shotsAvailableNow = hideSecrets
+                    ? w.apparentShotsAvailableNow() : w.shotsAvailableNow();
             wd.minImpulseGap = w.getMinImpulseGap();
             if (w instanceof com.sfb.weapons.FighterFusion) {
                 com.sfb.weapons.FighterFusion ff = (com.sfb.weapons.FighterFusion) w;

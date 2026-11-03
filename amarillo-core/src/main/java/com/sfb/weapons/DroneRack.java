@@ -632,6 +632,40 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 		return canFireAntiDrone();
 	}
 
+	/**
+	 * What an opponent may conclude about this rack's readiness: that it is loaded and that
+	 * no reload was plotted, whatever the truth.
+	 *
+	 * FD2.421 is why the reload half matters so much. A plotted reload takes the rack "out of
+	 * service for that turn" and "cannot be reversed", so an opponent told the rack was not
+	 * ready would know it could not fire at them again all turn. The mode is kept, because a
+	 * type-G enters ANTI_DRONE mode only by firing an anti-drone and that was seen; so is the
+	 * impulse it fired on, so the one-per-impulse gap stays too.
+	 *
+	 * <p>A rack that is not a type-G still answers false, as it does for its owner: being
+	 * unable to shoot at a target is what a type-A IS, printed on the SSD, and {@code
+	 * rackType} is already public.
+	 */
+	@Override
+	public boolean apparentReadyToFireAtTarget() {
+		return acceptsAntiDrones()
+				&& isFunctional()
+				&& modeThisTurn != RackMode.DRONE
+				&& clock.getImpulse() > lastAntiDroneImpulse;
+	}
+
+	/**
+	 * The same for the shot count, which leaks more widely: every rack type runs through
+	 * {@link #canFire()} here, so a plotted reload used to zero this on a type-A as readily
+	 * as on a type-G. ANTI_DRONE mode is kept for the reason above — it is reached by firing.
+	 */
+	@Override
+	public int apparentShotsAvailableNow() {
+		if (modeThisTurn == RackMode.ANTI_DRONE || !super.canFire())
+			return 0;
+		return shotsLeftNow();
+	}
+
 	/** Which way this rack is committed for the turn; UNDECIDED until its first shot. */
 	public RackMode getModeThisTurn() {
 		return modeThisTurn;

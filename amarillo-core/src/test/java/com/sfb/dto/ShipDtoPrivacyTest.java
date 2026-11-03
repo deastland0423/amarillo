@@ -190,6 +190,11 @@ public class ShipDtoPrivacyTest {
 
     private static final Set<String> WEAPON_PRIVATE = new HashSet<>(Arrays.asList(
         "armed", "armingType", "armingTurn", "totalArmingTurns", "armingEnergy",
+        // readyToFire is private for a weapon that ARMS and public for one that does not —
+        // which is why everyPrivateWeaponFieldIsBlankToAnEnemy checks it on heavies only. For
+        // the rest it reports what an opponent watched: the box, the shot, the cooldown. That
+        // only holds while the computation behind it stays public too, which is what the
+        // ammunition and reload state had quietly broken for racks — RackReadinessPrivacyTest.
         "readyToFire", "plasmaType", "pseudoPlasmaReady", "isRolling", "chargesRemaining",
         "esgStoredEnergy",
         // Ammunition remaining, hidden like the drones in a rack
@@ -225,7 +230,15 @@ public class ShipDtoPrivacyTest {
         // they are: it is printed on the SSD. Note it is built from the LAUNCHER's plasma type, never
         // from what is loaded in the tube, which stays private under G4.232.
         "name", "designator", "type", "label", "arcLabel", "arcMask", "launchDirectionsMask", "functional",
-        "isHeavy", "maxShotsPerTurn", "shotsThisTurn", "shotsAvailableNow",
+        "isHeavy", "maxShotsPerTurn", "shotsThisTurn",
+        // Public, but RECOMPUTED for an enemy rather than copied — the one weapon field that
+        // is, and the reason is the same one that makes transporterUses awkward above. The
+        // figure runs through canFire(), and for a drone rack or an ADD canFire() consults the
+        // magazine and any reload plotted under FD2.421 — both withheld. Published as-is it
+        // said "this rack is empty" or "this rack is out of service all turn" in a field whose
+        // own counts are nulled two lines down. An enemy gets it computed from the cooldown and
+        // the shots they watched; see RackReadinessPrivacyTest.
+        "shotsAvailableNow",
             "minImpulseGap", "lastImpulseFired",
         "cooldown", "launcherType", "photonTube", "canOverload", "canSuicide", "canEpt",
         "canProximity", "canFastLoad", "overloadFinalTurnOnly", "armingCost", "holdCost",

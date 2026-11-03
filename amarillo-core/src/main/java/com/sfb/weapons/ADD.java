@@ -181,6 +181,25 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
     }
 
     /**
+     * An opponent is told the rack is loaded whether it is or not.
+     *
+     * The DTO already withholds {@code addShots} and {@code addReloads} — "ammunition
+     * remaining, hidden like the drones in a rack" — so publishing readiness computed from
+     * {@code shots > 0} announced that the withheld count was zero. The cooldown and the
+     * shots already fired stay: those were watched.
+     */
+    @Override
+    public boolean apparentReadyToFireAtTarget() {
+        return super.canFire();
+    }
+
+    /** The shot count, for the same reason. */
+    @Override
+    public int apparentShotsAvailableNow() {
+        return super.canFire() ? shotsLeftNow() : 0;
+    }
+
+    /**
      * At end of turn (8C): auto-reload up to 4 rounds from reserve if the rack
      * did not fire this turn (E5.74).
      * Must check getShotsThisTurn() before super.cleanUp() resets it.
