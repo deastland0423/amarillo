@@ -86,7 +86,8 @@ public final class DroneRackPresets {
             List<DroneLoad> load = Collections.nCopies(count, pick);
             if (sameLoad(load, current))
                 continue;
-            out.add(new Preset(List.copyOf(load), 0, CoiLoadout.rackUpgradeCost(load, year)));
+            out.add(new Preset(List.copyOf(load), 0,
+                    CoiLoadout.rackUpgradeCost(rack, load, year)));
         }
 
         // FD3.70: a type-G's anti-drone loading "must always be planned", and nothing reloads an

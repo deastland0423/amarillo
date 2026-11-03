@@ -138,13 +138,17 @@ public final class CoiBudget {
      * Phrased for a player rather than a log: it names the ship, what the loadout costs and what
      * the ship had to spend, because "over budget" alone leaves them to work out by how much.
      *
+     * <p>The ship goes into the pricing as well as the allowance: a loadout names its racks by
+     * index and only the hull says which of them is a magazine launcher, whose spare magazines
+     * FD3.44 does not charge for.
+     *
      * @param year the scenario's year, which decides how much of a drone loadout the budget pays
-     *             for at all (S3.221) -- see {@link CoiLoadout#droneUpgradeCost}
+     *             for at all (S3.221) -- see {@link CoiLoadout#droneUpgradeCost(int)}
      */
     public static String refusalFor(Ship ship, CoiLoadout loadout, int percent, int year) {
         if (ship == null || loadout == null) return null;
         double allowance = allowanceFor(ship, percent);
-        double cost = loadout.totalCost(year);
+        double cost = loadout.totalCost(ship, year);
         if (cost <= allowance) return null;
         return ship.getName() + " spends " + trim(cost)
                 + " on Commander's Options but may spend only " + trim(allowance)

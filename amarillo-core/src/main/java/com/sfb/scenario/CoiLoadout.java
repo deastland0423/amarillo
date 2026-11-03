@@ -2,7 +2,9 @@ package com.sfb.scenario;
 
 import com.sfb.objects.DroneLoad;
 import com.sfb.objects.DroneType;
+import com.sfb.objects.Ship;
 import com.sfb.properties.WeaponArmingType;
+import com.sfb.weapons.DroneRack;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -179,16 +181,28 @@ public class CoiLoadout {
     /**
      * Total BPV cost of this loadout, against the ship's Commander's Option budget.
      *
+     * <p>Without a ship, which means without the racks: see
+     * {@link #droneUpgradeCost(Ship, int)} for what that costs a magazine launcher. Every other
+     * line here is the ship's own business and reads the same either way.
+     *
      * @param year the scenario's year, which decides how much of the drone bill the SHIP pays
-     *             rather than the budget (S3.221); see {@link #droneUpgradeCost}
+     *             rather than the budget (S3.221); see {@link #droneUpgradeCost(int)}
      */
     public double totalCost(int year) {
+        return totalCost(null, year);
+    }
+
+    /**
+     * The same, with the hull whose racks the loadout is indexing — the figure a budget check
+     * should use, because FD3.44 charges a magazine launcher for one magazine of three.
+     */
+    public double totalCost(Ship ship, int year) {
         return extraBoardingParties * COST_EXTRA_BP
              + convertBpToCommando  * COST_CONVERT_TO_COMMANDO
              + extraCommandoSquads  * COST_EXTRA_COMMANDO
              + extraTBombs          * COST_TBOMB
              + extraDeckCrews       * COST_EXTRA_DECK_CREW
-             + droneUpgradeCost(year);
+             + droneUpgradeCost(ship, year);
     }
 
     /**
@@ -218,13 +232,17 @@ public class CoiLoadout {
      * nothing about reload storage. A Federation CA+ upgraded to medium drones costs 2 points,
      * not 4.
      *
-     * <h2>Two exceptions NOT implemented, and why that is survivable</h2>
-     * FD2.45 names type-H and type-D racks as exceptions. The H-rack's is specific: FD3.84 has a
-     * starbase pay "for two magazines per launcher" with the rest free and the type-VI magazine
-     * never charged for speed. Neither is modelled, and the reason it does not bite yet is that
-     * nothing charges for reloads at all — this prices what is in the rack, which is the right
-     * answer for every other type. A starbase COI that fills a twenty-space H-rack would be
-     * overcharged, and that is the case to fix first if H-racks ever reach the builder.
+     * <h2>The two exceptions, which need the ship to see</h2>
+     * FD2.45 names type-H and type-D racks as exceptions, and both are the same shape: their
+     * reloads are not behind them but inside them, as the spare magazines (FD3.43), so pricing
+     * "what is in the rack" prices the free magazines too. FD3.44 charges a type-D for one
+     * magazine of its three and FD3.84 a type-H for two of its five.
+     *
+     * <p>Which is why there are two of these methods. A loadout names its racks by INDEX into
+     * the ship's weapon list and holds no hull of its own, so without one it cannot tell a
+     * magazine launcher from an ordinary rack and charges for everything — right for every rack
+     * but those two. {@link #droneUpgradeCost(Ship, int)} is the one a budget check wants;
+     * {@link PaidLoading} does the arithmetic and explains which magazine is the paid one.
      *
      * <h2>What the SHIP pays instead, and why the year is a parameter</h2>
      * The baseline is not the whole of what this does not charge for. S3.221: "Drone speed
@@ -250,10 +268,40 @@ public class CoiLoadout {
      * a floor, and {@code DroneCostDecompositionTest} sweeps every legal drone to keep it so.
      */
     public double droneUpgradeCost(int year) {
+        return droneUpgradeCost(null, year);
+    }
+
+    /**
+     * The same surcharge, read against the hull the rack indexes point into.
+     *
+     * <p>A rack index with no rack behind it is still charged in full rather than waved through:
+     * {@code ScenarioLoader.applyCoi} refuses an out-of-range index and loads nothing, so a
+     * budget check that quietly priced it at zero would disagree with what the ship ends up
+     * carrying in the safe direction for the player and the wrong one for the rule.
+     *
+     * @param ship the hull being outfitted, or null when the caller has none — see
+     *             {@link #droneUpgradeCost(int)}
+     */
+    public double droneUpgradeCost(Ship ship, int year) {
+        List<DroneRack> racks = racksOf(ship);
         double total = 0;
-        for (List<DroneLoad> rack : droneRackLoadouts.values())
-            total += rackUpgradeCost(rack, year);
+        for (Map.Entry<Integer, List<DroneLoad>> entry : droneRackLoadouts.entrySet()) {
+            int index = entry.getKey();
+            DroneRack rack = index >= 0 && index < racks.size() ? racks.get(index) : null;
+            total += rackUpgradeCost(rack, entry.getValue(), year);
+        }
         return total;
+    }
+
+    /** The ship's drone racks in the order {@link #droneRackLoadouts} indexes them. */
+    private static List<DroneRack> racksOf(Ship ship) {
+        List<DroneRack> racks = new ArrayList<>();
+        if (ship == null)
+            return racks;
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRack rack)
+                racks.add(rack);
+        return racks;
     }
 
     /**
@@ -274,12 +322,30 @@ public class CoiLoadout {
      * be under-filled ({@link com.sfb.objects.DroneSpec#payloadCost}) and the sum here is honest.
      */
     public static double rackUpgradeCost(List<DroneLoad> rack, int year) {
-        if (rack == null || rack.isEmpty())
+        return rackUpgradeCost(null, rack, year);
+    }
+
+    /**
+     * The same, for a named rack — which is what FD2.45's two exceptions need to be told apart.
+     *
+     * <p>A type-D is charged for one of its three magazines and a type-H for two of its five
+     * ({@link com.sfb.weapons.DroneRack#paidLoadingSpaces()}); every other rack, and a null one,
+     * is charged for the whole load as before. {@link PaidLoading} picks which drones those
+     * spaces hold and says why it picks the dearest.
+     *
+     * @param rack the rack this load is going into, or null when it is not known
+     */
+    public static double rackUpgradeCost(DroneRack rack, List<DroneLoad> load, int year) {
+        if (load == null || load.isEmpty())
             return 0;
-        double total = 0;
-        for (DroneLoad d : rack)
-            total += surchargeOn(d, year);
-        return total;
+        if (rack == null || rack.paidLoadingSpaces() >= rack.getSpaces()) {
+            double total = 0;
+            for (DroneLoad d : load)
+                total += surchargeOn(d, year);
+            return total;
+        }
+        return PaidLoading.dearestLoading(load, rack.paidLoadingSpaces(),
+                DroneLoad::rackSpaces, d -> surchargeOn(d, year));
     }
 
     /**
@@ -323,6 +389,10 @@ public class CoiLoadout {
 
     /**
      * True if this loadout's cost is within the allowed budget.
+     *
+     * <p>A BPV is not a hull, so this cannot see the racks and prices a magazine launcher's
+     * spare magazines along with its paid one (FD3.44). {@link CoiBudget#refusalFor} is the
+     * check with a ship in its hand, and the one the endpoint uses.
      */
     public boolean isWithinBudget(int shipBpv, int budgetPercent, int year) {
         return totalCost(year) <= budget(shipBpv, budgetPercent);

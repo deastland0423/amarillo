@@ -1,5 +1,5 @@
 import type {
-  CoiDroneAddition, CoiDroneModule, CoiDroneType, CoiShipData, CoiSubmunitionSpeed,
+  CoiDroneAddition, CoiDroneModule, CoiDroneRack, CoiDroneType, CoiShipData, CoiSubmunitionSpeed,
 } from '../api/gameApi';
 import { parseDroneName, rackSpacesOf, type DroneComposition } from './droneComposition';
 
@@ -36,6 +36,15 @@ import { parseDroneName, rackSpacesOf, type DroneComposition } from './droneComp
  * negative still paid for a dearer drone in the next space — one rack space buying another,
  * which is the refund FD2.22 does not offer, wearing a hat. With the floor at source there is
  * nothing to clamp, and `rackSurcharge` is a plain sum like core's `rackUpgradeCost`.
+ *
+ * <h2>Except in a magazine launcher, where it is not a plain sum</h2>
+ * FD2.45 pays "only for a single loading of each launch rack", and for every ordinary rack that
+ * costs nothing to obey: the reloads are kept somewhere this never looks. A type-D keeps them
+ * INSIDE itself as the spare magazines (FD3.43), so FD3.44 charges one magazine of its three and
+ * FD3.84 charges a type-H two of its five. The rack sends `paidLoadingSpaces` and
+ * `dearestLoading` below picks which drones fill it — mirroring core's `PaidLoading`, which is
+ * where the rule and the reasoning live. Without this the dialog quoted three times the bill
+ * `CoiBudget.refusalFor` would check and refused loadouts the server would have taken.
  */
 
 /** One drone's surcharge over the type-I-slows it displaces. Never negative — see the header. */
@@ -89,16 +98,63 @@ export function droneSurcharge(
  */
 export const TYPE_I_SLOW_COST_PER_SPACE = 1.0;
 
-/** One rack's cost: the drones' surcharges, plainly summed — see the header. */
-export function rackSurcharge(drones: string[], ship: CoiShipData): number {
+/** Half a space is the smallest a drone comes in (FD3.5's type-VI), so it is the unit. */
+const HALF_SPACE = 0.5;
+
+/**
+ * The dearest `paidSpaces` worth of these drones — core's `PaidLoading.dearestLoading`.
+ *
+ * FD2.452 settles which magazine FD3.44 charges for: "the reload drones are presumed to be of
+ * the same cost (or lower) as the drones in the rack", so a free reload may be no dearer than
+ * what was paid for and the paid magazine has to be the dearest one. Taking the dearest DRONE
+ * first is a different answer and a smaller one — one two-space type-IV beats any single
+ * dogfight drone, but eight dogfight drones fit the same four spaces — so it is a knapsack, and
+ * a small exact one: every size and the capacity itself are multiples of half a space.
+ */
+function dearestLoading(
+  items: { spaces: number; worth: number }[], paidSpaces: number,
+): number {
+  const capacity = Math.round(paidSpaces / HALF_SPACE);
+  if (capacity <= 0) return 0;
+  // best[w] = the dearest loading that fits in w half-spaces. Zero-filled, because a loading is
+  // never obliged to use the room it has, and a drone worth nothing is simply left out.
+  const best = new Array<number>(capacity + 1).fill(0);
+  for (const item of items) {
+    if (item.worth <= 0) continue;
+    const size = Math.round(item.spaces / HALF_SPACE);
+    if (size <= 0 || size > capacity) continue;
+    for (let w = capacity; w >= size; w--)
+      best[w] = Math.max(best[w], best[w - size] + item.worth);
+  }
+  return best[capacity];
+}
+
+/**
+ * One rack's cost: the drones' surcharges, plainly summed — unless the rack is one of FD2.45's
+ * two magazine launchers, which pay for a single magazine (see the header).
+ *
+ * @param rack the rack this load is going into, when the caller knows which; without it the
+ *             whole load is billed, which is right for every rack but a type-D or type-H
+ */
+export function rackSurcharge(
+  drones: string[], ship: CoiShipData, rack?: CoiDroneRack,
+): number {
   if (drones.length === 0) return 0;
   const modules   = ship.availableDroneModules ?? [];
   const additions = ship.availableDroneAdditions ?? [];
   const subSpeeds = ship.availableSubmunitionSpeeds ?? [];
-  const total = drones.reduce((sum, name) => sum + droneSurcharge(
-    parseDroneName(name, modules, additions),
-    ship.availableDroneTypes, modules, additions, subSpeeds), 0);
-  return total;
+  const priced = drones.map(name => {
+    const c = parseDroneName(name, modules, additions);
+    return {
+      spaces: rackSpacesOf(c, ship.availableDroneTypes),
+      worth:  droneSurcharge(c, ship.availableDroneTypes, modules, additions, subSpeeds),
+    };
+  });
+  const whole = priced.reduce((sum, d) => sum + d.worth, 0);
+
+  const paid = rack?.paidLoadingSpaces;
+  if (paid == null || paid >= rack!.spaces) return whole;
+  return dearestLoading(priced, paid);
 }
 
 /**
@@ -113,5 +169,7 @@ export function droneLoadoutCost(
   loadouts: Record<number, string[]>,
   ship:     CoiShipData,
 ): number {
-  return Object.values(loadouts).reduce((sum, drones) => sum + rackSurcharge(drones, ship), 0);
+  const racks = ship.droneRacks ?? [];
+  return Object.entries(loadouts).reduce((sum, [index, drones]) => sum + rackSurcharge(
+    drones, ship, racks.find(r => r.index === Number(index))), 0);
 }

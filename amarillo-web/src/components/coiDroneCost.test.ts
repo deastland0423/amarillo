@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { droneSurcharge, rackSurcharge, droneLoadoutCost } from './coiDroneCost';
 import { plainDrone, parseDroneName } from './droneComposition';
 import type {
-  CoiDroneAddition, CoiDroneModule, CoiDroneType, CoiShipData, CoiSubmunitionSpeed,
+  CoiDroneAddition, CoiDroneModule, CoiDroneRack, CoiDroneType, CoiShipData, CoiSubmunitionSpeed,
 } from '../api/gameApi';
 
 /**
@@ -149,6 +149,62 @@ describe('rackSurcharge', () => {
 
   it('has nothing to charge for an empty rack', () => {
     expect(rackSurcharge([], SHIP)).toBe(0);
+  });
+});
+
+/**
+ * FD2.45's magazine exception, which is the one place `rackSurcharge` is not a plain sum.
+ *
+ * `CoiMagazineSurchargeTest` on the core side, same rule and the same arithmetic — this is the
+ * mirror, so if the two disagree the dialog quotes a bill the server will not honour.
+ */
+describe('rackSurcharge in a magazine launcher', () => {
+  /** FD3.4: three magazines of four spaces behind one launcher. FD3.44 charges for one. */
+  const TYPE_D = { index: 0, spaces: 12, paidLoadingSpaces: 4 } as CoiDroneRack;
+  /** An ordinary four-space rack, whose reloads are kept where no bill looks. */
+  const ORDINARY = { index: 1, spaces: 4, paidLoadingSpaces: 4 } as CoiDroneRack;
+
+  const twelveSpecials = Array<string>(12).fill('TypeI+SWORDFISH_PHASER3');
+
+  it('charges one magazine of the three', () => {
+    expect(rackSurcharge(twelveSpecials, SHIP, TYPE_D)).toBe(2.00);
+  });
+
+  it('charges the whole load when the rack is an ordinary one', () => {
+    expect(rackSurcharge(['TypeI+SWORDFISH_PHASER3', 'TypeI+SWORDFISH_PHASER3',
+      'TypeI+SWORDFISH_PHASER3', 'TypeI+SWORDFISH_PHASER3'], SHIP, ORDINARY)).toBe(2.00);
+  });
+
+  /**
+   * And without a rack at all, which is what a server that predates `paidLoadingSpaces` sends:
+   * the whole load, as before. Six where the rule asks two, but the alternative fallback —
+   * treating the missing figure as zero — would charge nothing at all.
+   */
+  it('bills the whole load when the server has not said otherwise', () => {
+    expect(rackSurcharge(twelveSpecials, SHIP)).toBe(6.00);
+  });
+
+  /**
+   * FD2.452 picks WHICH magazine: "the reload drones are presumed to be of the same cost (or
+   * lower) as the drones in the rack", so it has to be the dearest. Eight cheap drones first in
+   * the list and four dear ones behind them, so the answer cannot come from the ordering — and
+   * a type-III rather than a type-I for the cheap eight, because a type-I-slow is free either
+   * way and would prove nothing.
+   */
+  it('charges the dearest magazine rather than the first one it finds', () => {
+    const load = [...Array<string>(8).fill('TypeIII'),
+                  ...Array<string>(4).fill('TypeIII+SWORDFISH_PHASER3')];
+    expect(rackSurcharge(load, SHIP, TYPE_D)).toBe(4.00);
+    expect(rackSurcharge(load, SHIP)).toBe(8.00);
+  });
+
+  /** And the racks are told apart by index, which is how a loadout names them. */
+  it('bills a magazine launcher and an ordinary rack differently in one loadout', () => {
+    const ship = { ...SHIP, droneRacks: [TYPE_D, ORDINARY] } as CoiShipData;
+    expect(droneLoadoutCost({
+      0: twelveSpecials,
+      1: ['TypeI+SWORDFISH_PHASER3', 'TypeI', 'TypeI', 'TypeI'],
+    }, ship)).toBe(2.50);
   });
 });
 

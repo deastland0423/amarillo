@@ -538,9 +538,9 @@ public class ScenarioLoader {
      * magazines of expensive ones.
      *
      * <p>Filled by SPACES rather than by count, because a magazine is four spaces and FD2.11
-     * trades two type-Is for one type-IV at par. A drone that will not fit the space left is
-     * skipped rather than ending the fill, so a half-space type-VI can still take the last half
-     * magazine a two-space type-IV could not.
+     * trades two type-Is for one type-IV at par. Which drones those spaces hold is
+     * {@link PaidLoading}'s problem, and the same one the Commander's Option surcharge has
+     * ({@link CoiLoadout#rackUpgradeCost(DroneRack, java.util.List, int)}).
      */
     private static double rackSpeedCost(DroneRack rack, int year) {
         double paidSpaces = rack.paidLoadingSpaces();
@@ -550,26 +550,15 @@ public class ScenarioLoader {
                 loaded.add(d);
 
         // The ordinary rack, and every rack but two types: the whole load is the loading, and
-        // the arithmetic below would only be a slower way of saying so.
+        // asking which part of it is dearest would only be a slower way of saying so.
         if (paidSpaces >= rack.getSpaces()) {
             double all = 0;
             for (Drone d : loaded)
                 all += d.getSpec().speedCostIn(year);
             return all;
         }
-
-        loaded.sort((a, b) -> Double.compare(
-                b.getSpec().speedCostIn(year), a.getSpec().speedCostIn(year)));
-        double used = 0;
-        double owed = 0;
-        for (Drone d : loaded) {
-            double size = d.getRackSize();
-            if (used + size > paidSpaces + 1e-9)
-                continue;               // too big for what is left; something smaller may fit
-            used += size;
-            owed += d.getSpec().speedCostIn(year);
-        }
-        return owed;
+        return PaidLoading.dearestLoading(loaded, paidSpaces,
+                Drone::getRackSize, d -> d.getSpec().speedCostIn(year));
     }
 
     /**
@@ -1043,7 +1032,9 @@ public class ScenarioLoader {
                 // type-IVs and be scored as though the ship had sailed with type-I-slows.
                 //
                 // Per rack, because this loop skips racks: see CoiLoadout.rackUpgradeCost.
-                double rackCost = CoiLoadout.rackUpgradeCost(requestedTypes, year);
+                // The rack itself goes in because FD3.44 charges a magazine launcher for one
+                // magazine of its three, and only the rack knows it is one.
+                double rackCost = CoiLoadout.rackUpgradeCost(rack, requestedTypes, year);
                 if (spent + rackCost > budget) {
                     note(ship, "COI: skipping the loadout for rack " + rackIndex
                             + " — it costs " + rackCost + " and only " + (budget - spent)

@@ -418,6 +418,16 @@ export interface CoiDroneRack {
   designator:   string;
   spaces:       number;
   reloadCount:  number;
+  /**
+   * FD2.45's "single loading" in spaces — what the Commander's Option budget is charged for,
+   * which is the whole rack for every type but two. A type-D keeps its reloads inside itself as
+   * the spare magazines (FD3.43), so FD3.44 charges it for one magazine of its three and FD3.84
+   * charges a type-H for two of its five.
+   *
+   * Optional because a server that predates it sends nothing, and the fallback then has to be
+   * the old behaviour — bill the whole load — rather than a zero that would bill none of it.
+   */
+  paidLoadingSpaces?: number;
   defaultAmmo:  string[];  // drone type names before any COI loadout
   canLoadTypeVI: boolean;  // only TYPE_E, TYPE_G, TYPE_H
   canLoadAntiDrones?: boolean; // FD3.70: only a type-G has the anti-drone targeting system

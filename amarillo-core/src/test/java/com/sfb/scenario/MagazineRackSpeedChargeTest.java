@@ -189,20 +189,41 @@ public class MagazineRackSpeedChargeTest {
     }
 
     /**
-     * And a drone too big for the space left does not end the fill — something smaller may
-     * still take it. One two-space type-IV and then half-space type-VIs: the type-IV is dearest
-     * so it goes in first, and four type-VIs take the two spaces behind it.
+     * The dearest magazine is a knapsack, and taking the dearest DRONE first is not the same
+     * answer — which is a hole a player could have arranged on purpose.
      *
-     * <p>1.00 for the type-IV plus four at 0.50 is three. A fill that stopped at the first
-     * drone that would not fit would charge one.
+     * <p>One two-space type-IV and then half-space type-VIs. The type-IV is the dearest single
+     * drone at a point, so "dearest first" takes it and fills the two spaces behind it with four
+     * type-VIs at FD2.226's half rate: three. But eight type-VIs fit those same four spaces and
+     * are worth four, so three was not the dearest loading in the launcher and FD2.452 was not
+     * satisfied by it.
+     *
+     * <p>Both the magazine and every drone size are multiples of half a space (FD2.1, FD3.5), so
+     * {@code PaidLoading} settles it exactly rather than by preference order.
      */
     @Test
-    public void asmallerDroneCanStillTakeTheSpaceABiggerOneCouldNot() {
+    public void theDearestLoadingIsNotSimplyTheDearestDronesInOrder() {
         List<Drone> load = new ArrayList<>();
         load.add(new Drone(DroneType.TypeIVF));
         load.addAll(many(DroneType.TypeVIF, 20));
 
-        assertEquals("the magazine is filled, not abandoned", 3,
+        assertEquals("eight dogfight drones fill the magazine and beat the type-IV", 4,
+                chargeFor(new DroneRack(DroneRack.DroneRackType.TYPE_D), load, 183));
+    }
+
+    /**
+     * And the magazine is still filled rather than abandoned when the dearest drone IS in the
+     * answer: a two-space type-IV at a point, then two one-space medium type-Is at a half each
+     * take the two spaces behind it. A fill that stopped at the first drone too big for the
+     * room left would charge one.
+     */
+    @Test
+    public void aSmallerDroneStillTakesTheSpaceLeftOverByABiggerOne() {
+        List<Drone> load = new ArrayList<>();
+        load.add(new Drone(DroneType.TypeIVF));
+        load.addAll(many(DroneType.TypeIM, 2));
+
+        assertEquals("1.00 for the type-IV and 0.50 twice behind it", 2,
                 chargeFor(new DroneRack(DroneRack.DroneRackType.TYPE_D), load, 183));
     }
 

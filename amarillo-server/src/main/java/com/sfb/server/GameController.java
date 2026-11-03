@@ -1618,6 +1618,12 @@ public class GameController {
                         dr.put("designator", w.getDesignator());
                         dr.put("spaces", rack.getSpaces());
                         dr.put("reloadCount", rack.getNumberOfReloads());
+                        // FD2.45's "single loading", which is the whole rack for all but two
+                        // types: FD3.44 charges a type-D for one magazine of its three and
+                        // FD3.84 a type-H for two of its five. Sent because the dialog has to
+                        // quote the same bill the server will check (CoiBudget.refusalFor),
+                        // and nothing in the rack's size or reload count says this.
+                        dr.put("paidLoadingSpaces", rack.paidLoadingSpaces());
                         // What is in the rack before any COI, each drone in the same
                         // textual form a loadout sends back — so a composed drone
                         // (FD10.2) is reported as what it is rather than as the catalogue
