@@ -389,9 +389,17 @@ public class ShuttleSpace {
     public void armOccupantFully() {
         if (destroyed || shuttle == null)
             return;
-        FighterArming.armFully(shuttle);
+        // The box is handed over, so the drones come OUT OF THE READY RACK rather than being
+        // conjured from the rails' design types and subtracted afterwards (J4.8224). That is
+        // also why there is no drone branch left in the reconciliation below: taking from the
+        // rack IS the accounting, and it keeps the drones the year refitted instead of
+        // replacing them with the frame's baseline.
+        FighterArming.armFully(this, shuttle);
         capacitorCharges = Math.max(0,
                 capacitorCapacity() - FighterArming.chargesCarriedBy(shuttle));
+        // Plasma still reconciles by count, and that stays correct: FP9.18 gives a type-D no
+        // variants -- "no guidance options, different speeds, or warhead modules as drones do"
+        // -- so one torpedo is any other and there is no identity to lose in the substitution.
         if (readyRack != null && readyRack.isPlasmaD()) {
             // J4.825/FP9.21: a plasma rack's load is a COUNT, so the subtraction is arithmetic
             // rather than a list of objects. Back to full, then one out for every torpedo now on
@@ -405,15 +413,6 @@ public class ShuttleSpace {
                 readyRack.putPlasmaD();
             for (int i = FighterArming.plasmaDsCarriedBy(shuttle); i > 0; i--)
                 readyRack.takePlasmaD();
-        } else if (readyRack != null) {
-            // Refill from the rails' own designs, so a mixed fighter's rack comes back
-            // with drones each of its rails can take.
-            for (com.sfb.weapons.Weapon w : shuttle.getWeapons().fetchAllWeapons())
-                if (w instanceof com.sfb.weapons.DroneRail rail && !readyRack.isFull()
-                        && rail.getDesignDrone() != null)
-                    readyRack.put(new com.sfb.objects.Drone(rail.getDesignDrone()));
-            for (int i = FighterArming.dronesCarriedBy(shuttle); i > 0; i--)
-                readyRack.take();
         }
     }
 

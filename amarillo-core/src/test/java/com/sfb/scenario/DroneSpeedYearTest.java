@@ -591,6 +591,62 @@ public class DroneSpeedYearTest {
                 2.0, grown.getRackSize(), EXACT);
     }
 
+    // ------------------------------------------------------- and the squadron sails with them
+
+    /**
+     * The carrier's half, end to end: a Y183 Kzinti CVS at WS-3 LAUNCHES with the year's drones.
+     *
+     * <p>Two bugs had to be fixed for this to pass and each hid behind the other.
+     * {@code applyDroneSpeed} walked the ship's own weapons only, so the ready racks kept the
+     * type-I-slows {@code ReadyRack.forFighter} stocks them with. And once those racks were
+     * refitted, {@code FighterArming.armFully} threw the refit away again: it filled each rail
+     * with {@code new Drone(rail.getDesignDrone())} rather than with the drone in the box, and
+     * {@code armOccupantFully} balanced the count afterwards so nothing looked wrong.
+     *
+     * <p>WS-3 is the status that proves it, because J4.8224 moves the WHOLE loading forward —
+     * "at WS-III the fighters are loaded but their weapons were taken from the ready racks,
+     * which have not been refilled" — so every drone the carrier owns is on a rail and none of
+     * them can be hiding in a box. WS-2 never had the bug: it goes through the deck-crew budget
+     * in {@code FighterArming.load}, which has always moved the real drone.
+     *
+     * @see com.sfb.systemgroups.FighterArmingSupplyTest
+     */
+    @Test
+    public void aCarriersSquadronLaunchesWithTheYearsDrones() throws Exception {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("../data/factions");
+        com.sfb.objects.ShuttleCatalog.loadDefault("../data");
+
+        FleetSpec fleet = new FleetSpec();
+        fleet.year = 183;
+        fleet.budget = 4000;
+        fleet.factions.add("Kzinti");
+        FleetSpec.ShipEntry entry = new FleetSpec.ShipEntry();
+        entry.faction = "Kzinti";
+        entry.type = "CVS";
+        fleet.ships.add(entry);
+        Ship cvs = FleetLoader.resolve(fleet).ships().get(0);
+
+        ScenarioLoader.applyWeaponStatus(cvs, 3);
+
+        int flying = 0;
+        for (com.sfb.systemgroups.ShuttleBay bay : cvs.getShuttles().getBays())
+            for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces()) {
+                if (box.getReadyRack() != null)
+                    assertEquals("J4.8224: the racks are not refilled",
+                            0, box.getReadyRack().count());
+                if (box.getShuttle() == null)
+                    continue;
+                for (com.sfb.weapons.Weapon w : box.getShuttle().getWeapons().fetchAllWeapons()) {
+                    if (!(w instanceof com.sfb.weapons.DroneRail rail) || rail.getDrone() == null)
+                        continue;
+                    assertEquals("a Y183 squadron does not fly speed-8 drones",
+                            32, rail.getDrone().getSpeed());
+                    flying++;
+                }
+            }
+        assertEquals("the whole loading is forward on the rails", 70, flying);
+    }
+
     /**
      * FD2.22's surcharge is the same number whether the engine arrived by the year's fitting
      * order or out of a player's budget, so the two paths agree on what a drone is worth.

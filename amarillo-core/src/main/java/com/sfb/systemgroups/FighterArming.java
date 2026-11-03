@@ -757,16 +757,58 @@ public final class FighterArming {
     /**
      * Fill a fighter's weapons outright, with no budget and no supply (S4.13, and test setup).
      * <p>
-     * Weapon status is the one thing that arms a fighter without a deck crew action: at WS-3
-     * "the fighters are loaded but the weapons were taken from the ready racks" (J4.8224). The
-     * taking is the CALLER's job — {@link ShuttleSpace#armOccupantFully()} does it by
-     * re-deriving the box's contents around the armed fighter, which is the same subtraction
-     * that balances the books at every other weapon status.
+     * No box, so no ready rack: a drone rail is filled with a drone of the rail's own design
+     * type. That is the right answer for a craft nobody is holding stores for — a test fixture,
+     * or a fighter already in flight — and the WRONG one for a fighter sitting in a carrier's
+     * bay, which is what {@link #armFully(ShuttleSpace, Shuttle)} exists for. Prefer that
+     * overload wherever there IS a box.
      * <p>
      * Kept deliberately narrow: this is the only way into a fighter's weapons that does not go
      * through a box, and it exists so that setup and tests need not invent a second one.
      */
     public static void armFully(Shuttle fighter) {
+        armFully(null, fighter);
+    }
+
+    /**
+     * The same, drawing the drones out of the box's own ready rack (J4.8224).
+     *
+     * <blockquote>J4.8224: "At WS-III the fighters are loaded but <b>their weapons were taken
+     * from the ready racks</b>, which have not been refilled."</blockquote>
+     *
+     * <h2>What this fixes</h2>
+     * The drones used to be CONJURED. {@code armFully(Shuttle)} filled each rail with
+     * {@code new Drone(rail.getDesignDrone())} — a fresh drone at the rail's design type, which
+     * is the frame's baseline — and {@code armOccupantFully} then balanced the books by
+     * subtracting a count from the rack. The arithmetic came out right and the DRONES did not: a
+     * Y183 Kzinti CVS had its ready racks refitted to speed-32 type-IFs by
+     * {@code ScenarioLoader.applyDroneSpeed}, and then its whole squadron launched carrying
+     * speed-8 type-Is, because the substitution threw the refit away. That is the same
+     * obsolete-drone defect {@code DroneSpeedYearTest} closed for ship racks, one layer down.
+     *
+     * <p>WS-2 was never affected — it goes through {@link #load} and the deck-crew budget, which
+     * has always moved the real drone across with {@link ReadyRack#takeFor}. WS-0, WS-1 and WS-3
+     * all come through here.
+     *
+     * <h2>An empty rack leaves an empty rail</h2>
+     * No fabrication and no fallback, because J4.882 says where a fighter's load comes from and
+     * it is not the ship: "The ship cannot reload the fighter directly, but must reload the
+     * storage capacitor." The rack is the only source, exactly as {@link #load} already reports
+     * for a budget it cannot supply. At setup this never arises — J4.8223 rests a carrier with
+     * its racks full — but after a sortie it will, and a rail that fills itself from nothing is
+     * a carrier with infinite drones.
+     *
+     * <p>{@link ReadyRack#takeFor} picks the drone, so J4.8225's limit comes for free: a rail
+     * is never handed a drone it cannot carry ("the ready rack held a type-I drone in a position
+     * that corresponded to a type-VI drone rail, that drone could not be loaded"). No
+     * {@link ReadyRack#serves} gate, deliberately — {@link #load} refuses a mismatched box
+     * outright under J4.8222, and whether J4.8225's variant clause softens that is a question
+     * for its own change rather than one to settle here by accident.
+     *
+     * @param box the fighter's box, or null for the no-supply behaviour above
+     */
+    public static void armFully(ShuttleSpace box, Shuttle fighter) {
+        ReadyRack supply = box == null ? null : box.getReadyRack();
         for (Weapon w : fighter.getWeapons().fetchAllWeapons()) {
             if (w instanceof FighterHellbore hb)
                 hb.reload();
@@ -795,8 +837,16 @@ public final class FighterArming {
                             com.sfb.properties.WeaponArmingType.STANDARD));
             }
             else if (w instanceof DroneRail rail && isArmable(rail)
-                    && rail.getDrone() == null && rail.getDesignDrone() != null)
-                rail.loadDrone(new com.sfb.objects.Drone(rail.getDesignDrone()));
+                    && rail.getDrone() == null && rail.getDesignDrone() != null) {
+                if (supply == null) {
+                    rail.loadDrone(new com.sfb.objects.Drone(rail.getDesignDrone()));
+                } else {
+                    com.sfb.objects.Drone fromRack = supply.takeFor(rail);
+                    if (fromRack != null)
+                        rail.loadDrone(fromRack);
+                    // else J4.882: the rack is the only source, so the rail stays empty.
+                }
+            }
         }
     }
 
