@@ -375,6 +375,44 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 		return ammoList;
 	}
 
+	/** FD3.4/FD3.8: a magazine launcher's magazines are four spaces each. */
+	public static final double MAGAZINE_SPACES = 4;
+
+	/**
+	 * Spaces of this rack's load that FD2.45's "single loading" actually covers.
+	 * <p>
+	 * For every ordinary rack that is the whole rack, and the rule needs no help: the reloads
+	 * sit in {@link #getReloads()}, which nothing prices, so "one loading paid, reloads free"
+	 * falls out of where the drones are kept.
+	 * <p>
+	 * <b>A magazine launcher keeps its reloads INSIDE the rack</b>, which is why this exists.
+	 * FD3.43: "While type-D (and type-H) drone racks do not have formal reloads..." — the spare
+	 * magazines ARE the reloads, already loaded and launch-ready, so {@link #getAmmo()} holds
+	 * every one of them and a charge that walked it billed the free ones too.
+	 * <ul>
+	 *   <li><b>Type-D</b> (FD3.44): "The unit pays the drone upgrade surcharges for one magazine
+	 *       per launcher; the other two magazines per launcher are considered to have
+	 *       proportional free reloads." One magazine of the three — four spaces of twelve.</li>
+	 *   <li><b>Type-H</b> (FD3.84): the same for a starbase, but "pays the drone upgrade
+	 *       surcharges for two magazines per launcher", the next two free. Eight spaces of
+	 *       twenty. Its fifth, type-VI magazine "is never charged for speed upgrades" and is
+	 *       not modelled separately — see the TYPE_H note in {@code applyTypeStats} — though
+	 *       the omission is harmless while the paid magazines are chosen costliest-first, since
+	 *       FD2.226 prices a type-VI upgrade at half and it is never the dearest thing aboard.
+	 *       No hull in the data declares one in any case.</li>
+	 * </ul>
+	 * Derived from the type rather than stored, so it cannot go stale: {@link #setSpaces} is
+	 * public and {@link com.sfb.weapons.DroneRail} reaches this class through a constructor that
+	 * never runs the type table at all.
+	 */
+	public double paidLoadingSpaces() {
+		if (type == DroneRackType.TYPE_D)
+			return MAGAZINE_SPACES;
+		if (type == DroneRackType.TYPE_H)
+			return 2 * MAGAZINE_SPACES;
+		return getSpaces();
+	}
+
 	public int getSpaces() {
 		return spaces;
 	}

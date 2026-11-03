@@ -512,12 +512,64 @@ public class ScenarioLoader {
         double owed = 0;
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (!(w instanceof DroneRack rack)) continue;
-            for (Drone d : rack.getAmmo())
-                if (d != null && d.getSpec() != null)
-                    owed += d.getSpec().speedCostIn(year);
+            owed += rackSpeedCost(rack, year);
         }
         owed += readyRackDroneSpeedCost(ship, year, maxDroneSpeed);
         ship.setDroneSpeedBpv((int) Math.round(owed));
+    }
+
+    /**
+     * One rack's share of the bill: FD2.45's "single loading", which for most racks is simply
+     * everything in them.
+     *
+     * <p>A MAGAZINE launcher is the exception the rule names — "there is a partial exception in
+     * the case of H-racks (FD3.84). D-racks are another exception." Its reloads are not behind
+     * it in {@link DroneRack#getReloads()} but inside it, as the spare magazines (FD3.43), so
+     * {@link DroneRack#getAmmo()} hands back the free ones along with the paid ones and this is
+     * where they have to be told apart. FD3.44 pays for one magazine of a type-D's three; a
+     * Kzinti battle station was being billed 24 points where the rule asks 8, and a Kzinti TGT
+     * the same 24 on a 92-point hull.
+     *
+     * <h2>Costliest first</h2>
+     * FD2.452 settles which magazine is the paid one: "The reload drones are presumed to be of
+     * the same cost (or lower) as the drones in the rack." A free reload may be no dearer than
+     * what was paid for, so the paid magazine has to be the dearest load in the launcher —
+     * otherwise a player fills one magazine with cheap drones, pays for that, and flies three
+     * magazines of expensive ones.
+     *
+     * <p>Filled by SPACES rather than by count, because a magazine is four spaces and FD2.11
+     * trades two type-Is for one type-IV at par. A drone that will not fit the space left is
+     * skipped rather than ending the fill, so a half-space type-VI can still take the last half
+     * magazine a two-space type-IV could not.
+     */
+    private static double rackSpeedCost(DroneRack rack, int year) {
+        double paidSpaces = rack.paidLoadingSpaces();
+        java.util.List<Drone> loaded = new ArrayList<>();
+        for (Drone d : rack.getAmmo())
+            if (d != null && d.getSpec() != null)
+                loaded.add(d);
+
+        // The ordinary rack, and every rack but two types: the whole load is the loading, and
+        // the arithmetic below would only be a slower way of saying so.
+        if (paidSpaces >= rack.getSpaces()) {
+            double all = 0;
+            for (Drone d : loaded)
+                all += d.getSpec().speedCostIn(year);
+            return all;
+        }
+
+        loaded.sort((a, b) -> Double.compare(
+                b.getSpec().speedCostIn(year), a.getSpec().speedCostIn(year)));
+        double used = 0;
+        double owed = 0;
+        for (Drone d : loaded) {
+            double size = d.getRackSize();
+            if (used + size > paidSpaces + 1e-9)
+                continue;               // too big for what is left; something smaller may fit
+            used += size;
+            owed += d.getSpec().speedCostIn(year);
+        }
+        return owed;
     }
 
     /**
@@ -552,9 +604,10 @@ public class ScenarioLoader {
      * <p>Priced through {@link #upgradeOne} rather than by reading the chart again, so the slot
      * is billed for precisely the drone {@link #refitFighterDrones} puts in it -- including the
      * sibling swap that makes a medium type-I a type-IM, and including the scenario cap. A slot
-     * the year cannot improve costs whatever its own baseline does, which for a type-I-slow or
-     * a type-III-slow is nothing (S8.133: "the only drones that are included in the BPV of a
-     * unit are type-I slow").
+     * the year cannot improve costs whatever its own baseline does, which for a type-I-slow is
+     * nothing (S8.133: "the only drones that are included in the BPV of a unit are type-I
+     * slow") -- but NOT for a type-III, whose "slow" is speed 12 by FD2.227 and therefore
+     * already an upgrade over the type-I the BPV covers.
      */
     private static double slotSpeedCost(DroneType slot, int year, Integer maxDroneSpeed) {
         if (slot == null)
