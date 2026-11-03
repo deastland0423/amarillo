@@ -9,6 +9,7 @@ import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;
 import com.sfb.weapons.ADD;
 import com.sfb.weapons.DroneRack;
+import com.sfb.weapons.PlasmaRack;
 import com.sfb.weapons.Weapon;
 import org.junit.Before;
 import org.junit.Test;
@@ -213,6 +214,134 @@ public class RackReadinessPrivacyTest {
         assertEquals("and offers its owner no shots", 0, add.shotsAvailableNow());
         assertTrue("but an opponent is told it is ready", add.apparentReadyToFireAtTarget());
         assertTrue("with shots to offer", add.apparentShotsAvailableNow() > 0);
+    }
+
+    // ---------------------------------------------------------------- the plasma rack
+
+    /** A fresh type-D rack on its own clock: loaded, and nothing done to it yet. */
+    private static PlasmaRack plasmaRack(TurnTracker clock) {
+        PlasmaRack rack = new PlasmaRack();
+        rack.setClock(clock);
+        rack.setDesignator("1");
+        clock.nextImpulse();
+        return rack;
+    }
+
+    /**
+     * The clearest case of the owner's wider ruling (2026-11-02): "you don't have a view into
+     * an opponent's arming status."
+     *
+     * <p>FP9.22 charges half an energy point to activate a torpedo and one "cannot be launched
+     * without it", so an unactivated rack cannot fire — and that is arming, in the plainest
+     * sense of the word. The ship's {@code plasmaActivationRoom} is already withheld as "an
+     * arming state, and those are private"; readiness computed from the same thing was not.
+     */
+    @Test
+    public void anEnemyIsNotToldAPlasmaRacksTorpedoesAreUnactivated() {
+        TurnTracker clock = new TurnTracker();
+        PlasmaRack rack = plasmaRack(clock);
+
+        assertFalse("fixture: nothing has been paid to activate anything",
+            rack.getActiveTorpedoes() > 0);
+        assertFalse("so its owner cannot fire it (FP9.22)", rack.readyToFireAtTarget());
+        assertTrue("but an opponent is told nothing of the sort",
+            rack.apparentReadyToFireAtTarget());
+        assertTrue("nor through the shot count", rack.apparentShotsAvailableNow() > 0);
+    }
+
+    /** FP10.23's reload plot, which reaches the plasma rack through FD2.421. */
+    @Test
+    public void anEnemyIsNotToldAPlasmaRackIsReloading() {
+        TurnTracker clock = new TurnTracker();
+        PlasmaRack rack = plasmaRack(clock);
+        rack.activate(rack.activationEnergyWanted());
+        assertTrue("fixture: activated and loaded, so it is ready to its owner",
+            rack.readyToFireAtTarget());
+
+        rack.setReloadingThisTurn(true);
+
+        assertFalse("its owner knows it is out for the turn", rack.readyToFireAtTarget());
+        assertTrue("an opponent is told nothing changed", rack.apparentReadyToFireAtTarget());
+        assertTrue("nor through the shot count", rack.apparentShotsAvailableNow() > 0);
+    }
+
+    /** And an empty one, which is ammunition like any other. */
+    @Test
+    public void anEnemyIsNotToldAPlasmaRackIsEmpty() throws Exception {
+        TurnTracker clock = new TurnTracker();
+        PlasmaRack rack = plasmaRack(clock);
+        rack.activate(rack.activationEnergyWanted());
+
+        int spent = 0;
+        while (!rack.isEmpty()) {
+            rack.launch(PlasmaRack.RackMode.DEFENSIVE);
+            clock.nextImpulse();
+            spent++;
+        }
+        assertEquals("fixture: a type-D rack holds four (FP10.0)", 4, spent);
+
+        assertFalse("its owner sees an empty rack", rack.readyToFireAtTarget());
+        assertTrue("an opponent sees a rack that looks loaded",
+            rack.apparentReadyToFireAtTarget());
+    }
+
+    /**
+     * The mode, which is the one that needed a decision rather than a rule.
+     *
+     * <p>A rack committed to OFFENSIVE mode has fired its one torpedo for the turn (FP10.211)
+     * and is done until the next. An opponent cannot know that, because {@code plasmaRackMode}
+     * is private under an existing ruling — the same seeking shot is legal in either mode — so
+     * they can only assume the laxer DEFENSIVE reading, which allows another shot next impulse.
+     */
+    @Test
+    public void anEnemyIsNotToldWhichModeAPlasmaRackCommittedTo() {
+        TurnTracker clock = new TurnTracker();
+        PlasmaRack rack = plasmaRack(clock);
+        rack.activate(rack.activationEnergyWanted());
+        rack.launch(PlasmaRack.RackMode.OFFENSIVE);
+        clock.nextImpulse();
+
+        assertFalse("offensive mode fires once a turn, and its owner knows which mode it is in",
+            rack.readyToFireAtTarget());
+        assertTrue("an opponent, who cannot, must assume it may fire again",
+            rack.apparentReadyToFireAtTarget());
+    }
+
+    /**
+     * The limit, on the rack whose private clauses are longest: having fired THIS IMPULSE is
+     * public, because the shot was seen. FP10.212 allows one per impulse even in the laxest
+     * mode, so this is the floor below which an opponent learns nothing more.
+     */
+    @Test
+    public void aPlasmaRackThatJustFiredReadsUnreadyToAnEnemy() {
+        TurnTracker clock = new TurnTracker();
+        PlasmaRack rack = plasmaRack(clock);
+        rack.activate(rack.activationEnergyWanted());
+        rack.launch(PlasmaRack.RackMode.DEFENSIVE);
+
+        assertFalse("it fired this impulse and everyone saw it",
+            rack.apparentReadyToFireAtTarget());
+        assertEquals("and it offers no shot", 0, rack.apparentShotsAvailableNow());
+    }
+
+    /** FP10.221's one bolt a turn, kept for the same reason: a bolt is direct fire. */
+    @Test
+    public void aPlasmaRackThatSpentItsBoltReadsUnreadyToAnEnemy() throws Exception {
+        TurnTracker clock = new TurnTracker();
+        PlasmaRack rack = plasmaRack(clock);
+        rack.activate(rack.activationEnergyWanted());
+        rack.declareBoltMode(PlasmaRack.RackMode.DEFENSIVE);
+        rack.bolt(PlasmaRack.RackMode.DEFENSIVE, 3, 3);
+        clock.nextImpulse();
+
+        assertEquals("fixture: the turn's one bolt is spent", 1, rack.getBoltsThisTurn());
+        assertFalse("which an opponent watched happen", rack.apparentReadyToFireAtTarget());
+        // And the shot count is zero too, but for a reason that is equally public: a plasma
+        // rack never raises maxShotsPerTurn off the default of one, so the bolt spent the
+        // weapon's turn as far as the inherited rate cap is concerned. Both halves trace back
+        // to the same seen shot, which is the property this file is about — not the figure.
+        assertEquals("the inherited one-shot-a-turn cap, spent by a shot that was watched",
+            0, rack.apparentShotsAvailableNow());
     }
 
     // ---------------------------------------------------------------- what stays visible

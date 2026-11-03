@@ -619,6 +619,60 @@ public class PlasmaRack extends Weapon implements Launcher, DirectFire {
     }
 
     /**
+     * What an opponent may conclude about this rack's readiness: nothing but what its firing
+     * record tells them.
+     *
+     * <h2>Every private clause dropped</h2>
+     * {@link #launchRefusal} refuses for six reasons, and three of them are state the DTO
+     * already withholds — so publishing readiness computed from them published the state:
+     * <ul>
+     *   <li>{@code reloadingThisTurn} (FP10.23, via FD2.421). The worst of the three: the plot
+     *       is irreversible and lasts the turn, so an opponent who learned of it knows this
+     *       rack cannot touch them again before the turn ends.</li>
+     *   <li>{@code isEmpty()} — ammunition, and {@code plasmaRackTorpedoes} is private.</li>
+     *   <li>{@code activeTorpedoes <= 0} — FP9.22's half-point activation. This one is arming
+     *       status in the plainest sense, and the ship's {@code plasmaActivationRoom} is
+     *       withheld for exactly that reason.</li>
+     * </ul>
+     *
+     * <h2>And the mode with them</h2>
+     * {@code modeThisTurn} is dropped too, which is the one that needs saying. A commitment is
+     * made by firing, and a firing is seen — but it does not follow that the MODE is, because
+     * FP10.211/FP10.212 make the same seeking shot legal in either: the existing ruling on
+     * {@code plasmaRackMode} is that a torpedo sent at a fighter five hexes out reveals
+     * nothing, while knowing the rack is DEFENSIVE says it may fire again next impulse and
+     * cannot engage a cruiser at all. So an opponent can only assume the laxer mode, and the
+     * answer collapses to FP10.212's one shot per impulse.
+     *
+     * <p>This is where {@code DroneRack} differs, deliberately: a type-G reaches DRONE mode
+     * only by launching a drone and ANTI_DRONE mode only by firing an anti-drone, and those
+     * two events look nothing alike. Its mode IS inferable from what was watched, so it keeps
+     * it. A plasma rack's is not.
+     *
+     * <p>What stays: the box, and the shot. FP10.221 allows one bolt a turn and a bolt is
+     * direct fire everyone sees, so a rack that has spent it reads unready — concealing that
+     * would be over-redaction, which is a bug in the other direction.
+     */
+    @Override
+    public boolean apparentReadyToFireAtTarget() {
+        return isFunctional()
+                && boltsThisTurn < 1
+                && clock.getImpulse() > lastFiredImpulse;
+    }
+
+    /**
+     * The same for the seeking-launch count. No bolt clause here, because
+     * {@link #launchRefusal} has none — FP10.221's limit is added by {@link #boltRefusal} on
+     * top, so spending the bolt does not stop a seeker going out.
+     */
+    @Override
+    public int apparentShotsAvailableNow() {
+        if (!isFunctional() || clock.getImpulse() <= lastFiredImpulse)
+            return 0;
+        return shotsLeftNow();
+    }
+
+    /**
      * The per-turn reset. {@code cleanUp} rather than a {@code startTurn} of its own, because
      * this is the hook {@code Weapons.cleanUp} already calls for every weapon at the turn
      * boundary — a method nothing invokes resets nothing.
