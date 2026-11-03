@@ -8,8 +8,6 @@ import com.sfb.objects.shuttles.SuicideShuttle;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.File;
-
 import static org.junit.Assert.*;
 import com.sfb.objects.shuttles.CataloguedFighter;
 import com.sfb.objects.shuttles.Fighter;
@@ -116,11 +114,14 @@ public class ShuttleRoleEligibilityTest {
     }
 
     /**
-     * The drone SPACES this fighter's rails add up to — which is what FD7.211 measures, and
+     * The drone SPACES this fighter's rails add up to — which is what FD7.211
+     * measures, and
      * not the same as the number of rails.
      * <p>
-     * A Kzinti TAAS carries four drones in three spaces: two standard rails at a space each
-     * and two light ones at half. Counting rails gave four and was right only while every
+     * A Kzinti TAAS carries four drones in three spaces: two standard rails at a
+     * space each
+     * and two light ones at half. Counting rails gave four and was right only while
+     * every
      * fighter in the catalogue had standard rails alone.
      */
     private int droneRails(com.sfb.objects.shuttles.Shuttle s) {

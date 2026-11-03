@@ -5,7 +5,6 @@ import com.sfb.properties.Location;
 import com.sfb.utilities.MapUtils;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
@@ -14,22 +13,32 @@ import java.util.Set;
 /**
  * Lays out terrain, so a map can be described rather than enumerated.
  * <p>
- * An asteroid field is nine hand-written hexes in data/scenarios/training.json, and would be
- * nine more in the next scenario. A plan says what is wanted and produces the hexes, for a
+ * An asteroid field is nine hand-written hexes in data/scenarios/training.json,
+ * and would be
+ * nine more in the next scenario. A plan says what is wanted and produces the
+ * hexes, for a
  * written scenario and for a battle assembled from fleets alike.
  * <p>
- * The asteroid field is not a matter of taste: P3.11 gives a procedure, and this follows it.
- * Eighteen counters go in named hexes, each is rolled one hex in a random direction, and every
- * hex within two of a counter is an asteroid hex (P3.12). Overlapping counters do not stack —
+ * The asteroid field is not a matter of taste: P3.11 gives a procedure, and
+ * this follows it.
+ * Eighteen counters go in named hexes, each is rolled one hex in a random
+ * direction, and every
+ * hex within two of a counter is an asteroid hex (P3.12). Overlapping counters
+ * do not stack —
  * a hex is an asteroid hex or it is not.
  * <p>
- * Rolling is seeded and therefore repeatable: every player must be looking at the same map, and
- * a battle reloaded later must be the battle that was played. A plan with no seed gets one at
- * first use and keeps it, so a scenario file that omits it still lays out the same way every
+ * Rolling is seeded and therefore repeatable: every player must be looking at
+ * the same map, and
+ * a battle reloaded later must be the battle that was played. A plan with no
+ * seed gets one at
+ * first use and keeps it, so a scenario file that omits it still lays out the
+ * same way every
  * time it is read.
  * <p>
- * Keep-clear regions — the deployment zones, in practice — apply to bodies that are placed
- * freely. They do not apply to the standard field, whose positions the rule fixes: a fleet
+ * Keep-clear regions — the deployment zones, in practice — apply to bodies that
+ * are placed
+ * freely. They do not apply to the standard field, whose positions the rule
+ * fixes: a fleet
  * setting up in an asteroid field is the scenario, not a mistake.
  */
 public final class TerrainGenerator {
@@ -51,9 +60,14 @@ public final class TerrainGenerator {
         public Long seed;
         /** Optional display name for a planet or giant. */
         public String name;
-        /** PLANET and GAS_GIANT: put it exactly here, instead of anywhere in the region. */
+        /**
+         * PLANET and GAS_GIANT: put it exactly here, instead of anywhere in the region.
+         */
         public String hex;
-        /** GAS_GIANT: planetary ring bands (P2.223), each a hex-distance range from the body. */
+        /**
+         * GAS_GIANT: planetary ring bands (P2.223), each a hex-distance range from the
+         * body.
+         */
         public List<ScenarioSpec.RingBand> rings;
     }
 
@@ -62,19 +76,23 @@ public final class TerrainGenerator {
     // -------------------------------------------------------------------------
 
     /** What a host may put on the map. */
-    public static final List<String> CHOICES =
-            List.of("OPEN_SPACE", "ASTEROID_FIELD", "PLANET", "GAS_GIANT");
+    public static final List<String> CHOICES = List.of("OPEN_SPACE", "ASTEROID_FIELD", "PLANET", "GAS_GIANT");
 
     /**
      * Turn a menu choice into plans, rolling for whatever the choice leaves open.
      * <p>
-     * A gas giant is the feature of the map it appears on, so it goes in the middle rather than
-     * wherever a die puts it — both hand-written giants in data/scenarios sit at 2116. What is
-     * rolled is what makes one game differ from the next: how big it is, and whether it has
-     * rings. The two rolls are independent, so the very large ringed giant that fills the map
+     * A gas giant is the feature of the map it appears on, so it goes in the middle
+     * rather than
+     * wherever a die puts it — both hand-written giants in data/scenarios sit at
+     * 2116. What is
+     * rolled is what makes one game differ from the next: how big it is, and
+     * whether it has
+     * rings. The two rolls are independent, so the very large ringed giant that
+     * fills the map
      * turns up about one game in twelve rather than every other time.
      * <p>
-     * Seeded, like everything else here: the host rolls once and every player sees the result.
+     * Seeded, like everything else here: the host rolls once and every player sees
+     * the result.
      */
     public static List<Plan> forChoice(String choice, long seed, int mapCols, int mapRows) {
         if (choice == null)
@@ -120,20 +138,27 @@ public final class TerrainGenerator {
     }
 
     /**
-     * How big a rolled gas giant is. Spans the threshold that matters: P2.222 gives giants of
-     * seven hexes or more across — radius 3 — a no-entry atmosphere ring, so the table runs
+     * How big a rolled gas giant is. Spans the threshold that matters: P2.222 gives
+     * giants of
+     * seven hexes or more across — radius 3 — a no-entry atmosphere ring, so the
+     * table runs
      * from below it to the radius 5 of the largest one already in data/scenarios.
      */
     static int rolledGiantRadius(int die) {
-        if (die <= 2) return 2;
-        if (die <= 4) return 3;
-        if (die == 5) return 4;
+        if (die <= 2)
+            return 2;
+        if (die <= 4)
+            return 3;
+        if (die == 5)
+            return 4;
         return 5;
     }
 
     /**
-     * Two ring bands, standing off the body far enough to be distinct from it and scaled to its
-     * size. For a radius 4 giant this gives 6–7 and 9–11, near enough to the 7–8 and 10–12 of
+     * Two ring bands, standing off the body far enough to be distinct from it and
+     * scaled to its
+     * size. For a radius 4 giant this gives 6–7 and 9–11, near enough to the 7–8
+     * and 10–12 of
      * the hand-written Proxima IV.
      */
     static List<ScenarioSpec.RingBand> ringsFor(int radius) {
@@ -153,7 +178,8 @@ public final class TerrainGenerator {
     }
 
     /**
-     * Where the eighteen asteroid counters start, before they are rolled (P3.11). The rule
+     * Where the eighteen asteroid counters start, before they are rolled (P3.11).
+     * The rule
      * names these hexes; they are not a choice.
      */
     static final String[] COUNTER_HEXES = {
@@ -175,8 +201,10 @@ public final class TerrainGenerator {
     /**
      * Turn plans into the terrain entries a ScenarioSpec carries.
      *
-     * @param keepClear regions no freely-placed body may occupy — the deployment zones.
-     *                  The standard asteroid field ignores it: P3.11 fixes where it goes.
+     * @param keepClear regions no freely-placed body may occupy — the deployment
+     *                  zones.
+     *                  The standard asteroid field ignores it: P3.11 fixes where it
+     *                  goes.
      */
     public static List<ScenarioSpec.TerrainSetup> generate(
             List<Plan> plans, List<MapRegion> keepClear, int mapCols, int mapRows) {
@@ -185,7 +213,7 @@ public final class TerrainGenerator {
         if (plans == null)
             return out;
 
-        Set<String> used = new LinkedHashSet<>();   // every hex already spoken for
+        Set<String> used = new LinkedHashSet<>(); // every hex already spoken for
         for (Plan plan : plans) {
             if (plan == null || plan.type == null)
                 continue;
@@ -195,9 +223,9 @@ public final class TerrainGenerator {
 
             switch (plan.type.toUpperCase()) {
                 case "ASTEROID_FIELD" -> standardField(rng, used, out, mapCols, mapRows);
-                case "PLANET"         -> placeBodies(plan, rng, keepClear, used, out, mapCols, mapRows, 0);
-                case "GAS_GIANT"      -> placeBodies(plan, rng, keepClear, used, out, mapCols, mapRows,
-                                                     Math.max(0, plan.radius));
+                case "PLANET" -> placeBodies(plan, rng, keepClear, used, out, mapCols, mapRows, 0);
+                case "GAS_GIANT" -> placeBodies(plan, rng, keepClear, used, out, mapCols, mapRows,
+                        Math.max(0, plan.radius));
                 default -> System.err.println("TerrainGenerator: unknown plan type '" + plan.type + "' — skipped");
             }
         }
@@ -207,28 +235,34 @@ public final class TerrainGenerator {
     // -------------------------------------------------------------------------
 
     /**
-     * The standard asteroid field (P3.11): eighteen counters in named hexes, each rolled one
-     * hex in a random direction, with every hex within two of a counter becoming an asteroid
+     * The standard asteroid field (P3.11): eighteen counters in named hexes, each
+     * rolled one
+     * hex in a random direction, with every hex within two of a counter becoming an
+     * asteroid
      * hex (P3.12).
      * <p>
-     * Expanded to one entry per hex rather than kept as counters with a radius, because that
-     * is what an asteroid hex is downstream — Game keeps a set of hexes and the map draws a
-     * token in each, and P3.12 is explicit that a hex near two counters is no different from a
+     * Expanded to one entry per hex rather than kept as counters with a radius,
+     * because that
+     * is what an asteroid hex is downstream — Game keeps a set of hexes and the map
+     * draws a
+     * token in each, and P3.12 is explicit that a hex near two counters is no
+     * different from a
      * hex near one.
      */
     private static void standardField(Random rng, Set<String> used,
-                                      List<ScenarioSpec.TerrainSetup> out,
-                                      int mapCols, int mapRows) {
+            List<ScenarioSpec.TerrainSetup> out,
+            int mapCols, int mapRows) {
         for (String start : COUNTER_HEXES) {
             Location counter = MapRegion.parse(start);
             if (counter == null)
                 continue;
 
-            // "Roll one die for each counter and move it in the indicated direction one hex."
+            // "Roll one die for each counter and move it in the indicated direction one
+            // hex."
             Location rolled = MapUtils.getAdjacentHex(
                     counter, DIRECTIONS[rng.nextInt(DIRECTIONS.length)], mapCols, mapRows);
             if (rolled != null)
-                counter = rolled;   // a counter rolled off the map stays where it was
+                counter = rolled; // a counter rolled off the map stays where it was
 
             for (Location hex : within(counter, FIELD_RADIUS, mapCols, mapRows)) {
                 if (used.add(key(hex)))
@@ -238,13 +272,15 @@ public final class TerrainGenerator {
     }
 
     /**
-     * Planets and gas giants: solid bodies that need room around them, so they are placed one
+     * Planets and gas giants: solid bodies that need room around them, so they are
+     * placed one
      * at a time and each claims its footprint plus a gap.
      */
     private static void placeBodies(Plan plan, Random rng, List<MapRegion> keepClear,
-                                    Set<String> used, List<ScenarioSpec.TerrainSetup> out,
-                                    int mapCols, int mapRows, int radius) {
-        // A named hex is where it goes, full stop — a gas giant is the feature of its map and
+            Set<String> used, List<ScenarioSpec.TerrainSetup> out,
+            int mapCols, int mapRows, int radius) {
+        // A named hex is where it goes, full stop — a gas giant is the feature of its
+        // map and
         // the host chose the middle of it, not a region to be scattered within.
         if (plan.hex != null && !plan.hex.isBlank()) {
             Location fixed = MapRegion.parse(plan.hex);
@@ -260,7 +296,7 @@ public final class TerrainGenerator {
             List<Location> candidates = openHexes(plan.region, keepClear, used, mapCols, mapRows);
             // A body needs its whole footprint clear, not just its centre.
             candidates.removeIf(c -> !footprintIsOpen(c, radius, plan.region, keepClear, used,
-                                                      mapCols, mapRows));
+                    mapCols, mapRows));
             if (candidates.isEmpty())
                 return;
 
@@ -274,8 +310,8 @@ public final class TerrainGenerator {
     }
 
     private static boolean footprintIsOpen(Location centre, int radius, MapRegion region,
-                                           List<MapRegion> keepClear, Set<String> used,
-                                           int mapCols, int mapRows) {
+            List<MapRegion> keepClear, Set<String> used,
+            int mapCols, int mapRows) {
         for (Location l : within(centre, radius, mapCols, mapRows)) {
             if (used.contains(key(l)))
                 return false;
@@ -287,9 +323,11 @@ public final class TerrainGenerator {
         return true;
     }
 
-    /** Every hex of the region that is still free and not deliberately kept empty. */
+    /**
+     * Every hex of the region that is still free and not deliberately kept empty.
+     */
     private static List<Location> openHexes(MapRegion region, List<MapRegion> keepClear,
-                                            Set<String> used, int mapCols, int mapRows) {
+            Set<String> used, int mapCols, int mapRows) {
         MapRegion r = region != null ? region : MapRegion.anywhere();
         List<Location> out = new ArrayList<>();
         for (int c = 1; c <= mapCols; c++)
@@ -307,7 +345,7 @@ public final class TerrainGenerator {
     }
 
     private static boolean isKeptClear(Location loc, List<MapRegion> keepClear,
-                                       int mapCols, int mapRows) {
+            int mapCols, int mapRows) {
         if (keepClear == null)
             return false;
         for (MapRegion k : keepClear)
@@ -330,7 +368,7 @@ public final class TerrainGenerator {
     /** A planet or giant, with whatever rings the plan asked for. */
     private static ScenarioSpec.TerrainSetup bodySetup(Plan plan, Location centre, int radius) {
         ScenarioSpec.TerrainSetup s = setup(radius > 0 ? "GAS_GIANT" : "PLANET", centre, radius,
-                                            plan.name);
+                plan.name);
         if (plan.rings != null && !plan.rings.isEmpty() && radius > 0)
             s.rings = new ArrayList<>(plan.rings);
         return s;

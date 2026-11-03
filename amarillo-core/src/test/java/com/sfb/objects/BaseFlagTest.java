@@ -3,7 +3,6 @@ package com.sfb.objects;
 import com.sfb.weapons.ScoutChannel;
 import org.junit.Test;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertFalse;
@@ -15,20 +14,33 @@ import static org.junit.Assert.assertTrue;
  * A ship file can say that a hull is a base, and saying so reaches the rule.
  *
  * <h2>What this is guarding</h2>
- * {@link Ship#isBase()} gates G24.135 — a base never blinds its own scout channels when it fires
- * — and the flag existed for some time with no way to set it. {@code ShipSpec} had no field,
- * {@code toMap} wrote no key, and no ship file mentioned it; the only two places it was ever true
- * were two tests that called {@code setBase(true)} by hand. Every base the game might have
+ * {@link Ship#isBase()} gates G24.135 — a base never blinds its own scout
+ * channels when it fires
+ * — and the flag existed for some time with no way to set it. {@code ShipSpec}
+ * had no field,
+ * {@code toMap} wrote no key, and no ship file mentioned it; the only two
+ * places it was ever true
+ * were two tests that called {@code setBase(true)} by hand. Every base the game
+ * might have
  * fielded would have blinded itself like a ship.
  *
- * <p>That is the third field found in this shape. {@code crewQuality} had an enum, a DTO and two
- * rule sites with no data entry point, so every ship in the game was NORMAL. {@code epv} was a
- * primitive int that could not say "unset", so the fallback meant to give a scout its combat BPV
- * never ran and two of them were free. The pattern is a flag the rules READ and the data cannot
- * WRITE, and nothing fails while it goes unnoticed — the feature simply never happens.
+ * <p>
+ * That is the third field found in this shape. {@code crewQuality} had an enum,
+ * a DTO and two
+ * rule sites with no data entry point, so every ship in the game was NORMAL.
+ * {@code epv} was a
+ * primitive int that could not say "unset", so the fallback meant to give a
+ * scout its combat BPV
+ * never ran and two of them were free. The pattern is a flag the rules READ and
+ * the data cannot
+ * WRITE, and nothing fails while it goes unnoticed — the feature simply never
+ * happens.
  *
- * <p>So this test deliberately goes the whole way from a JSON key to the rule, rather than
- * asserting the field exists. A field that exists is exactly what the bug looked like.
+ * <p>
+ * So this test deliberately goes the whole way from a JSON key to the rule,
+ * rather than
+ * asserting the field exists. A field that exists is exactly what the bug
+ * looked like.
  */
 public class BaseFlagTest {
 
@@ -42,7 +54,10 @@ public class BaseFlagTest {
         return spec;
     }
 
-    /** Build a ship the way the library does, from a spec, with the base flag as given. */
+    /**
+     * Build a ship the way the library does, from a spec, with the base flag as
+     * given.
+     */
     private static Ship shipWith(boolean isBase) {
         ShipSpec spec = new ShipSpec();
         spec.faction = "Federation";
@@ -67,7 +82,10 @@ public class BaseFlagTest {
         assertFalse("and the default is a ship", shipWith(false).isBase());
     }
 
-    /** The key really is written — a toInitMap that dropped it would fail the two tests above too. */
+    /**
+     * The key really is written — a toInitMap that dropped it would fail the two
+     * tests above too.
+     */
     @Test
     public void theFlagTravelsUnderTheKeyShipReads() {
         ShipSpec spec = minimal();
@@ -82,7 +100,8 @@ public class BaseFlagTest {
     /**
      * And the rule it exists for: G24.135, a base does not blind its own channels.
      * <p>
-     * This is the assertion that would have caught the original gap. The two above only prove a
+     * This is the assertion that would have caught the original gap. The two above
+     * only prove a
      * field is carried; this one proves carrying it changes what the game does.
      */
     @Test

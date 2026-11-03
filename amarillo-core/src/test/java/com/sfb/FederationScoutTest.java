@@ -5,7 +5,6 @@ import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
 import com.sfb.properties.Faction;
 import com.sfb.weapons.ScoutChannel;
-import com.sfb.weapons.Weapon;
 import org.junit.Test;
 
 import java.io.File;
@@ -13,8 +12,10 @@ import java.io.File;
 import static org.junit.Assert.*;
 
 /**
- * Federation Scout (SC) — the first scout ship. Verifies the JSON loads and its eight
- * special-sensor channels build correctly, split between "torp" and "phaser" DAC hit
+ * Federation Scout (SC) — the first scout ship. Verifies the JSON loads and its
+ * eight
+ * special-sensor channels build correctly, split between "torp" and "phaser"
+ * DAC hit
  * locations (G24.11/.17) — a mixed-replacement ship.
  */
 public class FederationScoutTest {
@@ -31,7 +32,7 @@ public class FederationScoutTest {
         var channels = sc.getScoutChannels();
         assertEquals("eight scout channels (G24.11)", 8, channels.size());
 
-        long torp   = channels.stream().filter(c -> "torp".equals(c.getDacHitLocaiton())).count();
+        long torp = channels.stream().filter(c -> "torp".equals(c.getDacHitLocaiton())).count();
         long phaser = channels.stream().filter(c -> "phaser".equals(c.getDacHitLocaiton())).count();
         assertEquals("four channels replaced heavy weapons (torp hits, G24.17)", 4, torp);
         assertEquals("four channels replaced phasers (phaser hits, G24.17)", 4, phaser);

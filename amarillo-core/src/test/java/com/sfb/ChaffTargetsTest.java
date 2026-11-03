@@ -2,8 +2,6 @@ package com.sfb;
 
 import static org.junit.Assert.*;
 
-import java.io.File;
-
 import org.junit.Before;
 import org.junit.Test;
 
@@ -21,28 +19,42 @@ import com.sfb.properties.PlasmaType;
 import com.sfb.properties.WeaponArmingType;
 
 /**
- * WHICH seekers chaff can distract (D11.32), which is a shorter list than every seeker.
+ * WHICH seekers chaff can distract (D11.32), which is a shorter list than every
+ * seeker.
  * <blockquote>
- * "When a fighter (or other shuttle) uses a chaff pack, the owning player rolls a single die.
- * If the die roll is a 1-4, <b>all drones (including dogfight drones and seeking shuttles) and
- * type-D plasma torpedoes (FP9.18) and type-K plasma torpedoes (FP13.51)</b> targeted on that
- * fighter lose their tracking and become inert (FD1.7) or are otherwise treated as if their
+ * "When a fighter (or other shuttle) uses a chaff pack, the owning player rolls
+ * a single die.
+ * If the die roll is a 1-4, <b>all drones (including dogfight drones and
+ * seeking shuttles) and
+ * type-D plasma torpedoes (FP9.18) and type-K plasma torpedoes (FP13.51)</b>
+ * targeted on that
+ * fighter lose their tracking and become inert (FD1.7) or are otherwise treated
+ * as if their
  * target had disappeared."
  * </blockquote>
- * FP9.18 says why the small torpedoes are on that list at all, and how narrow the exception is:
- * "Type-D torpedoes, having relatively unsophisticated warheads, can be distracted by chaff
- * (D11.0). <b>No other plasma torpedoes can be distracted by chaff. This is the only way (in
+ * FP9.18 says why the small torpedoes are on that list at all, and how narrow
+ * the exception is:
+ * "Type-D torpedoes, having relatively unsophisticated warheads, can be
+ * distracted by chaff
+ * (D11.0). <b>No other plasma torpedoes can be distracted by chaff. This is the
+ * only way (in
  * combat) that a Pl-D is like a drone.</b>"
  * <p>
- * Until this test existed, {@code dropChaff} removed EVERY seeker tracking the fighter, so one
- * pack could shrug off a plasma-G, -S, -R or -F. It never showed up in play only because the
- * chaff rule is old and plasma-armed fighters are new - the first Romulan Gladiator arrived
+ * Until this test existed, {@code dropChaff} removed EVERY seeker tracking the
+ * fighter, so one
+ * pack could shrug off a plasma-G, -S, -R or -F. It never showed up in play
+ * only because the
+ * chaff rule is old and plasma-armed fighters are new - the first Romulan
+ * Gladiator arrived
  * days ago.
  *
  * <h2>Two simplifications this does NOT fix</h2>
- * D11.32 has the distracted seekers "become inert (FD1.7)"; we remove them from play, as every
- * other loss-of-tracking path does (G24.223's scout lock-break included). And its EXCEPTION -
- * scatter packs and multi-warhead drones pursuing the chaff's HEX and releasing submunitions
+ * D11.32 has the distracted seekers "become inert (FD1.7)"; we remove them from
+ * play, as every
+ * other loss-of-tracking path does (G24.223's scout lock-break included). And
+ * its EXCEPTION -
+ * scatter packs and multi-warhead drones pursuing the chaff's HEX and releasing
+ * submunitions
  * there - needs seeker hex targeting, which is a separate open item.
  */
 public class ChaffTargetsTest {
@@ -71,7 +83,9 @@ public class ChaffTargetsTest {
         game.getShips().add(enemy);
     }
 
-    /** A Federation fighter in space with a chaff pack, and the seekers chasing it. */
+    /**
+     * A Federation fighter in space with a chaff pack, and the seekers chasing it.
+     */
     private Fighter fighterUnderFire() {
         Fighter f18 = CataloguedFighter.of("f18");
         f18.setName("F18-1");
@@ -79,9 +93,12 @@ public class ChaffTargetsTest {
         f18.setLocation(new Location(10, 10));
         f18.setFacing(1);
         game.getActiveShuttles().add(f18);
-        // Set explicitly because NO fighter type in the catalogue declares chaffPacks, so
-        // every one is built with none and dropChaff always refuses. D11.1 says "While all
-        // fighters carry chaff", so that is a data gap rather than a rule - the machinery
+        // Set explicitly because NO fighter type in the catalogue declares chaffPacks,
+        // so
+        // every one is built with none and dropChaff always refuses. D11.1 says "While
+        // all
+        // fighters carry chaff", so that is a data gap rather than a rule - the
+        // machinery
         // from the catalogue down to Shuttle is already there and waiting for a number.
         f18.setChaffPacks(1);
         return f18;
@@ -129,8 +146,10 @@ public class ChaffTargetsTest {
     }
 
     /**
-     * Drop chaff until the die cooperates. D11.32 only distracts on a 1-4, so a 5 or 6 means
-     * "no effect" and the whole fixture has to be rebuilt - the pack is spent and D11.41's
+     * Drop chaff until the die cooperates. D11.32 only distracts on a 1-4, so a 5
+     * or 6 means
+     * "no effect" and the whole fixture has to be rebuilt - the pack is spent and
+     * D11.41's
      * lockout has started.
      *
      * @return the result of a drop that actually distracted something
@@ -167,8 +186,10 @@ public class ChaffTargetsTest {
     // ---------------------------------------------------------------- the list
 
     /**
-     * The heart of it: a drone and a type-D go, a plasma-G stays. One drop, three seekers, so
-     * the inclusion and the exclusion are proven by the same roll rather than separately.
+     * The heart of it: a drone and a type-D go, a plasma-G stays. One drop, three
+     * seekers, so
+     * the inclusion and the exclusion are proven by the same roll rather than
+     * separately.
      */
     @Test
     public void chaffTakesTheDroneAndTheTypeDButNotThePlasmaG() {
@@ -199,14 +220,17 @@ public class ChaffTargetsTest {
         chaffUntilItTakes(() -> {
             Fighter f = fighterUnderFire();
             k[0] = plasma(PlasmaType.K, "PlK-1", f);
-            drone("Drone-1", f);        // so the drop always has something to report
+            drone("Drone-1", f); // so the drop always has something to report
             return f;
         });
 
         assertFalse("a type-K is on D11.32's list", game.getSeekers().contains(k[0]));
     }
 
-    /** And the heavy torpedoes, each by name, since the rule excludes them as a class. */
+    /**
+     * And the heavy torpedoes, each by name, since the rule excludes them as a
+     * class.
+     */
     @Test
     public void noHeavyPlasmaIsEverDistracted() {
         final java.util.List<PlasmaTorpedo> heavies = new java.util.ArrayList<>();
@@ -217,7 +241,7 @@ public class ChaffTargetsTest {
             for (PlasmaType type : new PlasmaType[] {
                     PlasmaType.F, PlasmaType.G, PlasmaType.S, PlasmaType.R })
                 heavies.add(plasma(type, "Pl" + type + "-1", f));
-            drone("Drone-1", f);        // the drop needs a legitimate victim to report
+            drone("Drone-1", f); // the drop needs a legitimate victim to report
             return f;
         });
 
@@ -227,7 +251,8 @@ public class ChaffTargetsTest {
     }
 
     /**
-     * A seeking SHUTTLE goes, which D11.32 names in the same breath as the drones - a suicide
+     * A seeking SHUTTLE goes, which D11.32 names in the same breath as the drones -
+     * a suicide
      * shuttle or a scatter pack running at the fighter.
      */
     @Test
@@ -238,8 +263,7 @@ public class ChaffTargetsTest {
             Fighter f = fighterUnderFire();
             com.sfb.objects.shuttles.AdminShuttle base = new com.sfb.objects.shuttles.AdminShuttle();
             base.setName("SS-1");
-            com.sfb.objects.shuttles.SuicideShuttle ss =
-                    new com.sfb.objects.shuttles.SuicideShuttle(base);
+            com.sfb.objects.shuttles.SuicideShuttle ss = new com.sfb.objects.shuttles.SuicideShuttle(base);
             ss.setName("SS-1");
             ss.setSeekerType(Seeker.SeekerType.SHUTTLE);
             ss.setTarget(f);
@@ -252,11 +276,14 @@ public class ChaffTargetsTest {
         assertFalse("D11.32's \"seeking shuttles\"", game.getSeekers().contains(seeker[0]));
     }
 
-    // ---------------------------------------------------------------- the count reported
+    // ---------------------------------------------------------------- the count
+    // reported
 
     /**
-     * The log must count only what it actually distracted. It used to count every seeker in
-     * the hex, which told the player a plasma-G had been shaken off when it had not.
+     * The log must count only what it actually distracted. It used to count every
+     * seeker in
+     * the hex, which told the player a plasma-G had been shaken off when it had
+     * not.
      */
     @Test
     public void theReportCountsOnlyWhatWentAway() {
@@ -275,9 +302,13 @@ public class ChaffTargetsTest {
     /**
      * FD5.132: "Dogfight drones <b>can</b> be distracted by chaff (D11.0)."
      *
-     * <p>The exception that keeps FD5.131 from making an unstoppable weapon. A dogfight drone
-     * that has won its own lock-on shrugs off electronic warfare (D6.38), wild weasels, a
-     * cloak (G13.3345) and a scout channel (G24.23) — and a handful of chaff still works,
+     * <p>
+     * The exception that keeps FD5.131 from making an unstoppable weapon. A
+     * dogfight drone
+     * that has won its own lock-on shrugs off electronic warfare (D6.38), wild
+     * weasels, a
+     * cloak (G13.3345) and a scout channel (G24.23) — and a handful of chaff still
+     * works,
      * because D11.32 names seeker TYPES and lists dogfight drones among them.
      */
     @Test

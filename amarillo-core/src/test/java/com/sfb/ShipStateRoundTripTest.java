@@ -2,10 +2,7 @@ package com.sfb;
 
 import static org.junit.Assert.*;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,38 +16,56 @@ import com.sfb.samples.FederationShips;
  * Saving a damaged ship and loading it back — slice D1 of the saved-game work.
  *
  * <h2>The test before the format</h2>
- * The design note for this feature says to write the round-trip test before choosing the format,
- * and this is it. The problem with a save is not that it fails loudly; it is that it quietly
- * forgets one field, and a battle resumes with a shield back up or a weapon re-armed. No assertion
- * written by hand finds that, because the field nobody thought to save is also the field nobody
+ * The design note for this feature says to write the round-trip test before
+ * choosing the format,
+ * and this is it. The problem with a save is not that it fails loudly; it is
+ * that it quietly
+ * forgets one field, and a battle resumes with a shield back up or a weapon
+ * re-armed. No assertion
+ * written by hand finds that, because the field nobody thought to save is also
+ * the field nobody
  * thinks to assert.
  *
- * <p>So the witness here is {@code ShipDto} — about 158 public fields that the sidebar extracts
- * from a ship, maintained for its own reasons and entirely independently of the save format. The
- * test damages a ship, round-trips it through {@code exportState}/{@code applyState} onto a FRESH
- * ship built from the same hull, and compares the two DTOs field by field by reflection,
- * descending into nested DTOs. Anything the DTO can see and the save cannot carry fails the build
+ * <p>
+ * So the witness here is {@code ShipDto} — about 158 public fields that the
+ * sidebar extracts
+ * from a ship, maintained for its own reasons and entirely independently of the
+ * save format. The
+ * test damages a ship, round-trips it through
+ * {@code exportState}/{@code applyState} onto a FRESH
+ * ship built from the same hull, and compares the two DTOs field by field by
+ * reflection,
+ * descending into nested DTOs. Anything the DTO can see and the save cannot
+ * carry fails the build
  * and is named.
  *
  * <h2>Reading a failure</h2>
- * A failure lists each differing field as {@code path: before != after}. That is a to-do item, not
- * necessarily a bug: this slice converts only the ship's own scalars, {@code Shields} and
+ * A failure lists each differing field as {@code path: before != after}. That
+ * is a to-do item, not
+ * necessarily a bug: this slice converts only the ship's own scalars,
+ * {@code Shields} and
  * {@code HullBoxes}. Fields belonging to groups not yet converted are listed in
- * {@link #KNOWN_GAPS} with the group that owns them, and the test holds them to "still broken" so
- * that converting a group is what removes its entry. If a gap starts passing, the entry is stale
- * and this test says so — the same discipline as {@code ShipJsonKeyGuardTest}'s parked keys.
+ * {@link #KNOWN_GAPS} with the group that owns them, and the test holds them to
+ * "still broken" so
+ * that converting a group is what removes its entry. If a gap starts passing,
+ * the entry is stale
+ * and this test says so — the same discipline as {@code ShipJsonKeyGuardTest}'s
+ * parked keys.
  */
 public class ShipStateRoundTripTest {
 
     /**
-     * DTO fields that do NOT survive a round trip yet, each with the group that owns them.
+     * DTO fields that do NOT survive a round trip yet, each with the group that
+     * owns them.
      *
-     * Checked in both directions: an entry that starts surviving is reported as stale, so this
+     * Checked in both directions: an entry that starts surviving is reported as
+     * stale, so this
      * list cannot quietly outlive the work it describes.
      */
     private static final Map<String, String> KNOWN_GAPS = Map.of();
 
-    // ---------------------------------------------------------------- the round trip
+    // ---------------------------------------------------------------- the round
+    // trip
 
     /** A CA, beaten about in several different ways, then saved and reloaded. */
     @Test
@@ -68,8 +83,10 @@ public class ShipStateRoundTripTest {
     }
 
     /**
-     * The other half, and the reason the gap list cannot rot: every entry must STILL be broken.
-     * Converting a group is what deletes its entry, not a later guess that it is probably fine.
+     * The other half, and the reason the gap list cannot rot: every entry must
+     * STILL be broken.
+     * Converting a group is what deletes its entry, not a later guess that it is
+     * probably fine.
      */
     @Test
     public void theGapListDoesNotOutliveTheGaps() {
@@ -89,7 +106,8 @@ public class ShipStateRoundTripTest {
                 + String.join("\n  ", stale), stale.isEmpty());
     }
 
-    // ---------------------------------------------------------------- what this slice does cover
+    // ---------------------------------------------------------------- what this
+    // slice does cover
 
     @Test
     public void damagedShieldsComeBackDamaged() {
@@ -150,8 +168,10 @@ public class ShipStateRoundTripTest {
     // ---------------------------------------------------------------- weapons
 
     /**
-     * The gap this slice closed. Capacitor energy is paid for during Energy Allocation and
-     * carries between turns unspent, so a reload that dropped it took back power the player had
+     * The gap this slice closed. Capacitor energy is paid for during Energy
+     * Allocation and
+     * carries between turns unspent, so a reload that dropped it took back power
+     * the player had
      * already bought.
      */
     @Test
@@ -164,7 +184,8 @@ public class ShipStateRoundTripTest {
     }
 
     /**
-     * The biggest risk in the whole format: arming crosses turn boundaries, so losing it either
+     * The biggest risk in the whole format: arming crosses turn boundaries, so
+     * losing it either
      * empties a loaded tube or loads an empty one.
      */
     @Test
@@ -193,9 +214,12 @@ public class ShipStateRoundTripTest {
     }
 
     /**
-     * Weapons are keyed by designator, not by list position. A positional key would be a pointer
-     * by another name: it only holds while the weapons are rebuilt in exactly the same order, and
-     * the first refit that adds a mount would shift every armed photon onto a different tube.
+     * Weapons are keyed by designator, not by list position. A positional key would
+     * be a pointer
+     * by another name: it only holds while the weapons are rebuilt in exactly the
+     * same order, and
+     * the first refit that adds a mount would shift every armed photon onto a
+     * different tube.
      */
     @Test
     public void weaponStateIsKeyedByDesignator() {
@@ -204,8 +228,8 @@ public class ShipStateRoundTripTest {
         String designator = armed.getDesignator();
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> perWeapon = (Map<String, Object>)
-                ((Map<String, Object>) before.exportState().get("weapons")).get("weapons");
+        Map<String, Object> perWeapon = (Map<String, Object>) ((Map<String, Object>) before.exportState()
+                .get("weapons")).get("weapons");
 
         assertTrue("the save should name the mount, not its index: " + perWeapon.keySet(),
                 perWeapon.keySet().stream().anyMatch(k -> k.endsWith(":" + designator)));
@@ -223,7 +247,8 @@ public class ShipStateRoundTripTest {
         throw new AssertionError("no photon on " + ship.getName());
     }
 
-    // ---------------------------------------------------------------- the format's own promises
+    // ---------------------------------------------------------------- the format's
+    // own promises
 
     /** A save written before a field existed must still load. */
     @Test
@@ -248,8 +273,10 @@ public class ShipStateRoundTripTest {
     }
 
     /**
-     * The hull declares its own shape, never the save. A six-shield array restored onto a
-     * single-shield ground base would otherwise be an out-of-bounds a long way from here.
+     * The hull declares its own shape, never the save. A six-shield array restored
+     * onto a
+     * single-shield ground base would otherwise be an out-of-bounds a long way from
+     * here.
      */
     @Test
     public void aSavedShieldArrayOfTheWrongLengthIsResizedToTheHull() {
@@ -262,14 +289,17 @@ public class ShipStateRoundTripTest {
         assertEquals(1, ship.getShields().getShieldValues()[0]);
     }
 
-    /** The state must survive a trip through JSON-shaped types, since that is how it travels. */
+    /**
+     * The state must survive a trip through JSON-shaped types, since that is how it
+     * travels.
+     */
     @Test
     public void stateSurvivesArrivingAsJsonTypes() {
         Ship ship = freshCruiser();
 
         ship.applyState(Map.of(
-                "facing", 5L,                       // a long, as a JSON parser yields
-                "speed", 12.0,                      // a double
+                "facing", 5L, // a long, as a JSON parser yields
+                "speed", 12.0, // a double
                 "shields", Map.of("current", List.of(10, 9, 8, 7, 6, 5))));
 
         assertEquals(5, ship.getFacing());
@@ -291,11 +321,16 @@ public class ShipStateRoundTripTest {
     /**
      * Beaten about in as many SEPARATE ways as can be reached from outside.
      *
-     * The breadth is the whole point, and the first draft of this test taught it the hard way:
-     * it damaged only shields and hull, so weapons, crew and power compared equal between the two
-     * ships and the gap list looked satisfied. A round-trip test only detects an omission in
-     * state it actually CHANGES — an untouched system matches trivially and proves nothing. So
-     * every group this can reach gets disturbed, whether or not the save carries it yet.
+     * The breadth is the whole point, and the first draft of this test taught it
+     * the hard way:
+     * it damaged only shields and hull, so weapons, crew and power compared equal
+     * between the two
+     * ships and the gap list looked satisfied. A round-trip test only detects an
+     * omission in
+     * state it actually CHANGES — an untouched system matches trivially and proves
+     * nothing. So
+     * every group this can reach gets disturbed, whether or not the save carries it
+     * yet.
      */
     private static Ship damagedCruiser() {
         Ship ship = freshCruiser();
@@ -308,7 +343,8 @@ public class ShipStateRoundTripTest {
         ship.getHullBoxes().damageChull();
         ship.getHullBoxes().damageChull();
 
-        // Power, crew and the phaser capacitor — NOT carried yet, and disturbed precisely so
+        // Power, crew and the phaser capacitor — NOT carried yet, and disturbed
+        // precisely so
         // that the gap list above has to stay honest about them.
         ship.getPowerSystems().damageLWarp();
         ship.getPowerSystems().damageImpulse();
@@ -317,8 +353,10 @@ public class ShipStateRoundTripTest {
         ship.getCrew().setAvailableCrewUnits(ship.getCrew().getAvailableCrewUnits() - 3);
         ship.getCrew().setAvailableBoardingParties(
                 ship.getCrew().getAvailableBoardingParties() - 1);
-        // Commandos must be NON-ZERO or dropping them from the save changes nothing and the net
-        // has a hole in it exactly where D7.0 cares: normal parties and commandos are different
+        // Commandos must be NON-ZERO or dropping them from the save changes nothing and
+        // the net
+        // has a hole in it exactly where D7.0 cares: normal parties and commandos are
+        // different
         // troops, and restoring a total would silently convert one into the other.
         ship.getCrew().getFriendlyTroops().commandos = 2;
         ship.getCrew().setCapturedCrew(3);
@@ -332,8 +370,10 @@ public class ShipStateRoundTripTest {
         }
 
         // Weapons: a destroyed mount, a photon part-way through arming and held, and a
-        // phaser that has fired. Arming is the state that genuinely crosses a turn boundary, so
-        // a save that lost it would hand the player back an empty tube — or a loaded one.
+        // phaser that has fired. Arming is the state that genuinely crosses a turn
+        // boundary, so
+        // a save that lost it would hand the player back an empty tube — or a loaded
+        // one.
         for (com.sfb.weapons.Weapon weapon : ship.getWeapons().fetchAllWeapons()) {
             if (weapon instanceof com.sfb.weapons.Photon photon) {
                 photon.setOverload();
@@ -345,15 +385,18 @@ public class ShipStateRoundTripTest {
         }
         ship.getWeapons().fetchAllWeapons().get(0).damage();
 
-        // Control spaces, labs and the transporter bank — disturbed because the net only ever
-        // detects an omission in state the fixture actually CHANGES. An untouched system
-        // compares equal and proves nothing, which this file has now learned three times.
+        // Control spaces, labs and the transporter bank — disturbed because the net
+        // only ever
+        // detects an omission in state the fixture actually CHANGES. An untouched
+        // system
+        // compares equal and proves nothing, which this file has now learned three
+        // times.
         ship.getControlSpaces().damageBridge();
         ship.getControlSpaces().damageSecurity();
         ship.getLabs().useLab(12);
         ship.getLabs().damage();
         for (com.sfb.systemgroups.UIM uim : ship.getUims()) {
-            uim.damage();   // D6.522: a burnout is permanent for the scenario
+            uim.damage(); // D6.522: a burnout is permanent for the scenario
             break;
         }
 

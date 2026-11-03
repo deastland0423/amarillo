@@ -3,19 +3,22 @@ package com.sfb.objects.shuttles;
 import static org.junit.Assert.*;
 
 import org.junit.Test;
-import com.sfb.objects.shuttles.CataloguedFighter;
-import com.sfb.objects.shuttles.Fighter;
 
 /**
  * What a newly launched craft may not do yet (J1.34).
  * <p>
- * A shuttle leaves the bay with its systems still coming up, and the rule gives two different
- * waits measured from its MOST RECENT launch: a quarter turn before direct-fire weapons
- * (J1.342) and half a turn before seeking weapons (J1.341). The gap between them matters and
- * is easy to collapse — a fighter that may fire its phasers on impulse 13 still may not
+ * A shuttle leaves the bay with its systems still coming up, and the rule gives
+ * two different
+ * waits measured from its MOST RECENT launch: a quarter turn before direct-fire
+ * weapons
+ * (J1.342) and half a turn before seeking weapons (J1.341). The gap between
+ * them matters and
+ * is easy to collapse — a fighter that may fire its phasers on impulse 13 still
+ * may not
  * release a drone until 21.
  * <p>
- * "Most recent" rather than "first": a fighter recovered and sent out again serves the wait
+ * "Most recent" rather than "first": a fighter recovered and sent out again
+ * serves the wait
  * afresh, which is why this is an impulse stamp and not a flag.
  */
 public class LaunchFireDelayTest {
@@ -46,7 +49,8 @@ public class LaunchFireDelayTest {
     }
 
     /**
-     * The window between the two waits is the point of having both. Collapsing them — in
+     * The window between the two waits is the point of having both. Collapsing them
+     * — in
      * either direction — is the mistake this pins.
      */
     @Test
@@ -64,15 +68,17 @@ public class LaunchFireDelayTest {
         Fighter aas = launchedAt(5);
         assertTrue(aas.canFireDirect(13));
 
-        aas.setLaunchImpulse(40);   // recovered and sent out again
+        aas.setLaunchImpulse(40); // recovered and sent out again
 
         assertFalse("J1.34 measures from the MOST RECENT launch", aas.canFireDirect(44));
         assertTrue(aas.canFireDirect(48));
     }
 
     /**
-     * ScatterPack keeps its own launchImpulse and overrides the accessor, so a check that
-     * read the FIELD saw the parent's -999 and let every pack straight through. It reads
+     * ScatterPack keeps its own launchImpulse and overrides the accessor, so a
+     * check that
+     * read the FIELD saw the parent's -999 and let every pack straight through. It
+     * reads
      * through the getter now.
      */
     @Test
@@ -88,7 +94,8 @@ public class LaunchFireDelayTest {
 
     /**
      * FD7.33 gives a pack a quarter turn to release rather than J1.341's half, and
-     * isReadyToRelease is what holds it to that — so canLaunchSeeker defers rather than
+     * isReadyToRelease is what holds it to that — so canLaunchSeeker defers rather
+     * than
      * inventing a second answer.
      */
     @Test
@@ -101,7 +108,9 @@ public class LaunchFireDelayTest {
         assertTrue("eight impulses, not sixteen (FD7.33)", pack.isReadyToRelease(13));
     }
 
-    /** A craft sitting in a bay is not serving a launch delay it has never begun. */
+    /**
+     * A craft sitting in a bay is not serving a launch delay it has never begun.
+     */
     @Test
     public void aCraftStillInItsBayIsNotWaitingOnAnything() {
         Fighter aas = CataloguedFighter.of("aas");
@@ -115,9 +124,12 @@ public class LaunchFireDelayTest {
     // -------------------------------------------------------------------------
 
     /**
-     * The hole this closed. A DroneRail reports itself DIRECT FIRE — it is fired through the
-     * same path as a phaser — so the eight-impulse check let a fighter release drones from
-     * impulse 13, eight impulses before J1.341 allows it. The seeker wait has to be applied
+     * The hole this closed. A DroneRail reports itself DIRECT FIRE — it is fired
+     * through the
+     * same path as a phaser — so the eight-impulse check let a fighter release
+     * drones from
+     * impulse 13, eight impulses before J1.341 allows it. The seeker wait has to be
+     * applied
      * per WEAPON, not per attack.
      */
     @Test
@@ -169,8 +181,10 @@ public class LaunchFireDelayTest {
     // -------------------------------------------------------------------------
 
     /**
-     * The pad says HOW LONG, not merely that it cannot — and the number comes from here,
-     * because how long a craft must wait is a rules answer and a view does not decide those.
+     * The pad says HOW LONG, not merely that it cannot — and the number comes from
+     * here,
+     * because how long a craft must wait is a rules answer and a view does not
+     * decide those.
      */
     @Test
     public void theCountdownRunsDownToZeroAndStops() {

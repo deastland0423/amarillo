@@ -11,33 +11,45 @@ import com.sfb.weapons.Weapon;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.*;
 
 /**
- * D13.141: the four aegis firings belong to the FORCE, not to each ship on its own.
+ * D13.141: the four aegis firings belong to the FORCE, not to each ship on its
+ * own.
  *
  * <h2>The rule</h2>
- * "Even with two or more aegis-equipped ships in the scenario, there are only four firings, so
- * those two ships would operate simultaneously (in each case) <b>even if firing at different
- * targets</b>. Thus the first firings of all aegis ships must be announced (simultaneously with
- * non-aegis weapons) and then resolved, then the second (aegis) firing is announced and resolved,
+ * "Even with two or more aegis-equipped ships in the scenario, there are only
+ * four firings, so
+ * those two ships would operate simultaneously (in each case) <b>even if firing
+ * at different
+ * targets</b>. Thus the first firings of all aegis ships must be announced
+ * (simultaneously with
+ * non-aegis weapons) and then resolved, then the second (aegis) firing is
+ * announced and resolved,
  * and so on."
  *
  * <h2>What it actually takes away</h2>
- * Not secrecy — look-ahead inside one player's own force. An opposing aegis ship never contends,
- * since a ship does not shoot its own seekers, so the two are always engaging different things.
- * But two escorts over one convoy are a real choice, and firing one, watching it land and then
- * deciding the other is precisely the advantage this rule removes. Firing ONE needs nothing: it is
+ * Not secrecy — look-ahead inside one player's own force. An opposing aegis
+ * ship never contends,
+ * since a ship does not shoot its own seekers, so the two are always engaging
+ * different things.
+ * But two escorts over one convoy are a real choice, and firing one, watching
+ * it land and then
+ * deciding the other is precisely the advantage this rule removes. Firing ONE
+ * needs nothing: it is
  * the sealed volley every ship already fires together (D13.14).
  *
  * <h2>Which is why the skip had to become an act</h2>
- * D13.142 lets a ship "skip one of the four firings". While nothing sequenced the force, skipping
- * was simply declining to spend one and needed no code. Now the rest of the force waits at this
- * firing until every aegis ship has fired or given it up — so a player who does not want to shoot
- * with one escort has to be able to SAY so, or the other is stalled with no way out.
+ * D13.142 lets a ship "skip one of the four firings". While nothing sequenced
+ * the force, skipping
+ * was simply declining to spend one and needed no code. Now the rest of the
+ * force waits at this
+ * firing until every aegis ship has fired or given it up — so a player who does
+ * not want to shoot
+ * with one escort has to be able to SAY so, or the other is stalled with no way
+ * out.
  */
 public class AegisFiringSequenceTest {
 
@@ -61,7 +73,8 @@ public class AegisFiringSequenceTest {
         escortA = aegisShip("USS Alpha", new Location(10, 10), us);
         escortB = aegisShip("USS Bravo", new Location(12, 10), us);
 
-        // Something each may legally shoot: a size class 6 fighter, one hex out (D13.21).
+        // Something each may legally shoot: a size class 6 fighter, one hex out
+        // (D13.21).
         targetA = enemyFighter("HAAS-A", new Location(10, 9), them);
         targetB = enemyFighter("HAAS-B", new Location(12, 9), them);
 
@@ -129,9 +142,13 @@ public class AegisFiringSequenceTest {
         return game.fireAegisPulse(ship, at, aPhaserOf(ship));
     }
 
-    // ------------------------------------------------------------------ the sequence
+    // ------------------------------------------------------------------ the
+    // sequence
 
-    /** Both ships start on firing 2, firing 1 having gone with the sealed volley (D13.14). */
+    /**
+     * Both ships start on firing 2, firing 1 having gone with the sealed volley
+     * (D13.14).
+     */
     @Test
     public void bothShipsStartOnTheSecondFiring() {
         int now = game.getAbsoluteImpulse();
@@ -141,12 +158,13 @@ public class AegisFiringSequenceTest {
     }
 
     /**
-     * The rule, and the whole point of the slice: Alpha may not run ahead to firing 3 while Bravo
+     * The rule, and the whole point of the slice: Alpha may not run ahead to firing
+     * 3 while Bravo
      * is still on firing 2.
      */
     @Test
     public void aShipCannotRunAheadOfItsConsort() {
-        assertTrue(pulse(escortA, targetA).isSuccess());        // Alpha takes firing 2
+        assertTrue(pulse(escortA, targetA).isSuccess()); // Alpha takes firing 2
 
         Game.ActionResult second = pulse(escortA, targetA);
 
@@ -160,8 +178,8 @@ public class AegisFiringSequenceTest {
     /** And once the consort has caught up, it may. */
     @Test
     public void onceTheConsortHasFiredTheNextFiringOpens() {
-        assertTrue(pulse(escortA, targetA).isSuccess());        // Alpha, firing 2
-        assertTrue(pulse(escortB, targetB).isSuccess());        // Bravo, firing 2
+        assertTrue(pulse(escortA, targetA).isSuccess()); // Alpha, firing 2
+        assertTrue(pulse(escortB, targetB).isSuccess()); // Bravo, firing 2
 
         int now = game.getAbsoluteImpulse();
         assertEquals(3, escortA.aegisNextFiring(now));
@@ -170,8 +188,10 @@ public class AegisFiringSequenceTest {
     }
 
     /**
-     * Different targets make no difference. D13.141 says so in as many words — "even if firing at
-     * different targets" — and this is the clause a reader is most likely to assume away, since
+     * Different targets make no difference. D13.141 says so in as many words —
+     * "even if firing at
+     * different targets" — and this is the clause a reader is most likely to assume
+     * away, since
      * two ships shooting two drones feel independent.
      */
     @Test
@@ -195,9 +215,12 @@ public class AegisFiringSequenceTest {
     }
 
     /**
-     * An ENEMY aegis ship is not part of this force's sequence. The owner's ruling, and the reason
-     * it costs no fidelity: an opposing aegis ship never contends, because a ship does not shoot
-     * its own seekers, so the two are always engaging different things and neither has a decision
+     * An ENEMY aegis ship is not part of this force's sequence. The owner's ruling,
+     * and the reason
+     * it costs no fidelity: an opposing aegis ship never contends, because a ship
+     * does not shoot
+     * its own seekers, so the two are always engaging different things and neither
+     * has a decision
      * inside the other's firing.
      */
     @Test
@@ -213,18 +236,19 @@ public class AegisFiringSequenceTest {
         game.getShips().add(theirEscort);
         theirEscort.setActiveFireControl(true);
 
-        game.getShips().remove(escortB);        // leave only one ship on our side
+        game.getShips().remove(escortB); // leave only one ship on our side
 
         assertTrue("their escort does not hold ours up", pulse(escortA, targetA).isSuccess());
         assertTrue(pulse(escortA, targetA).isSuccess());
     }
 
-    // ---------------------------------------------------------------------- D13.142's skip
+    // ----------------------------------------------------------------------
+    // D13.142's skip
 
     /** A skip clears the ship from the current firing, so the force can move on. */
     @Test
     public void aSkipLetsTheOtherShipProceed() {
-        assertTrue(pulse(escortA, targetA).isSuccess());        // Alpha, firing 2
+        assertTrue(pulse(escortA, targetA).isSuccess()); // Alpha, firing 2
         assertFalse("Bravo is holding Alpha at firing 2", pulse(escortA, targetA).isSuccess());
 
         assertTrue(game.skipAegisFiring(escortB).isSuccess());
@@ -234,7 +258,8 @@ public class AegisFiringSequenceTest {
     }
 
     /**
-     * And the skipped firing is GONE, not banked: D13.142 says it "cannot be made up after the
+     * And the skipped firing is GONE, not banked: D13.142 says it "cannot be made
+     * up after the
      * fourth firing". A ship that skips one has two left, not three.
      */
     @Test
@@ -261,8 +286,10 @@ public class AegisFiringSequenceTest {
     }
 
     /**
-     * A ship that cannot fire at all does not hold the force up: no aegis, or no fire control
-     * operating (D13.23). Otherwise an escort with a shot-out aegis would freeze its consort for
+     * A ship that cannot fire at all does not hold the force up: no aegis, or no
+     * fire control
+     * operating (D13.23). Otherwise an escort with a shot-out aegis would freeze
+     * its consort for
      * the rest of the battle with no way for the player to clear it.
      */
     @Test
@@ -281,7 +308,8 @@ public class AegisFiringSequenceTest {
     }
 
     /**
-     * A limited system takes part in the sequence for the one extra firing it has, then stops
+     * A limited system takes part in the sequence for the one extra firing it has,
+     * then stops
      * blocking (D13.411: two firings, so one extra).
      */
     @Test

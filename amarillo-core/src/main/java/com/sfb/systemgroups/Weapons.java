@@ -13,7 +13,6 @@ import com.sfb.weapons.Phaser3;
 import com.sfb.weapons.PhaserG;
 import com.sfb.weapons.HeavyWeapon;
 import com.sfb.weapons.Weapon;
-import com.sfb.objects.shuttles.Fighter;
 
 /**
  * The collection of weapons on a ship.
@@ -23,31 +22,31 @@ import com.sfb.objects.shuttles.Fighter;
  */
 public class Weapons implements Systems {
 
-	List<Weapon> weapons = new ArrayList<>();						// A list of all the weapons.
-	
-	private double       phaserCapacitor	= 0;					// Initial size of the phaser capacitor
-	
-	private List<Weapon> phaserList			= new ArrayList<>();	// List of all phasers
-	private List<Weapon> torpList			= new ArrayList<>();	// List of all 'torp' type weapons (usually heavy weapons)
-	private List<Weapon> droneList			= new ArrayList<>();	// List of all 'drone' type weapons (usually torps)
-	
-	private int          availablePhasers;							// Items hit on 'phaser' in the DAC
-	private int          availableTorps;							// Items hit on 'torp' in the DAC
-	private int          availableDrones;							// Items hit on 'drone' in the DAC
-	private double       availablePhaserCapacitor;					// Current size of the phaser capacitor.
-	
-	private double       phaserCapacitorEnergy;						// Energy currently in the phaser capacitor.
-	
-	private Unit         owningShip;								// The ship on which this weapons system is mounted.
-	
+	List<Weapon> weapons = new ArrayList<>(); // A list of all the weapons.
+
+	private double phaserCapacitor = 0; // Initial size of the phaser capacitor
+
+	private List<Weapon> phaserList = new ArrayList<>(); // List of all phasers
+	private List<Weapon> torpList = new ArrayList<>(); // List of all 'torp' type weapons (usually heavy weapons)
+	private List<Weapon> droneList = new ArrayList<>(); // List of all 'drone' type weapons (usually torps)
+
+	private int availablePhasers; // Items hit on 'phaser' in the DAC
+	private int availableTorps; // Items hit on 'torp' in the DAC
+	private int availableDrones; // Items hit on 'drone' in the DAC
+	private double availablePhaserCapacitor; // Current size of the phaser capacitor.
+
+	private double phaserCapacitorEnergy; // Energy currently in the phaser capacitor.
+
+	private Unit owningShip; // The ship on which this weapons system is mounted.
+
 	public Weapons(Unit owningShip) {
 		this.owningShip = owningShip;
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public void init(Map<String, Object> values) {
-		weapons = values.get("weapons") == null ? new ArrayList<Weapon>() : (List<Weapon>)values.get("weapons");
+		weapons = values.get("weapons") == null ? new ArrayList<Weapon>() : (List<Weapon>) values.get("weapons");
 		if (weapons != null) {
 			for (Weapon weapon : weapons) {
 				// Make sure the weapon knows what unit owns it.
@@ -55,12 +54,12 @@ public class Weapons implements Systems {
 				// Register a new phaser weapon
 				if ("phaser".equals(weapon.getDacHitLocaiton())) {
 					phaserList.add(weapon);
-					
-					// Increase the size of the phaser capacitor to match 
+
+					// Increase the size of the phaser capacitor to match
 					if (weapon instanceof Phaser1 || weapon instanceof Phaser2) {
 						phaserCapacitor++;
 					}
-					
+
 					if (weapon instanceof Phaser3) {
 						phaserCapacitor += 0.5;
 					}
@@ -78,13 +77,13 @@ public class Weapons implements Systems {
 					droneList.add(weapon);
 				}
 			}
-		}		
+		}
 		availablePhasers = phaserList.size();
 		availableTorps = torpList.size();
 		availableDrones = droneList.size();
 		availablePhaserCapacitor = phaserCapacitor;
 	}
-	
+
 	@Override
 	public void cleanUp() {
 		for (Weapon w : weapons) {
@@ -93,14 +92,16 @@ public class Weapons implements Systems {
 	}
 
 	/**
-	 * Given a shooter and a target, fetch all weapons that have range and arc on the target. 
+	 * Given a shooter and a target, fetch all weapons that have range and arc on
+	 * the target.
+	 * 
 	 * @param source The shooter
 	 * @param target The target
 	 * @return All weapons on the shooter that have arc and range on the target.
 	 */
 	public List<Weapon> fetchAllBearingWeapons(Unit source, Unit target) {
 		List<Weapon> bearingWeapons = new ArrayList<>();
-		
+
 		// Loop through all weapons, finding which ones are good to fire.
 		for (Weapon weapon : weapons) {
 			// Check to see that the target is in range.
@@ -126,11 +127,12 @@ public class Weapons implements Systems {
 			}
 			int relativeBearingToTarget = MapUtils.getRelativeBearing(trueBearingOfTarget, source.getFacing());
 			boolean inArc = weapon.inArc(relativeBearingToTarget);
-			
+
 			// Heavy weapons must be armed before they appear as fireable options.
 			boolean armed = !(weapon instanceof HeavyWeapon) || ((HeavyWeapon) weapon).isArmed();
 
-			// Impulse gap and shots-per-turn must be satisfied. Asked of the weapon, because
+			// Impulse gap and shots-per-turn must be satisfied. Asked of the weapon,
+			// because
 			// canFire() asks a drone rack whether it may LAUNCH — the wrong question here.
 			boolean gapOk = weapon.readyToFireAtTarget();
 
@@ -142,7 +144,7 @@ public class Weapons implements Systems {
 
 		return bearingWeapons;
 	}
-	
+
 	public List<Weapon> fetchAllWeapons() {
 		return this.weapons;
 	}
@@ -155,19 +157,19 @@ public class Weapons implements Systems {
 	@Override
 	public int fetchRemainingTotalBoxes() {
 		long phasers = phaserList.stream().filter(Weapon::isFunctional).count();
-		long torps   = torpList.stream().filter(Weapon::isFunctional).count();
-		long drones  = droneList.stream().filter(Weapon::isFunctional).count();
-		return (int)(phasers + torps + drones);
+		long torps = torpList.stream().filter(Weapon::isFunctional).count();
+		long drones = droneList.stream().filter(Weapon::isFunctional).count();
+		return (int) (phasers + torps + drones);
 	}
-	
+
 	public double getPhaserCapacitorEnergy() {
 		return phaserCapacitorEnergy;
 	}
-	
+
 	public double getPhaserCapacitor() {
 		return phaserCapacitor;
 	}
-	
+
 	public void drainPhaserCapacitor(double energy) throws CapacitorException {
 		if (energy > this.phaserCapacitorEnergy) {
 			throw new CapacitorException("Not enough capacitor energy.");
@@ -175,7 +177,7 @@ public class Weapons implements Systems {
 			this.phaserCapacitorEnergy -= energy;
 		}
 	}
-	
+
 	public void chargePhaserCapacitor(double energy) throws CapacitorException {
 		if (this.phaserCapacitorEnergy + energy > this.availablePhaserCapacitor) {
 			throw new CapacitorException("Too much energy for capacitor size.");
@@ -183,7 +185,7 @@ public class Weapons implements Systems {
 			this.phaserCapacitorEnergy += energy;
 		}
 	}
-	
+
 	public double getAvailablePhaserCapacitor() {
 		return availablePhaserCapacitor;
 	}
@@ -197,9 +199,12 @@ public class Weapons implements Systems {
 		double cap = 0;
 		for (Weapon w : phaserList) {
 			if (w.isFunctional()) {
-				if (w instanceof Phaser1 || w instanceof Phaser2) cap += 1.0;
-				else if (w instanceof Phaser3)                    cap += 0.5;
-				else if (w instanceof PhaserG)                    cap += 1.0;
+				if (w instanceof Phaser1 || w instanceof Phaser2)
+					cap += 1.0;
+				else if (w instanceof Phaser3)
+					cap += 0.5;
+				else if (w instanceof PhaserG)
+					cap += 1.0;
 			}
 		}
 		availablePhaserCapacitor = cap;
@@ -207,7 +212,7 @@ public class Weapons implements Systems {
 			phaserCapacitorEnergy = availablePhaserCapacitor;
 		}
 	}
-	
+
 	public int getAvailablePhasers() {
 		return availablePhasers;
 	}
@@ -215,24 +220,24 @@ public class Weapons implements Systems {
 	public int getAvailableTorps() {
 		return availableTorps;
 	}
-	
+
 	public int getAvailableDrones() {
 		return availableDrones;
 	}
-	
+
 	@Override
 	public Unit fetchOwningUnit() {
 		return this.owningShip;
 	}
-	
+
 	public List<Weapon> getPhaserList() {
 		return this.phaserList;
 	}
-	
+
 	public List<Weapon> getTorpList() {
 		return this.torpList;
 	}
-	
+
 	public List<Weapon> getDroneList() {
 		return this.droneList;
 	}
@@ -247,11 +252,14 @@ public class Weapons implements Systems {
 
 		if ("phaser".equals(weapon.getDacHitLocaiton())) {
 			phaserList.add(weapon);
-			if (weapon instanceof Phaser1 || weapon instanceof Phaser2) phaserCapacitor += 1.0;
-			else if (weapon instanceof Phaser3)                          phaserCapacitor += 0.5;
-			else if (weapon instanceof PhaserG)                          phaserCapacitor += 1.0;
-			availablePhasers          = phaserList.size();
-			availablePhaserCapacitor  = phaserCapacitor;
+			if (weapon instanceof Phaser1 || weapon instanceof Phaser2)
+				phaserCapacitor += 1.0;
+			else if (weapon instanceof Phaser3)
+				phaserCapacitor += 0.5;
+			else if (weapon instanceof PhaserG)
+				phaserCapacitor += 1.0;
+			availablePhasers = phaserList.size();
+			availablePhaserCapacitor = phaserCapacitor;
 		} else if ("torp".equals(weapon.getDacHitLocaiton())) {
 			torpList.add(weapon);
 			availableTorps = torpList.size();
@@ -261,26 +269,32 @@ public class Weapons implements Systems {
 		}
 	}
 
-
-
 	// -------------------------------------------------------------------------
 	// Saved game (see Systems.exportState)
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Which weapon boxes are left, what the phaser capacitor holds, and every weapon's own state.
+	 * Which weapon boxes are left, what the phaser capacitor holds, and every
+	 * weapon's own state.
 	 *
 	 * <h2>The capacitor is two different numbers</h2>
-	 * {@code availablePhaserCapacitor} is the capacitor's SIZE, which damage reduces, while
-	 * {@code phaserCapacitorEnergy} is what is currently stored in it. Both are saved and they
-	 * are not interchangeable. The stored energy is the one that was being lost: it is paid for
-	 * during Energy Allocation and carries between turns unspent, so a reload that dropped it
+	 * {@code availablePhaserCapacitor} is the capacitor's SIZE, which damage
+	 * reduces, while
+	 * {@code phaserCapacitorEnergy} is what is currently stored in it. Both are
+	 * saved and they
+	 * are not interchangeable. The stored energy is the one that was being lost: it
+	 * is paid for
+	 * during Energy Allocation and carries between turns unspent, so a reload that
+	 * dropped it
 	 * quietly took back power the player had already bought.
 	 *
 	 * <h2>Weapons are keyed by DESIGNATOR, never by position</h2>
-	 * A list index would be a pointer by another name — it only means anything if the weapons are
-	 * rebuilt in exactly the same order, and the first refit that adds or removes a mount would
-	 * silently shift every armed photon onto a different tube. The designator is the SSD's own
+	 * A list index would be a pointer by another name — it only means anything if
+	 * the weapons are
+	 * rebuilt in exactly the same order, and the first refit that adds or removes a
+	 * mount would
+	 * silently shift every armed photon onto a different tube. The designator is
+	 * the SSD's own
 	 * label for a mount, which is what the save should be speaking in.
 	 */
 	@Override
@@ -307,8 +321,8 @@ public class Weapons implements Systems {
 		if (state == null)
 			return;
 		availablePhasers = StateIo.integer(state, "availablePhasers", availablePhasers);
-		availableTorps   = StateIo.integer(state, "availableTorps", availableTorps);
-		availableDrones  = StateIo.integer(state, "availableDrones", availableDrones);
+		availableTorps = StateIo.integer(state, "availableTorps", availableTorps);
+		availableDrones = StateIo.integer(state, "availableDrones", availableDrones);
 		availablePhaserCapacitor = StateIo.real(state, "availablePhaserCapacitor",
 				availablePhaserCapacitor);
 		phaserCapacitorEnergy = StateIo.real(state, "phaserCapacitorEnergy",
@@ -321,7 +335,8 @@ public class Weapons implements Systems {
 			String key = weaponKey(weapon);
 			if (key == null)
 				continue;
-			// A mount the save does not mention keeps what the hull gave it, so a save written
+			// A mount the save does not mention keeps what the hull gave it, so a save
+			// written
 			// before a refit added a weapon still loads.
 			if (perWeapon.get(key) instanceof Map<?, ?> saved) {
 				@SuppressWarnings("unchecked")
@@ -334,9 +349,12 @@ public class Weapons implements Systems {
 	/**
 	 * The save key for one mount: its type and designator together.
 	 *
-	 * The designator alone is not unique — a ship may carry phaser "1" and drone rack "1" — so
-	 * the type goes in front of it. Returns null for a mount with no designator at all, which is
-	 * left out rather than being merged with every other anonymous mount under one key.
+	 * The designator alone is not unique — a ship may carry phaser "1" and drone
+	 * rack "1" — so
+	 * the type goes in front of it. Returns null for a mount with no designator at
+	 * all, which is
+	 * left out rather than being merged with every other anonymous mount under one
+	 * key.
 	 */
 	private static String weaponKey(Weapon weapon) {
 		String designator = weapon.getDesignator();
@@ -345,4 +363,3 @@ public class Weapons implements Systems {
 		return weapon.getType() + ":" + designator;
 	}
 }
-

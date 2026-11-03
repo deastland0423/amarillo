@@ -2,7 +2,6 @@ package com.sfb.objects;
 
 import static org.junit.Assert.*;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,25 +13,34 @@ import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.systemgroups.ShuttleBay;
 
 /**
- * Every EW fighter must report {@code isTwoSeater()} — J4.43: "a two-seat fighter, and the EW
+ * Every EW fighter must report {@code isTwoSeater()} — J4.43: "a two-seat
+ * fighter, and the EW
  * fighters built from them".
  * <p>
- * That flag is not cosmetic. It is the proxy the whole game uses for "this is an EW fighter", and
+ * That flag is not cosmetic. It is the proxy the whole game uses for "this is
+ * an EW fighter", and
  * it gates FOUR separate rules:
  * <ul>
- *   <li>{@code SquadronEwResolver} refuses lending outright — "is not an EW fighter (R1.F7)" —
- *       so an unflagged EW fighter cannot lend a single point to its squadron, which is the only
- *       thing it exists to do;</li>
- *   <li>{@code Squadron.ewFighterCount()} does not count it, so the squadron reports none;</li>
- *   <li>{@code Squadron.refusal} does not apply J4.463's one-EW-fighter-per-squadron limit to
- *       it, so two could pile into one squadron;</li>
- *   <li>{@code SeekerControl} will not hand it a drone under J4.221.</li>
+ * <li>{@code SquadronEwResolver} refuses lending outright — "is not an EW
+ * fighter (R1.F7)" —
+ * so an unflagged EW fighter cannot lend a single point to its squadron, which
+ * is the only
+ * thing it exists to do;</li>
+ * <li>{@code Squadron.ewFighterCount()} does not count it, so the squadron
+ * reports none;</li>
+ * <li>{@code Squadron.refusal} does not apply J4.463's
+ * one-EW-fighter-per-squadron limit to
+ * it, so two could pile into one squadron;</li>
+ * <li>{@code SeekerControl} will not hand it a drone under J4.221.</li>
  * </ul>
- * Taas_E, Tads_E and Tadsc_E were all built without it while Aas_E, Haas_E and Stinger_E had it.
- * Nothing failed: they were fighters carrying pods that could do nothing with them, and a Kzinti
+ * Taas_E, Tads_E and Tadsc_E were all built without it while Aas_E, Haas_E and
+ * Stinger_E had it.
+ * Nothing failed: they were fighters carrying pods that could do nothing with
+ * them, and a Kzinti
  * CVA in a Y177 scenario would have fielded two of them lending nothing at all.
  * <p>
- * Driven off the catalogue rather than a hand-written list, so the next EW fighter is covered the
+ * Driven off the catalogue rather than a hand-written list, so the next EW
+ * fighter is covered the
  * moment its row is added.
  */
 public class EwFighterIsTwoSeaterTest {
@@ -58,7 +66,8 @@ public class EwFighterIsTwoSeaterTest {
     /**
      * The guard: carrying EW pods and being recognised as an EW fighter must agree.
      * <p>
-     * Pods are the functional test — a craft with pods has EW to lend — so any craft with them
+     * Pods are the functional test — a craft with pods has EW to lend — so any
+     * craft with them
      * has to be flagged, or the lending it was built for is refused.
      */
     @Test
@@ -78,15 +87,23 @@ public class EwFighterIsTwoSeaterTest {
     }
 
     /**
-     * The converse must NOT be asserted. J4.43's "a two-seat fighter, AND the EW fighters built
-     * from them" permits a plain two-seat fighter, so a guard demanding every two-seater carry
-     * pods would reject the first one written — worse than no guard at all. None exists today.
+     * The converse must NOT be asserted. J4.43's "a two-seat fighter, AND the EW
+     * fighters built
+     * from them" permits a plain two-seat fighter, so a guard demanding every
+     * two-seater carry
+     * pods would reject the first one written — worse than no guard at all. None
+     * exists today.
      * <p>
-     * It is also tempting to conclude from that gap that the EW gating should ask about PODS
-     * instead of seats. It must not, and this records why, because the mistake is easy to make
-     * twice: an EW fighter that has LOST its pods is still an EW fighter. J4.965 lends only pod
-     * points, so a podless EWF lends nothing — but it remains designatable as the squadron's
-     * source, and it remains the one EW fighter J4.463 allows. Switching the checks to pods was
+     * It is also tempting to conclude from that gap that the EW gating should ask
+     * about PODS
+     * instead of seats. It must not, and this records why, because the mistake is
+     * easy to make
+     * twice: an EW fighter that has LOST its pods is still an EW fighter. J4.965
+     * lends only pod
+     * points, so a podless EWF lends nothing — but it remains designatable as the
+     * squadron's
+     * source, and it remains the one EW fighter J4.463 allows. Switching the checks
+     * to pods was
      * tried and broke three lending tests for exactly that reason.
      * <p>
      * So the division is: <b>identity by seats, quantity by pods.</b>
@@ -101,7 +118,8 @@ public class EwFighterIsTwoSeaterTest {
         assertNull(sq.add(ewf));
         assertEquals(1, sq.ewFighterCount());
 
-        // Pods off its rails (J4.965's "only those points generated by the EWPs"; J1.3322 does
+        // Pods off its rails (J4.965's "only those points generated by the EWPs";
+        // J1.3322 does
         // this to a crippled fighter).
         for (com.sfb.weapons.Weapon w : ewf.getWeapons().fetchAllWeapons())
             if (w instanceof com.sfb.weapons.DroneRail rail)
@@ -127,7 +145,10 @@ public class EwFighterIsTwoSeaterTest {
         }
     }
 
-    /** A two-seat fighter guides twelve drones (J4.43), where a normal one guides far fewer. */
+    /**
+     * A two-seat fighter guides twelve drones (J4.43), where a normal one guides
+     * far fewer.
+     */
     @Test
     public void aFlaggedEwFighterGuidesTheTwoSeatNumber() {
         Fighter ewf = (Fighter) ShuttleBay.buildShuttle("tadsc_e", "test");

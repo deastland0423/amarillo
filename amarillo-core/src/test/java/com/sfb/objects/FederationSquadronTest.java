@@ -2,7 +2,6 @@ package com.sfb.objects;
 
 import static org.junit.Assert.*;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,21 +14,32 @@ import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.systemgroups.ShuttleBay;
 
 /**
- * A SQUADRON is eleven fighters and one EW fighter, and a bay is not a squadron.
+ * A SQUADRON is eleven fighters and one EW fighter, and a bay is not a
+ * squadron.
  * <p>
- * This is the shape the Federation data forced, and it is worth pinning because the obvious
- * reading of a carrier is wrong. The CVA does not fly a squadron per bay: it carries an F-14
- * squadron AND an A-10 squadron, and splits each across BOTH of its twelve-box bays — six and
- * five, five and six. One bay's EW fighter is therefore an F-14E and the other's an A-10E.
+ * This is the shape the Federation data forced, and it is worth pinning because
+ * the obvious
+ * reading of a carrier is wrong. The CVA does not fly a squadron per bay: it
+ * carries an F-14
+ * squadron AND an A-10 squadron, and splits each across BOTH of its twelve-box
+ * bays — six and
+ * five, five and six. One bay's EW fighter is therefore an F-14E and the
+ * other's an A-10E.
  * <p>
- * That is what {@code <role>_ew} exists for. A bay flying one programme names plain
- * {@code ew} and lets the line decide; a bay flying two has to say which. The alternative
- * considered first was a line per bay — the answer that settled the Klingon Z-1 versus Z-D
- * split — and it cannot work here, because a line cannot decide what an EW fighter is when
+ * That is what {@code <role>_ew} exists for. A bay flying one programme names
+ * plain
+ * {@code ew} and lets the line decide; a bay flying two has to say which. The
+ * alternative
+ * considered first was a line per bay — the answer that settled the Klingon Z-1
+ * versus Z-D
+ * split — and it cannot work here, because a line cannot decide what an EW
+ * fighter is when
  * the bay flies two programmes.
  * <p>
- * It also explains the six balcony positions per bay, which had looked arbitrary: six is
- * exactly the A-10s (or F-14s) in one bay. The SSD gives a player enough track to stage half
+ * It also explains the six balcony positions per bay, which had looked
+ * arbitrary: six is
+ * exactly the A-10s (or F-14s) in one bay. The SSD gives a player enough track
+ * to stage half
  * a squadron of one type and launch it in a single impulse (J1.53).
  */
 public class FederationSquadronTest {
@@ -54,10 +64,12 @@ public class FederationSquadronTest {
         return byType;
     }
 
-    // ---------------------------------------------------------------- the squadrons
+    // ---------------------------------------------------------------- the
+    // squadrons
 
     /**
-     * Two complete squadrons: 11 F-14 + 1 F-14E, and 11 A-10 + 1 A-10E. The numbers only come
+     * Two complete squadrons: 11 F-14 + 1 F-14E, and 11 A-10 + 1 A-10E. The numbers
+     * only come
      * out right when the two bays are added together, which is the whole point.
      */
     @Test
@@ -74,9 +86,12 @@ public class FederationSquadronTest {
     }
 
     /**
-     * The CVA flies NO standard-line fighter. Its elite and assault roles both resolve to
-     * their own programmes, and if either stopped doing so it would silently fall back to the
-     * superiority type (LineEra.typeFor falls back to STANDARD) and seat F-18s instead — a
+     * The CVA flies NO standard-line fighter. Its elite and assault roles both
+     * resolve to
+     * their own programmes, and if either stopped doing so it would silently fall
+     * back to the
+     * superiority type (LineEra.typeFor falls back to STANDARD) and seat F-18s
+     * instead — a
      * mistake that would look like a working carrier.
      */
     @Test
@@ -111,7 +126,8 @@ public class FederationSquadronTest {
     }
 
     /**
-     * One bay's EW fighter is an F-14E and the other's an A-10E — the fact that made a line
+     * One bay's EW fighter is an F-14E and the other's an A-10E — the fact that
+     * made a line
      * per bay impossible and {@code <role>_ew} necessary.
      */
     @Test
@@ -128,7 +144,10 @@ public class FederationSquadronTest {
         assertTrue(ewTypes.toString(), ewTypes.contains("a10_e"));
     }
 
-    /** Six positions per bay is six of one type — half a squadron, staged to go at once. */
+    /**
+     * Six positions per bay is six of one type — half a squadron, staged to go at
+     * once.
+     */
     @Test
     public void aBaysBalconyHoldsAllOfOneProgrammeInThatBay() {
         Ship ship = cva();
@@ -144,9 +163,12 @@ public class FederationSquadronTest {
         }
     }
 
-    // ---------------------------------------------------------------- the role mechanism
+    // ---------------------------------------------------------------- the role
+    // mechanism
 
-    /** J4.463 counts EW fighters; a programme-specific one is still an EW fighter. */
+    /**
+     * J4.463 counts EW fighters; a programme-specific one is still an EW fighter.
+     */
     @Test
     public void ewCountSeesTheProgrammeSpecificSeats() {
         FighterComplement mixed = new FighterComplement("federation-fighter",
@@ -169,7 +191,10 @@ public class FederationSquadronTest {
                 FighterComplement.isEwRole(FighterComplement.EW));
     }
 
-    /** EW fighters are seated LAST, whichever programme they belong to (S4.10-S4.12). */
+    /**
+     * EW fighters are seated LAST, whichever programme they belong to
+     * (S4.10-S4.12).
+     */
     @Test
     public void everyEwSeatComesAfterEveryCombatSeat() {
         int lastCombat = -1, firstEw = Integer.MAX_VALUE;

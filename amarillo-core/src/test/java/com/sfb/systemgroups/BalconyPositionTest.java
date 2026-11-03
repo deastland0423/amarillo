@@ -2,8 +2,6 @@ package com.sfb.systemgroups;
 
 import static org.junit.Assert.*;
 
-import java.io.File;
-
 import org.junit.Before;
 import org.junit.Test;
 
@@ -15,25 +13,38 @@ import com.sfb.objects.shuttles.AdminShuttle;
 import com.sfb.objects.shuttles.Shuttle;
 
 /**
- * J1.53 balcony and track, slice one: a bay can park craft outside, and a balcony position is
+ * J1.53 balcony and track, slice one: a bay can park craft outside, and a
+ * balcony position is
  * NOT a shuttle box.
  * <p>
- * That second half is the design decision the whole feature rests on, so it is pinned here
- * rather than left as a comment. A shuttle BOX is destroyed on an "any weapon" hit (J1.414),
- * chain reacts (J1.415), and owns a ready rack and a fighter capacitor. A balcony position has
- * none of it — the owner's rulings, 2026-10-02: a position cannot be destroyed, damage reaches
- * the parked SHUTTLES as rear-hull hits, and with nothing parked the balcony does not interact
+ * That second half is the design decision the whole feature rests on, so it is
+ * pinned here
+ * rather than left as a comment. A shuttle BOX is destroyed on an "any weapon"
+ * hit (J1.414),
+ * chain reacts (J1.415), and owns a ready rack and a fighter capacitor. A
+ * balcony position has
+ * none of it — the owner's rulings, 2026-10-02: a position cannot be destroyed,
+ * damage reaches
+ * the parked SHUTTLES as rear-hull hits, and with nothing parked the balcony
+ * does not interact
  * with damage at all.
  * <p>
- * The practical consequence, and why these tests matter more than they look: nothing that walks
- * {@code getSpaces()} or {@code getInventory()} should ever see a parked craft. That separation
- * is what lets every existing damage, arming and deck-crew path stay correct without being told
+ * The practical consequence, and why these tests matter more than they look:
+ * nothing that walks
+ * {@code getSpaces()} or {@code getInventory()} should ever see a parked craft.
+ * That separation
+ * is what lets every existing damage, arming and deck-crew path stay correct
+ * without being told
  * balconies exist.
  * <p>
- * NOT YET IMPLEMENTED, by design: transfers at the J1.50 hatch rate (slice 2), launching and
- * landing from the balcony (slice 3), rear-hull destruction and the speed-31 rule (slice 4),
- * and the bars on firing and deck-crew work (slice 5). {@link ShuttleBay#park} enforces
- * capacity and nothing else; the rules belong to the caller that can refuse with a reason.
+ * NOT YET IMPLEMENTED, by design: transfers at the J1.50 hatch rate (slice 2),
+ * launching and
+ * landing from the balcony (slice 3), rear-hull destruction and the speed-31
+ * rule (slice 4),
+ * and the bars on firing and deck-crew work (slice 5). {@link ShuttleBay#park}
+ * enforces
+ * capacity and nothing else; the rules belong to the caller that can refuse
+ * with a reason.
  */
 public class BalconyPositionTest {
 
@@ -41,10 +52,14 @@ public class BalconyPositionTest {
     public void loadData() throws Exception {
         ShipLibrary.loadAllSpecs("../data/factions");
         ShuttleCatalog.loadDefault("../data");
-        // The Gorn sweep below asks ShipLineCatalog.isCivilian to leave the Q-ships out of a
-        // test about warships. Without this it answers false for everything, and the sweep
-        // reported the L-Q and S-Q as warships missing a balcony — but only when this class ran
-        // ALONE, because in a full suite some other test had already loaded the catalogue. A
+        // The Gorn sweep below asks ShipLineCatalog.isCivilian to leave the Q-ships out
+        // of a
+        // test about warships. Without this it answers false for everything, and the
+        // sweep
+        // reported the L-Q and S-Q as warships missing a balcony — but only when this
+        // class ran
+        // ALONE, because in a full suite some other test had already loaded the
+        // catalogue. A
         // test that passes because of its neighbours is not passing.
         com.sfb.objects.ShipLineCatalog.loadDefault("../data");
     }
@@ -114,23 +129,30 @@ public class BalconyPositionTest {
         assertEquals(1, bay.getBalcony().size());
     }
 
-    /** Capacity is fixed: a position cannot be destroyed, so the number never falls. */
+    /**
+     * Capacity is fixed: a position cannot be destroyed, so the number never falls.
+     */
     @Test
     public void positionsCannotBeLost() {
         ShuttleBay bay = bayWithBalcony(3);
         bay.park(shuttle("A"));
 
-        // Whatever happens to the bay's BOXES, the balcony's positions are unchanged — there is
+        // Whatever happens to the bay's BOXES, the balcony's positions are unchanged —
+        // there is
         // deliberately no API to destroy one, which is the point of this assertion.
         assertEquals(3, bay.getBalconyPositions());
     }
 
-    // ------------------------------------------------- a position is not a shuttle box
+    // ------------------------------------------------- a position is not a shuttle
+    // box
 
     /**
-     * The separation the whole design rests on. Parking a craft must not create a space, must
-     * not appear in the bay's inventory, and must not change any box count — or every damage,
-     * arming and deck-crew path that walks the spaces would silently start seeing it.
+     * The separation the whole design rests on. Parking a craft must not create a
+     * space, must
+     * not appear in the bay's inventory, and must not change any box count — or
+     * every damage,
+     * arming and deck-crew path that walks the spaces would silently start seeing
+     * it.
      */
     @Test
     public void parkedCraftAreInvisibleToTheBaysSpaces() {
@@ -150,7 +172,10 @@ public class BalconyPositionTest {
         assertEquals("the parked craft is only on the balcony", 1, bay.getBalcony().size());
     }
 
-    /** The list is read-only to callers: parking goes through park() so capacity is enforced. */
+    /**
+     * The list is read-only to callers: parking goes through park() so capacity is
+     * enforced.
+     */
     @Test
     public void theBalconyListCannotBeWrittenToDirectly() {
         ShuttleBay bay = bayWithBalcony(1);
@@ -165,8 +190,10 @@ public class BalconyPositionTest {
     // ---------------------------------------------------------------- the data
 
     /**
-     * J1.53's note names the ships; these two are in the data. Per BAY, which the CVA is the
-     * argument for: "Each Size-1 Fighter bay has six balcony positions: Total of 12" — so its
+     * J1.53's note names the ships; these two are in the data. Per BAY, which the
+     * CVA is the
+     * argument for: "Each Size-1 Fighter bay has six balcony positions: Total of
+     * 12" — so its
      * two fighter bays have six each and its admin bay has none.
      */
     @Test
@@ -203,24 +230,37 @@ public class BalconyPositionTest {
     }
 
     /**
-     * The balcony is a GORN trait, fleet-wide. "On Gorn ships this is usually on the wings"
-     * is J1.53's own aside, and the Gorn are the faction known for the system: every WARSHIP in
+     * The balcony is a GORN trait, fleet-wide. "On Gorn ships this is usually on
+     * the wings"
+     * is J1.53's own aside, and the Gorn are the faction known for the system:
+     * every WARSHIP in
      * their list has one on every bay, from the SC up to the DN.
      * <p>
-     * Asserted over the whole faction rather than ship by ship, so a new Gorn hull that
-     * forgets its balcony fails here instead of simply being unable to do something the rest
+     * Asserted over the whole faction rather than ship by ship, so a new Gorn hull
+     * that
+     * forgets its balcony fails here instead of simply being unable to do something
+     * the rest
      * of the fleet can.
      *
-     * <h2>Civilian hulls are excluded, and that is the SSDs' distinction rather than ours</h2>
-     * Converted freighters do not get one. The Gorn DDF's sheet says "each bay has two balcony
-     * positions: total of four (J1.53)" in as many words; the Gorn L-Q's says only "two bays; no
-     * (J1.59) transfers", and names no balcony. A Q-ship is a merchant hull with guns hidden in
-     * it, not a warship built around a flight deck, so the wings J1.53 describes are not there.
+     * <h2>Civilian hulls are excluded, and that is the SSDs' distinction rather
+     * than ours</h2>
+     * Converted freighters do not get one. The Gorn DDF's sheet says "each bay has
+     * two balcony
+     * positions: total of four (J1.53)" in as many words; the Gorn L-Q's says only
+     * "two bays; no
+     * (J1.59) transfers", and names no balcony. A Q-ship is a merchant hull with
+     * guns hidden in
+     * it, not a warship built around a flight deck, so the wings J1.53 describes
+     * are not there.
      * <p>
-     * The exclusion reads the LINE's civilian flag from shiplines.json rather than listing the
-     * two hulls, so the next converted freighter does not fail this for the same reason twice.
-     * Found when the Gorn L-Q and S-Q were added from the Basic Set SSD book, 2026-10-09: the
-     * guard was written when the Gorn list was warships alone, and "every hull" quietly meant
+     * The exclusion reads the LINE's civilian flag from shiplines.json rather than
+     * listing the
+     * two hulls, so the next converted freighter does not fail this for the same
+     * reason twice.
+     * Found when the Gorn L-Q and S-Q were added from the Basic Set SSD book,
+     * 2026-10-09: the
+     * guard was written when the Gorn list was warships alone, and "every hull"
+     * quietly meant
      * "every hull we happened to have".
      */
     @Test
@@ -232,8 +272,10 @@ public class BalconyPositionTest {
                 continue;
             if (com.sfb.objects.ShipLineCatalog.isCivilian(spec.line))
                 continue;
-            // And a BASE is a third category, neither warship nor freighter. R1.3's sheet gives
-            // the Gorn Base Station an ordinary shuttle bay and says nothing about balconies,
+            // And a BASE is a third category, neither warship nor freighter. R1.3's sheet
+            // gives
+            // the Gorn Base Station an ordinary shuttle bay and says nothing about
+            // balconies,
             // where the DDF's sheet names them outright. Excluded for the same reason the
             // Q-ships are: J1.53's wings belong to a hull built around a flight deck.
             if (spec.isBase)
@@ -250,29 +292,43 @@ public class BalconyPositionTest {
 
     /**
      * And OUTSIDE the Gorn it stays rare. The default must be zero, so a stray
-     * {@code balconyPositions} on some other faction's hull — or a key landing in the wrong bay —
+     * {@code balconyPositions} on some other faction's hull — or a key landing in
+     * the wrong bay —
      * fails here rather than quietly granting a ship a system it does not have.
      *
      * <h2>A roster on purpose, so adding one takes a decision</h2>
-     * This list is deliberately a roster rather than an invariant, which means every new balcony
-     * hull fails this test once. That is the point: a balcony is rare enough that a human should
-     * confirm the SSD gives it one. It has caught two so far, the Klingon C8V (2026-10-04) and the
+     * This list is deliberately a roster rather than an invariant, which means
+     * every new balcony
+     * hull fails this test once. That is the point: a balcony is rare enough that a
+     * human should
+     * confirm the SSD gives it one. It has caught two so far, the Klingon C8V
+     * (2026-10-04) and the
      * Romulan K7V (2026-10-05), and both turned out to be legitimate.
      *
      * <h2>STACKED BAYS: the pattern behind the asymmetric ones</h2>
-     * Both are Klingon-built hulls whose two bays sit one above the other, and the owner's
-     * description is the same both times — of the C8V, "the two bays are stacked on top of each
-     * other. The upper bay uses tunnels to launch. The lower bay is close enough to the deck that
-     * it has balconies"; of the K7V, "the bottom bay gets some balcony space while the other just
+     * Both are Klingon-built hulls whose two bays sit one above the other, and the
+     * owner's
+     * description is the same both times — of the C8V, "the two bays are stacked on
+     * top of each
+     * other. The upper bay uses tunnels to launch. The lower bay is close enough to
+     * the deck that
+     * it has balconies"; of the K7V, "the bottom bay gets some balcony space while
+     * the other just
      * has a hatch."
      * <p>
-     * So four positions on one fighter bay and none on the other is the geometry of the ship, not
-     * an omission — and it is why {@code balconyPositions} is per bay and not per ship. Contrast
-     * the Gorn, who have them symmetrically on every bay, and the Federation CVA with six on each
-     * of its two fighter bays and none on its admin bay. <b>Expect more Klingon-hull carriers to
-     * join this list</b>, the Romulan Kestrel series included, since those are Klingon hulls too.
+     * So four positions on one fighter bay and none on the other is the geometry of
+     * the ship, not
+     * an omission — and it is why {@code balconyPositions} is per bay and not per
+     * ship. Contrast
+     * the Gorn, who have them symmetrically on every bay, and the Federation CVA
+     * with six on each
+     * of its two fighter bays and none on its admin bay. <b>Expect more
+     * Klingon-hull carriers to
+     * join this list</b>, the Romulan Kestrel series included, since those are
+     * Klingon hulls too.
      * <p>
-     * The method name deliberately does NOT enumerate the roster: it was renamed on each of the
+     * The method name deliberately does NOT enumerate the roster: it was renamed on
+     * each of the
      * first two additions, which is churn for nothing.
      */
     @Test
@@ -280,24 +336,24 @@ public class BalconyPositionTest {
         java.util.Set<String> withBalcony = new java.util.TreeSet<>();
         java.util.Set<String> byInheritance = new java.util.TreeSet<>();
         java.util.Set<String> rostered = java.util.Set.of(
-                "Federation CVA",   // six on each fighter bay, none on the admin bay
-                "Klingon C8V",      // stacked bays; four on the lower one
-                "Klingon D7V",      // R3.44: "LOWER BAY HAS FOUR BALCONY POSITIONS (J1.53)"
-                "Romulan K7V",      // stacked bays on a converted K7; four on the lower
-                "ISC CA",           // R13.6: "TWO BALCONY (J1.53) POSITIONS" on its one bay
-                "ISC CL",           // R13.9: the same note, and the same two positions
-                "ISC CS",           // R13.11: the CL's hull, so the CL's two positions
-                "ISC CVL",          // R13.10: likewise, and its bay carries nine fighters besides
-                "ISC CVLS",         // R13.12: the CVL with PPDs, so the CVL's bay and balconies
-                "ISC CE",           // R13.27: the CL hull as an escort, so the CL's two
-                "ISC CEA",          // R13.27A: the same sheet, full aegis
-                "ISC CVE",          // R13.30: the DD hull as a carrier, two positions
-                "ISC HSC",          // R13.14: the CL hull as a scout, so the CL's two
-                "ISC SR",           // R13.13: the CL hull as a survey ship, likewise
-                "ISC DNT",          // R13.37: TWO, where the DN it is built on has four
-                "ISC CV",           // R13.7: FOUR positions, not the cruisers' two
-                "ISC CVS",          // R13.8: the CV with PPDs, so the CV's four
-                "ISC CC",           // R13.5: likewise, on the flagship cruiser
+                "Federation CVA", // six on each fighter bay, none on the admin bay
+                "Klingon C8V", // stacked bays; four on the lower one
+                "Klingon D7V", // R3.44: "LOWER BAY HAS FOUR BALCONY POSITIONS (J1.53)"
+                "Romulan K7V", // stacked bays on a converted K7; four on the lower
+                "ISC CA", // R13.6: "TWO BALCONY (J1.53) POSITIONS" on its one bay
+                "ISC CL", // R13.9: the same note, and the same two positions
+                "ISC CS", // R13.11: the CL's hull, so the CL's two positions
+                "ISC CVL", // R13.10: likewise, and its bay carries nine fighters besides
+                "ISC CVLS", // R13.12: the CVL with PPDs, so the CVL's bay and balconies
+                "ISC CE", // R13.27: the CL hull as an escort, so the CL's two
+                "ISC CEA", // R13.27A: the same sheet, full aegis
+                "ISC CVE", // R13.30: the DD hull as a carrier, two positions
+                "ISC HSC", // R13.14: the CL hull as a scout, so the CL's two
+                "ISC SR", // R13.13: the CL hull as a survey ship, likewise
+                "ISC DNT", // R13.37: TWO, where the DN it is built on has four
+                "ISC CV", // R13.7: FOUR positions, not the cruisers' two
+                "ISC CVS", // R13.8: the CV with PPDs, so the CV's four
+                "ISC CC", // R13.5: likewise, on the flagship cruiser
                 // R13.3, Captain's Module J SSD p.2. The only ISC hull with TWO bays, and the
                 // sheet grants the balcony to each of them in as many words: "EACH BAY HAS FOUR
                 // BALCONY (J1.53) POSITIONS." Eight in all, which is the most of any hull here.
@@ -318,9 +374,12 @@ public class BalconyPositionTest {
                     balcony = true;
             if (!balcony)
                 continue;
-            // A REFIT inherits its base hull's bays (S3.24): the C8VK is the C8V with the phaser
-            // refit, and a phaser refit does not take away a hangar deck. So a refitted hull is
-            // justified by its BASE being on this roster rather than needing its own entry — which
+            // A REFIT inherits its base hull's bays (S3.24): the C8VK is the C8V with the
+            // phaser
+            // refit, and a phaser refit does not take away a hangar deck. So a refitted
+            // hull is
+            // justified by its BASE being on this roster rather than needing its own entry
+            // — which
             // also stops the roster growing every time a carrier gains a refit.
             if (spec.refitOf != null && rostered.contains(spec.faction + " " + spec.refitOf))
                 byInheritance.add(spec.faction + " " + spec.type);
@@ -334,10 +393,14 @@ public class BalconyPositionTest {
     }
 
     /**
-     * The field has to survive {@code toInitMap}, which is the bridge from the ship file to the
-     * bay — and it is the step a new bay key is most likely to be dropped at. Worse here than
-     * elsewhere: the object form of a bay is only used when something forces it, so a bay with
-     * a balcony and NOTHING else would fall back to the plain list and lose it silently.
+     * The field has to survive {@code toInitMap}, which is the bridge from the ship
+     * file to the
+     * bay — and it is the step a new bay key is most likely to be dropped at. Worse
+     * here than
+     * elsewhere: the object form of a bay is only used when something forces it, so
+     * a bay with
+     * a balcony and NOTHING else would fall back to the plain list and lose it
+     * silently.
      */
     @Test
     public void aBalconySurvivesWhenItIsTheOnlyThingTheBayDeclares() throws Exception {

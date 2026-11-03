@@ -2,8 +2,6 @@ package com.sfb.weapons;
 
 import static org.junit.Assert.*;
 
-import java.io.File;
-
 import org.junit.Before;
 import org.junit.Test;
 
@@ -19,27 +17,42 @@ import com.sfb.properties.WeaponArmingType;
 /**
  * A type-D plasma torpedo rides a RAIL, not a launcher (FP9.2, J4.825).
  * <p>
- * The owner's instinct, and the rules agree in as many words. FP9.21: type-Ds are "stored,
- * transported, handled, and loaded as drones are, each taking one 'space'". J4.825: "The
- * rearming and storage rules for drones are used for type-D plasma torpedoes... A type-D
+ * The owner's instinct, and the rules agree in as many words. FP9.21: type-Ds
+ * are "stored,
+ * transported, handled, and loaded as drones are, each taking one 'space'".
+ * J4.825: "The
+ * rearming and storage rules for drones are used for type-D plasma torpedoes...
+ * A type-D
  * torpedo is the same size as a one-space drone."
  * <p>
- * So this is a new rail TYPE rather than a new weapon class, which follows a decision the
- * project already made - the rail, not the fighter, declares what fits and what it costs
- * (J4.231). Every piece of machinery that keys on {@code instanceof DroneRail} - the box's
- * ready rack, the deck crew pass, the DTO, scatter-pack sizing - therefore keeps working with
+ * So this is a new rail TYPE rather than a new weapon class, which follows a
+ * decision the
+ * project already made - the rail, not the fighter, declares what fits and what
+ * it costs
+ * (J4.231). Every piece of machinery that keys on {@code instanceof DroneRail}
+ * - the box's
+ * ready rack, the deck crew pass, the DTO, scatter-pack sizing - therefore
+ * keeps working with
  * no change at all.
  * <p>
- * The payload is held in a field of its own rather than in the inherited drone ammo list,
- * because a {@link PlasmaTorpedo} is not a {@link Drone}: that list is typed for drones, is
- * shared with every ship rack, and carries reload sets and size trimming that mean nothing to
- * a torpedo. The useful side effect is that {@code getDrone()} answers null on a loaded
- * plasma-D rail, so every drone path skips it - which is right, since a drone launch must
+ * The payload is held in a field of its own rather than in the inherited drone
+ * ammo list,
+ * because a {@link PlasmaTorpedo} is not a {@link Drone}: that list is typed
+ * for drones, is
+ * shared with every ship rack, and carries reload sets and size trimming that
+ * mean nothing to
+ * a torpedo. The useful side effect is that {@code getDrone()} answers null on
+ * a loaded
+ * plasma-D rail, so every drone path skips it - which is right, since a drone
+ * launch must
  * never fire a plasma torpedo.
  * <p>
- * NOT YET BUILT, deliberately: FP9.22's activation, which costs "1/2 of an energy point
- * (reserve or allocated) per torpedo" and without which "the weapon cannot be launched". That
- * is the next slice. Its 25-turn deactivation is noted and not planned - 25 turns outlasts any
+ * NOT YET BUILT, deliberately: FP9.22's activation, which costs "1/2 of an
+ * energy point
+ * (reserve or allocated) per torpedo" and without which "the weapon cannot be
+ * launched". That
+ * is the next slice. Its 25-turn deactivation is noted and not planned - 25
+ * turns outlasts any
  * scenario.
  */
 public class PlasmaDRailTest {
@@ -77,13 +90,16 @@ public class PlasmaDRailTest {
         assertTrue(rail.isPlasmaD());
     }
 
-    /** It has no design DRONE: there is no ordinary drone load for such a fighter. */
+    /**
+     * It has no design DRONE: there is no ordinary drone load for such a fighter.
+     */
     @Test
     public void itHasNoDesignDrone() {
         assertNull(plasmaRail().getDesignDrone());
     }
 
-    // ---------------------------------------------------------------- it carries a torpedo
+    // ---------------------------------------------------------------- it carries a
+    // torpedo
 
     @Test
     public void itCarriesATypeDTorpedo() {
@@ -99,8 +115,10 @@ public class PlasmaDRailTest {
     }
 
     /**
-     * And the torpedo is invisible to {@code getDrone()}, which is what keeps every drone path
-     * off it. A launch that read this rail as holding a drone would fire a plasma torpedo as
+     * And the torpedo is invisible to {@code getDrone()}, which is what keeps every
+     * drone path
+     * off it. A launch that read this rail as holding a drone would fire a plasma
+     * torpedo as
      * one.
      */
     @Test
@@ -125,11 +143,14 @@ public class PlasmaDRailTest {
         assertNull(rail.getTorpedo());
     }
 
-    // ---------------------------------------------------------------- J4.825's exclusivity
+    // ---------------------------------------------------------------- J4.825's
+    // exclusivity
 
     /**
-     * "No fighter in the game can use both type-D plasmas and drones, so you cannot load
-     * drones on a plasma-D-armed fighter (nor vice versa)" (J4.825). Refused at the rail,
+     * "No fighter in the game can use both type-D plasmas and drones, so you cannot
+     * load
+     * drones on a plasma-D-armed fighter (nor vice versa)" (J4.825). Refused at the
+     * rail,
      * which is the only place that can refuse it per-mount.
      */
     @Test
@@ -159,16 +180,21 @@ public class PlasmaDRailTest {
         }
     }
 
-    /** J4.2312 already bars a pod from anything but a standard rail, which covers this one. */
+    /**
+     * J4.2312 already bars a pod from anything but a standard rail, which covers
+     * this one.
+     */
     @Test
     public void aPlasmaDRailCannotTakeAnEwPod() {
         assertFalse(plasmaRail().canCarryEwPod());
     }
 
-    // ---------------------------------------------------------------- as the data builds it
+    // ---------------------------------------------------------------- as the data
+    // builds it
 
     /**
-     * The Gladiator-F off the catalogue. FP9.32: "Gladiator-F, Gladiator-SF, and Gladiator-FSF
+     * The Gladiator-F off the catalogue. FP9.32: "Gladiator-F, Gladiator-SF, and
+     * Gladiator-FSF
      * fighters carry the plasma-D, as well as the Tribune heavy fighter."
      */
     @Test
@@ -190,8 +216,10 @@ public class PlasmaDRailTest {
     }
 
     /**
-     * Its scatter-pack capacity is ZERO, and that follows from J4.825 rather than from the
-     * rails being small: a scatter pack is drones, and this fighter may not load drones at
+     * Its scatter-pack capacity is ZERO, and that follows from J4.825 rather than
+     * from the
+     * rails being small: a scatter pack is drones, and this fighter may not load
+     * drones at
      * all. The data said 2 before the rule was read.
      */
     @Test

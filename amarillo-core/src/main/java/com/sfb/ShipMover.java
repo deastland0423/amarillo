@@ -15,7 +15,6 @@ import com.sfb.objects.Unit;
 import com.sfb.properties.Location;
 import com.sfb.utilities.MapUtils;
 import com.sfb.utilities.MovementUtil;
-import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Voluntary movement for ships, fighters, and player-controlled shuttles:
@@ -627,7 +626,7 @@ class ShipMover {
             // the side maps cleanly (unlike an adjacent hex's shield facing, which
             // can fall on a border/vertex value).
             int oppositeBearing = ((moveDir - 1 + 12) % 24) + 1; // planet → prevLoc
-            int side = (oppositeBearing - 1) / 4 + 1;            // 1..6 (A..F)
+            int side = (oppositeBearing - 1) / 4 + 1; // 1..6 (A..F)
             shuttle.setLocation(nextHex);
             shuttle.setLandingPhase(com.sfb.properties.LandingPhase.DESCENDING);
             shuttle.setLandedHexSide(side);
@@ -657,7 +656,7 @@ class ShipMover {
             movedShuttlesThisImpulse.add(shuttle);
         // A turn is a hex of movement, so it can enter terrain (Unit.turnLeft).
         return turned ? ActionResult.ok(shuttle.getName() + " turned left"
-                        + applyTerrainCollision(shuttle))
+                + applyTerrainCollision(shuttle))
                 : ActionResult.fail(shuttle.getName() + " cannot turn left yet (turn mode)");
     }
 
@@ -669,7 +668,7 @@ class ShipMover {
             movedShuttlesThisImpulse.add(shuttle);
         // A turn is a hex of movement, so it can enter terrain (Unit.turnRight).
         return turned ? ActionResult.ok(shuttle.getName() + " turned right"
-                        + applyTerrainCollision(shuttle))
+                + applyTerrainCollision(shuttle))
                 : ActionResult.fail(shuttle.getName() + " cannot turn right yet (turn mode)");
     }
 
@@ -680,7 +679,7 @@ class ShipMover {
         if (moved)
             movedShuttlesThisImpulse.add(shuttle);
         return moved ? ActionResult.ok(shuttle.getName() + " sideslipped left"
-                        + applyTerrainCollision(shuttle))
+                + applyTerrainCollision(shuttle))
                 : ActionResult.fail(shuttle.getName() + " cannot sideslip (must move first)");
     }
 
@@ -691,19 +690,25 @@ class ShipMover {
         if (moved)
             movedShuttlesThisImpulse.add(shuttle);
         return moved ? ActionResult.ok(shuttle.getName() + " sideslipped right"
-                        + applyTerrainCollision(shuttle))
+                + applyTerrainCollision(shuttle))
                 : ActionResult.fail(shuttle.getName() + " cannot sideslip (must move first)");
     }
 
     /**
-     * Terrain collision (P3.2 asteroid / P2.223 ring) for anything that just entered a
-     * hex, formatted for this class's running movement log: newline-prefixed, or "" when
+     * Terrain collision (P3.2 asteroid / P2.223 ring) for anything that just
+     * entered a
+     * hex, formatted for this class's running movement log: newline-prefixed, or ""
+     * when
      * the hex is neither, so call sites can append unconditionally.
      * <p>
-     * Takes a {@link com.sfb.objects.Unit}, not a Ship. It used to take a Ship, which is
-     * exactly why the shuttle and fighter movement methods below - and everything under
-     * tow - silently had no collision at all: the compiler cannot object to a call that
-     * was never written. {@link Game#applyTerrainCollision} does the roll and the damage.
+     * Takes a {@link com.sfb.objects.Unit}, not a Ship. It used to take a Ship,
+     * which is
+     * exactly why the shuttle and fighter movement methods below - and everything
+     * under
+     * tow - silently had no collision at all: the compiler cannot object to a call
+     * that
+     * was never written. {@link Game#applyTerrainCollision} does the roll and the
+     * damage.
      */
     private String applyTerrainCollision(com.sfb.objects.Unit unit) {
         String line = game.applyTerrainCollision(unit);

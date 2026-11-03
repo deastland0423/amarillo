@@ -41,7 +41,6 @@ import com.sfb.utilities.MapUtils;
 import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.HeavyWeapon;
 import com.sfb.weapons.Weapon;
-import com.sfb.objects.shuttles.Fighter;
 
 /**
  * 
@@ -54,16 +53,19 @@ import com.sfb.objects.shuttles.Fighter;
  */
 public class Ship extends Unit implements DroneController {
 
-	/// All the stuff that goes into a ship ///
+	/// All the stuff that goes into a ship
 
 	private DAC dac = new DAC(); // Damage Allocation Chart
 	private Shields shields = new Shields(); // Shield systems
 	private HullBoxes hullBoxes = new HullBoxes(); // Hull boxes
-	// FD2.445: spare drones in the cargo boxes. Null when the ship declares none, which
-	// is almost every hull - cargo boxes do not hold drones unless the ship says so.
+	// FD2.445: spare drones in the cargo boxes. Null when the ship declares none,
+	// which
+	// is almost every hull - cargo boxes do not hold drones unless the ship says
+	// so.
 	private com.sfb.systemgroups.CargoDroneStore cargoDroneStore = null;
 	private int stealthBonus = 0; // Orion Stealth Bonus in ECM points (G15.8); 0 if none
-	private boolean enginesDoublingCapable = true; // G15.28: true unless JSON says otherwise (freighters, the one non-doubling warship)
+	private boolean enginesDoublingCapable = true; // G15.28: true unless JSON says otherwise (freighters, the one
+																									// non-doubling warship)
 	private java.util.List<OptionMount> optionMounts = new java.util.ArrayList<>(); // G15.4 "OPT" mounts
 	private PowerSystems powerSystems = new PowerSystems(); // Power systems (warp, impulse, apr, awr, battery)
 	private ControlSpaces controlSpaces = new ControlSpaces(); // Control systems (bridge, flag, aux, emer, security)
@@ -115,31 +117,46 @@ public class Ship extends Unit implements DroneController {
 	private int speedTwoTurnsAgo = 0;
 
 	/**
-	 * C2.21's ten: the floor on how much speed a turn may add, before doubling takes over.
-	 * "The player may increase the ship's practical speed by a number which is equal to the
+	 * C2.21's ten: the floor on how much speed a turn may add, before doubling
+	 * takes over.
+	 * "The player may increase the ship's practical speed by a number which is
+	 * equal to the
 	 * previous turn's speed, or ten, whichever is greater."
 	 */
 	private static final int DEFAULT_MAX_ACCEL = 10;
 
-	/** R1.7: five on a Q-ship, four or three on a freighter, ten by C2.21 otherwise. */
+	/**
+	 * R1.7: five on a Q-ship, four or three on a freighter, ten by C2.21 otherwise.
+	 */
 	private int maxAccel = DEFAULT_MAX_ACCEL;
 
 	/**
 	 * Whether C2.21's doubling arm applies (true for almost everything).
 	 *
-	 * False only where a sheet states a HARD per-turn cap instead — the plain freighters say
-	 * "cannot accelerate by more than 3 movement points per turn" with no doubling clause,
+	 * False only where a sheet states a HARD per-turn cap instead — the plain
+	 * freighters say
+	 * "cannot accelerate by more than 3 movement points per turn" with no doubling
+	 * clause,
 	 * where a Q-ship says "five movement points or double its current speed".
 	 */
 	private boolean accelDoubling = true;
 
-	/** C7.1: whether this hull may disengage by acceleration. The freighters may not. */
+	/**
+	 * C7.1: whether this hull may disengage by acceleration. The freighters may
+	 * not.
+	 */
 	private boolean disengageByAccel = true;
 
-	/** FD4.4: racks usable per turn, or null where only each rack's own rate limits it. */
+	/**
+	 * FD4.4: racks usable per turn, or null where only each rack's own rate limits
+	 * it.
+	 */
 	private Integer rackFiringLimit = null;
 
-	/** G15.4: runs of neighbouring option mounts, e.g. [["A","B"],["C","D"]]. Never null. */
+	/**
+	 * G15.4: runs of neighbouring option mounts, e.g. [["A","B"],["C","D"]]. Never
+	 * null.
+	 */
 	private java.util.List<java.util.List<String>> adjacentMountRuns = java.util.List.of();
 
 	/** True if this ship has been captured (D7.50). */
@@ -148,7 +165,9 @@ public class Ship extends Unit implements DroneController {
 	/** True if this ship has voluntarily exited the map and is disengaged. */
 	private boolean disengaged = false;
 
-	/** The Wild Weasel decoy currently active for this ship (J3.0), or null if none. */
+	/**
+	 * The Wild Weasel decoy currently active for this ship (J3.0), or null if none.
+	 */
 	private WildWeaselShuttle activeWildWeasel = null;
 
 	/** End-of-battle status — set when ship leaves play. */
@@ -161,10 +180,10 @@ public class Ship extends Unit implements DroneController {
 	private int breakdownLockoutUntilImpulse = -1; // C6.547: weapon/shuttle/transporter lockout for 8 impulses
 
 	// Tactical Maneuvers (C5.0)
-	private int tacBudget = 0;          // warp TACs remaining to be earned this turn (from EA)
-	private int tacAvailable = 0;       // warp TAC earned and unused (0 or 1 — C5.232)
+	private int tacBudget = 0; // warp TACs remaining to be earned this turn (from EA)
+	private int tacAvailable = 0; // warp TAC earned and unused (0 or 1 — C5.232)
 	private boolean sublightTacAllocated = false; // impulse TAC paid this turn
-	private boolean sublightTacUsed = false;      // sublight TAC already executed this turn
+	private boolean sublightTacUsed = false; // sublight TAC already executed this turn
 
 	// Emergency deceleration (C8.0)
 	private int decelerationEndsAtImpulse = -1; // absolute impulse when ship stops; -1 = not decelerating
@@ -177,12 +196,12 @@ public class Ship extends Unit implements DroneController {
 	// Rule-of-3 DAC state (D4.3221-3).
 	// Phaser: per-volley (reset at start of each fresh damage chain).
 	// Torpedo / Drone: cumulative over the entire scenario — never reset.
-	private int     phaserDacGroupPos  = 0;
+	private int phaserDacGroupPos = 0;
 	private boolean phaserDacBestTaken = false;
-	private int     torpDacGroupPos    = 0;
-	private boolean torpDacBestTaken   = false;
-	private int     droneDacGroupPos   = 0;
-	private boolean droneDacBestTaken  = false;
+	private int torpDacGroupPos = 0;
+	private boolean torpDacBestTaken = false;
+	private int droneDacGroupPos = 0;
+	private boolean droneDacBestTaken = false;
 
 	/**
 	 * Guard posts (D7.83): boarding parties standing guard on specific systems.
@@ -200,56 +219,80 @@ public class Ship extends Unit implements DroneController {
 	private int yearInService = 0; // The minimum year this ship can be deployed.
 	private String shipType = null; // The SSD's "Type" line (i.e. "CA", "FFG", "D7K", etc.)
 	private String typeName = null; // The class written out, e.g. "Commando Cruiser" for "CMC"
-	private String line = null;     // The family it serves in (S8.36), i.e. "CA" for a D7C
+	private String line = null; // The family it serves in (S8.36), i.e. "CA" for a D7C
 	private String tokenArt = null; // Optional path to a PNG token image
 	private Faction faction = Faction.Federation; // The faction to which this ship belongs.
 	private int battlePointValue = 0; // BPV, a measure of how powerful the ship is in combat.
 	private int economicPointValue = 0; // EPV (split-BPV ships only); falls back to BPV if unset.
 	private int droneSpeedBpv = 0; // S2.11's mandatory drone speed charge; see getDroneSpeedBpv.
-	// Fleet-building classifications (S8.0). Used when a force is assembled, not in play.
-	private boolean leader = false;      // leader variant (S8.36)
-	private boolean escort = false;      // carrier escort (S8.311)
+	// Fleet-building classifications (S8.0). Used when a force is assembled, not in
+	// play.
+	private boolean leader = false; // leader variant (S8.36)
+	private boolean escort = false; // carrier escort (S8.311)
 	private boolean requiresEscort = false; // cannot be fielded without escorts (S8.315)
 	/**
-	 * The weapon status this ship began the scenario at (S4.1), or -1 if none was applied.
+	 * The weapon status this ship began the scenario at (S4.1), or -1 if none was
+	 * applied.
 	 * <p>
-	 * Kept because the Commander's Options are chosen AFTER the status is applied and have to
-	 * know what it allows: how many fighters may be ready, how many may fly as a patrol.
+	 * Kept because the Commander's Options are chosen AFTER the status is applied
+	 * and have to
+	 * know what it allows: how many fighters may be ready, how many may fly as a
+	 * patrol.
 	 */
 	private int weaponStatus = -1;
 
-	/** J4.61/J4.62: what this ship may DO as a carrier, as opposed to what a fleet list allows. */
+	/**
+	 * J4.61/J4.62: what this ship may DO as a carrier, as opposed to what a fleet
+	 * list allows.
+	 */
 	private com.sfb.properties.CarrierClass carrierClass = com.sfb.properties.CarrierClass.NONE;
 
-	/** M9.21: minesweeper, minelayer, or neither — which decides the mine-laying rate. */
+	/**
+	 * M9.21: minesweeper, minelayer, or neither — which decides the mine-laying
+	 * rate.
+	 */
 	private com.sfb.properties.MineRole mineRole = com.sfb.properties.MineRole.NONE;
 
 	// --- Aegis fire control (D13.0) ---
 	/**
 	 * What the hull HAS, which is also what it is always running.
 	 * <p>
-	 * D13.16: aegis "cannot be destroyed", so this never changes in play. D13.52's voluntary
-	 * switching — turning it off, or a full system posing as limited (D13.525) — is DELIBERATELY
-	 * NOT MODELLED (owner's call): a limited ship is always limited and a full ship always full.
+	 * D13.16: aegis "cannot be destroyed", so this never changes in play. D13.52's
+	 * voluntary
+	 * switching — turning it off, or a full system posing as limited (D13.525) — is
+	 * DELIBERATELY
+	 * NOT MODELLED (owner's call): a limited ship is always limited and a full ship
+	 * always full.
 	 * <p>
-	 * Nothing is lost by leaving it out, which is why it went. Switching UP carries D13.523's
-	 * four-impulse warm-up, so the moment of declaration never mattered; switching DOWN is
-	 * immediate but costs firings and identification for no gain, since its only purpose is
-	 * deception against tactical intelligence at Level E (D13.51) and D17 is not modelled.
+	 * Nothing is lost by leaving it out, which is why it went. Switching UP carries
+	 * D13.523's
+	 * four-impulse warm-up, so the moment of declaration never mattered; switching
+	 * DOWN is
+	 * immediate but costs firings and identification for no gain, since its only
+	 * purpose is
+	 * deception against tactical intelligence at Level E (D13.51) and D17 is not
+	 * modelled.
 	 * Revisit this, D13.51 and D13.52's 6B1 timing together when D17 arrives.
 	 */
 	private com.sfb.properties.AegisLevel aegisFitted = com.sfb.properties.AegisLevel.NONE;
-	/** D13.22: weapon types this ship's aegis may control. Empty means all of them. */
+	/**
+	 * D13.22: weapon types this ship's aegis may control. Empty means all of them.
+	 */
 	private java.util.List<String> aegisWeaponTypes = java.util.List.of();
-	private boolean bch = false;         // heavy battlecruiser; one per fleet (S8.333)
-	// Annex #3 "D%"/"DB": extra special-drone allowance and a 30% COI budget (FD10.622, S3.223)
+	private boolean bch = false; // heavy battlecruiser; one per fleet (S8.333)
+	// Annex #3 "D%"/"DB": extra special-drone allowance and a 30% COI budget
+	// (FD10.622, S3.223)
 	private boolean dPercent = false;
-	// FD2.442's reload drones, held once for the whole ship rather than per rack (FD2.422). See
-	// reloadStockpile(); stockpileWeapons is only there to notice a replaced weapon group.
+	// FD2.442's reload drones, held once for the whole ship rather than per rack
+	// (FD2.422). See
+	// reloadStockpile(); stockpileWeapons is only there to notice a replaced weapon
+	// group.
 	private com.sfb.systemgroups.ReloadStockpile reloadStockpile = null;
 	private com.sfb.systemgroups.Weapons stockpileWeapons = null;
-	// FP10.31's plasma-D reloads, held once for the whole ship for the same reason as the drone
-	// stockpile above: "a given rack can use reloads nominally assigned to another rack".
+	// FP10.31's plasma-D reloads, held once for the whole ship for the same reason
+	// as the drone
+	// stockpile above: "a given rack can use reloads nominally assigned to another
+	// rack".
 	private com.sfb.systemgroups.PlasmaReloadStore plasmaReloadStore = null;
 	private com.sfb.systemgroups.Weapons plasmaStoreWeapons = null;
 	private double coiSpend = 0; // VP spent on Commander's Option Items (S2.20 B / S3.2); handed to the enemy.
@@ -258,8 +301,8 @@ public class Ship extends Unit implements DroneController {
 
 	// Real-time data
 	private boolean activeFireControl = false; // True if active fire control is up, false otherwise.
-	private boolean fcPaidThisTurn   = false;  // Player allocated FC energy this turn
-	private int     fcActivatingUntil = -1;    // Absolute impulse when activation completes; -1 = not activating
+	private boolean fcPaidThisTurn = false; // Player allocated FC energy this turn
+	private int fcActivatingUntil = -1; // Absolute impulse when activation completes; -1 = not activating
 	/**
 	 * False only at WS-0 start; costs 1 energy to energize; true for all other
 	 * weapon status levels.
@@ -289,15 +332,15 @@ public class Ship extends Unit implements DroneController {
 		faction = values.get("faction") == null ? null : (Faction) values.get("faction");
 		shipType = values.get("type") == null ? null : (String) values.get("type");
 		typeName = values.get("typename") == null ? null : (String) values.get("typename");
-		line     = values.get("line") == null ? null : (String) values.get("line");
+		line = values.get("line") == null ? null : (String) values.get("line");
 		tokenArt = values.get("tokenart") == null ? null : (String) values.get("tokenart");
 		yearInService = values.get("serviceyear") == null ? 0 : (Integer) values.get("serviceyear");
 		battlePointValue = values.get("bpv") == null ? 0 : (Integer) values.get("bpv");
 		economicPointValue = values.get("epv") == null ? battlePointValue : (Integer) values.get("epv");
 		commandRating = values.get("commandrating") == null ? 0 : (Integer) values.get("commandrating");
-		leader      = Boolean.TRUE.equals(values.get("isleader"));
-		escort      = Boolean.TRUE.equals(values.get("isescort"));
-		isBase      = Boolean.TRUE.equals(values.get("isbase"));
+		leader = Boolean.TRUE.equals(values.get("isleader"));
+		escort = Boolean.TRUE.equals(values.get("isescort"));
+		isBase = Boolean.TRUE.equals(values.get("isbase"));
 		requiresEscort = Boolean.TRUE.equals(values.get("requiresescort"));
 		carrierClass = com.sfb.properties.CarrierClass.from(values.get("carrierclass"));
 		mineRole = com.sfb.properties.MineRole.from(values.get("minerole"));
@@ -306,8 +349,8 @@ public class Ship extends Unit implements DroneController {
 		aegisWeaponTypes = aegisWeaponList instanceof java.util.List
 				? java.util.List.copyOf((java.util.List<String>) aegisWeaponList)
 				: java.util.List.of();
-		bch         = Boolean.TRUE.equals(values.get("isbch"));
-		dPercent    = Boolean.TRUE.equals(values.get("dpercent"));
+		bch = Boolean.TRUE.equals(values.get("isbch"));
+		dPercent = Boolean.TRUE.equals(values.get("dpercent"));
 
 		// Calculated Ship Values
 		lifeSupportCost = Constants.LIFE_SUPPORT_COST[getSizeClass()];
@@ -319,10 +362,12 @@ public class Ship extends Unit implements DroneController {
 		enginesDoublingCapable = values.get("candoubleengines") == null ? true : (Boolean) values.get("candoubleengines");
 		@SuppressWarnings("unchecked")
 		java.util.List<OptionMount> mounts = (java.util.List<OptionMount>) values.get("optionmounts");
-		if (mounts != null) optionMounts = mounts;
+		if (mounts != null)
+			optionMounts = mounts;
 		armor = values.get("armor") == null ? 0 : (Integer) values.get("armor");
 		maxAccel = values.get("maxaccel") == null
-				? DEFAULT_MAX_ACCEL : (Integer) values.get("maxaccel");
+				? DEFAULT_MAX_ACCEL
+				: (Integer) values.get("maxaccel");
 		accelDoubling = values.get("acceldoubling") == null
 				|| Boolean.TRUE.equals(values.get("acceldoubling"));
 		disengageByAccel = values.get("disengagebyaccel") == null
@@ -383,16 +428,21 @@ public class Ship extends Unit implements DroneController {
 	 *                   allocation of the ship's energy for the turn.
 	 */
 	/**
-	 * What the last energy allocation quietly cost this ship — currently photon tubes that
-	 * lapsed for want of energy (E4.21/E4.22). Read once by the allocating player: energy
+	 * What the last energy allocation quietly cost this ship — currently photon
+	 * tubes that
+	 * lapsed for want of energy (E4.21/E4.22). Read once by the allocating player:
+	 * energy
 	 * allocation is secret, so these never go to the shared combat log.
 	 */
 	private final List<String> allocationNotes = new ArrayList<>();
 
 	/**
-	 * What could not be applied from this ship's Captain's Option Items, in the player's
-	 * words rather than the server console's. Deliberately NOT cleared at turn start, which
-	 * is where allocationNotes goes: these are decided before the battle and a player needs
+	 * What could not be applied from this ship's Captain's Option Items, in the
+	 * player's
+	 * words rather than the server console's. Deliberately NOT cleared at turn
+	 * start, which
+	 * is where allocationNotes goes: these are decided before the battle and a
+	 * player needs
 	 * to find them afterwards, not in the half-second before turn one begins.
 	 */
 	private final List<String> setupNotes = new ArrayList<>();
@@ -436,10 +486,14 @@ public class Ship extends Unit implements DroneController {
 	/**
 	 * Hexes bought by {@code warpEnergy} at this ship's movement cost.
 	 * <p>
-	 * Movement costs are thirds and quarters, so neither the cost nor the energy paid for a
-	 * whole number of hexes survives as an exact double. Truncating the raw quotient then
-	 * charges for a hex it does not deliver: a war cruiser paying for speed 7 lands on
-	 * 6.999999… and flies at 6. The tolerance is far below the smallest real fraction of a
+	 * Movement costs are thirds and quarters, so neither the cost nor the energy
+	 * paid for a
+	 * whole number of hexes survives as an exact double. Truncating the raw
+	 * quotient then
+	 * charges for a hex it does not deliver: a war cruiser paying for speed 7 lands
+	 * on
+	 * 6.999999… and flies at 6. The tolerance is far below the smallest real
+	 * fraction of a
 	 * hex anyone can buy, so a ship short of a full hex still rounds down.
 	 */
 	private int hexesBought(double warpEnergy) {
@@ -482,7 +536,8 @@ public class Ship extends Unit implements DroneController {
 		} else if (wwForcePassive) {
 			// WW forces passive — energy reserved but FC stays off (J3.132)
 			this.activeFireControl = false;
-			// Keep fcActivatingUntil in case player started activating before WW was dealt with
+			// Keep fcActivatingUntil in case player started activating before WW was dealt
+			// with
 		} else if (fcActivatingUntil < 0 && !activeFireControl) {
 			// Energy paid, no WW, not activating, not already active → start turn active
 			this.activeFireControl = true;
@@ -520,7 +575,8 @@ public class Ship extends Unit implements DroneController {
 		// Reserve warp for HETs (C6.2)
 		getPowerSystems().setReserveWarp((int) energyAllocated.getHighEnergyTurns());
 
-		// Tactical Maneuvers (C5.0) — initialize budget from allocation; available starts at 0
+		// Tactical Maneuvers (C5.0) — initialize budget from allocation; available
+		// starts at 0
 		this.tacBudget = (int) energyAllocated.getWarpTacticalTurns();
 		this.tacAvailable = 0;
 		this.sublightTacAllocated = energyAllocated.getImpulseTacticalTurn() > 0;
@@ -550,9 +606,12 @@ public class Ship extends Unit implements DroneController {
 			}
 		}
 
-		// Scout function channels (G24.14) — 1 energy powers a channel. The EW the scout can
-		// lend (G24.211) is a ship-level pool generated at EA (1 energy/point), not tied to any
-		// one channel; last turn's lend assignments clear so they can't spend this turn's pool.
+		// Scout function channels (G24.14) — 1 energy powers a channel. The EW the
+		// scout can
+		// lend (G24.211) is a ship-level pool generated at EA (1 energy/point), not
+		// tied to any
+		// one channel; last turn's lend assignments clear so they can't spend this
+		// turn's pool.
 		for (com.sfb.weapons.ScoutChannel c : getScoutChannels()) {
 			c.setPowered(energyAllocated.getPoweredChannels().contains(c.getDesignator()));
 			c.resetForTurn(); // clears last turn's lend + function + break attempts (G24.12)
@@ -561,21 +620,27 @@ public class Ship extends Unit implements DroneController {
 		this.scoutEwPool = getScoutChannels().isEmpty() ? 0 : energyAllocated.getScoutEwPoints();
 		this.scoutEwRemaining = this.scoutEwPool; // fresh pool each turn (G24.2113)
 
-		// J4.93/J4.931: and the second EW pool, the one a carrier generates for its squadrons
-		// rather than for itself. Capped by its own generation limit, which is J4.931's "equal
-		// limit" — J4.942's sensor-rating cap is always the looser of the two and so never
-		// bites. CAPABLE carriers only (J4.931/J4.6), which zeroes it for everyone else.
+		// J4.93/J4.931: and the second EW pool, the one a carrier generates for its
+		// squadrons
+		// rather than for itself. Capped by its own generation limit, which is J4.931's
+		// "equal
+		// limit" — J4.942's sensor-rating cap is always the looser of the two and so
+		// never
+		// bites. CAPABLE carriers only (J4.931/J4.6), which zeroes it for everyone
+		// else.
 		for (String line : shuttles.applyCarrierEw(energyAllocated.getSquadronEw(),
 				getCarrierClass().isCarrier(),
 				com.sfb.systemgroups.EwCircuits.generationLimit(specialFunctions.getSensor())))
 			allocationNotes.add(line);
 
-		// Deck crews take up their posts for the turn (J4.817). After the allocation, so the
+		// Deck crews take up their posts for the turn (J4.817). After the allocation,
+		// so the
 		// crews that spent it loading a scatter pack are already spoken for.
 		crew.setAvailableDeckCrews(shuttles.postDeckCrews(crew.getAvailableDeckCrews(),
 				energyAllocated.getDeckCrewPostings()));
 
-		// Fighter box capacitors (J4.832): the ship buys charges back into the boxes, and
+		// Fighter box capacitors (J4.832): the ship buys charges back into the boxes,
+		// and
 		// only a box can arm the fighter sitting in it (J4.881).
 		if (!energyAllocated.getFighterCapacitorsByBox().isEmpty()) {
 			shuttles.rechargeCapacitors(energyAllocated.getFighterCapacitorsByBox());
@@ -583,9 +648,12 @@ public class Ship extends Unit implements DroneController {
 			shuttles.rechargeCapacitors(energyAllocated.getFighterCapacitors());
 		}
 
-		// Type-D activation (FP9.22), which is NOT a capacitor and is a separate line for that
-		// reason: a capacitor belongs to the box and outlives the fighter, an activation belongs
-		// to one torpedo on one mount and dies with it (FP10.33). One line covers the ship's own
+		// Type-D activation (FP9.22), which is NOT a capacitor and is a separate line
+		// for that
+		// reason: a capacitor belongs to the box and outlives the fighter, an
+		// activation belongs
+		// to one torpedo on one mount and dies with it (FP10.33). One line covers the
+		// ship's own
 		// plasma racks and its fighters' rails alike.
 		if (energyAllocated.getPlasmaActivation() > 0)
 			activatePlasmaTorpedoes(energyAllocated.getPlasmaActivation());
@@ -672,32 +740,47 @@ public class Ship extends Unit implements DroneController {
 	 * Maximum speed this ship may allocate next turn (C2.21, C12.33).
 	 *
 	 * <h2>The formula, and where each half comes from</h2>
-	 * C2.21: "the player may increase the ship's practical speed by a number which is equal to
+	 * C2.21: "the player may increase the ship's practical speed by a number which
+	 * is equal to
 	 * the previous turn's speed, or ten, whichever is greater." So the cap is
-	 * {@code max(lowest + floor, lowest * 2)} — add the floor, or double, whichever is kinder —
+	 * {@code max(lowest + floor, lowest * 2)} — add the floor, or double, whichever
+	 * is kinder —
 	 * held to 31 by C2.16.
 	 *
-	 * <p>The "lowest" is C12.33 rather than C2.21: "The lowest speed during the previous 32
-	 * impulses determines the maximum speed to which the ship can accelerate." A ship that dipped
+	 * <p>
+	 * The "lowest" is C12.33 rather than C2.21: "The lowest speed during the
+	 * previous 32
+	 * impulses determines the maximum speed to which the ship can accelerate." A
+	 * ship that dipped
 	 * mid-turn is held to the dip, which is why two turns of history are kept.
 	 *
 	 * <h2>R1.7 is a different FLOOR, not a different rule</h2>
-	 * Freighters and Q-ships accelerate "by no more than 5 movement points or double the current
-	 * speed", which is this same expression with five in place of ten — and C12.33 expects
-	 * exactly that: "Some unit types have different acceleration limits." So the exception is one
-	 * number, read from {@code auxiliary.maxAccel}. Before 2026-10-19 that key was declared by
-	 * fifteen ship files and read by nothing, and a freighter could go from a standing start to
+	 * Freighters and Q-ships accelerate "by no more than 5 movement points or
+	 * double the current
+	 * speed", which is this same expression with five in place of ten — and C12.33
+	 * expects
+	 * exactly that: "Some unit types have different acceleration limits." So the
+	 * exception is one
+	 * number, read from {@code auxiliary.maxAccel}. Before 2026-10-19 that key was
+	 * declared by
+	 * fifteen ship files and read by nothing, and a freighter could go from a
+	 * standing start to
 	 * flank in a single allocation.
 	 *
 	 * <h2>And some sheets deny the doubling arm entirely</h2>
-	 * The plain freighters say "cannot accelerate by more than 3 movement points per turn" — a
-	 * HARD cap, with no "or double its current speed" clause at all. That is a different rule
+	 * The plain freighters say "cannot accelerate by more than 3 movement points
+	 * per turn" — a
+	 * HARD cap, with no "or double its current speed" clause at all. That is a
+	 * different rule
 	 * from the Q-ship's, not a different number in the same one, which is why
-	 * {@code accelDoubling} is its own fact. A first pass at R1.7 applied the Q-ship sentence to
-	 * every hull that declared a limit and handed the freighters a doubling arm their SSDs deny
+	 * {@code accelDoubling} is its own fact. A first pass at R1.7 applied the
+	 * Q-ship sentence to
+	 * every hull that declared a limit and handed the freighters a doubling arm
+	 * their SSDs deny
 	 * them: an F-S at speed 20 could reach 40 (31 after the cap) instead of 23.
 	 *
-	 * <p>"It can disengage by acceleration" is the sheets' other sentence and lives in
+	 * <p>
+	 * "It can disengage by acceleration" is the sheets' other sentence and lives in
 	 * {@link #canDisengageByAcceleration()}, for C7.1 to ask.
 	 */
 	public int getMaxAccelerationSpeed() {
@@ -709,21 +792,27 @@ public class Ship extends Unit implements DroneController {
 	/**
 	 * C7.1: whether this hull may disengage by acceleration.
 	 *
-	 * Stated on the sheet rather than derived from warp power — "This ship cannot disengage by
-	 * acceleration" on a freighter, "It can disengage by acceleration" on a Q-ship. C7.11's own
-	 * conditions (maximum speed, half the original warp power retained) still apply on top.
+	 * Stated on the sheet rather than derived from warp power — "This ship cannot
+	 * disengage by
+	 * acceleration" on a freighter, "It can disengage by acceleration" on a Q-ship.
+	 * C7.11's own
+	 * conditions (maximum speed, half the original warp power retained) still apply
+	 * on top.
 	 */
 	public boolean canDisengageByAcceleration() {
 		return disengageByAccel;
 	}
 
-	/** FD4.4: how many racks this ship may use in a turn, or null for no such limit. */
+	/**
+	 * FD4.4: how many racks this ship may use in a turn, or null for no such limit.
+	 */
 	public Integer getRackFiringLimit() {
 		return rackFiringLimit;
 	}
 
 	/**
-	 * G15.4: the runs of neighbouring option mounts, in sheet order. Empty when the hull
+	 * G15.4: the runs of neighbouring option mounts, in sheet order. Empty when the
+	 * hull
 	 * declares none, which means it can take no weapon needing two mounts.
 	 */
 	public java.util.List<java.util.List<String>> getAdjacentMountRuns() {
@@ -734,7 +823,8 @@ public class Ship extends Unit implements DroneController {
 	 * Whether these two option mounts sit next to each other (G15.4).
 	 *
 	 * CONSECUTIVE within a run, which is what makes a three-mount row behave: in
-	 * {@code ["A","B","C"]} the pairs A-B and B-C are adjacent and A-C is not, because B is
+	 * {@code ["A","B","C"]} the pairs A-B and B-C are adjacent and A-C is not,
+	 * because B is
 	 * between them. Order is therefore meaningful and a run is not a set.
 	 */
 	public boolean mountsAreAdjacent(String one, String other) {
@@ -771,30 +861,41 @@ public class Ship extends Unit implements DroneController {
 	 * FD4.4: whether this ship may still USE a rack it has not fired this turn.
 	 *
 	 * <h2>The cap counts RACKS USED, not weapons launched</h2>
-	 * "None of these ships, however, can launch drones from more than three of their drone racks
-	 * during a turn (at the appropriate firing rate for the type of rack)." So a rack that fires
-	 * twice costs one of the three, and three type-C racks lawfully put six drones in the air —
-	 * which is exactly why Orions favour them, and why the SAL's Y175 refit converts its racks to
+	 * "None of these ships, however, can launch drones from more than three of
+	 * their drone racks
+	 * during a turn (at the appropriate firing rate for the type of rack)." So a
+	 * rack that fires
+	 * twice costs one of the three, and three type-C racks lawfully put six drones
+	 * in the air —
+	 * which is exactly why Orions favour them, and why the SAL's Y175 refit
+	 * converts its racks to
 	 * type-C. The refit buys RATE; this cap is about PERMISSION.
 	 *
-	 * <p>A rack that has already fired this turn is therefore always allowed to fire again, so
-	 * far as this rule is concerned: it is spent permission, already counted. Its own rate still
+	 * <p>
+	 * A rack that has already fired this turn is therefore always allowed to fire
+	 * again, so
+	 * far as this rule is concerned: it is spent permission, already counted. Its
+	 * own rate still
 	 * governs, which is {@code Weapon.canFire}'s business and not this one's.
 	 *
 	 * <h2>Drone and plasma-D racks share ONE allowance</h2>
-	 * "The limit of three drone racks or plasma-D racks firing per turn (each at up to their
-	 * maximum rate) includes both types (i.e., three total, not three of each). The launch
-	 * restriction does not include anti-drones or seeking shuttles (or any other weapon)." So
+	 * "The limit of three drone racks or plasma-D racks firing per turn (each at up
+	 * to their
+	 * maximum rate) includes both types (i.e., three total, not three of each). The
+	 * launch
+	 * restriction does not include anti-drones or seeking shuttles (or any other
+	 * weapon)." So
 	 * ADDs are deliberately absent from the count below, and so is everything else.
 	 *
 	 * @param rack the rack being asked to launch
-	 * @return true if the cap permits it — vacuously true for every hull that declares no limit
+	 * @return true if the cap permits it — vacuously true for every hull that
+	 *         declares no limit
 	 */
 	public boolean mayFireAnotherRack(com.sfb.weapons.Weapon rack) {
 		if (rackFiringLimit == null || rack == null)
 			return true;
 		if (rack.getShotsThisTurn() > 0)
-			return true;      // already spent its permission this turn
+			return true; // already spent its permission this turn
 		int used = 0;
 		for (com.sfb.weapons.Weapon w : getWeapons().fetchAllWeapons())
 			if (countsAgainstRackLimit(w) && w.getShotsThisTurn() > 0)
@@ -808,7 +909,10 @@ public class Ship extends Unit implements DroneController {
 				|| w instanceof com.sfb.weapons.PlasmaRack;
 	}
 
-	/** R1.7: this hull's acceleration floor — five for a freighter, ten by C2.21 otherwise. */
+	/**
+	 * R1.7: this hull's acceleration floor — five for a freighter, ten by C2.21
+	 * otherwise.
+	 */
 	public int getMaxAccel() {
 		return maxAccel;
 	}
@@ -870,8 +974,13 @@ public class Ship extends Unit implements DroneController {
 
 	// ---- Tactical Maneuvers (C5.0) ----
 
-	public int getTacBudget()    { return tacBudget; }
-	public int getTacAvailable() { return tacAvailable; }
+	public int getTacBudget() {
+		return tacBudget;
+	}
+
+	public int getTacAvailable() {
+		return tacAvailable;
+	}
 
 	public boolean isSublightTacAvailable() {
 		return sublightTacAllocated && !sublightTacUsed;
@@ -885,7 +994,8 @@ public class Ship extends Unit implements DroneController {
 	 * @return Log message, or null if no budget remaining.
 	 */
 	public String updateTacEarning() {
-		if (tacBudget <= 0) return null;
+		if (tacBudget <= 0)
+			return null;
 		tacBudget--;
 		if (tacAvailable == 0) {
 			tacAvailable = 1;
@@ -897,21 +1007,25 @@ public class Ship extends Unit implements DroneController {
 
 	/** Consume one earned warp TAC. Returns true if successful. */
 	public boolean consumeWarpTac() {
-		if (tacAvailable <= 0) return false;
+		if (tacAvailable <= 0)
+			return false;
 		tacAvailable = 0;
 		return true;
 	}
 
 	/** Consume the sublight TAC. Returns true if successful. */
 	public boolean consumeSublightTac() {
-		if (!isSublightTacAvailable()) return false;
+		if (!isSublightTacAvailable())
+			return false;
 		sublightTacUsed = true;
 		return true;
 	}
 
 	// ---- Emergency Deceleration (C8.0) ----
 
-	/** Announce ED: ship stops at the end of the 2nd subsequent impulse (C8.101). */
+	/**
+	 * Announce ED: ship stops at the end of the 2nd subsequent impulse (C8.101).
+	 */
 	public void announceEmergencyDeceleration(int currentAbsImpulse) {
 		this.decelerationEndsAtImpulse = currentAbsImpulse + 2;
 	}
@@ -924,7 +1038,10 @@ public class Ship extends Unit implements DroneController {
 		return decelerationEndsAtImpulse;
 	}
 
-	/** Called by Game when the decel period expires: stop the ship and begin post-decel lockout. */
+	/**
+	 * Called by Game when the decel period expires: stop the ship and begin
+	 * post-decel lockout.
+	 */
 	public void completeEmergencyDeceleration(int currentAbsImpulse) {
 		setSpeed(0);
 		decelerationEndsAtImpulse = -1;
@@ -955,14 +1072,17 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public TurnMode effectiveTurnMode() {
 		TurnMode base = getTurnMode();
-		// A base has no turn mode: it does not move, it ROTATES, and C3.7 puts the rotation rate
-		// in the scenario rather than on the hull. So its file states none, and asking for one is
-		// a bug in the caller rather than a hull that forgot to say. Fails by name rather than
+		// A base has no turn mode: it does not move, it ROTATES, and C3.7 puts the
+		// rotation rate
+		// in the scenario rather than on the hull. So its file states none, and asking
+		// for one is
+		// a bug in the caller rather than a hull that forgot to say. Fails by name
+		// rather than
 		// with a bare NullPointerException six frames deeper.
 		if (base == null)
 			throw new IllegalStateException(getName() + " has no turn mode"
 					+ (isBase() ? " because it is a base — see C3.7 for rotation, which is unbuilt"
-					            : " — every ship must declare one"));
+							: " — every ship must declare one"));
 		if (!getCrew().isSkeleton())
 			return base;
 		TurnMode[] values = TurnMode.values();
@@ -973,10 +1093,10 @@ public class Ship extends Unit implements DroneController {
 	@Override
 	public int getTurnHexes() {
 		return com.sfb.utilities.TurnModeUtil.getTurnMode(effectiveTurnMode(), getSpeed())
-				+ emTurnModePenalty();   // C10.55
+				+ emTurnModePenalty(); // C10.55
 	}
 
-	/// BASIC SHIP DATA ///
+	/// BASIC SHIP DATA
 	public void setType(String type) {
 		this.shipType = type;
 	}
@@ -986,7 +1106,8 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * The class written out, e.g. "Commando Cruiser" — what {@link #getType()} abbreviates.
+	 * The class written out, e.g. "Commando Cruiser" — what {@link #getType()}
+	 * abbreviates.
 	 * Null for a ship built by a sample builder, which names no class.
 	 */
 	public String getTypeName() {
@@ -998,8 +1119,10 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * The family this ship serves in, e.g. "CA" for a D7C — what the leader rules compare,
-	 * since a leader needs consorts of its own kind rather than of its own exact type.
+	 * The family this ship serves in, e.g. "CA" for a D7C — what the leader rules
+	 * compare,
+	 * since a leader needs consorts of its own kind rather than of its own exact
+	 * type.
 	 * Null until the ship's file is classified.
 	 */
 	public String getLine() {
@@ -1007,8 +1130,10 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * A scout is a ship with special sensor channels (G24.0). The chart marks them with a
-	 * diamond (S8.35); the channels are what the rules actually key on, and what both the
+	 * A scout is a ship with special sensor channels (G24.0). The chart marks them
+	 * with a
+	 * diamond (S8.35); the channels are what the rules actually key on, and what
+	 * both the
 	 * purchase price (G24.35) and the victory value (G24.352) depend on.
 	 */
 	public boolean isScout() {
@@ -1058,27 +1183,42 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * What this ship pays for the speed of the drones it sails with (S2.11), held apart from the
+	 * What this ship pays for the speed of the drones it sails with (S2.11), held
+	 * apart from the
 	 * hull BPV because two rules want it in different places.
 	 *
-	 * <blockquote>S2.11: "The BPV of all ships (unless otherwise noted) does not include the
-	 * drone speed upgrade charges; ships are required to pay these charges based on the date of
+	 * <blockquote>S2.11: "The BPV of all ships (unless otherwise noted) does not
+	 * include the
+	 * drone speed upgrade charges; ships are required to pay these charges based on
+	 * the date of
 	 * the scenario."</blockquote>
 	 *
 	 * <h2>In the victory total, out of the option budget</h2>
-	 * S2.14 lists "the cost of drone speed upgrades (FD2.22)" among the things the Gross Adjusted
-	 * BPV includes, so it counts for scoring. S3.211 takes the Commander's Option percentage of
-	 * "the ship, its refits, and its fighters, <b>but not including the cost of mandatory drone
-	 * speed upgrades</b> or crew quality adjustments", so it must not count for budgets.
+	 * S2.14 lists "the cost of drone speed upgrades (FD2.22)" among the things the
+	 * Gross Adjusted
+	 * BPV includes, so it counts for scoring. S3.211 takes the Commander's Option
+	 * percentage of
+	 * "the ship, its refits, and its fighters, <b>but not including the cost of
+	 * mandatory drone
+	 * speed upgrades</b> or crew quality adjustments", so it must not count for
+	 * budgets.
 	 *
-	 * <p>Which is why this is not simply added into {@link #getBpv}. {@code CoiBudget} has
-	 * carried a note to this effect since before the charge existed: "When drone speed upgrades
-	 * arrive they must be kept OUT of this basis, or a mandatory upgrade will inflate the very
-	 * budget it is excluded from." A Kzinti CS with fast drones is 132 points to an enemy scoring
+	 * <p>
+	 * Which is why this is not simply added into {@link #getBpv}. {@code CoiBudget}
+	 * has
+	 * carried a note to this effect since before the charge existed: "When drone
+	 * speed upgrades
+	 * arrive they must be kept OUT of this basis, or a mandatory upgrade will
+	 * inflate the very
+	 * budget it is excluded from." A Kzinti CS with fast drones is 132 points to an
+	 * enemy scoring
 	 * victory and 116 points to its own quartermaster.
 	 *
-	 * <p>Derived rather than declared: {@code ScenarioLoader.chargeDroneSpeed} reads it off what
-	 * is actually in the racks, and may run again after the Commander's Options have changed
+	 * <p>
+	 * Derived rather than declared: {@code ScenarioLoader.chargeDroneSpeed} reads
+	 * it off what
+	 * is actually in the racks, and may run again after the Commander's Options
+	 * have changed
 	 * them. Nothing in the ship data says it and nothing should.
 	 */
 	public int getDroneSpeedBpv() {
@@ -1090,11 +1230,14 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Set the economic point value. Raised alongside the combat one whenever a refit costs
+	 * Set the economic point value. Raised alongside the combat one whenever a
+	 * refit costs
 	 * points, because the cost applies to both (owner's ruling 2026-10-11).
 	 * <p>
-	 * No "split-value ship only" guard here, unlike {@code RefitResolver}: {@link #init} gives a
-	 * ship with no stated epv the SAME figure as its bpv, so on this side the two simply move
+	 * No "split-value ship only" guard here, unlike {@code RefitResolver}:
+	 * {@link #init} gives a
+	 * ship with no stated epv the SAME figure as its bpv, so on this side the two
+	 * simply move
 	 * together and a non-split ship stays non-split.
 	 */
 	public void setEconomicBpv(int economicPointValue) {
@@ -1102,37 +1245,50 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Leader variant — CWL, DWL, DDL, CC and the like (S8.36). A second leader of a given type
-	 * needs two combat variants of the same hull to accompany it (S8.361), and no leader may be
+	 * Leader variant — CWL, DWL, DDL, CC and the like (S8.36). A second leader of a
+	 * given type
+	 * needs two combat variants of the same hull to accompany it (S8.361), and no
+	 * leader may be
 	 * included unless all larger leaders have their supporting ships (S8.362).
 	 */
 	public boolean isLeader() {
 		return leader;
 	}
 
-	/** Carrier escort: illegal in a battle force except as part of a carrier group (S8.311). */
+	/**
+	 * Carrier escort: illegal in a battle force except as part of a carrier group
+	 * (S8.311).
+	 */
 	public boolean isEscort() {
 		return escort;
 	}
 
 	/**
-	 * A purpose-built carrier in the fleet-building sense, with TWO consequences in S8.3:
+	 * A purpose-built carrier in the fleet-building sense, with TWO consequences in
+	 * S8.3:
 	 * <ul>
-	 *   <li>it cannot be fielded without an escort group (S8.315) — the rule this is named
-	 *       for, since that is the constraint it enforces;</li>
-	 *   <li>its fighters count against the battle force's fighter limit (S8.321), where a
-	 *       hybrid's do not (S8.322). NOT yet implemented; this is the flag it will read.</li>
+	 * <li>it cannot be fielded without an escort group (S8.315) — the rule this is
+	 * named
+	 * for, since that is the constraint it enforces;</li>
+	 * <li>its fighters count against the battle force's fighter limit (S8.321),
+	 * where a
+	 * hybrid's do not (S8.322). NOT yet implemented; this is the flag it will
+	 * read.</li>
 	 * </ul>
-	 * Both follow the same set of ships — the Kzinti CVs — and neither follows from carrying
-	 * fighters: a Hydran Ranger is every inch a carrier ({@link #getCarrierClass()} says
-	 * CAPABLE), needs no escorts, and its nine Stingers do not count against the limit.
+	 * Both follow the same set of ships — the Kzinti CVs — and neither follows from
+	 * carrying
+	 * fighters: a Hydran Ranger is every inch a carrier ({@link #getCarrierClass()}
+	 * says
+	 * CAPABLE), needs no escorts, and its nine Stingers do not count against the
+	 * limit.
 	 */
 	public boolean requiresEscort() {
 		return requiresEscort;
 	}
 
 	/**
-	 * What kind of carrier this is (J4.61/J4.62). Decides capabilities — extra deck crews,
+	 * What kind of carrier this is (J4.61/J4.62). Decides capabilities — extra deck
+	 * crews,
 	 * EW lent to fighters, S4.1's weapon status provisions — never fleet legality.
 	 */
 	public int getWeaponStatus() {
@@ -1144,11 +1300,15 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * M9.21: whether this ship lays one mine from EACH rack per turn, or one per shuttle bay.
+	 * M9.21: whether this ship lays one mine from EACH rack per turn, or one per
+	 * shuttle bay.
 	 *
-	 * The question the rack code asks, phrased as the rule phrases it. True only for a
-	 * minesweeper or a minelayer; every other hull — including one converted under S7.0 to carry
-	 * racks, which M9.16 says is "not considered a minesweeper for any purpose" — drops through
+	 * The question the rack code asks, phrased as the rule phrases it. True only
+	 * for a
+	 * minesweeper or a minelayer; every other hull — including one converted under
+	 * S7.0 to carry
+	 * racks, which M9.16 says is "not considered a minesweeper for any purpose" —
+	 * drops through
 	 * the shuttle hatch at one per bay regardless of how many racks it has.
 	 */
 	public boolean laysOneMinePerRack() {
@@ -1165,18 +1325,24 @@ public class Ship extends Unit implements DroneController {
 
 	public void setCarrierClass(com.sfb.properties.CarrierClass carrierClass) {
 		this.carrierClass = carrierClass == null
-				? com.sfb.properties.CarrierClass.NONE : carrierClass;
+				? com.sfb.properties.CarrierClass.NONE
+				: carrierClass;
 	}
 
-	// ---------------------------------------------------------------- Aegis (D13.0)
+	// ---------------------------------------------------------------- Aegis
+	// (D13.0)
 
-	/** What this hull has fitted. D13.16: it cannot be destroyed, so this never changes. */
+	/**
+	 * What this hull has fitted. D13.16: it cannot be destroyed, so this never
+	 * changes.
+	 */
 	public com.sfb.properties.AegisLevel getAegisFitted() {
 		return aegisFitted;
 	}
 
 	/**
-	 * Fit (or remove) the system. A configuration call, not a move: aegis is not installed
+	 * Fit (or remove) the system. A configuration call, not a move: aegis is not
+	 * installed
 	 * mid-battle, and D13.16 means it is never removed by damage either.
 	 */
 	public void setAegisFitted(com.sfb.properties.AegisLevel level) {
@@ -1186,12 +1352,17 @@ public class Ship extends Unit implements DroneController {
 	/**
 	 * Whether aegis is doing anything right now.
 	 * <p>
-	 * D13.524: "Aegis can only be active if the fire control system is active. Low-powered fire
-	 * control (D6.72) is not sufficient." With D13.52's switching unmodelled that is the whole
-	 * of it — a fitted system runs whenever the ship's fire control does. D13.523's four-impulse
-	 * warm-up went with the switching, since nothing can switch on mid-scenario any more.
+	 * D13.524: "Aegis can only be active if the fire control system is active.
+	 * Low-powered fire
+	 * control (D6.72) is not sufficient." With D13.52's switching unmodelled that
+	 * is the whole
+	 * of it — a fitted system runs whenever the ship's fire control does. D13.523's
+	 * four-impulse
+	 * warm-up went with the switching, since nothing can switch on mid-scenario any
+	 * more.
 	 * <p>
-	 * The impulse argument is kept because every caller has it and the warm-up comes back with
+	 * The impulse argument is kept because every caller has it and the warm-up
+	 * comes back with
 	 * D17; see {@link #getAegisFitted()}.
 	 */
 	public boolean isAegisOperational(int absoluteImpulse) {
@@ -1201,19 +1372,28 @@ public class Ship extends Unit implements DroneController {
 	/** D13.21: aegis reaches six hexes. */
 	public static final int AEGIS_RANGE = 6;
 
-	/** D13.21: nothing bigger than size class 6 — so shuttles, fighters and seekers. */
+	/**
+	 * D13.21: nothing bigger than size class 6 — so shuttles, fighters and seekers.
+	 */
 	public static final int AEGIS_SMALLEST_SIZE_CLASS = 6;
 
 	/**
-	 * Whether this ship may engage {@code target} with aegis fire right now (D13.21, D13.23).
+	 * Whether this ship may engage {@code target} with aegis fire right now
+	 * (D13.21, D13.23).
 	 * <p>
-	 * D13.21 limits it to "size-6 and smaller ... targets within six hexes", and is explicit
-	 * that this is not about self-defence: "it is not necessary for such a target to be
-	 * approaching the aegis-equipped ship", and it does include the ECM drones escorting an
-	 * enemy warship (FD9.1). D13.23 requires active fire control AND a lock-on to the target.
+	 * D13.21 limits it to "size-6 and smaller ... targets within six hexes", and is
+	 * explicit
+	 * that this is not about self-defence: "it is not necessary for such a target
+	 * to be
+	 * approaching the aegis-equipped ship", and it does include the ECM drones
+	 * escorting an
+	 * enemy warship (FD9.1). D13.23 requires active fire control AND a lock-on to
+	 * the target.
 	 * <p>
-	 * The rule's two exclusions need no code. Mines (M8.54) are {@code Marker}s, not
-	 * {@code Unit}s, so one can never arrive here; DefSats (R1.15E) do not exist in this engine.
+	 * The rule's two exclusions need no code. Mines (M8.54) are {@code Marker}s,
+	 * not
+	 * {@code Unit}s, so one can never arrive here; DefSats (R1.15E) do not exist in
+	 * this engine.
 	 * If either ever becomes a Unit, this method is where they must be refused.
 	 */
 	public boolean canAegisEngage(Unit target, int absoluteImpulse) {
@@ -1225,13 +1405,14 @@ public class Ship extends Unit implements DroneController {
 			return false;
 		if (!hasLockOn(target))
 			return false;
-		return com.sfb.utilities.MapUtils.getRange(getLocation(), target.getLocation())
-				<= AEGIS_RANGE;
+		return com.sfb.utilities.MapUtils.getRange(getLocation(), target.getLocation()) <= AEGIS_RANGE;
 	}
 
 	/**
-	 * Firings this ship gets in one impulse (D13.14 / D13.411), or zero if aegis is not working.
-	 * The FIRST of them is the ordinary one every ship has, taken alongside all non-aegis fire,
+	 * Firings this ship gets in one impulse (D13.14 / D13.411), or zero if aegis is
+	 * not working.
+	 * The FIRST of them is the ordinary one every ship has, taken alongside all
+	 * non-aegis fire,
 	 * so {@code AegisLevel.extraFirings()} is what aegis actually adds.
 	 */
 	public int aegisFirings(int absoluteImpulse) {
@@ -1241,13 +1422,18 @@ public class Ship extends Unit implements DroneController {
 	/**
 	 * D13.22: whether this ship's aegis may control {@code w}.
 	 * <p>
-	 * The default is everything — "the aegis system can control all direct-fire weapons" — and
-	 * the clause goes on, "unless noted otherwise, for example the D5". A hull that names a
-	 * shorter list gets only what it names: the Klingon D5's aegis reaches its anti-drone racks
+	 * The default is everything — "the aegis system can control all direct-fire
+	 * weapons" — and
+	 * the clause goes on, "unless noted otherwise, for example the D5". A hull that
+	 * names a
+	 * shorter list gets only what it names: the Klingon D5's aegis reaches its
+	 * anti-drone racks
 	 * and its four phaser-3s, and not the disruptors or the phaser-1s beside them.
 	 * <p>
-	 * Matched on the weapon's TYPE rather than its class, because the ship file speaks in types
-	 * and so should the restriction — and not on designators, which would say the same thing
+	 * Matched on the weapon's TYPE rather than its class, because the ship file
+	 * speaks in types
+	 * and so should the restriction — and not on designators, which would say the
+	 * same thing
 	 * less robustly and rot the first time a variant renumbered its mounts.
 	 */
 	public boolean aegisMayControl(com.sfb.weapons.Weapon w) {
@@ -1258,18 +1444,26 @@ public class Ship extends Unit implements DroneController {
 		return aegisWeaponTypes.contains(w.getType());
 	}
 
-	/** The restriction as data, for the DTO and for tests. Empty means no restriction. */
+	/**
+	 * The restriction as data, for the DTO and for tests. Empty means no
+	 * restriction.
+	 */
 	public java.util.List<String> getAegisWeaponTypes() {
 		return aegisWeaponTypes;
 	}
 
-	/** Set the restriction directly; null or empty restores D13.22's "all direct-fire". */
+	/**
+	 * Set the restriction directly; null or empty restores D13.22's "all
+	 * direct-fire".
+	 */
 	public void setAegisWeaponTypes(java.util.List<String> types) {
 		this.aegisWeaponTypes = types == null
-				? java.util.List.of() : java.util.List.copyOf(types);
+				? java.util.List.of()
+				: java.util.List.copyOf(types);
 	}
 
-	// ---------------------------------------------------------------- D13.3 identification
+	// ---------------------------------------------------------------- D13.3
+	// identification
 
 	/** D13.31: six identification attempts per turn. */
 	public static final int AEGIS_ID_PER_TURN = 6;
@@ -1278,16 +1472,22 @@ public class Ship extends Unit implements DroneController {
 	public static final int AEGIS_ID_PER_IMPULSE = 4;
 
 	/**
-	 * Which fighter model this ship's ready racks are stocked for (J4.621), chosen as a
+	 * Which fighter model this ship's ready racks are stocked for (J4.621), chosen
+	 * as a
 	 * Commander's Option. Null means the line's standard fighter for the year.
 	 * <p>
-	 * A concrete catalogue type rather than a role, and that is right HERE although it would be
-	 * wrong in a ship file: a COI choice is made for one scenario with the year already settled,
-	 * so the player can be offered the actual models the line fields that year - an F-14, a G-2,
-	 * an AAS - rather than an abstraction. A ship FILE naming a type would be wrong in every
+	 * A concrete catalogue type rather than a role, and that is right HERE although
+	 * it would be
+	 * wrong in a ship file: a COI choice is made for one scenario with the year
+	 * already settled,
+	 * so the player can be offered the actual models the line fields that year - an
+	 * F-14, a G-2,
+	 * an AAS - rather than an abstraction. A ship FILE naming a type would be wrong
+	 * in every
 	 * year but one, which is why the line stays in the data and the model does not.
 	 * <p>
-	 * Validated against the line when the racks are fitted, never trusted: a stored choice
+	 * Validated against the line when the racks are fitted, never trusted: a stored
+	 * choice
 	 * outlives the scenario it was made for.
 	 */
 	private String fighterFacilityType;
@@ -1305,21 +1505,31 @@ public class Ship extends Unit implements DroneController {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * What it would cost to activate every type-D torpedo aboard (FP9.22) — the Energy
+	 * What it would cost to activate every type-D torpedo aboard (FP9.22) — the
+	 * Energy
 	 * Allocation line's ceiling.
 	 * <p>
-	 * ONE line rather than one per system, because FP9.22 is one rule with three homes: "When
-	 * placed on a fighter ready rack, plasma rack, or fighter, they can be activated, which
-	 * requires 1/2 of an energy point (reserve or allocated) per torpedo." A player allocating
-	 * activation energy is not thinking about which mount it lands on, and the rule gives no
+	 * ONE line rather than one per system, because FP9.22 is one rule with three
+	 * homes: "When
+	 * placed on a fighter ready rack, plasma rack, or fighter, they can be
+	 * activated, which
+	 * requires 1/2 of an energy point (reserve or allocated) per torpedo." A player
+	 * allocating
+	 * activation energy is not thinking about which mount it lands on, and the rule
+	 * gives no
 	 * reason to make them.
 	 * <p>
 	 * Two of those three homes are covered: the fighters' rails, via
-	 * {@code Shuttles.plasmaDActivationWanted}, and the ship's own plasma racks. The READY RACK
-	 * is deliberately not, and FP10.33 is why - "an activated torpedo automatically switches
-	 * itself off when unloaded from a rack/fighter and requires new activation energy after being
-	 * installed on another rack/fighter" - so a torpedo activated in the ready rack loses it the
-	 * moment a deck crew moves it onto the fighter. Paying there buys nothing, which is why there
+	 * {@code Shuttles.plasmaDActivationWanted}, and the ship's own plasma racks.
+	 * The READY RACK
+	 * is deliberately not, and FP10.33 is why - "an activated torpedo automatically
+	 * switches
+	 * itself off when unloaded from a rack/fighter and requires new activation
+	 * energy after being
+	 * installed on another rack/fighter" - so a torpedo activated in the ready rack
+	 * loses it the
+	 * moment a deck crew moves it onto the fighter. Paying there buys nothing,
+	 * which is why there
 	 * is no activation flag on {@code ReadyRack} to spend it on.
 	 */
 	public double plasmaActivationWanted() {
@@ -1331,18 +1541,25 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Spend energy activating type-D torpedoes (FP9.22), half a point each, anywhere aboard.
+	 * Spend energy activating type-D torpedoes (FP9.22), half a point each,
+	 * anywhere aboard.
 	 * <p>
-	 * The ship's own racks are served FIRST, then the fighters' rails. A rack's torpedo can be
-	 * fired this turn by the ship itself; a fighter's cannot be used until the fighter launches,
-	 * which J1.341 delays. So when there is not enough energy for everything, the torpedoes that
+	 * The ship's own racks are served FIRST, then the fighters' rails. A rack's
+	 * torpedo can be
+	 * fired this turn by the ship itself; a fighter's cannot be used until the
+	 * fighter launches,
+	 * which J1.341 delays. So when there is not enough energy for everything, the
+	 * torpedoes that
 	 * could matter this turn are the ones that get it.
 	 * <p>
-	 * FP10.32 allows this energy "during energy allocation or by reserve power at any point after
-	 * loading and before firing", so one method serves both pockets - the caller knows which it
+	 * FP10.32 allows this energy "during energy allocation or by reserve power at
+	 * any point after
+	 * loading and before firing", so one method serves both pockets - the caller
+	 * knows which it
 	 * came from and the rule does not care.
 	 *
-	 * @return energy actually spent, which is below what was offered when there was nothing left
+	 * @return energy actually spent, which is below what was offered when there was
+	 *         nothing left
 	 *         to buy or only a part-charge remained
 	 */
 	public double activatePlasmaTorpedoes(double energy) {
@@ -1362,25 +1579,37 @@ public class Ship extends Unit implements DroneController {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * FP10.24's limits are per FIRING SHIP, not per rack, which is why they live here and not on
-	 * {@code PlasmaRack}: "Due to fire control restrictions, a ship with one or more plasma racks
-	 * is under the following limitations." A rack cannot enforce them because it cannot see what
+	 * FP10.24's limits are per FIRING SHIP, not per rack, which is why they live
+	 * here and not on
+	 * {@code PlasmaRack}: "Due to fire control restrictions, a ship with one or
+	 * more plasma racks
+	 * is under the following limitations." A rack cannot enforce them because it
+	 * cannot see what
 	 * its neighbours did.
 	 * <p>
-	 * Kept as turn-stamped counters rather than fields something has to remember to clear, the
-	 * same way the aegis identification counters above work: a count that belongs to a turn other
-	 * than the one being asked about reads as zero, so a missed reset cannot carry a limit into
-	 * the next turn. That failure mode is not hypothetical - Game's own comment records
+	 * Kept as turn-stamped counters rather than fields something has to remember to
+	 * clear, the
+	 * same way the aegis identification counters above work: a count that belongs
+	 * to a turn other
+	 * than the one being asked about reads as zero, so a missed reset cannot carry
+	 * a limit into
+	 * the next turn. That failure mode is not hypothetical - Game's own comment
+	 * records
 	 * "J4.241's two drones a turn became two a game" from exactly it.
 	 */
 	public static final int PLASMA_RACK_BOLTS_AT_LARGE_TARGETS_PER_TURN = 1;
 
-	/** FP10.242: "may not use more than two of those racks in offensive mode during a given turn." */
+	/**
+	 * FP10.242: "may not use more than two of those racks in offensive mode during
+	 * a given turn."
+	 */
 	public static final int PLASMA_RACKS_IN_OFFENSIVE_MODE_PER_TURN = 2;
 
 	/**
-	 * FP10.241's threshold: "a size-4 or larger target". Size class counts UP as a unit gets
-	 * smaller, so size-4-or-larger is {@code sizeClass <= 4} - and it is the exact complement of
+	 * FP10.241's threshold: "a size-4 or larger target". Size class counts UP as a
+	 * unit gets
+	 * smaller, so size-4-or-larger is {@code sizeClass <= 4} - and it is the exact
+	 * complement of
 	 * FP10.212's "size-5 and smaller", which is what defensive mode may engage.
 	 */
 	public static final int PLASMA_RACK_LARGE_TARGET_MAX_SIZE_CLASS = 4;
@@ -1388,27 +1617,38 @@ public class Ship extends Unit implements DroneController {
 	private int plasmaRackBoltTurn = Integer.MIN_VALUE;
 	private int plasmaRackBoltsAtLargeTargets;
 	private int plasmaRackOffensiveTurn = Integer.MIN_VALUE;
-	/** Which racks went offensive this turn, by designator - FP10.242 counts RACKS, not shots. */
+	/**
+	 * Which racks went offensive this turn, by designator - FP10.242 counts RACKS,
+	 * not shots.
+	 */
 	private final java.util.Set<String> plasmaRacksOffensiveThisTurn = new java.util.LinkedHashSet<>();
 
 	/**
-	 * Why this ship may not bolt a type-D at a target of this size this turn, or null if it may
+	 * Why this ship may not bolt a type-D at a target of this size this turn, or
+	 * null if it may
 	 * (FP10.241).
 	 * <p>
-	 * "A ship armed with plasma racks may not fire more than one type-D plasma bolt at a size-4
-	 * or larger target during any given turn. This restriction is per firing ship, not per rack...
-	 * The ship can fire one bolt from one rack at one size class four target during a given turn,
-	 * not one bolt each at four different targets, or one bolt each from two or more racks at a
+	 * "A ship armed with plasma racks may not fire more than one type-D plasma bolt
+	 * at a size-4
+	 * or larger target during any given turn. This restriction is per firing ship,
+	 * not per rack...
+	 * The ship can fire one bolt from one rack at one size class four target during
+	 * a given turn,
+	 * not one bolt each at four different targets, or one bolt each from two or
+	 * more racks at a
 	 * target."
 	 * <p>
-	 * Both halves of that last sentence are the same limit seen from two sides, so this counts
-	 * BOLTS AT LARGE TARGETS and ignores which rack fired and which target was hit. Bolts at
-	 * size-5 and smaller are not limited here at all - FP10.221 already allows each rack only one
+	 * Both halves of that last sentence are the same limit seen from two sides, so
+	 * this counts
+	 * BOLTS AT LARGE TARGETS and ignores which rack fired and which target was hit.
+	 * Bolts at
+	 * size-5 and smaller are not limited here at all - FP10.221 already allows each
+	 * rack only one
 	 * bolt a turn, and this clause is about fire control for the big shots.
 	 */
 	public String plasmaRackBoltRefusal(int turn, int targetSizeClass) {
 		if (targetSizeClass > PLASMA_RACK_LARGE_TARGET_MAX_SIZE_CLASS)
-			return null;              // FP10.241 only covers size-4 or larger
+			return null; // FP10.241 only covers size-4 or larger
 		int used = plasmaRackBoltTurn == turn ? plasmaRackBoltsAtLargeTargets : 0;
 		if (used >= PLASMA_RACK_BOLTS_AT_LARGE_TARGETS_PER_TURN)
 			return getName() + " has already bolted a type-D at a size-4 or larger target this"
@@ -1427,17 +1667,22 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Why {@code designator}'s rack may not go into offensive mode this turn, or null if it may
-	 * (FP10.242): "A ship armed with plasma racks may not use more than two of those racks in
+	 * Why {@code designator}'s rack may not go into offensive mode this turn, or
+	 * null if it may
+	 * (FP10.242): "A ship armed with plasma racks may not use more than two of
+	 * those racks in
 	 * offensive mode during a given turn."
 	 * <p>
-	 * A rack already counted this turn is always allowed through, so asking twice about the same
-	 * rack never refuses it - the limit is on how many DIFFERENT racks go offensive, and a rack
+	 * A rack already counted this turn is always allowed through, so asking twice
+	 * about the same
+	 * rack never refuses it - the limit is on how many DIFFERENT racks go
+	 * offensive, and a rack
 	 * that has committed to offensive mode has already spent its place.
 	 */
 	public String plasmaRackOffensiveRefusal(int turn, String designator) {
 		java.util.Set<String> used = plasmaRackOffensiveTurn == turn
-				? plasmaRacksOffensiveThisTurn : java.util.Set.of();
+				? plasmaRacksOffensiveThisTurn
+				: java.util.Set.of();
 		if (used.contains(designator))
 			return null;
 		if (used.size() >= PLASMA_RACKS_IN_OFFENSIVE_MODE_PER_TURN)
@@ -1468,21 +1713,26 @@ public class Ship extends Unit implements DroneController {
 	private int aegisIdUsedThisImpulse;
 	/** The target of the last attempt made in an EARLIER impulse (D13.321/.322). */
 	private String aegisIdPreviousTarget;
-	/** This impulse's latest target, promoted to the above when a later impulse attempts. */
+	/**
+	 * This impulse's latest target, promoted to the above when a later impulse
+	 * attempts.
+	 */
 	private String aegisIdTargetThisImpulse;
 
 	/**
-	 * D13.31's table: the highest die that identifies at this range, or -1 where the attempt
+	 * D13.31's table: the highest die that identifies at this range, or -1 where
+	 * the attempt
 	 * is not allowed at all.
 	 * <p>
-	 * "0-3 automatic, 4 on a 1-4, 5 on a 1-3, 6 on a 1, 7+ not allowed." Automatic is spelled
+	 * "0-3 automatic, 4 on a 1-4, 5 on a 1-3, 6 on a 1, 7+ not allowed." Automatic
+	 * is spelled
 	 * as 6 rather than as a special case, since no die can beat it.
 	 */
 	private static final int[] AEGIS_ID_CHART = { 6, 6, 6, 6, 4, 3, 1 };
 
 	public static int aegisIdentifyNeeds(int range) {
 		if (range < 0 || range >= AEGIS_ID_CHART.length)
-			return -1;         // "7+ not allowed"
+			return -1; // "7+ not allowed"
 		return AEGIS_ID_CHART[range];
 	}
 
@@ -1502,14 +1752,17 @@ public class Ship extends Unit implements DroneController {
 	 * The seeker that counts as "immediately previous" for D13.321's −1.
 	 * <p>
 	 * D13.322 is the subtle part: "Attempts during the same impulse are all rolled
-	 * simultaneously and do not count as 'previous' to each other", so this deliberately
-	 * reports only what was attempted in an EARLIER impulse. Null means no modifier.
+	 * simultaneously and do not count as 'previous' to each other", so this
+	 * deliberately
+	 * reports only what was attempted in an EARLIER impulse. Null means no
+	 * modifier.
 	 */
 	public String aegisIdPreviousTarget(int absoluteImpulse) {
 		if (aegisIdImpulse == absoluteImpulse)
-			return aegisIdPreviousTarget;          // this impulse's own attempts do not count
-		return aegisIdTargetThisImpulse != null    // a later impulse: the last one promotes
-				? aegisIdTargetThisImpulse : aegisIdPreviousTarget;
+			return aegisIdPreviousTarget; // this impulse's own attempts do not count
+		return aegisIdTargetThisImpulse != null // a later impulse: the last one promotes
+				? aegisIdTargetThisImpulse
+				: aegisIdPreviousTarget;
 	}
 
 	/** Spend one attempt and remember what it was aimed at. */
@@ -1540,17 +1793,26 @@ public class Ship extends Unit implements DroneController {
 	/**
 	 * Extra aegis firings still available this impulse (D13.14, D13.411, D13.142).
 	 * <p>
-	 * The FIRST firing is the ordinary one, taken in the sealed volley alongside everybody
-	 * else's fire, so what is left to spend is {@code extraFirings()}: three for a full system,
+	 * The FIRST firing is the ordinary one, taken in the sealed volley alongside
+	 * everybody
+	 * else's fire, so what is left to spend is {@code extraFirings()}: three for a
+	 * full system,
 	 * one for a limited one.
 	 * <p>
-	 * D13.142 is partly a counter and partly a declaration. "but cannot make it up after the
-	 * fourth firing" is the cap, and "or by firing twice during one of the other firings" cannot
-	 * be expressed at all, since each call is one firing. But "units with aegis can skip one of
-	 * the four firings" is NOT simply declining to spend one, which is what this said before
-	 * D13.141's ordering existed: a skipped firing is an opportunity GONE, and the other ships in
-	 * the force cannot move on to the next firing until this one has either fired or skipped. So a
-	 * skip is an act — {@link #skipAegisFiring} — and it spends the opportunity like a shot does.
+	 * D13.142 is partly a counter and partly a declaration. "but cannot make it up
+	 * after the
+	 * fourth firing" is the cap, and "or by firing twice during one of the other
+	 * firings" cannot
+	 * be expressed at all, since each call is one firing. But "units with aegis can
+	 * skip one of
+	 * the four firings" is NOT simply declining to spend one, which is what this
+	 * said before
+	 * D13.141's ordering existed: a skipped firing is an opportunity GONE, and the
+	 * other ships in
+	 * the force cannot move on to the next firing until this one has either fired
+	 * or skipped. So a
+	 * skip is an act — {@link #skipAegisFiring} — and it spends the opportunity
+	 * like a shot does.
 	 */
 	public int aegisPulsesRemaining(int absoluteImpulse) {
 		if (!isAegisOperational(absoluteImpulse))
@@ -1559,7 +1821,10 @@ public class Ship extends Unit implements DroneController {
 		return Math.max(0, aegisFitted.extraFirings() - used);
 	}
 
-	/** Spend one extra firing. The count is per impulse and resets by itself when it moves on. */
+	/**
+	 * Spend one extra firing. The count is per impulse and resets by itself when it
+	 * moves on.
+	 */
 	public void consumeAegisPulse(int absoluteImpulse) {
 		if (aegisPulseImpulse != absoluteImpulse) {
 			aegisPulseImpulse = absoluteImpulse;
@@ -1571,10 +1836,14 @@ public class Ship extends Unit implements DroneController {
 	/**
 	 * D13.142: give up this firing without taking it.
 	 * <p>
-	 * The same arithmetic as spending one, and that is the rule rather than laziness — "cannot make
-	 * it up after the fourth firing" means a skipped opportunity is gone. It exists as its own name
-	 * because D13.141 makes it necessary: the rest of the force waits at this firing until every
-	 * aegis ship has fired or skipped it, so a player who simply does not want to shoot has to be
+	 * The same arithmetic as spending one, and that is the rule rather than
+	 * laziness — "cannot make
+	 * it up after the fourth firing" means a skipped opportunity is gone. It exists
+	 * as its own name
+	 * because D13.141 makes it necessary: the rest of the force waits at this
+	 * firing until every
+	 * aegis ship has fired or skipped it, so a player who simply does not want to
+	 * shoot has to be
 	 * able to SAY so rather than leave the sequence stalled.
 	 */
 	public void skipAegisFiring(int absoluteImpulse) {
@@ -1582,10 +1851,13 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Which of D13.14's four firings this ship would take next, or -1 when it has none left.
+	 * Which of D13.14's four firings this ship would take next, or -1 when it has
+	 * none left.
 	 * <p>
-	 * Firing one is the ordinary volley, so the extras are firings two, three and four — a number
-	 * worth having because D13.141 sequences the FORCE by it, and because a pad that says "firing 2
+	 * Firing one is the ordinary volley, so the extras are firings two, three and
+	 * four — a number
+	 * worth having because D13.141 sequences the FORCE by it, and because a pad
+	 * that says "firing 2
 	 * of 4" is telling the player something the remaining count does not.
 	 */
 	public int aegisNextFiring(int absoluteImpulse) {
@@ -1596,52 +1868,76 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Heavy battlecruiser. A fleet may include only one (S8.333), but unlike the size class 2
-	 * ship it needs no squadron of followers, and it may be taken in addition to that ship.
+	 * Heavy battlecruiser. A fleet may include only one (S8.333), but unlike the
+	 * size class 2
+	 * ship it needs no squadron of followers, and it may be taken in addition to
+	 * that ship.
 	 */
 	public boolean isBCH() {
 		return bch;
 	}
 
 	/**
-	 * Annex #3's "D%"/"DB" marking (FD10.622, FD10.632, S3.223): this hull may carry a higher
-	 * proportion of special drones than its empire normally gets, and may spend 30% of its
-	 * Effective Combat BPV on Commander's Options instead of 20%, the extra tenth on drones only.
+	 * Annex #3's "D%"/"DB" marking (FD10.622, FD10.632, S3.223): this hull may
+	 * carry a higher
+	 * proportion of special drones than its empire normally gets, and may spend 30%
+	 * of its
+	 * Effective Combat BPV on Commander's Options instead of 20%, the extra tenth
+	 * on drones only.
 	 * <p>
-	 * Only the chart-marked case. A Kzinti ship and a carrier with ten or more fighters get the
-	 * same allowance by their own clause in FD10.622, and neither needs this flag — see
+	 * Only the chart-marked case. A Kzinti ship and a carrier with ten or more
+	 * fighters get the
+	 * same allowance by their own clause in FD10.622, and neither needs this flag —
+	 * see
 	 * {@code CoiBudget} for where the three are brought together.
 	 */
 	/**
 	 * FD2.442's reload storage, as ONE stockpile for the ship (FD2.43, FD2.422).
 	 * <p>
-	 * The SAME stockpile every time, because it is where the drones live rather than a view over the
-	 * racks: handing back a fresh one would split the ship's reloads between two piles and lose
-	 * whatever had been drawn. It is built on first use and rebuilt if the weapon group is replaced
-	 * — {@link #init} does that — since a stockpile pointing at the old group would report the old
+	 * The SAME stockpile every time, because it is where the drones live rather
+	 * than a view over the
+	 * racks: handing back a fresh one would split the ship's reloads between two
+	 * piles and lose
+	 * whatever had been drawn. It is built on first use and rebuilt if the weapon
+	 * group is replaced
+	 * — {@link #init} does that — since a stockpile pointing at the old group would
+	 * report the old
 	 * ship's capacity.
 	 * <p>
-	 * Capacity comes from the racks and a DAMAGED rack still counts, because FD2.442 measures the
+	 * Capacity comes from the racks and a DAMAGED rack still counts, because
+	 * FD2.442 measures the
 	 * ship's ORIGINAL racks and FD2.423 has reloads outliving them; see
 	 * {@link com.sfb.systemgroups.ReloadStockpile}.
 	 * <p>
-	 * The cargo boxes are attached here so FD2.4421's conveyor can reach them: a drone loaded onto a
+	 * The cargo boxes are attached here so FD2.4421's conveyor can reach them: a
+	 * drone loaded onto a
 	 * rack pulls a cargo drone up into the opening it left.
 	 */
 	/**
-	 * An Excess Damage box has just been destroyed — if it was the LAST one, FD2.423 takes the
+	 * An Excess Damage box has just been destroyed — if it was the LAST one,
+	 * FD2.423 takes the
 	 * ship's drone reload storage with it.
 	 *
-	 * <p>"Drone and ADD reloads (<b>other than those in cargo boxes</b>) are stored in various
-	 * locations around the ship and are considered destroyed with the last Excess Damage box." The
-	 * ship is still alive at that moment: the box that kills it is the one AFTER the last, so there
-	 * is a real window in which it fights on with full racks and nothing behind them. The cargo boxes
+	 * <p>
+	 * "Drone and ADD reloads (<b>other than those in cargo boxes</b>) are stored in
+	 * various
+	 * locations around the ship and are considered destroyed with the last Excess
+	 * Damage box." The
+	 * ship is still alive at that moment: the box that kills it is the one AFTER
+	 * the last, so there
+	 * is a real window in which it fights on with full racks and nothing behind
+	 * them. The cargo boxes
 	 * are spared by name, and keep feeding a type-D's magazines direct (FD2.4424).
 	 *
-	 * <p>Called from BOTH ways a box is lost — the exhausted-chart path, where {@code fetchNextHit}
-	 * returns null, and the DAC's explicit column-13 "excess" entry. Hooking only the first is how
-	 * this was written at first, and the test that drove real internal damage went through the
-	 * second and saw nothing happen. The box being lost is the mechanism; which column found it is
+	 * <p>
+	 * Called from BOTH ways a box is lost — the exhausted-chart path, where
+	 * {@code fetchNextHit}
+	 * returns null, and the DAC's explicit column-13 "excess" entry. Hooking only
+	 * the first is how
+	 * this was written at first, and the test that drove real internal damage went
+	 * through the
+	 * second and saw nothing happen. The box being lost is the mechanism; which
+	 * column found it is
 	 * not.
 	 *
 	 * @return a line for the damage log, or null if this was not the last box
@@ -1657,20 +1953,28 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * FP10.31: the ship's pool of plasma-D reloads, which any plasma rack may draw from.
+	 * FP10.31: the ship's pool of plasma-D reloads, which any plasma rack may draw
+	 * from.
 	 *
-	 * <p>Rebuilt when the weapon group is replaced, for the reason the drone stockpile below
-	 * does the same: a stale group would keep counting a rack the ship no longer has.
+	 * <p>
+	 * Rebuilt when the weapon group is replaced, for the reason the drone stockpile
+	 * below
+	 * does the same: a stale group would keep counting a rack the ship no longer
+	 * has.
 	 */
 	public com.sfb.systemgroups.PlasmaReloadStore plasmaReloadStore() {
 		if (plasmaReloadStore == null || plasmaStoreWeapons != getWeapons()) {
 			plasmaReloadStore = com.sfb.systemgroups.PlasmaReloadStore.of(getWeapons());
 			plasmaStoreWeapons = getWeapons();
 		}
-		// FP10.31's interchangeability, tied both ways here because this is the one place that
-		// holds both ends: the racks' hold and the fighters' supply. Re-tied on every call
-		// rather than once, since either side can arrive later than the other - a carrier's
-		// store is built from the hull while a plasma rack can be bought into an option mount
+		// FP10.31's interchangeability, tied both ways here because this is the one
+		// place that
+		// holds both ends: the racks' hold and the fighters' supply. Re-tied on every
+		// call
+		// rather than once, since either side can arrive later than the other - a
+		// carrier's
+		// store is built from the hull while a plasma rack can be bought into an option
+		// mount
 		// at setup, long after.
 		com.sfb.systemgroups.DroneStore fighterSupply = getShuttles() == null ? null
 				: getShuttles().getDroneStore();
@@ -1694,12 +1998,19 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Victory points this ship spent on Commander's Option Items (S2.20 step B / S3.2) —
-	 * extra boarding parties, commandos, T-bombs, etc. Awarded to the enemy in scoring.
+	 * Victory points this ship spent on Commander's Option Items (S2.20 step B /
+	 * S3.2) —
+	 * extra boarding parties, commandos, T-bombs, etc. Awarded to the enemy in
+	 * scoring.
 	 * Set by {@code ScenarioLoader.applyCoi}.
 	 */
-	public double getCoiSpend()          { return this.coiSpend; }
-	public void   setCoiSpend(double vp) { this.coiSpend = vp; }
+	public double getCoiSpend() {
+		return this.coiSpend;
+	}
+
+	public void setCoiSpend(double vp) {
+		this.coiSpend = vp;
+	}
 
 	public int getArmor() {
 		return this.armor;
@@ -1722,18 +2033,28 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * What active fire control costs this unit for the turn (D6.631) — normally one point.
+	 * What active fire control costs this unit for the turn (D6.631) — normally one
+	 * point.
 	 *
-	 * Zero for a small or medium ground base. D6.631: "PFs, shuttles (including fighters),
-	 * captor mines, small and medium ground bases, self-guiding seeking weapons, and certain
-	 * other units noted in the rules do not allocate energy for active fire control." Those
-	 * other categories are not Ships in this model, so the ground bases are the whole of it
+	 * Zero for a small or medium ground base. D6.631: "PFs, shuttles (including
+	 * fighters),
+	 * captor mines, small and medium ground bases, self-guiding seeking weapons,
+	 * and certain
+	 * other units noted in the rules do not allocate energy for active fire
+	 * control." Those
+	 * other categories are not Ships in this model, so the ground bases are the
+	 * whole of it
 	 * here.
 	 *
-	 * <p>Worth one point of power and no more, so be careful what this is credited with. The
-	 * passive ground bases seen in play were NOT caused by this: {@code allocateEnergy} is what
-	 * raises fire control, and for a base nothing was calling it at all. Charging the point is
-	 * simply wrong rather than ruinous — a GBD2 has eight APR against a three-point capacitor and
+	 * <p>
+	 * Worth one point of power and no more, so be careful what this is credited
+	 * with. The
+	 * passive ground bases seen in play were NOT caused by this:
+	 * {@code allocateEnergy} is what
+	 * raises fire control, and for a base nothing was calling it at all. Charging
+	 * the point is
+	 * simply wrong rather than ruinous — a GBD2 has eight APR against a three-point
+	 * capacitor and
 	 * so would never have noticed, but a tighter sheet would.
 	 */
 	public int getFireControlCost() {
@@ -1743,15 +2064,23 @@ public class Ship extends Unit implements DroneController {
 	/**
 	 * A small or medium ground base — the "size 5" units of D17.123 and P2.76.
 	 *
-	 * Size class counts UP as a unit gets smaller, so size-5-and-smaller is {@code sizeClass >=
-	 * 5}; D17.123 puts the boundary exactly here: "Small and medium ground bases [size 5 units,
-	 * see (P2.76) and (R1.28)] count as PFs for this purpose. Size class 4 and larger bases on a
-	 * planetary surface are treated as ships." The nine orbital Base Stations are size class 3
-	 * and so are NOT covered, which is the separation the rule intends — a large ground base is
+	 * Size class counts UP as a unit gets smaller, so size-5-and-smaller is
+	 * {@code sizeClass >=
+	 * 5}; D17.123 puts the boundary exactly here: "Small and medium ground bases
+	 * [size 5 units,
+	 * see (P2.76) and (R1.28)] count as PFs for this purpose. Size class 4 and
+	 * larger bases on a
+	 * planetary surface are treated as ships." The nine orbital Base Stations are
+	 * size class 3
+	 * and so are NOT covered, which is the separation the rule intends — a large
+	 * ground base is
 	 * an orbital design that happens to be sitting on a planet.
 	 *
-	 * <p>A property of the hull, not of where it stands: a base of this class is only ever
-	 * emplaced on a surface, and keying off the planet face instead would make the rule blink
+	 * <p>
+	 * A property of the hull, not of where it stands: a base of this class is only
+	 * ever
+	 * emplaced on a surface, and keying off the planet face instead would make the
+	 * rule blink
 	 * out while the base is being sited.
 	 */
 	public boolean isSmallGroundBase() {
@@ -1759,21 +2088,31 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * True when this unit's energy allocation has nothing in it for a player to decide, so the
+	 * True when this unit's energy allocation has nothing in it for a player to
+	 * decide, so the
 	 * engine may fill it in rather than stopping the turn to ask.
 	 *
 	 * <h2>Why this is not "it is a base"</h2>
-	 * A small ground base cannot move, pays nothing for fire control (D6.631), and has power to
-	 * spare, so its sheet offers no trade-off — six phaser batteries on a planet produced six
-	 * identical forms a turn, every turn, with one sensible answer each. But three of the nine
-	 * fits carry a plasma launcher, a photon, a hellbore, a fusion beam or a disruptor, and
-	 * arming a heavy weapon IS a decision (standard, overload, how many turns to hold). So the
-	 * test is the weapons, not the hull class: no {@link HeavyWeapon}, nothing to decide.
+	 * A small ground base cannot move, pays nothing for fire control (D6.631), and
+	 * has power to
+	 * spare, so its sheet offers no trade-off — six phaser batteries on a planet
+	 * produced six
+	 * identical forms a turn, every turn, with one sensible answer each. But three
+	 * of the nine
+	 * fits carry a plasma launcher, a photon, a hellbore, a fusion beam or a
+	 * disruptor, and
+	 * arming a heavy weapon IS a decision (standard, overload, how many turns to
+	 * hold). So the
+	 * test is the weapons, not the hull class: no {@link HeavyWeapon}, nothing to
+	 * decide.
 	 *
 	 * <h2>What the player does not lose</h2>
-	 * Only EW looks like a forfeited choice, and D6.312 answers it: "RESERVE POWER (H7.2) may be
-	 * used to increase ECM or ECCM strength during the Fire Decision Step of any impulse."
-	 * Power this leaves unspent is therefore still available as EW at the moment it matters,
+	 * Only EW looks like a forfeited choice, and D6.312 answers it: "RESERVE POWER
+	 * (H7.2) may be
+	 * used to increase ECM or ECCM strength during the Fire Decision Step of any
+	 * impulse."
+	 * Power this leaves unspent is therefore still available as EW at the moment it
+	 * matters,
 	 * which is later and better informed than allocation time.
 	 */
 	public boolean hasNoEnergyAllocationChoice() {
@@ -1789,7 +2128,9 @@ public class Ship extends Unit implements DroneController {
 		return ewCircuits.getEcm();
 	}
 
-	/** Force ECM to an exact value, bypassing circuit lockouts — tests/sync only. */
+	/**
+	 * Force ECM to an exact value, bypassing circuit lockouts — tests/sync only.
+	 */
 	public void setEcmAllocated(int ecm) {
 		ewCircuits.force(ecm, ewCircuits.getEccm(), specialFunctions.getSensor());
 	}
@@ -1798,79 +2139,129 @@ public class Ship extends Unit implements DroneController {
 		return ewCircuits.getEccm();
 	}
 
-	// --- EW lent to this ship by scouts this impulse (G24.21). Recomputed by Game. ---
+	// --- EW lent to this ship by scouts this impulse (G24.21). Recomputed by Game.
+	// ---
 	private int lentEcm;
 	private int lentEccm;
 
-	/** ECM lent to this ship by operational scout channels (added to its effective ECM). */
-	public int getLentEcm()  { return lentEcm; }
+	/**
+	 * ECM lent to this ship by operational scout channels (added to its effective
+	 * ECM).
+	 */
+	public int getLentEcm() {
+		return lentEcm;
+	}
 
 	/**
-	 * D6.3144 / D6.392: ECM received from ALL outside lending sources, capped at six
-	 * combined. A Wild Weasel lends its six points to the ship that launched it exactly as
-	 * a scout channel would (J3.23), so it shares the ceiling rather than sitting on top of
-	 * it - scout lending and a weasel together are still six, not twelve. The weasel itself
+	 * D6.3144 / D6.392: ECM received from ALL outside lending sources, capped at
+	 * six
+	 * combined. A Wild Weasel lends its six points to the ship that launched it
+	 * exactly as
+	 * a scout channel would (J3.23), so it shares the ceiling rather than sitting
+	 * on top of
+	 * it - scout lending and a weasel together are still six, not twelve. The
+	 * weasel itself
 	 * gets no benefit from what it lends.
 	 * <p>
-	 * Prefer this over {@link #getLentEcm()} anywhere a rule asks what is jamming this ship.
+	 * Prefer this over {@link #getLentEcm()} anywhere a rule asks what is jamming
+	 * this ship.
 	 */
 	public int getLentEcmTotal() {
 		return Math.min(MAX_LENT_RECEIVED, lentEcm + getWwEcmBonus());
 	}
-	public int getLentEccm() { return lentEccm; }
 
-	public void clearLentEw() { lentEcm = 0; lentEccm = 0; }
+	public int getLentEccm() {
+		return lentEccm;
+	}
+
+	public void clearLentEw() {
+		lentEcm = 0;
+		lentEccm = 0;
+	}
 
 	/**
-	 * Add EW lent by an operational scout channel, clamped to the six points of each kind
-	 * a unit may receive from lending (D6.3144, cited by G24.216). One channel lends at most
+	 * Add EW lent by an operational scout channel, clamped to the six points of
+	 * each kind
+	 * a unit may receive from lending (D6.3144, cited by G24.216). One channel
+	 * lends at most
 	 * six combined (G24.2112), so reaching both caps takes at least two channels.
 	 */
 	public void addLentEw(int ecm, int eccm) {
-		lentEcm  = Math.min(MAX_LENT_RECEIVED, lentEcm  + Math.max(0, ecm));
+		lentEcm = Math.min(MAX_LENT_RECEIVED, lentEcm + Math.max(0, ecm));
 		lentEccm = Math.min(MAX_LENT_RECEIVED, lentEccm + Math.max(0, eccm));
 	}
 
-	/** Most ECM — and, separately, most ECCM — a unit may receive from lending (D6.3144). */
+	/**
+	 * Most ECM — and, separately, most ECCM — a unit may receive from lending
+	 * (D6.3144).
+	 */
 	public static final int MAX_LENT_RECEIVED = 6;
 
-	// --- Offensive EW jamming this ship (G24.219): degrades ITS fire (adds to its targets'
-	//     effective ECM). Capped at 6 from all sources (D6.3145). Recomputed by Game. ---
+	// --- Offensive EW jamming this ship (G24.219): degrades ITS fire (adds to its
+	// targets'
+	// effective ECM). Capped at 6 from all sources (D6.3145). Recomputed by Game.
+	// ---
 	private int offensiveEw;
 
-	/** Offensive EW (O-EW) jamming this ship's fire control (G24.219); added to its targets' ECM. */
-	public int getOffensiveEw() { return offensiveEw; }
+	/**
+	 * Offensive EW (O-EW) jamming this ship's fire control (G24.219); added to its
+	 * targets' ECM.
+	 */
+	public int getOffensiveEw() {
+		return offensiveEw;
+	}
 
-	public void clearOffensiveEw() { offensiveEw = 0; }
+	public void clearOffensiveEw() {
+		offensiveEw = 0;
+	}
 
 	/** Add O-EW jamming, clamped to the 6-point all-sources maximum (D6.3145). */
 	public void addOffensiveEw(int points) {
 		offensiveEw = Math.min(6, offensiveEw + Math.max(0, points));
 	}
 
-	// --- Scout EW lending pool (G24.211): points this scout generated at EA to lend out. ---
-	private int scoutEwPool;      // total generated this turn
+	// --- Scout EW lending pool (G24.211): points this scout generated at EA to
+	// lend out. ---
+	private int scoutEwPool; // total generated this turn
 	private int scoutEwRemaining; // still available to commit; dropped points don't return (G24.2122)
 
-	/** EW points this scout generated this turn for lending (ship-level pool, G24.211/.31). */
-	public int getScoutEwPool() { return scoutEwPool; }
+	/**
+	 * EW points this scout generated this turn for lending (ship-level pool,
+	 * G24.211/.31).
+	 */
+	public int getScoutEwPool() {
+		return scoutEwPool;
+	}
 
 	public void setScoutEwPool(int points) {
 		this.scoutEwPool = Math.max(0, points);
 		this.scoutEwRemaining = this.scoutEwPool; // a freshly generated pool is fully available (G24.2113)
 	}
 
-	/** Pool still available to commit; dropped/re-apportioned points are lost, not refunded (G24.2122). */
-	public int getScoutEwRemaining() { return scoutEwRemaining; }
+	/**
+	 * Pool still available to commit; dropped/re-apportioned points are lost, not
+	 * refunded (G24.2122).
+	 */
+	public int getScoutEwRemaining() {
+		return scoutEwRemaining;
+	}
 
-	public void setScoutEwRemaining(int points) { this.scoutEwRemaining = Math.max(0, points); }
+	public void setScoutEwRemaining(int points) {
+		this.scoutEwRemaining = Math.max(0, points);
+	}
 
-	/** Draw {@code points} from the remaining pool when a lend is increased (G24.2122). */
+	/**
+	 * Draw {@code points} from the remaining pool when a lend is increased
+	 * (G24.2122).
+	 */
 	public void spendScoutEw(int points) {
 		this.scoutEwRemaining = Math.max(0, scoutEwRemaining - Math.max(0, points));
 	}
 
-	/** EW points currently drawn from the pool across all this scout's channels (G24.2111). */
+	/**
+	 * EW points currently drawn from the pool across all this scout's channels
+	 * (G24.2111).
+	 */
 	public int getScoutEwLent() {
 		int total = 0;
 		for (com.sfb.weapons.ScoutChannel c : getScoutChannels())
@@ -1879,7 +2270,9 @@ public class Ship extends Unit implements DroneController {
 		return total;
 	}
 
-	/** Force ECCM to an exact value, bypassing circuit lockouts — tests/sync only. */
+	/**
+	 * Force ECCM to an exact value, bypassing circuit lockouts — tests/sync only.
+	 */
 	public void setEccmAllocated(int eccm) {
 		ewCircuits.force(ewCircuits.getEcm(), eccm, specialFunctions.getSensor());
 	}
@@ -1942,17 +2335,23 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * C10.11/C10.12: whether this ship bought Erratic Maneuvers in the Energy Allocation
-	 * phase - six hexes' worth of its movement cost, or three if nimble. Paying only makes
-	 * the ship ELIGIBLE to announce EM during the turn (C10.3); it does not start it, and
+	 * C10.11/C10.12: whether this ship bought Erratic Maneuvers in the Energy
+	 * Allocation
+	 * phase - six hexes' worth of its movement cost, or three if nimble. Paying
+	 * only makes
+	 * the ship ELIGIBLE to announce EM during the turn (C10.3); it does not start
+	 * it, and
 	 * the energy is lost whether or not it is ever used.
 	 */
 	private boolean paidForEm = false;
 
-	public boolean hasPaidForEm() { return paidForEm; }
+	public boolean hasPaidForEm() {
+		return paidForEm;
+	}
 
 	/**
-	 * C10.11/C10.12: six movement points, or three for a nimble ship. Read off the same
+	 * C10.11/C10.12: six movement points, or three for a nimble ship. Read off the
+	 * same
 	 * performance figure the energy allocation charges, so the two cannot disagree.
 	 */
 	@Override
@@ -1960,7 +2359,9 @@ public class Ship extends Unit implements DroneController {
 		return getPerformanceData().getErraticCost();
 	}
 
-	public void setPaidForEm(boolean paid) { this.paidForEm = paid; }
+	public void setPaidForEm(boolean paid) {
+		this.paidForEm = paid;
+	}
 
 	// --- Lock-on ---
 
@@ -1971,16 +2372,20 @@ public class Ship extends Unit implements DroneController {
 	/**
 	 * Lock-ons held only because a tractor beam is attached (G7.412).
 	 *
-	 * Worth distinguishing because they are not worth as much: D6.627 says a tractor's
-	 * lock-on is adequate for direct-fire weapons but NOT for lending EW (G7.97). Without
-	 * the mark, a beam-granted lock-on — automatic, no roll, cloak irrelevant — looked
+	 * Worth distinguishing because they are not worth as much: D6.627 says a
+	 * tractor's
+	 * lock-on is adequate for direct-fire weapons but NOT for lending EW (G7.97).
+	 * Without
+	 * the mark, a beam-granted lock-on — automatic, no roll, cloak irrelevant —
+	 * looked
 	 * exactly like one the sensors had earned.
 	 */
 	private final Set<Unit> tractorLockOns = new java.util.HashSet<>();
 
 	public void addLockOn(Unit target) {
 		lockOns.add(target);
-		// A lock-on the sensors earned outranks a beam's: the scout genuinely has one now.
+		// A lock-on the sensors earned outranks a beam's: the scout genuinely has one
+		// now.
 		tractorLockOns.remove(target);
 	}
 
@@ -2146,11 +2551,23 @@ public class Ship extends Unit implements DroneController {
 
 	// --- Wild Weasel ---
 
-	public WildWeaselShuttle getActiveWildWeasel() { return activeWildWeasel; }
-	public void setActiveWildWeasel(WildWeaselShuttle ww) { this.activeWildWeasel = ww; }
-	public boolean hasActiveWildWeasel() { return activeWildWeasel != null; }
-	// ECM continues during explosion (J3.2111/J3.332); stops in post-explosion (J3.2123)
-	public int getWwEcmBonus() { return (activeWildWeasel != null && !activeWildWeasel.isPostExplosion()) ? 6 : 0; }
+	public WildWeaselShuttle getActiveWildWeasel() {
+		return activeWildWeasel;
+	}
+
+	public void setActiveWildWeasel(WildWeaselShuttle ww) {
+		this.activeWildWeasel = ww;
+	}
+
+	public boolean hasActiveWildWeasel() {
+		return activeWildWeasel != null;
+	}
+
+	// ECM continues during explosion (J3.2111/J3.332); stops in post-explosion
+	// (J3.2123)
+	public int getWwEcmBonus() {
+		return (activeWildWeasel != null && !activeWildWeasel.isPostExplosion()) ? 6 : 0;
+	}
 
 	/**
 	 * Indicates if the shields are in Active mode
@@ -2177,30 +2594,54 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Which face of a planet a ground base stands on, 1 to 6, or null if it is not on one.
+	 * Which face of a planet a ground base stands on, 1 to 6, or null if it is not
+	 * on one.
 	 *
-	 * <p>STORED rather than derived, and the reason is the case that needs it most. A planet
-	 * fills every hex within its radius, so a RADIUS-ZERO planet puts all six faces' bases in
-	 * its own hex — and {@code MapUtils.visiblePlanetSides} returns nothing when observer and
-	 * planet share a hex, because {@code getAbsoluteShieldFacing} has no direction to give
-	 * between a hex and itself. So exactly where six bases are indistinguishable by position is
+	 * <p>
+	 * STORED rather than derived, and the reason is the case that needs it most. A
+	 * planet
+	 * fills every hex within its radius, so a RADIUS-ZERO planet puts all six
+	 * faces' bases in
+	 * its own hex — and {@code MapUtils.visiblePlanetSides} returns nothing when
+	 * observer and
+	 * planet share a hex, because {@code getAbsoluteShieldFacing} has no direction
+	 * to give
+	 * between a hex and itself. So exactly where six bases are indistinguishable by
+	 * position is
 	 * where position cannot tell you which is which.
 	 *
-	 * <p>It is what lets a player be shown "Ground Base A" through "Ground Base F" and lets a
-	 * targeting chooser grey the ones on the far side (owner, 2026-10-12: "that way a player
-	 * won't mistakenly target a base that can't be hit"). The LABEL is the view's business; this
+	 * <p>
+	 * It is what lets a player be shown "Ground Base A" through "Ground Base F" and
+	 * lets a
+	 * targeting chooser grey the ones on the far side (owner, 2026-10-12: "that way
+	 * a player
+	 * won't mistakenly target a base that can't be hit"). The LABEL is the view's
+	 * business; this
 	 * is the fact it is built from.
 	 *
-	 * <p>Integer, not int: 0 is not a face, and a primitive could not say "not on a planet" —
-	 * the trap this project has hit before on DTO fields that apply to one kind of unit.
+	 * <p>
+	 * Integer, not int: 0 is not a face, and a primitive could not say "not on a
+	 * planet" —
+	 * the trap this project has hit before on DTO fields that apply to one kind of
+	 * unit.
 	 */
 	private Integer planetFace;
 
-	public Integer getPlanetFace() { return planetFace; }
-	public void setPlanetFace(Integer planetFace) { this.planetFace = planetFace; }
+	public Integer getPlanetFace() {
+		return planetFace;
+	}
 
-	public boolean isBase() { return isBase; }
-	public void setBase(boolean isBase) { this.isBase = isBase; }
+	public void setPlanetFace(Integer planetFace) {
+		this.planetFace = planetFace;
+	}
+
+	public boolean isBase() {
+		return isBase;
+	}
+
+	public void setBase(boolean isBase) {
+		this.isBase = isBase;
+	}
 
 	public Faction getFaction() {
 		return this.faction;
@@ -2226,16 +2667,18 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public void attachClock(com.sfb.TurnTracker clock) {
 		getShields().setClock(clock);
-		getShuttles().setClock(clock);   // end-of-turn fighter rearming reads the turn (J4.83)
-		getTractors().setClock(clock);   // the damage pick reads the impulse (G7.13)
+		getShuttles().setClock(clock); // end-of-turn fighter rearming reads the turn (J4.83)
+		getTractors().setClock(clock); // the damage pick reads the impulse (G7.13)
 		for (com.sfb.weapons.Weapon w : getWeapons().fetchAllWeapons())
 			w.setClock(clock);
 		for (com.sfb.systemgroups.ShuttleBay bay : getShuttles().getBays()) {
 			for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory())
 				s.attachClock(clock);
 			// The balcony too (J1.53). Parked craft are deliberately absent from the bay's
-			// inventory, which is right for damage, arming and deck-crew work - but the clock
-			// is not a rule about where a craft is, and a parked one that never got it would
+			// inventory, which is right for damage, arming and deck-crew work - but the
+			// clock
+			// is not a rule about where a craft is, and a parked one that never got it
+			// would
 			// read turn zero for the rest of the game.
 			for (com.sfb.objects.shuttles.Shuttle s : bay.getBalcony())
 				s.attachClock(clock);
@@ -2250,21 +2693,32 @@ public class Ship extends Unit implements DroneController {
 	 * This ship's MUTABLE state, for a saved game — the inverse of {@link #init}.
 	 *
 	 * <h2>The format, and why it is this small</h2>
-	 * A saved game is a scenario plus accumulated damage. Everything the ship IS — hull, refit
-	 * set, scenario year and its automatic upgrades, Commander's Options choices — is rebuilt by
-	 * {@code ScenarioLoader} from the data files, so none of it is written here. What is written
+	 * A saved game is a scenario plus accumulated damage. Everything the ship IS —
+	 * hull, refit
+	 * set, scenario year and its automatic upgrades, Commander's Options choices —
+	 * is rebuilt by
+	 * {@code ScenarioLoader} from the data files, so none of it is written here.
+	 * What is written
 	 * is only what the battle changed.
 	 *
-	 * <p>That reconstruction is also the format's one real hazard, and it is worth stating at the
-	 * site: it reads the ship JSON AT LOAD TIME, and this repo edits ship JSON constantly. Edit a
-	 * hull between sessions and a restored ship quietly becomes a different ship. The answer is a
-	 * fingerprint of the resolved {@code ShipSpec} stored beside the reference and compared on
+	 * <p>
+	 * That reconstruction is also the format's one real hazard, and it is worth
+	 * stating at the
+	 * site: it reads the ship JSON AT LOAD TIME, and this repo edits ship JSON
+	 * constantly. Edit a
+	 * hull between sessions and a restored ship quietly becomes a different ship.
+	 * The answer is a
+	 * fingerprint of the resolved {@code ShipSpec} stored beside the reference and
+	 * compared on
 	 * load — not this method's job, but nothing above it should forget.
 	 *
 	 * <h2>Why a turn boundary</h2>
-	 * Taken between turns, almost all of the identity-laden per-impulse state — who moved this
-	 * impulse, previous locations, pending volleys and DAC choices, which UIMs fired — is empty,
-	 * so the hardest part of the problem simply is not present. Saving mid-impulse would need all
+	 * Taken between turns, almost all of the identity-laden per-impulse state — who
+	 * moved this
+	 * impulse, previous locations, pending volleys and DAC choices, which UIMs
+	 * fired — is empty,
+	 * so the hardest part of the problem simply is not present. Saving mid-impulse
+	 * would need all
 	 * of it, by object identity rather than by name.
 	 *
 	 * @return a JSON-shaped map of mutable state
@@ -2273,7 +2727,8 @@ public class Ship extends Unit implements DroneController {
 		Map<String, Object> state = new java.util.LinkedHashMap<>();
 
 		state.put("name", getName());
-		// Where it is and how it is moving. A base has no speed to speak of and will simply
+		// Where it is and how it is moving. A base has no speed to speak of and will
+		// simply
 		// write zero.
 		if (getLocation() != null) {
 			state.put("x", getLocation().getX());
@@ -2290,11 +2745,15 @@ public class Ship extends Unit implements DroneController {
 		state.put("activeFireControl", activeFireControl);
 		state.put("lifeSupportActive", lifeSupportActive);
 
-		// AMMUNITION, and the hull declares it (tbombs/dummytbombs in the JSON) — so a save that
-		// left these out handed back every transporter bomb the battle had spent, which is the
-		// drone-rack mistake in a smaller package. Found by giving the round-trip fixture a mine
+		// AMMUNITION, and the hull declares it (tbombs/dummytbombs in the JSON) — so a
+		// save that
+		// left these out handed back every transporter bomb the battle had spent, which
+		// is the
+		// drone-rack mistake in a smaller package. Found by giving the round-trip
+		// fixture a mine
 		// to lay: it laid one of three and the reload reported two against zero.
-		// The DUMMIES are saved alongside the real ones because M3.224 makes the count itself
+		// The DUMMIES are saved alongside the real ones because M3.224 makes the count
+		// itself
 		// the secret — a player who has thrown their dummies must not get them back.
 		state.put("tBombs", tBombs);
 		state.put("dummyTBombs", dummyTBombs);
@@ -2312,9 +2771,12 @@ public class Ship extends Unit implements DroneController {
 			state.put("cloak", cloak.exportState());
 		if (cargoDroneStore != null)
 			state.put("cargoDroneStore", cargoDroneStore.exportState());
-		// UIMs are a LIST and are saved positionally, which is safe here and nowhere else: they
-		// are identical, anonymous modules rebuilt in a fixed number from the hull, with no
-		// designator to key on. D6.522 makes a burnout permanent for the scenario, so what
+		// UIMs are a LIST and are saved positionally, which is safe here and nowhere
+		// else: they
+		// are identical, anonymous modules rebuilt in a fixed number from the hull,
+		// with no
+		// designator to key on. D6.522 makes a burnout permanent for the scenario, so
+		// what
 		// matters is HOW MANY are broken, not which.
 		java.util.List<Object> uimStates = new java.util.ArrayList<>();
 		for (com.sfb.systemgroups.UIM uim : uims)
@@ -2327,20 +2789,30 @@ public class Ship extends Unit implements DroneController {
 			state.put("derfacs", derfacs.exportState());
 		if (reloadStockpile != null)
 			state.put("reloadStockpile", reloadStockpile.exportState());
-		// FP10.31's plasma-D hold. Only what has been DRAWN is written; capacity rebuilds itself
-		// from the racks on the far side, so a rack destroyed before the save comes back with its
+		// FP10.31's plasma-D hold. Only what has been DRAWN is written; capacity
+		// rebuilds itself
+		// from the racks on the far side, so a rack destroyed before the save comes
+		// back with its
 		// share of the supply still gone.
 		if (plasmaReloadStore != null)
 			state.put("plasmaReloadStore", plasmaReloadStore.exportState());
 
-		// Lock-ons are written as NAMES, and are deliberately not restored by applyState: a lock
-		// is a reference to another unit, and a ship being rebuilt in isolation has nothing to
-		// point at. Game.applyState resolves them in a second pass once every unit exists. They
-		// persist across turns (D6.12), so losing them would hand every ship a free re-acquisition.
-		// EARNED locks only — the beam-only ones go in their own list below. addTractorLockOn
-		// stores a beam-granted lock in BOTH sets, so writing lockOns wholesale and then
-		// replaying it would re-add every beam-only lock as an earned one: addLockOn clears the
-		// beam mark, and addTractorLockOn then declines to restore it because the lock already
+		// Lock-ons are written as NAMES, and are deliberately not restored by
+		// applyState: a lock
+		// is a reference to another unit, and a ship being rebuilt in isolation has
+		// nothing to
+		// point at. Game.applyState resolves them in a second pass once every unit
+		// exists. They
+		// persist across turns (D6.12), so losing them would hand every ship a free
+		// re-acquisition.
+		// EARNED locks only — the beam-only ones go in their own list below.
+		// addTractorLockOn
+		// stores a beam-granted lock in BOTH sets, so writing lockOns wholesale and
+		// then
+		// replaying it would re-add every beam-only lock as an earned one: addLockOn
+		// clears the
+		// beam mark, and addTractorLockOn then declines to restore it because the lock
+		// already
 		// exists. The two lists must not overlap.
 		java.util.List<String> locked = new java.util.ArrayList<>();
 		for (Unit target : lockOns)
@@ -2349,9 +2821,12 @@ public class Ship extends Unit implements DroneController {
 				locked.add(target.getName());
 		state.put("lockOns", locked);
 
-		// Kept apart from the set above because the DIFFERENCE is a rule: a lock resting on a
-		// tractor beam alone is not one the sensors earned, and D6.627 and G7.97 treat it
-		// differently. Flattening the two into one list would silently promote every beam-granted
+		// Kept apart from the set above because the DIFFERENCE is a rule: a lock
+		// resting on a
+		// tractor beam alone is not one the sensors earned, and D6.627 and G7.97 treat
+		// it
+		// differently. Flattening the two into one list would silently promote every
+		// beam-granted
 		// lock into a real one on reload.
 		java.util.List<String> beamOnly = new java.util.ArrayList<>();
 		for (Unit target : tractorLockOns)
@@ -2363,11 +2838,15 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Restore what {@link #exportState} captured, onto a ship already built from its hull data.
+	 * Restore what {@link #exportState} captured, onto a ship already built from
+	 * its hull data.
 	 *
-	 * Order matters once more groups are converted: the ship must be fully built first, because
-	 * this only overwrites what the battle changed and relies on everything else already being
-	 * right. Missing keys are left alone, so a save written before a field existed still loads.
+	 * Order matters once more groups are converted: the ship must be fully built
+	 * first, because
+	 * this only overwrites what the battle changed and relies on everything else
+	 * already being
+	 * right. Missing keys are left alone, so a save written before a field existed
+	 * still loads.
 	 */
 	public void applyState(Map<String, Object> state) {
 		if (state == null)
@@ -2379,10 +2858,10 @@ public class Ship extends Unit implements DroneController {
 
 		if (state.get("x") instanceof Number x && state.get("y") instanceof Number y)
 			setLocation(new com.sfb.properties.Location(x.intValue(), y.intValue()));
-		facing         = StateIo.integer(state, "facing", facing);
-		speed          = StateIo.integer(state, "speed", speed);
-		sideslipCount  = StateIo.integer(state, "sideslipCount", sideslipCount);
-		turnCount      = StateIo.integer(state, "turnCount", turnCount);
+		facing = StateIo.integer(state, "facing", facing);
+		speed = StateIo.integer(state, "speed", speed);
+		sideslipCount = StateIo.integer(state, "sideslipCount", sideslipCount);
+		turnCount = StateIo.integer(state, "turnCount", turnCount);
 		entryDirection = StateIo.integer(state, "entryDirection", entryDirection);
 		if (state.get("planetFace") instanceof Number face)
 			planetFace = face.intValue();
@@ -2412,8 +2891,10 @@ public class Ship extends Unit implements DroneController {
 			derfacs.applyState(StateIo.child(state, "derfacs"));
 		if (reloadStockpile != null)
 			reloadStockpile.applyState(StateIo.child(state, "reloadStockpile"));
-		// Asked through the accessor, not guarded on the field: a ship rebuilt from a save has
-		// not touched its pool yet, so the field is null exactly when the state needs applying.
+		// Asked through the accessor, not guarded on the field: a ship rebuilt from a
+		// save has
+		// not touched its pool yet, so the field is null exactly when the state needs
+		// applying.
 		if (state.get("plasmaReloadStore") != null)
 			plasmaReloadStore().applyState(StateIo.child(state, "plasmaReloadStore"));
 		if (state.get("uims") instanceof java.util.List<?> savedUims)
@@ -2504,15 +2985,27 @@ public class Ship extends Unit implements DroneController {
 	/** Directly set fire control state — used internally and by WW launch. */
 	public void setActiveFireControl(boolean active) {
 		this.activeFireControl = active;
-		if (active) this.fcActivatingUntil = -1;
-		else clearLockOns(); // D6.62: lock-ons exist only while fire control is active
+		if (active)
+			this.fcActivatingUntil = -1;
+		else
+			clearLockOns(); // D6.62: lock-ons exist only while fire control is active
 	}
 
-	public boolean isFcPaidThisTurn()  { return fcPaidThisTurn; }
-	public boolean isFcActivating()    { return fcActivatingUntil > 0; }
-	public int     getFcActivatingUntil() { return fcActivatingUntil; }
+	public boolean isFcPaidThisTurn() {
+		return fcPaidThisTurn;
+	}
 
-	/** Immediately set FC to passive and cancel any activation countdown (D6.632). */
+	public boolean isFcActivating() {
+		return fcActivatingUntil > 0;
+	}
+
+	public int getFcActivatingUntil() {
+		return fcActivatingUntil;
+	}
+
+	/**
+	 * Immediately set FC to passive and cancel any activation countdown (D6.632).
+	 */
 	public void goPassiveFc() {
 		this.activeFireControl = false;
 		this.fcActivatingUntil = -1;
@@ -2521,10 +3014,12 @@ public class Ship extends Unit implements DroneController {
 
 	/**
 	 * Begin the 4-impulse activation countdown (D6.633).
+	 * 
 	 * @return false if FC energy was not allocated this turn.
 	 */
 	public boolean beginFcActivation(int absImpulse) {
-		if (!fcPaidThisTurn) return false;
+		if (!fcPaidThisTurn)
+			return false;
 		this.activeFireControl = false;
 		this.fcActivatingUntil = absImpulse + 4;
 		return true;
@@ -2532,6 +3027,7 @@ public class Ship extends Unit implements DroneController {
 
 	/**
 	 * Check whether the activation countdown has elapsed and, if so, complete it.
+	 * 
 	 * @return true if activation just completed this call.
 	 */
 	public boolean updateFcActivation(int absImpulse) {
@@ -2543,7 +3039,10 @@ public class Ship extends Unit implements DroneController {
 		return false;
 	}
 
-	/** Orion Stealth Bonus in ECM points (G15.8); 0 for non-Orion or ships without it. */
+	/**
+	 * Orion Stealth Bonus in ECM points (G15.8); 0 for non-Orion or ships without
+	 * it.
+	 */
 	public int getStealthBonus() {
 		return stealthBonus;
 	}
@@ -2558,40 +3057,44 @@ public class Ship extends Unit implements DroneController {
 		return powerSystems.isWarpDoubled() ? 0 : stealthBonus; // G15.82: lost while a warp engine is doubled
 	}
 
-	/** Orion optional weapon mounts (G15.4), empty until filled at scenario setup. */
+	/**
+	 * Orion optional weapon mounts (G15.4), empty until filled at scenario setup.
+	 */
 	public java.util.List<OptionMount> getOptionMounts() {
 		return optionMounts;
 	}
 
-	/// HULL BOXES ///
+	/// HULL BOXES
 
 	public HullBoxes getHullBoxes() {
 		return this.hullBoxes;
 	}
 
-	/** FD2.445 spare drones in the cargo boxes, or null if this ship declares none. */
+	/**
+	 * FD2.445 spare drones in the cargo boxes, or null if this ship declares none.
+	 */
 	public com.sfb.systemgroups.CargoDroneStore getCargoDroneStore() {
 		return cargoDroneStore;
 	}
 
-	/// POWER SYSTEMS ///
+	/// POWER SYSTEMS
 	public PowerSystems getPowerSystems() {
 		return powerSystems;
 	}
 
-	/// CONTROL SPACES ///
+	/// CONTROL SPACES
 
 	// Create control boxes.
 	public ControlSpaces getControlSpaces() {
 		return this.controlSpaces;
 	}
 
-	/// SPECIAL FUNCTIONS ///
+	/// SPECIAL FUNCTIONS
 	public com.sfb.systemgroups.SpecialFunctions getSpecialFunctions() {
 		return this.specialFunctions;
 	}
 
-	/// SPECIAL FUNCITONS ///
+	/// SPECIAL FUNCITONS
 	public int getScanner() {
 		return this.specialFunctions.getScanner();
 	}
@@ -2609,40 +3112,63 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * C10.512: "A unit using EM cannot guide seeking weapons." So a ship conducting EM has no
+	 * C10.512: "A unit using EM cannot guide seeking weapons." So a ship conducting
+	 * EM has no
 	 * usable channels at all, whatever its rating.
 	 * <p>
-	 * Expressing the rule as a CAPACITY of zero rather than as a bespoke release routine is
-	 * what makes it work: {@code Game.checkControlOverflow} already queues any ship whose used
-	 * channels exceed its capacity and hands the player the CONTROL_OVERFLOW phase, where each
-	 * seeker is transferred to another unit (F3.5) or released (F3.4) one at a time. That is
-	 * precisely the procedure F3.532 calls an involuntary transfer, and the release branch
-	 * already does the right thing on the other side - a self-guiding weapon carries on, and
+	 * Expressing the rule as a CAPACITY of zero rather than as a bespoke release
+	 * routine is
+	 * what makes it work: {@code Game.checkControlOverflow} already queues any ship
+	 * whose used
+	 * channels exceed its capacity and hands the player the CONTROL_OVERFLOW phase,
+	 * where each
+	 * seeker is transferred to another unit (F3.5) or released (F3.4) one at a
+	 * time. That is
+	 * precisely the procedure F3.532 calls an involuntary transfer, and the release
+	 * branch
+	 * already does the right thing on the other side - a self-guiding weapon
+	 * carries on, and
 	 * anything else goes inert and destroys itself (FD1.71).
 	 * <p>
-	 * The timing falls out too. EM comes into force in Stage 6E (C10.311), and the overflow
-	 * sweep runs on the very next phase transition, where it already catches a cloak or a
+	 * The timing falls out too. EM comes into force in Stage 6E (C10.311), and the
+	 * overflow
+	 * sweep runs on the very next phase transition, where it already catches a
+	 * cloak or a
 	 * blinded scout channel costing a ship its capacity mid-impulse (G24.242).
 	 * <p>
-	 * {@link #isEmEffective()} rather than {@code isUsingEm()}, as everywhere else: a ship held
+	 * {@link #isEmEffective()} rather than {@code isUsingEm()}, as everywhere else:
+	 * a ship held
 	 * by a tractor is not conducting EM (C10.24) and keeps its channels.
 	 *
 	 * <h2>E11.49: a pulsing PPD's channel is EXEMPT from the zeroing</h2>
-	 * "Note that the (C10.512) restriction on guiding seeking weapons does not apply to
-	 * maintaining the wave-lock." So EM leaves room for exactly the channels the ship's own
-	 * firing runs are holding and none beyond — seekers still go, the wave-lock stays.
+	 * "Note that the (C10.512) restriction on guiding seeking weapons does not
+	 * apply to
+	 * maintaining the wave-lock." So EM leaves room for exactly the channels the
+	 * ship's own
+	 * firing runs are holding and none beyond — seekers still go, the wave-lock
+	 * stays.
 	 * <p>
-	 * This was a LIVE BUG, not a missing feature, and a probe test caught it: a ship that went
-	 * to erratic manoeuvres mid-run had capacity 0 against a used count of 1, and the very next
-	 * impulse boundary dragged its owner into the CONTROL_OVERFLOW phase to shed the channel its
-	 * own wave-lock was holding. Returning the pulsing count rather than zero keeps the whole
-	 * mechanism above intact — it is still a capacity and not a special case in the sweep.
+	 * This was a LIVE BUG, not a missing feature, and a probe test caught it: a
+	 * ship that went
+	 * to erratic manoeuvres mid-run had capacity 0 against a used count of 1, and
+	 * the very next
+	 * impulse boundary dragged its owner into the CONTROL_OVERFLOW phase to shed
+	 * the channel its
+	 * own wave-lock was holding. Returning the pulsing count rather than zero keeps
+	 * the whole
+	 * mechanism above intact — it is still a capacity and not a special case in the
+	 * sweep.
 	 * <p>
-	 * STARTING a run while already on EM is a different question and is NOT changed here: with
-	 * no run under way this returns zero exactly as before, so {@code PpdResolver} refuses the
-	 * shot. E11.49's first sentence ("the standard ECM shifts are used when the target or firing
-	 * unit are operating under EM") hints that a firing unit may be on EM, but the exemption
-	 * sentence says MAINTAINING, and that is all this claims. Left as it was found, deliberately.
+	 * STARTING a run while already on EM is a different question and is NOT changed
+	 * here: with
+	 * no run under way this returns zero exactly as before, so {@code PpdResolver}
+	 * refuses the
+	 * shot. E11.49's first sentence ("the standard ECM shifts are used when the
+	 * target or firing
+	 * unit are operating under EM") hints that a firing unit may be on EM, but the
+	 * exemption
+	 * sentence says MAINTAINING, and that is all this claims. Left as it was found,
+	 * deliberately.
 	 */
 	@Override
 	public int getControlCapacity() {
@@ -2654,23 +3180,36 @@ public class Ship extends Unit implements DroneController {
 	/**
 	 * Control channels in use, seekers and otherwise.
 	 *
-	 * <p>E11.151: "Each active PPD (those still pulsing) counts against the limit of seeking
-	 * weapons being controlled by the ship (F3.216)... A PPD is not, in any way, a seeking
-	 * weapon other than requiring a seeking weapon control channel." So a heavy ISC hull
-	 * pulsing four devices has four fewer channels for drones, which is a real cost of firing
+	 * <p>
+	 * E11.151: "Each active PPD (those still pulsing) counts against the limit of
+	 * seeking
+	 * weapons being controlled by the ship (F3.216)... A PPD is not, in any way, a
+	 * seeking
+	 * weapon other than requiring a seeking weapon control channel." So a heavy ISC
+	 * hull
+	 * pulsing four devices has four fewer channels for drones, which is a real cost
+	 * of firing
 	 * them and the reason the rule is there.
 	 *
-	 * <p>DERIVED from the weapons rather than counted into a field as seekers are. A pulsing
-	 * PPD already knows it is pulsing; a second tally would be a second answer, and the run
+	 * <p>
+	 * DERIVED from the weapons rather than counted into a field as seekers are. A
+	 * pulsing
+	 * PPD already knows it is pulsing; a second tally would be a second answer, and
+	 * the run
 	 * ends on an impulse boundary where nothing would think to decrement it.
 	 */
 	/**
-	 * The turn on which this ship last fired an ISC rear-firing torpedo at a size-class-4 or
-	 * larger target (R13.1C), or -1. One per ship per turn, so the tally belongs to the SHIP
-	 * and not to any one launcher — a cruiser with six of them still gets one shot at another
+	 * The turn on which this ship last fired an ISC rear-firing torpedo at a
+	 * size-class-4 or
+	 * larger target (R13.1C), or -1. One per ship per turn, so the tally belongs to
+	 * the SHIP
+	 * and not to any one launcher — a cruiser with six of them still gets one shot
+	 * at another
 	 * cruiser, while any or all may fire at PFs.
 	 *
-	 * <p>Needs no save hook: saves happen at turn boundaries, where this has already lapsed.
+	 * <p>
+	 * Needs no save hook: saves happen at turn boundaries, where this has already
+	 * lapsed.
 	 */
 	private int iscRearPlasmaAtShipTurn = -1;
 
@@ -2689,7 +3228,9 @@ public class Ship extends Unit implements DroneController {
 	/**
 	 * PPDs on this ship with a firing run still under way (E11.151).
 	 *
-	 * <p>Deliberately NOT reduced by G24.22 or G24.23: the same clause exempts a PPD from both,
+	 * <p>
+	 * Deliberately NOT reduced by G24.22 or G24.23: the same clause exempts a PPD
+	 * from both,
 	 * so a scout's attentions change nothing about the channel it holds.
 	 */
 	public int pulsingPpdCount() {
@@ -2701,15 +3242,19 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * C10.512 again, on the way in: a ship conducting EM cannot pick up a seeker either, which
-	 * F3.52 requires independently ("the unit assuming control must satisfy the requirements to
-	 * control the seeking weapon"). Without this a ship could be handed the very seekers its own
+	 * C10.512 again, on the way in: a ship conducting EM cannot pick up a seeker
+	 * either, which
+	 * F3.52 requires independently ("the unit assuming control must satisfy the
+	 * requirements to
+	 * control the seeking weapon"). Without this a ship could be handed the very
+	 * seekers its own
 	 * overflow had just made it give up.
 	 */
 	public boolean acquireControl(Seeker seeker) {
 		if (isEmEffective())
 			return false;
-		// A pulsing PPD is holding a channel this seeker cannot have (E11.151). SpecialFunctions
+		// A pulsing PPD is holding a channel this seeker cannot have (E11.151).
+		// SpecialFunctions
 		// counts only seekers, so the PPDs are checked here, where they are visible.
 		if (getControlUsed() >= getControlCapacity())
 			return false;
@@ -2726,9 +3271,12 @@ public class Ship extends Unit implements DroneController {
 
 	public void releaseControl(Seeker seeker) {
 		this.specialFunctions.releaseControl(seeker);
-		// F3.4: release is release, and the seeker has to know it. Freeing the channel while
-		// leaving the seeker pointing at a ship that no longer guides it was invisible while
-		// "self-guiding" was a flag of its own, and became a bug the moment that question was
+		// F3.4: release is release, and the seeker has to know it. Freeing the channel
+		// while
+		// leaving the seeker pointing at a ship that no longer guides it was invisible
+		// while
+		// "self-guiding" was a flag of its own, and became a bug the moment that
+		// question was
 		// answered by asking who holds the weapon (F3.421).
 		if (seeker != null && seeker.getController() == this)
 			seeker.setController(null);
@@ -2743,7 +3291,7 @@ public class Ship extends Unit implements DroneController {
 		return this.tractors;
 	}
 
-	/// OPERATIONS SYSTEMS ///
+	/// OPERATIONS SYSTEMS
 	public Labs getLabs() {
 		return this.labs;
 	}
@@ -2770,39 +3318,61 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Why this ship cannot use its scout channels at the moment (G24.16), or null if it can.
-	 * A cloaked scout is barred from every function except self-protection (G13.515, G24.28) —
-	 * pass true when checking that one; an operating Wild Weasel bars all of them (J3.403).
-	 * The channel stays powered throughout: only the function is suspended, and it resumes
+	 * Why this ship cannot use its scout channels at the moment (G24.16), or null
+	 * if it can.
+	 * A cloaked scout is barred from every function except self-protection
+	 * (G13.515, G24.28) —
+	 * pass true when checking that one; an operating Wild Weasel bars all of them
+	 * (J3.403).
+	 * The channel stays powered throughout: only the function is suspended, and it
+	 * resumes
 	 * on its own once the condition clears (G24.162, G24.333).
 	 * <p>
-	 * Erratic Maneuvers bar channel use too (G24.16, C10.52) — the same prohibition G4.21
+	 * Erratic Maneuvers bar channel use too (G24.16, C10.52) — the same prohibition
+	 * G4.21
 	 * puts on identifying with labs.
 	 */
 	/**
-	 * Whether this ship is on PASSIVE fire control (D19.0), as opposed to active or inactive.
+	 * Whether this ship is on PASSIVE fire control (D19.0), as opposed to active or
+	 * inactive.
 	 *
 	 * <h2>Three states out of one boolean</h2>
-	 * Fire control is modelled as {@code activeFireControl}, so "passive" was simply its
-	 * negation everywhere. C10.415 adds a third state and it is not a refusal but an absence:
-	 * "Using EM will negate the effects of passive fire control (D19.25) and prevent its use. If
-	 * the fire control is not active, it would be considered <b>inactive</b> (D6.614) rather than
-	 * <b>passive</b>." So a ship conducting EM without active fire control has none at all.
+	 * Fire control is modelled as {@code activeFireControl}, so "passive" was
+	 * simply its
+	 * negation everywhere. C10.415 adds a third state and it is not a refusal but
+	 * an absence:
+	 * "Using EM will negate the effects of passive fire control (D19.25) and
+	 * prevent its use. If
+	 * the fire control is not active, it would be considered <b>inactive</b>
+	 * (D6.614) rather than
+	 * <b>passive</b>." So a ship conducting EM without active fire control has none
+	 * at all.
 	 *
-	 * <p>Expressed as a capability yielding nothing rather than as a guard at each caller, which
-	 * is the shape C10.512 already uses — a fighter's control capacity returns zero under EM
-	 * instead of every control path testing for it. Anything that asks "is this ship passive?"
+	 * <p>
+	 * Expressed as a capability yielding nothing rather than as a guard at each
+	 * caller, which
+	 * is the shape C10.512 already uses — a fighter's control capacity returns zero
+	 * under EM
+	 * instead of every control path testing for it. Anything that asks "is this
+	 * ship passive?"
 	 * gets the right answer without knowing about EM.
 	 *
 	 * <h2>What passive fire control actually buys, and so what EM takes away</h2>
-	 * Firing at range 5 or less (D19.23) is the only one that is reachable today. D19.221's
-	 * self-guiding-drone launch is already barred under EM by C10.511, and D19.224's tractor by
-	 * C10.521, so those paths need nothing of their own. D19.25's remaining clauses — that time
-	 * spent on EM does not accrue the PFC bonus and that EM cancels one already earned — wait on
+	 * Firing at range 5 or less (D19.23) is the only one that is reachable today.
+	 * D19.221's
+	 * self-guiding-drone launch is already barred under EM by C10.511, and
+	 * D19.224's tractor by
+	 * C10.521, so those paths need nothing of their own. D19.25's remaining clauses
+	 * — that time
+	 * spent on EM does not accrue the PFC bonus and that EM cancels one already
+	 * earned — wait on
 	 * D19.3, which is unbuilt.
 	 *
-	 * <p>Asks {@code isUsingEm()} rather than {@code isEmEffective()} to match the other C10.52
-	 * guards; see {@code Game.emActionBlock} for why that family is consistent rather than
+	 * <p>
+	 * Asks {@code isUsingEm()} rather than {@code isEmEffective()} to match the
+	 * other C10.52
+	 * guards; see {@code Game.emActionBlock} for why that family is consistent
+	 * rather than
 	 * individually settled.
 	 */
 	public boolean isPassiveFireControl() {
@@ -2820,13 +3390,16 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Recompute the +6 seeker-control bonus (G24.24): granted while an operational channel
-	 * (functional, powered, unblinded) is assigned to CONTROL_SEEKERS, dropped otherwise —
-	 * e.g. when that channel is blinded (G24.242). Call after channel state changes.
+	 * Recompute the +6 seeker-control bonus (G24.24): granted while an operational
+	 * channel
+	 * (functional, powered, unblinded) is assigned to CONTROL_SEEKERS, dropped
+	 * otherwise —
+	 * e.g. when that channel is blinded (G24.242). Call after channel state
+	 * changes.
 	 */
 	public void refreshScoutControlBonus(int currentImpulse) {
 		boolean active = false;
-		if (scoutChannelBlockReason(false) != null) {   // G24.16: suspended while cloaked or under a WW
+		if (scoutChannelBlockReason(false) != null) { // G24.16: suspended while cloaked or under a WW
 			specialFunctions.setScoutControlBonus(0);
 			return;
 		}
@@ -2841,8 +3414,10 @@ public class Ship extends Unit implements DroneController {
 
 	/**
 	 * Blind one powered channel because a weapon fired (G24.13/.131): an unblinded
-	 * powered channel if one exists, otherwise extend the powered channel recovering
-	 * first. Bases never blind their own channels (G24.135). Returns the channel blinded,
+	 * powered channel if one exists, otherwise extend the powered channel
+	 * recovering
+	 * first. Bases never blind their own channels (G24.135). Returns the channel
+	 * blinded,
 	 * or null if there was none to blind.
 	 */
 	public com.sfb.weapons.ScoutChannel blindOneScoutChannel(int currentImpulse) {
@@ -2870,13 +3445,18 @@ public class Ship extends Unit implements DroneController {
 	/**
 	 * Rename the ship, and its fighter squadrons with it.
 	 * <p>
-	 * A carrier names its squadrons after itself, and it organises them while its systems are
-	 * built — before a scenario has told it what it is called. {@code Unit.init} takes the name
-	 * out of the ship FILE, so without this the squadrons kept that placeholder for the whole
-	 * game: a CVA fielded as "KHS Ascendant" had a "KHS Olympus Squadron 1" aboard, and the name
+	 * A carrier names its squadrons after itself, and it organises them while its
+	 * systems are
+	 * built — before a scenario has told it what it is called. {@code Unit.init}
+	 * takes the name
+	 * out of the ship FILE, so without this the squadrons kept that placeholder for
+	 * the whole
+	 * game: a CVA fielded as "KHS Ascendant" had a "KHS Olympus Squadron 1" aboard,
+	 * and the name
 	 * is on the DTO for players to read.
 	 * <p>
-	 * Overridden here rather than hooked into {@code Marker.setName}, which everything on the map
+	 * Overridden here rather than hooked into {@code Marker.setName}, which
+	 * everything on the map
 	 * inherits and where almost nothing has squadrons to rename.
 	 */
 	@Override
@@ -2896,7 +3476,7 @@ public class Ship extends Unit implements DroneController {
 		return this.crew;
 	}
 
-	/// PERFORMANCE DATA ///
+	/// PERFORMANCE DATA
 	public PerformanceData getPerformanceData() {
 		return this.performanceData;
 	}
@@ -2905,7 +3485,7 @@ public class Ship extends Unit implements DroneController {
 		return energyAllocated;
 	}
 
-	/// CLOAKING DEVICE ///
+	/// CLOAKING DEVICE
 	public CloakingDevice getCloakingDevice() {
 		return this.cloak;
 	}
@@ -2922,30 +3502,45 @@ public class Ship extends Unit implements DroneController {
 	public static final int DERFACS_YEAR = 168;
 
 	/**
-	 * Annex #8B: "Orion disruptors with ranges more than 22 include DERFACS from Y168."
+	 * Annex #8B: "Orion disruptors with ranges more than 22 include DERFACS from
+	 * Y168."
 	 *
 	 * <h2>Why a year rule and not a declared field</h2>
-	 * It reads like {@code applyFusionHolding} and the ESG capacitors — automatic at a year, no
-	 * BPV, conditional on what the ship is carrying — and NOT like a refit. It cannot be a
-	 * declared {@code auxiliary.derfacs} on an Orion hull, because whether the ship qualifies
-	 * depends on what its owner drops into an option mount at setup. Declaring it would hand
+	 * It reads like {@code applyFusionHolding} and the ESG capacitors — automatic
+	 * at a year, no
+	 * BPV, conditional on what the ship is carrying — and NOT like a refit. It
+	 * cannot be a
+	 * declared {@code auxiliary.derfacs} on an Orion hull, because whether the ship
+	 * qualifies
+	 * depends on what its owner drops into an option mount at setup. Declaring it
+	 * would hand
 	 * DERFACS to an Orion who bought phasers.
 	 *
 	 * <h2>The test is the range, not a list of models</h2>
-	 * "More than 22" is written as such rather than as {@code 30 or 40}, so a Disruptor-40
-	 * qualifies by the same clause, and so would any longer one. The two SSDs that print this
-	 * rule say "a range of 30 or more", which selects the same set given the models that exist —
+	 * "More than 22" is written as such rather than as {@code 30 or 40}, so a
+	 * Disruptor-40
+	 * qualifies by the same clause, and so would any longer one. The two SSDs that
+	 * print this
+	 * rule say "a range of 30 or more", which selects the same set given the models
+	 * that exist —
 	 * the annex's wording is the general one, so it is the one encoded.
 	 *
 	 * <h2>Called twice, stating the rule once</h2>
-	 * {@code ScenarioLoader.outfitForYear} runs it with the other year rules, which catches a
-	 * disruptor declared in a hull's own weapons. {@code OptionMountLoadout.equip} runs it again
-	 * when a disruptor is bought into a mount, because mounts are filled after that pass. Today
-	 * every Orion disruptor arrives the second way — no Orion hull declares one — but the rule
+	 * {@code ScenarioLoader.outfitForYear} runs it with the other year rules, which
+	 * catches a
+	 * disruptor declared in a hull's own weapons. {@code OptionMountLoadout.equip}
+	 * runs it again
+	 * when a disruptor is bought into a mount, because mounts are filled after that
+	 * pass. Today
+	 * every Orion disruptor arrives the second way — no Orion hull declares one —
+	 * but the rule
 	 * is about the weapon, not about how it got there.
 	 *
-	 * <p>D23.12 lets a damaged disruptor be repaired as a shorter-ranged model. That does not
-	 * take the DERFACS away: this installs the system and nothing here removes it, which matches
+	 * <p>
+	 * D23.12 lets a damaged disruptor be repaired as a shorter-ranged model. That
+	 * does not
+	 * take the DERFACS away: this installs the system and nothing here removes it,
+	 * which matches
 	 * a system that only a hit-and-run raid can destroy.
 	 *
 	 * @return true if this call installed it.
@@ -3209,26 +3804,35 @@ public class Ship extends Unit implements DroneController {
 	public static class DamageResult {
 		public final java.util.List<String> log;
 		public final boolean choiceRequired;
-		public final String  choiceType;      // "phaser" | "drone" | "torp" | "weapon" | "warp"
-		public final int     choiceRoll;
+		public final String choiceType; // "phaser" | "drone" | "torp" | "weapon" | "warp"
+		public final int choiceRoll;
 		public final java.util.List<String> options; // weapon names or warp engine ids
-		public final int     remainingBleed;
+		public final int remainingBleed;
 
 		DamageResult(java.util.List<String> log) {
-			this.log = log; this.choiceRequired = false;
-			this.choiceType = null; this.choiceRoll = 0;
-			this.options = null; this.remainingBleed = 0;
+			this.log = log;
+			this.choiceRequired = false;
+			this.choiceType = null;
+			this.choiceRoll = 0;
+			this.options = null;
+			this.remainingBleed = 0;
 		}
 
 		DamageResult(java.util.List<String> log, String choiceType, int choiceRoll,
 				java.util.List<String> options, int remainingBleed) {
-			this.log = log; this.choiceRequired = true;
-			this.choiceType = choiceType; this.choiceRoll = choiceRoll;
-			this.options = options; this.remainingBleed = remainingBleed;
+			this.log = log;
+			this.choiceRequired = true;
+			this.choiceType = choiceType;
+			this.choiceRoll = choiceRoll;
+			this.options = options;
+			this.remainingBleed = remainingBleed;
 		}
 	}
 
-	/** For testing only: exposes getDacChoiceOptions without an attacker (same-package access). */
+	/**
+	 * For testing only: exposes getDacChoiceOptions without an attacker
+	 * (same-package access).
+	 */
 	List<String> dacChoiceOptionsForTest(String system) {
 		return getDacChoiceOptions(system, null);
 	}
@@ -3238,13 +3842,16 @@ public class Ship extends Unit implements DroneController {
 		return tryApplySystemHit(system, null);
 	}
 
-	// ---------------------------------------------------------------- Balcony (J1.53)
+	// ---------------------------------------------------------------- Balcony
+	// (J1.53)
 
 	/**
 	 * Every craft parked on any of this ship's balconies, in bay order (J1.53).
 	 * <p>
-	 * The list damage asks about. With nothing parked, a balcony does not interact with damage
-	 * at all - which is why this returning empty is the normal case and must stay cheap.
+	 * The list damage asks about. With nothing parked, a balcony does not interact
+	 * with damage
+	 * at all - which is why this returning empty is the normal case and must stay
+	 * cheap.
 	 */
 	public List<com.sfb.objects.shuttles.Shuttle> parkedCraft() {
 		List<com.sfb.objects.shuttles.Shuttle> all = new ArrayList<>();
@@ -3254,8 +3861,10 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Destroy one parked craft outright (J1.531). A single damage point does this: a balcony
-	 * has no boxes to lose, so the craft simply ceases to exist and its position comes free.
+	 * Destroy one parked craft outright (J1.531). A single damage point does this:
+	 * a balcony
+	 * has no boxes to lose, so the craft simply ceases to exist and its position
+	 * comes free.
 	 *
 	 * @return the bay it was parked on, or null if it was not parked anywhere
 	 */
@@ -3267,10 +3876,13 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Apply the owner's J1.531 pick: destroy the parked craft named by one of the option
-	 * strings {@link #getDacChoiceOptions} produced, {@code "bay:<b>:balcony:<name>"}.
+	 * Apply the owner's J1.531 pick: destroy the parked craft named by one of the
+	 * option
+	 * strings {@link #getDacChoiceOptions} produced,
+	 * {@code "bay:<b>:balcony:<name>"}.
 	 * <p>
-	 * Parsed here rather than in the damage resolver because this class is what generates
+	 * Parsed here rather than in the damage resolver because this class is what
+	 * generates
 	 * those strings - the format never has to be known in two places.
 	 *
 	 * @return the destroyed craft's name, or null if no parked craft matched
@@ -3289,12 +3901,16 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * J1.533: "Shuttles can remain on the balcony at any speed up to 31. Any shuttles on the
-	 * balcony when the ship disengages by acceleration (i.e., exceeds a speed of 31) are
+	 * J1.533: "Shuttles can remain on the balcony at any speed up to 31. Any
+	 * shuttles on the
+	 * balcony when the ship disengages by acceleration (i.e., exceeds a speed of
+	 * 31) are
 	 * destroyed."
 	 * <p>
-	 * Note what the rule does NOT say: there is no penalty for merely going fast. Speed 31 is
-	 * fine, and so is launching at it (J1.532). It is exceeding 31 - which in practice only
+	 * Note what the rule does NOT say: there is no penalty for merely going fast.
+	 * Speed 31 is
+	 * fine, and so is launching at it (J1.532). It is exceeding 31 - which in
+	 * practice only
 	 * happens when disengaging by acceleration - that strips the balcony.
 	 *
 	 * @return a log line per craft lost, empty if nothing was parked
@@ -3311,25 +3927,41 @@ public class Ship extends Unit implements DroneController {
 		return log;
 	}
 
-	/** Resets the rule-of-3 phaser group state. Called before each fresh damage chain (D4.3221). */
+	/**
+	 * Resets the rule-of-3 phaser group state. Called before each fresh damage
+	 * chain (D4.3221).
+	 */
 	public void resetPhaserDacGroup() {
-		phaserDacGroupPos  = 0;
+		phaserDacGroupPos = 0;
 		phaserDacBestTaken = false;
 	}
 
 	private boolean requiresPlayerChoice(String system) {
 		switch (system) {
-			case "phaser": case "drone": case "torp": case "weapon": case "warp": case "shuttle": return true;
+			case "phaser":
+			case "drone":
+			case "torp":
+			case "weapon":
+			case "warp":
+			case "shuttle":
+				return true;
 			// Tractor hits are the owner's choice only when every functional beam is
 			// holding a unit (which link breaks?); with any idle beam the pick is
 			// forced and resolves silently via tryApplySystemHit.
-			case "tractor": return tractors.needsDamageChoice();
-			// J1.531: a rear hull point destroys a shuttle parked on the balcony INSTEAD of a
-			// hull box. Following the tractor precedent, only ask when there is a real choice
-			// to make: with one craft parked the pick is forced and tryApplySystemHit does it
+			case "tractor":
+				return tractors.needsDamageChoice();
+			// J1.531: a rear hull point destroys a shuttle parked on the balcony INSTEAD of
+			// a
+			// hull box. Following the tractor precedent, only ask when there is a real
+			// choice
+			// to make: with one craft parked the pick is forced and tryApplySystemHit does
+			// it
 			// silently, and with none parked this is an ordinary hull hit.
-			case "ahull": case "afthull": return parkedCraft().size() > 1;
-			default: return false;
+			case "ahull":
+			case "afthull":
+				return parkedCraft().size() > 1;
+			default:
+				return false;
 		}
 	}
 
@@ -3343,14 +3975,16 @@ public class Ship extends Unit implements DroneController {
 					if (w instanceof com.sfb.weapons.ScoutChannel
 							&& "phaser".equals(w.getDacHitLocaiton()) && w.isFunctional())
 						candidates.add(w);
-				// D4.3221 rule of 3: if this is the 3rd hit in a group and no best-type taken yet,
+				// D4.3221 rule of 3: if this is the 3rd hit in a group and no best-type taken
+				// yet,
 				// restrict to best-available type only.
 				if (phaserDacGroupPos == 2 && !phaserDacBestTaken && !candidates.isEmpty()) {
 					int best = candidates.stream().mapToInt(DacPriority::phaserPriority).min().getAsInt();
 					List<Weapon> forced = candidates.stream()
 							.filter(w -> DacPriority.phaserPriority(w) == best)
 							.collect(Collectors.toList());
-					if (!forced.isEmpty()) candidates = forced;
+					if (!forced.isEmpty())
+						candidates = forced;
 				}
 				return candidates.stream().map(Weapon::getName).collect(Collectors.toList());
 			}
@@ -3364,7 +3998,8 @@ public class Ship extends Unit implements DroneController {
 					int best = candidates.stream().mapToInt(DacPriority::dronePriority).min().getAsInt();
 					List<Weapon> forced = candidates.stream()
 							.filter(w -> DacPriority.dronePriority(w) == best).collect(Collectors.toList());
-					if (!forced.isEmpty()) candidates = forced;
+					if (!forced.isEmpty())
+						candidates = forced;
 				}
 				return candidates.stream().map(Weapon::getName).collect(Collectors.toList());
 			}
@@ -3376,7 +4011,8 @@ public class Ship extends Unit implements DroneController {
 					int best = candidates.stream().mapToInt(DacPriority::torpPriority).min().getAsInt();
 					List<Weapon> forced = candidates.stream()
 							.filter(w -> DacPriority.torpPriority(w) == best).collect(Collectors.toList());
-					if (!forced.isEmpty()) candidates = forced;
+					if (!forced.isEmpty())
+						candidates = forced;
 				}
 				return candidates.stream().map(Weapon::getName).collect(Collectors.toList());
 			}
@@ -3387,9 +4023,12 @@ public class Ship extends Unit implements DroneController {
 						.collect(java.util.stream.Collectors.toList());
 			case "warp": {
 				java.util.List<String> opts = new ArrayList<>();
-				if (powerSystems.getAvailableLWarp() > 0) opts.add("lwarp");
-				if (powerSystems.getAvailableCWarp() > 0) opts.add("cwarp");
-				if (powerSystems.getAvailableRWarp() > 0) opts.add("rwarp");
+				if (powerSystems.getAvailableLWarp() > 0)
+					opts.add("lwarp");
+				if (powerSystems.getAvailableCWarp() > 0)
+					opts.add("cwarp");
+				if (powerSystems.getAvailableRWarp() > 0)
+					opts.add("rwarp");
 				return opts;
 			}
 			case "shuttle": {
@@ -3404,7 +4043,8 @@ public class Ship extends Unit implements DroneController {
 				}
 				return opts;
 			}
-			case "ahull": case "afthull": {
+			case "ahull":
+			case "afthull": {
 				// Only reached with more than one craft parked (J1.531). Addressed by NAME
 				// rather than by index: a balcony is an unordered list of craft, and no
 				// individual position is ever addressed - unlike a shuttle box, which has an
@@ -3424,7 +4064,8 @@ public class Ship extends Unit implements DroneController {
 						opts.add(b.describe());
 				return opts;
 			}
-			default: return java.util.Collections.emptyList();
+			default:
+				return java.util.Collections.emptyList();
 		}
 	}
 
@@ -3432,7 +4073,8 @@ public class Ship extends Unit implements DroneController {
 	 * Applies one player-chosen DAC hit. Called by Game after the defender has
 	 * submitted their selection during a DAC_CHOICE interrupt.
 	 *
-	 * @return log label on success, null if the chosen system is invalid/already destroyed.
+	 * @return log label on success, null if the chosen system is invalid/already
+	 *         destroyed.
 	 */
 	public String applyDacChoiceHit(String dacType, String chosen, Ship attacker) {
 		switch (dacType) {
@@ -3440,16 +4082,18 @@ public class Ship extends Unit implements DroneController {
 				com.sfb.weapons.Weapon w = weapons.fetchAllWeapons().stream()
 						.filter(x -> x.getName().equals(chosen) && x.isFunctional())
 						.findFirst().orElse(null);
-				if (w == null) return null;
+				if (w == null)
+					return null;
 				// Check best-type before damaging (D4.3221)
 				int best = bearingFunctionalPhasers(attacker).stream()
 						.mapToInt(DacPriority::phaserPriority).min().orElse(Integer.MAX_VALUE);
-				if (DacPriority.phaserPriority(w) == best) phaserDacBestTaken = true;
+				if (DacPriority.phaserPriority(w) == best)
+					phaserDacBestTaken = true;
 				w.damage();
 				weapons.recalculatePhaserCapacitor();
 				phaserDacGroupPos++;
 				if (phaserDacGroupPos >= 3) {
-					phaserDacGroupPos  = 0;
+					phaserDacGroupPos = 0;
 					phaserDacBestTaken = false;
 				}
 				return "phaser HIT (" + chosen + ") [chosen]";
@@ -3458,57 +4102,77 @@ public class Ship extends Unit implements DroneController {
 				com.sfb.weapons.Weapon w = weapons.fetchAllWeapons().stream()
 						.filter(x -> x.getName().equals(chosen) && x.isFunctional())
 						.findFirst().orElse(null);
-				if (w == null) return null;
+				if (w == null)
+					return null;
 				int best = weapons.fetchAllWeapons().stream()
 						.filter(x -> "torp".equals(x.getDacHitLocaiton()) && x.isFunctional())
 						.mapToInt(DacPriority::torpPriority).min().orElse(Integer.MAX_VALUE);
-				if (DacPriority.torpPriority(w) == best) torpDacBestTaken = true;
+				if (DacPriority.torpPriority(w) == best)
+					torpDacBestTaken = true;
 				w.damage();
 				torpDacGroupPos++;
-				if (torpDacGroupPos >= 3) { torpDacGroupPos = 0; torpDacBestTaken = false; }
+				if (torpDacGroupPos >= 3) {
+					torpDacGroupPos = 0;
+					torpDacBestTaken = false;
+				}
 				return "torp HIT (" + chosen + ") [chosen]";
 			}
 			case "drone": {
 				com.sfb.weapons.Weapon w = weapons.fetchAllWeapons().stream()
 						.filter(x -> x.getName().equals(chosen) && x.isFunctional())
 						.findFirst().orElse(null);
-				if (w == null) return null;
+				if (w == null)
+					return null;
 				int best = weapons.fetchAllWeapons().stream()
 						.filter(x -> ("drone".equals(x.getDacHitLocaiton()) || x instanceof com.sfb.weapons.ESG)
 								&& x.isFunctional())
 						.mapToInt(DacPriority::dronePriority).min().orElse(Integer.MAX_VALUE);
-				if (DacPriority.dronePriority(w) == best) droneDacBestTaken = true;
+				if (DacPriority.dronePriority(w) == best)
+					droneDacBestTaken = true;
 				w.damage();
 				droneDacGroupPos++;
-				if (droneDacGroupPos >= 3) { droneDacGroupPos = 0; droneDacBestTaken = false; }
+				if (droneDacGroupPos >= 3) {
+					droneDacGroupPos = 0;
+					droneDacBestTaken = false;
+				}
 				return "drone HIT (" + chosen + ") [chosen]";
 			}
 			case "weapon": {
 				com.sfb.weapons.Weapon w = weapons.fetchAllWeapons().stream()
 						.filter(x -> x.getName().equals(chosen) && x.isFunctional())
 						.findFirst().orElse(null);
-				if (w == null) return null;
+				if (w == null)
+					return null;
 				w.damage();
 				return "weapon HIT (" + chosen + ") [chosen]";
 			}
 			case "warp": {
 				boolean ok;
 				switch (chosen) {
-					case "lwarp": ok = powerSystems.damageLWarp(); break;
-					case "cwarp": ok = powerSystems.damageCWarp(); break;
-					case "rwarp": ok = powerSystems.damageRWarp(); break;
-					default: ok = false;
+					case "lwarp":
+						ok = powerSystems.damageLWarp();
+						break;
+					case "cwarp":
+						ok = powerSystems.damageCWarp();
+						break;
+					case "rwarp":
+						ok = powerSystems.damageRWarp();
+						break;
+					default:
+						ok = false;
 				}
 				return ok ? chosen + " HIT [chosen]" : null;
 			}
 			case "tractor": {
 				// Options are TractorBeam.describe() strings — recover the beam number
 				java.util.regex.Matcher m = java.util.regex.Pattern.compile("#(\\d+)").matcher(chosen);
-				if (!m.find()) return null;
+				if (!m.find())
+					return null;
 				String label = tractors.destroyBeam(Integer.parseInt(m.group(1)));
 				return label != null ? label + " [chosen]" : null;
 			}
-			default: return null;
+			default:
+				return null;
 		}
 	}
 
@@ -3523,11 +4187,14 @@ public class Ship extends Unit implements DroneController {
 		while (remaining > 0) {
 			DamageResult r = applyInternalDamage(remaining, null);
 			allLog.addAll(r.log);
-			if (!r.choiceRequired) break;
-			// Auto-resolve: first option (no extra log entry — "awaiting player choice" already logged)
+			if (!r.choiceRequired)
+				break;
+			// Auto-resolve: first option (no extra log entry — "awaiting player choice"
+			// already logged)
 			applyDacChoiceHit(r.choiceType, r.options.get(0), null);
 			remaining = r.remainingBleed;
-			if (remaining == 0) dac.reset();
+			if (remaining == 0)
+				dac.reset();
 		}
 		return allLog;
 	}
@@ -3592,7 +4259,8 @@ public class Ship extends Unit implements DroneController {
 					log.add("  internal [" + roll + "]: excess damage — SHIP DESTROYED");
 					break;
 				}
-				log.add("  internal [" + roll + "]: excess damage (" + specialFunctions.getExcessDamage() + " boxes remaining)");
+				log.add(
+						"  internal [" + roll + "]: excess damage (" + specialFunctions.getExcessDamage() + " boxes remaining)");
 				String reloadsLost = noteExcessDamageBoxLost();
 				if (reloadsLost != null)
 					log.add(reloadsLost);
@@ -3617,12 +4285,14 @@ public class Ship extends Unit implements DroneController {
 					chain.append(system).append(" (no targets) → ");
 				} else {
 					hitLabel = tryApplySystemHit(system, attacker);
-					if (hitLabel != null) break;
+					if (hitLabel != null)
+						break;
 					tried.add(system);
 					chain.append(system).append(" (no boxes) → ");
 				}
 				String next = dac.fetchNextHitExcludingAll(roll, tried);
-				if (next == null) break; // all entries exhausted
+				if (next == null)
+					break; // all entries exhausted
 				system = next;
 			}
 
@@ -3645,11 +4315,16 @@ public class Ship extends Unit implements DroneController {
 	 * Returns the log label (e.g. "fhull HIT") on success, or null if the system
 	 * has no remaining boxes (caller should advance the DAC and retry).
 	 * <p>
-	 * Package-private rather than private so a test can name the system it means. Going through
-	 * {@code applyInternalDamage} instead makes the assertion depend on the DAC rolling a
-	 * particular result before the ship dies, which is a coin flip: the first version of
-	 * {@code FlagBridgeHitsSecurityTest} passed twice and then failed on an unlucky run.
-	 * {@code DiceRoller} calls {@code Math.random()} with nothing to seed, so the only way to
+	 * Package-private rather than private so a test can name the system it means.
+	 * Going through
+	 * {@code applyInternalDamage} instead makes the assertion depend on the DAC
+	 * rolling a
+	 * particular result before the ship dies, which is a coin flip: the first
+	 * version of
+	 * {@code FlagBridgeHitsSecurityTest} passed twice and then failed on an unlucky
+	 * run.
+	 * {@code DiceRoller} calls {@code Math.random()} with nothing to seed, so the
+	 * only way to
 	 * test a specific conversion exactly is to ask for it.
 	 */
 	String tryApplySystemHit(String system, Ship attacker) {
@@ -3662,18 +4337,27 @@ public class Ship extends Unit implements DroneController {
 				/*
 				 * Annex #7E, the DAMAGE CONVERSION CHART: "Flag Bridge .... Security Station".
 				 *
-				 * Written as a conversion rather than as a Klingon rule, because that is what the
-				 * annex makes it. G6.12 only says WHY it matters to them: "Hits designated by the
-				 * DAMAGE ALLOCATION CHART as 'flag bridge' hits will be scored against the security
-				 * stations of a Klingon ship. For this reason, no Klingon ship has a 'flag bridge'.
+				 * Written as a conversion rather than as a Klingon rule, because that is what
+				 * the
+				 * annex makes it. G6.12 only says WHY it matters to them: "Hits designated by
+				 * the
+				 * DAMAGE ALLOCATION CHART as 'flag bridge' hits will be scored against the
+				 * security
+				 * stations of a Klingon ship. For this reason, no Klingon ship has a 'flag
+				 * bridge'.
 				 * The flag bridges on Klingon ships are merged with the regular bridges for SSD
-				 * purposes." The exception is the diplomatic ships, D7N and D5N, which do have one —
-				 * and they need no special case here, since a ship with a flag bridge hits it above
+				 * purposes." The exception is the diplomatic ships, D7N and D5N, which do have
+				 * one —
+				 * and they need no special case here, since a ship with a flag bridge hits it
+				 * above
 				 * and only falls through once it is gone.
 				 *
-				 * Until this existed the fall-through advanced the DAC to the next system, so every
-				 * Klingon hull in the game carried security stations that could not be damaged. That
-				 * is also what G6.0 mutiny reads, so the rule would have been unreachable had it been
+				 * Until this existed the fall-through advanced the DAC to the next system, so
+				 * every
+				 * Klingon hull in the game carried security stations that could not be damaged.
+				 * That
+				 * is also what G6.0 mutiny reads, so the rule would have been unreachable had
+				 * it been
 				 * built first.
 				 */
 				return controlSpaces.damageSecurity() ? "security HIT" : null;
@@ -3791,7 +4475,7 @@ public class Ship extends Unit implements DroneController {
 		}
 	}
 
-	/// PHASER CAPACITORS ///
+	/// PHASER CAPACITORS
 	public void drainCapacitor(double energy) throws CapacitorException {
 		this.weapons.drainPhaserCapacitor(energy);
 	}

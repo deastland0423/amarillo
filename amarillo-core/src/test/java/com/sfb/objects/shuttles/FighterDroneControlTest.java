@@ -5,19 +5,22 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 import com.sfb.objects.DroneType;
-import com.sfb.objects.shuttles.CataloguedFighter;
-import com.sfb.objects.shuttles.Fighter;
 
 /**
  * How many seeking weapons a fighter can guide (J4.25, J4.43).
  * <p>
- * The rule is one sentence with three traps in it: "a number of drones equal to the number
- * of non-DFDs (non-dogfight drones, i.e., drones other than type-VI) in its nominal load
+ * The rule is one sentence with three traps in it: "a number of drones equal to
+ * the number
+ * of non-DFDs (non-dogfight drones, i.e., drones other than type-VI) in its
+ * nominal load
  * exclusive of variants, if any (or two drones, whichever is greater)."
  * <p>
- * Type-VIs do not count. It is the NOMINAL load, so swapping one drone for another does not
- * change it. And there is a floor of two. Each of those was got wrong at least once by the
- * hand-written per-class constants this replaced — a TAAS declared four when the rule gives
+ * Type-VIs do not count. It is the NOMINAL load, so swapping one drone for
+ * another does not
+ * change it. And there is a floor of two. Each of those was got wrong at least
+ * once by the
+ * hand-written per-class constants this replaced — a TAAS declared four when
+ * the rule gives
  * it two, and an EW fighter declared two when J4.43 gives it twelve.
  */
 public class FighterDroneControlTest {
@@ -30,7 +33,8 @@ public class FighterDroneControlTest {
     }
 
     /**
-     * The one the old constant got wrong. A TAAS carries two type-Is and two type-VIs; the
+     * The one the old constant got wrong. A TAAS carries two type-Is and two
+     * type-VIs; the
      * type-VIs are dogfight drones and J4.25 does not count them.
      */
     @Test
@@ -43,7 +47,9 @@ public class FighterDroneControlTest {
                 taas.getControlCapacity());
     }
 
-    /** J4.43: a two-seat fighter guides twelve, and EW fighters keep that ability. */
+    /**
+     * J4.43: a two-seat fighter guides twelve, and EW fighters keep that ability.
+     */
     @Test
     public void aTwoSeatFighterGuidesTwelve() {
         Fighter ew = CataloguedFighter.of("haas_e");
@@ -54,8 +60,10 @@ public class FighterDroneControlTest {
     }
 
     /**
-     * "Exclusive of variants": the capacity comes off the NOMINAL load, so substituting a
-     * type-VI onto a standard rail (J4.2311 allows it freely) does not shrink it. J4.25's
+     * "Exclusive of variants": the capacity comes off the NOMINAL load, so
+     * substituting a
+     * type-VI onto a standard rail (J4.2311 allows it freely) does not shrink it.
+     * J4.25's
      * own F-15 example is exactly this case.
      */
     @Test
@@ -69,15 +77,20 @@ public class FighterDroneControlTest {
                 aas.getControlCapacity());
     }
 
-    /** A fighter that carries no drones at all guides nothing; the floor is not for it. */
+    /**
+     * A fighter that carries no drones at all guides nothing; the floor is not for
+     * it.
+     */
     @Test
     public void aFighterWithNoRailsGuidesNothing() {
         assertEquals(0, CataloguedFighter.of("stinger1").getControlCapacity());
     }
 
     /**
-     * The owner's worked example: every rail that is not a LIGHT one is a channel, because
-     * the light rail is the one built for dogfight drones (J4.232). Two standard, two heavy
+     * The owner's worked example: every rail that is not a LIGHT one is a channel,
+     * because
+     * the light rail is the one built for dogfight drones (J4.232). Two standard,
+     * two heavy
      * and two light rails guide four.
      */
     @Test
@@ -102,11 +115,13 @@ public class FighterDroneControlTest {
         assertEquals("four non-light rails, four channels", 4, mixed.getControlCapacity());
     }
 
-    /** A special rail carries a type-I or type-III (J4.233), so it is a channel too. */
+    /**
+     * A special rail carries a type-I or type-III (J4.233), so it is a channel too.
+     */
     @Test
     public void aSpecialRailCountsAsWell() {
-        com.sfb.weapons.DroneRail special =
-                new com.sfb.weapons.DroneRail(com.sfb.weapons.DroneRail.DroneRailType.SPECIAL);
+        com.sfb.weapons.DroneRail special = new com.sfb.weapons.DroneRail(
+                com.sfb.weapons.DroneRail.DroneRailType.SPECIAL);
         assertNotEquals("a special rail is not a light one",
                 com.sfb.weapons.DroneRail.DroneRailType.LIGHT, special.getRailType());
     }
@@ -116,11 +131,14 @@ public class FighterDroneControlTest {
     // -------------------------------------------------------------------------
 
     /**
-     * "A fighter can always launch one drone per turn... but cannot launch two drones on
+     * "A fighter can always launch one drone per turn... but cannot launch two
+     * drones on
      * consecutive turns within 1/4 turn (eight impulses) of each other."
      * <p>
-     * Two limits, and the per-turn flag only catches one. A flag that resets at the turn
-     * boundary lets a fighter fire on impulse 30 and again on impulse 2 — four impulses
+     * Two limits, and the per-turn flag only catches one. A flag that resets at the
+     * turn
+     * boundary lets a fighter fire on impulse 30 and again on impulse 2 — four
+     * impulses
      * apart, across the very boundary the flag is watching.
      */
     @Test
@@ -140,7 +158,9 @@ public class FighterDroneControlTest {
         assertEquals(0, CataloguedFighter.of("aas").impulsesUntilNextDrone(1));
     }
 
-    /** The per-turn flag still clears at the turn boundary; the spacing does not. */
+    /**
+     * The per-turn flag still clears at the turn boundary; the spacing does not.
+     */
     @Test
     public void theTurnFlagClearsButTheSpacingOutlivesIt() {
         Fighter aas = CataloguedFighter.of("aas");

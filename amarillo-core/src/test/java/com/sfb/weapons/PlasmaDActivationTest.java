@@ -2,8 +2,6 @@ package com.sfb.weapons;
 
 import static org.junit.Assert.*;
 
-import java.io.File;
-
 import org.junit.Before;
 import org.junit.Test;
 
@@ -18,32 +16,46 @@ import com.sfb.properties.WeaponArmingType;
 import com.sfb.systemgroups.ShuttleBay;
 
 /**
- * FP9.22 and FP10.32: a type-D torpedo does nothing until it is activated, and activation
+ * FP9.22 and FP10.32: a type-D torpedo does nothing until it is activated, and
+ * activation
  * costs half an energy point.
  * <blockquote>
- * "When placed on a fighter ready rack, plasma rack, or fighter, they can be activated, which
- * requires 1/2 of an energy point (reserve or allocated) per torpedo. <b>The weapon cannot be
+ * "When placed on a fighter ready rack, plasma rack, or fighter, they can be
+ * activated, which
+ * requires 1/2 of an energy point (reserve or allocated) per torpedo. <b>The
+ * weapon cannot be
  * launched until it has been activated.</b>" (FP9.22)
  * <br>
- * "This can be supplied during energy allocation or by reserve power at any point after
- * loading and before firing. Torpedoes activated by reserve power can be fired immediately
+ * "This can be supplied during energy allocation or by reserve power at any
+ * point after
+ * loading and before firing. Torpedoes activated by reserve power can be fired
+ * immediately
  * (within the Sequence of Play)." (FP10.32)
  * </blockquote>
  * Two consequences shape the design.
  * <p>
- * <b>Half a point, not one.</b> Every other figure in the fighter energy accounting is a whole
- * point, so a torpedo priced at 1 would silently double what a carrier pays to make its
+ * <b>Half a point, not one.</b> Every other figure in the fighter energy
+ * accounting is a whole
+ * point, so a torpedo priced at 1 would silently double what a carrier pays to
+ * make its
  * squadron dangerous. It is a {@code double} constant for that reason alone.
  * <p>
- * <b>The activation belongs to the mount, not the torpedo.</b> FP10.33: "an activated torpedo
- * automatically switches itself off when unloaded from a rack/fighter and requires new
- * activation energy after being installed on another rack/fighter." Holding the flag on the
- * rail gets that for free - a torpedo carries no state to leak into its next mount - and
+ * <b>The activation belongs to the mount, not the torpedo.</b> FP10.33: "an
+ * activated torpedo
+ * automatically switches itself off when unloaded from a rack/fighter and
+ * requires new
+ * activation energy after being installed on another rack/fighter." Holding the
+ * flag on the
+ * rail gets that for free - a torpedo carries no state to leak into its next
+ * mount - and
  * {@link #unloadingSwitchesTheTorpedoOff} is what pins it.
  * <p>
- * NOT in this slice: launching the thing. The gate ({@link DroneRail#canLaunchTorpedo}) is
- * here for the launch to consult, but a fighter cannot yet fire a plasma-D from a rail - that
- * is the next piece, along with loading torpedoes out of the carrier's drone stores (J4.825
+ * NOT in this slice: launching the thing. The gate
+ * ({@link DroneRail#canLaunchTorpedo}) is
+ * here for the launch to consult, but a fighter cannot yet fire a plasma-D from
+ * a rail - that
+ * is the next piece, along with loading torpedoes out of the carrier's drone
+ * stores (J4.825
  * puts them under the drone storage rules, so the pool already exists).
  */
 public class PlasmaDActivationTest {
@@ -66,7 +78,10 @@ public class PlasmaDActivationTest {
 
     // ---------------------------------------------------------------- the gate
 
-    /** Loaded is not armed: FP9.22's "cannot be launched until it has been activated". */
+    /**
+     * Loaded is not armed: FP9.22's "cannot be launched until it has been
+     * activated".
+     */
     @Test
     public void aLoadedTorpedoCannotLaunchUntilActivated() {
         DroneRail rail = loadedRail();
@@ -130,11 +145,14 @@ public class PlasmaDActivationTest {
         assertFalse("and the plasma gate never opens for it", standard.canLaunchTorpedo());
     }
 
-    // ---------------------------------------------------------------- FP9.22's last clause
+    // ---------------------------------------------------------------- FP9.22's
+    // last clause
 
     /**
-     * "Torpedoes on fighters assumed to be loaded before a scenario (due to weapon status) are
-     * assumed to be active." A deck crew's mid-game reload is NOT - it needs its half point.
+     * "Torpedoes on fighters assumed to be loaded before a scenario (due to weapon
+     * status) are
+     * assumed to be active." A deck crew's mid-game reload is NOT - it needs its
+     * half point.
      */
     @Test
     public void aTorpedoLoadedBeforeTheScenarioIsAlreadyActive() {
@@ -151,7 +169,8 @@ public class PlasmaDActivationTest {
 
     /**
      * "An activated torpedo automatically switches itself off when unloaded from a
-     * rack/fighter and requires new activation energy after being installed on another
+     * rack/fighter and requires new activation energy after being installed on
+     * another
      * rack/fighter." The same torpedo, a second mount, and the carrier pays again.
      */
     @Test
@@ -172,7 +191,8 @@ public class PlasmaDActivationTest {
                 second.activationEnergyWanted(), 0.001);
     }
 
-    // ---------------------------------------------------------------- what the ship pays
+    // ---------------------------------------------------------------- what the
+    // ship pays
 
     /** A G-F with two loaded rails wants a whole point: half a torpedo apiece. */
     @Test
@@ -218,9 +238,12 @@ public class PlasmaDActivationTest {
     }
 
     /**
-     * A craft on the balcony counts too. J1.53 lets a carrier launch a parked squadron at
-     * once, and FP10.32 allows activation "at any point after loading and before firing" - so
-     * a torpedo out on the track is exactly one worth paying for. J1.531 bars deck crew work
+     * A craft on the balcony counts too. J1.53 lets a carrier launch a parked
+     * squadron at
+     * once, and FP10.32 allows activation "at any point after loading and before
+     * firing" - so
+     * a torpedo out on the track is exactly one worth paying for. J1.531 bars deck
+     * crew work
      * out there, not the ship's own energy.
      */
     @Test
@@ -242,7 +265,10 @@ public class PlasmaDActivationTest {
         assertEquals(1.0, shuttles.activatePlasmaDs(1.0), 0.001);
     }
 
-    /** A carrier with no plasma-D fighters asks for nothing: the Warhawk flies plasma-Fs. */
+    /**
+     * A carrier with no plasma-D fighters asks for nothing: the Warhawk flies
+     * plasma-Fs.
+     */
     @Test
     public void aCarrierWithNoPlasmaDFightersWantsNothing() throws Exception {
         ShipLibrary.loadAllSpecs("../data/factions");

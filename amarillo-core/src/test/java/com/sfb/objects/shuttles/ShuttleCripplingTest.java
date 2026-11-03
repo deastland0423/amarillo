@@ -3,8 +3,6 @@ package com.sfb.objects.shuttles;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
-import com.sfb.objects.shuttles.CataloguedFighter;
-import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Crippling is a shuttle property, not a fighter one (J1.33): every shuttle has

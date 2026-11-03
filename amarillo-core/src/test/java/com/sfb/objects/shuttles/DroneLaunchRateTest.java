@@ -8,23 +8,30 @@ import com.sfb.objects.Drone;
 import com.sfb.objects.DroneType;
 import com.sfb.objects.Ship;
 import com.sfb.properties.Location;
-import com.sfb.objects.shuttles.CataloguedFighter;
-import com.sfb.objects.shuttles.Fighter;
 
 /**
- * How many drones a fighter may let go, and how close together (J4.24, J4.241, J4.242).
+ * How many drones a fighter may let go, and how close together (J4.24, J4.241,
+ * J4.242).
  * <p>
- * J4.24 is the baseline: one a turn, and never two within a quarter turn — a span measured
+ * J4.24 is the baseline: one a turn, and never two within a quarter turn — a
+ * span measured
  * from the launch, so it reaches across the turn boundary.
  * <p>
- * J4.241 buys a second: "any fighter can launch two drones per turn (or within 1/4 turn) if:
- * A-both are launched at the same target; and B-one (or both) of them is a dogfight
- * (type-VI) drone." The AND is the whole rule. Read as an OR it would let a fighter split
- * two standard drones between two targets, which is the case the rule exists to forbid.
+ * J4.241 buys a second: "any fighter can launch two drones per turn (or within
+ * 1/4 turn) if:
+ * A-both are launched at the same target; and B-one (or both) of them is a
+ * dogfight
+ * (type-VI) drone." The AND is the whole rule. Read as an OR it would let a
+ * fighter split
+ * two standard drones between two targets, which is the case the rule exists to
+ * forbid.
  * <p>
- * J4.242 then exempts particular fighters. The TAAS is the one the BEHAVIOUR tests below are
- * written against; the roster section near the end covers which other fighters hold which
- * exemption, the F-14's B-without-A being the one most easily misread. It may violate
+ * J4.242 then exempts particular fighters. The TAAS is the one the BEHAVIOUR
+ * tests below are
+ * written against; the roster section near the end covers which other fighters
+ * hold which
+ * exemption, the F-14's B-without-A being the one most easily misread. It may
+ * violate
  * B in any case, and A whenever the two do not leave on the same impulse.
  */
 public class DroneLaunchRateTest {
@@ -100,7 +107,10 @@ public class DroneLaunchRateTest {
         assertTrue(why, why.contains("J4.241"));
     }
 
-    /** J4.241 lifts the spacing as well as the count: "two per turn (or within 1/4 turn)". */
+    /**
+     * J4.241 lifts the spacing as well as the count: "two per turn (or within 1/4
+     * turn)".
+     */
     @Test
     public void aQualifyingSecondDroneNeedNotWaitTheQuarterTurn() {
         Fighter aas = CataloguedFighter.of("aas");
@@ -178,12 +188,16 @@ public class DroneLaunchRateTest {
     // -------------------------------------------------------------------------
 
     /**
-     * The subtle one. J4.242: "the F-14 (which can ignore restriction B...)" — B only. It
-     * may launch two standard drones, but they must still go at the SAME target, because the
+     * The subtle one. J4.242: "the F-14 (which can ignore restriction B...)" — B
+     * only. It
+     * may launch two standard drones, but they must still go at the SAME target,
+     * because the
      * rule grants it nothing against condition A.
      * <p>
-     * Easy to get wrong in both directions: the F-15 two lines later gets both, and a reader
-     * skimming the sentence grants the F-14 the pair. These fighters went years with neither
+     * Easy to get wrong in both directions: the F-15 two lines later gets both, and
+     * a reader
+     * skimming the sentence grants the F-14 the pair. These fighters went years
+     * with neither
      * flag set, which nothing caught, because the flags live in hand-authored data.
      */
     @Test
@@ -199,8 +213,10 @@ public class DroneLaunchRateTest {
     }
 
     /**
-     * J4.242: "the F-15 and TAAS (which can violate A if the drones are not launched on the
-     * same impulse, and which can violate B in any case)". Both, like the TAAS above — and
+     * J4.242: "the F-15 and TAAS (which can violate A if the drones are not
+     * launched on the
+     * same impulse, and which can violate B in any case)". Both, like the TAAS
+     * above — and
      * the A exemption is conditional on the impulse, which
      * {@code aTaasStillMayNotSplitThemOnTheSameImpulse} pins.
      */
@@ -226,11 +242,16 @@ public class DroneLaunchRateTest {
     }
 
     /**
-     * The A-10 gets NEITHER, which its cross-reference makes easy to assume otherwise.
-     * J4.242 ends "The A-10 is covered under (J10.43)", and J10.43 turns out to be about
-     * something else entirely: "MULTIPLE WEAPONS: There is no restriction or interaction
-     * between firing weapons of different types... These limits also apply to the A-10." That
-     * is about firing its photon AND its drones in one impulse, not about the two-drone
+     * The A-10 gets NEITHER, which its cross-reference makes easy to assume
+     * otherwise.
+     * J4.242 ends "The A-10 is covered under (J10.43)", and J10.43 turns out to be
+     * about
+     * something else entirely: "MULTIPLE WEAPONS: There is no restriction or
+     * interaction
+     * between firing weapons of different types... These limits also apply to the
+     * A-10." That
+     * is about firing its photon AND its drones in one impulse, not about the
+     * two-drone
      * conditions, so the A-10 keeps J4.241 in full.
      */
     @Test
@@ -249,13 +270,18 @@ public class DroneLaunchRateTest {
     // -------------------------------------------------------------------------
 
     /**
-     * "No fighter can exceed the per-turn rate within a 1/4-turn period (of two consecutive
-     * turns)." Not enforced by a rule of its own here: it falls out of J4.24's spacing
-     * being measured from the LAST LAUNCH rather than from the turn boundary, so the first
+     * "No fighter can exceed the per-turn rate within a 1/4-turn period (of two
+     * consecutive
+     * turns)." Not enforced by a rule of its own here: it falls out of J4.24's
+     * spacing
+     * being measured from the LAST LAUNCH rather than from the turn boundary, so
+     * the first
      * drone of a new turn still owes the quarter turn.
      * <p>
-     * Pinned because that is a load-bearing accident. A future change that reset the
-     * spacing at startTurn would satisfy every other test in this file and quietly let a
+     * Pinned because that is a load-bearing accident. A future change that reset
+     * the
+     * spacing at startTurn would satisfy every other test in this file and quietly
+     * let a
      * TAAS put four drones up inside eight impulses.
      */
     @Test
@@ -263,9 +289,9 @@ public class DroneLaunchRateTest {
         Fighter taas = CataloguedFighter.of("taas");
         Ship t = target("A", 11);
         taas.recordDroneFired(t, standard(), 31);
-        taas.recordDroneFired(t, standard(), 32);   // its J4.242 pair, legally
+        taas.recordDroneFired(t, standard(), 32); // its J4.242 pair, legally
 
-        taas.startTurn();                           // a new turn, the count resets
+        taas.startTurn(); // a new turn, the count resets
 
         assertNotNull("one impulse later is not a quarter turn",
                 taas.droneLaunchRefusal(t, standard(), 33));

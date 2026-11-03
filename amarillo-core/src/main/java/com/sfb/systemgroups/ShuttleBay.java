@@ -10,7 +10,6 @@ import com.sfb.objects.shuttles.GASShuttle;
 import com.sfb.objects.shuttles.HTSShuttle;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.objects.Unit;
-import com.sfb.objects.shuttles.CataloguedFighter;
 
 /**
  * A single shuttle bay on a ship.
@@ -30,8 +29,10 @@ public class ShuttleBay {
     private static final int LAUNCH_COOLDOWN = 2;
 
     /**
-     * J1.58: a tunnel deck has doors at both ends of the bay, and "each hatch operates
-     * independently at the full rate in (J1.50)". The Kzinti CV, CVS, CVL, MCV and CVE are
+     * J1.58: a tunnel deck has doors at both ends of the bay, and "each hatch
+     * operates
+     * independently at the full rate in (J1.50)". The Kzinti CV, CVS, CVL, MCV and
+     * CVE are
      * built this way, as is the Federation CVS.
      */
     public static final int TUNNEL_DECK_HATCHES = 2;
@@ -42,13 +43,18 @@ public class ShuttleBay {
     /**
      * When each hatch was last used, one entry per hatch (J1.50, J1.58).
      * <p>
-     * An array rather than a single impulse because a hatch is the thing the rule limits,
-     * not the bay: a tunnel deck has two and they are independent, so a carrier can put two
+     * An array rather than a single impulse because a hatch is the thing the rule
+     * limits,
+     * not the bay: a tunnel deck has two and they are independent, so a carrier can
+     * put two
      * fighters out on the same impulse and neither hatch is free again for two.
      * <p>
-     * Distinct from a launch TUBE, which is not a hatch: J1.541 lets tubes launch fighters
-     * but never recover them, and J1.542 bars administrative shuttles and heavy fighters
-     * from them entirely. A hatch has none of those restrictions and is what a recovery
+     * Distinct from a launch TUBE, which is not a hatch: J1.541 lets tubes launch
+     * fighters
+     * but never recover them, and J1.542 bars administrative shuttles and heavy
+     * fighters
+     * from them entirely. A hatch has none of those restrictions and is what a
+     * recovery
      * always uses (J1.543).
      */
     private int[] lastHatchImpulse = { -LAUNCH_COOLDOWN };
@@ -58,8 +64,10 @@ public class ShuttleBay {
     private int[] lastTubeImpulse = new int[0];
 
     /**
-     * J4.4: this bay's fighters declared by role, kept so the complement can be re-seated when
-     * the scenario's year differs from the ship's service year. Null for a bay whose contents
+     * J4.4: this bay's fighters declared by role, kept so the complement can be
+     * re-seated when
+     * the scenario's year differs from the ship's service year. Null for a bay
+     * whose contents
      * were listed literally.
      */
     private com.sfb.objects.FighterComplement fighterComplement;
@@ -72,7 +80,9 @@ public class ShuttleBay {
         this.fighterComplement = complement;
     }
 
-    /** The role-based complement this bay was declared with, or null if it has none. */
+    /**
+     * The role-based complement this bay was declared with, or null if it has none.
+     */
     public com.sfb.objects.FighterComplement getFighterComplement() {
         return fighterComplement;
     }
@@ -123,30 +133,43 @@ public class ShuttleBay {
         return spaces.size();
     }
 
-    // ---------------------------------------------------------------- Balcony (J1.53)
+    // ---------------------------------------------------------------- Balcony
+    // (J1.53)
 
     /**
-     * J1.53: how many shuttles this bay's outside balcony can park. Zero for almost every bay.
+     * J1.53: how many shuttles this bay's outside balcony can park. Zero for almost
+     * every bay.
      * <p>
-     * Fixed for the bay's life. A balcony position CANNOT be destroyed (owner's ruling,
-     * 2026-10-02) — unlike a shuttle box, which is destroyed on an "any weapon" hit (J1.414).
-     * Damage reaches the shuttles parked there, never the positions, so this number never falls.
+     * Fixed for the bay's life. A balcony position CANNOT be destroyed (owner's
+     * ruling,
+     * 2026-10-02) — unlike a shuttle box, which is destroyed on an "any weapon" hit
+     * (J1.414).
+     * Damage reaches the shuttles parked there, never the positions, so this number
+     * never falls.
      */
     private int balconyPositions;
 
     /**
      * The craft parked on the balcony, in no particular order.
      * <p>
-     * <b>A balcony position is deliberately NOT a {@link ShuttleSpace}, and this is the design
-     * decision the whole feature rests on.</b> A shuttle box is destroyed on an "any weapon"
-     * hit (J1.414), chain reacts (J1.415), and owns a ready rack and a fighter capacitor. A
-     * balcony position has none of that: it cannot be destroyed, nothing can be rearmed or
-     * repaired on it (J1.531), and no individual position is ever addressed — a rear-hull
+     * <b>A balcony position is deliberately NOT a {@link ShuttleSpace}, and this is
+     * the design
+     * decision the whole feature rests on.</b> A shuttle box is destroyed on an
+     * "any weapon"
+     * hit (J1.414), chain reacts (J1.415), and owns a ready rack and a fighter
+     * capacitor. A
+     * balcony position has none of that: it cannot be destroyed, nothing can be
+     * rearmed or
+     * repaired on it (J1.531), and no individual position is ever addressed — a
+     * rear-hull
      * damage point simply destroys one parked shuttle outright.
      * <p>
-     * So this is a plain list with a capacity, and nothing that walks {@link #getSpaces()} or
-     * {@link #getInventory()} will ever see a parked craft. That separation is what keeps every
-     * existing damage, arming and deck-crew path correct without being told about balconies.
+     * So this is a plain list with a capacity, and nothing that walks
+     * {@link #getSpaces()} or
+     * {@link #getInventory()} will ever see a parked craft. That separation is what
+     * keeps every
+     * existing damage, arming and deck-crew path correct without being told about
+     * balconies.
      */
     private final List<Shuttle> balcony = new ArrayList<>();
 
@@ -160,18 +183,26 @@ public class ShuttleBay {
     }
 
     /**
-     * J4.62/J4.621: boxes in this bay that can SERVICE a fighter while carrying none of their own -
-     * the casual carrier's case, "most carrier escorts, the Hydran Pegasus and Gendarme, and many
+     * J4.62/J4.621: boxes in this bay that can SERVICE a fighter while carrying
+     * none of their own -
+     * the casual carrier's case, "most carrier escorts, the Hydran Pegasus and
+     * Gendarme, and many
      * WYN ships".
      * <p>
-     * J4.89 is where the name comes from: ready racks and storage boxes "can be included in the
-     * general term 'ready rack' or 'fighter facility'". Which fitting a box actually gets - ready
-     * rack, photon freezer, plasma-F stasis box, fusion or hellbore store (J4.73) - depends on the
+     * J4.89 is where the name comes from: ready racks and storage boxes "can be
+     * included in the
+     * general term 'ready rack' or 'fighter facility'". Which fitting a box
+     * actually gets - ready
+     * rack, photon freezer, plasma-F stasis box, fusion or hellbore store (J4.73) -
+     * depends on the
      * fighter it serves and is decided when they are fitted, not here.
      * <p>
-     * Held as a COUNT until the scenario year is known, because J4.621 makes the carrier's fighters
-     * decide what they service and nothing at construction time knows the year. The fitting happens
-     * in {@code FighterComplement.reseat}, beside the re-seating it already does for the same
+     * Held as a COUNT until the scenario year is known, because J4.621 makes the
+     * carrier's fighters
+     * decide what they service and nothing at construction time knows the year. The
+     * fitting happens
+     * in {@code FighterComplement.reseat}, beside the re-seating it already does
+     * for the same
      * reason.
      */
     private int fighterFacilities;
@@ -200,8 +231,10 @@ public class ShuttleBay {
     }
 
     /**
-     * Park a craft on the balcony. Capacity only — the RULES about what may be parked
-     * (J1.534 bars a suicide shuttle or wild weasel) and what the move costs (J1.50's rate)
+     * Park a craft on the balcony. Capacity only — the RULES about what may be
+     * parked
+     * (J1.534 bars a suicide shuttle or wild weasel) and what the move costs
+     * (J1.50's rate)
      * belong to the caller, which is where the game can refuse with a reason.
      *
      * @return false if there is no free position
@@ -213,7 +246,10 @@ public class ShuttleBay {
         return true;
     }
 
-    /** Take a craft off the balcony, whether it is coming inside or launching from there. */
+    /**
+     * Take a craft off the balcony, whether it is coming inside or launching from
+     * there.
+     */
     public boolean unpark(Shuttle shuttle) {
         return balcony.remove(shuttle);
     }
@@ -223,16 +259,22 @@ public class ShuttleBay {
     }
 
     /**
-     * Everything this bay could launch right now: what is in its boxes PLUS what is parked on
+     * Everything this bay could launch right now: what is in its boxes PLUS what is
+     * parked on
      * its balcony (J1.53).
      * <p>
-     * {@link #getInventory()} deliberately excludes parked craft - it answers "what is INSIDE
-     * this bay", which is what damage, arming and deck-crew work all need. But a launch is the
-     * one operation that does not care which side of the hatch the craft is on, and a lookup
-     * that scanned only the inventory would make a parked fighter unlaunchable: the whole
+     * {@link #getInventory()} deliberately excludes parked craft - it answers "what
+     * is INSIDE
+     * this bay", which is what damage, arming and deck-crew work all need. But a
+     * launch is the
+     * one operation that does not care which side of the hatch the craft is on, and
+     * a lookup
+     * that scanned only the inventory would make a parked fighter unlaunchable: the
+     * whole
      * point of the balcony is that it CAN launch, and faster.
      * <p>
-     * Any code resolving a craft by name in order to launch it wants this, not getInventory().
+     * Any code resolving a craft by name in order to launch it wants this, not
+     * getInventory().
      */
     public List<Shuttle> launchableInventory() {
         List<Shuttle> all = getInventory();
@@ -315,13 +357,16 @@ public class ShuttleBay {
     // Launch
     // -------------------------------------------------------------------------
 
-    /** How many hatches this bay has: one ordinarily, two for a tunnel deck (J1.58). */
+    /**
+     * How many hatches this bay has: one ordinarily, two for a tunnel deck (J1.58).
+     */
     public int getHatchCount() {
         return lastHatchImpulse.length;
     }
 
     /**
-     * Set the number of hatches, keeping whatever cooldowns are already running. Called
+     * Set the number of hatches, keeping whatever cooldowns are already running.
+     * Called
      * when a bay is built from a ship file that declares a tunnel deck.
      */
     public void setHatchCount(int hatches) {
@@ -347,8 +392,10 @@ public class ShuttleBay {
     }
 
     /**
-     * Claim a free hatch, or return false if every one of them is still cooling. Recovery
-     * uses this too: J1.50 limits a hatch to one launch OR one recovery per two impulses.
+     * Claim a free hatch, or return false if every one of them is still cooling.
+     * Recovery
+     * uses this too: J1.50 limits a hatch to one launch OR one recovery per two
+     * impulses.
      */
     public boolean claimHatch(int currentImpulse) {
         for (int i = 0; i < lastHatchImpulse.length; i++) {
@@ -361,11 +408,15 @@ public class ShuttleBay {
     }
 
     /**
-     * J1.53: a craft ALREADY on the balcony launches free of the J1.50 rate, and any number of
-     * them may go in the same impulse. It is already outside the ship - the hatch it would have
-     * used was spent moving it out there, which is the trade the balcony exists to offer.
+     * J1.53: a craft ALREADY on the balcony launches free of the J1.50 rate, and
+     * any number of
+     * them may go in the same impulse. It is already outside the ship - the hatch
+     * it would have
+     * used was spent moving it out there, which is the trade the balcony exists to
+     * offer.
      * <p>
-     * Asked before the hatch and before the tube, because a parked craft needs neither.
+     * Asked before the hatch and before the tube, because a parked craft needs
+     * neither.
      */
     public boolean canLaunch(Shuttle shuttle, int currentImpulse) {
         if (isParked(shuttle))
@@ -386,7 +437,8 @@ public class ShuttleBay {
      */
     public Shuttle launch(Shuttle shuttle, int speed, int facing, int currentImpulse) {
         // J1.53: off the balcony, and nothing is spent. No hatch, no tube, no cooldown
-        // booked, so a second parked craft can follow it in the same impulse. It also holds
+        // booked, so a second parked craft can follow it in the same impulse. It also
+        // holds
         // no space, so findSpace() below would have refused it outright.
         if (isParked(shuttle)) {
             unpark(shuttle);
@@ -403,7 +455,8 @@ public class ShuttleBay {
         shuttle.setSpeed(Math.min(speed, shuttle.getMaxSpeed()));
         shuttle.setFacing(facing);
 
-        // A tube first where one will serve, so the hatches stay free for the recoveries and
+        // A tube first where one will serve, so the hatches stay free for the
+        // recoveries and
         // the admin shuttles that J1.541/J1.542 will not let through a tube.
         if (isLaunchTubeEligible(shuttle)) {
             for (int i = 0; i < launchTubeCount; i++) {
@@ -455,8 +508,10 @@ public class ShuttleBay {
     public static Shuttle buildShuttle(String type, String name) {
         Shuttle built = buildShuttleUnnamed(type);
         if (built != null) {
-            // The name given here is the LOCAL designation — "Admin-1", "Stinger2-3". The ship's
-            // name goes in front of it in Shuttles.renameCraftFor, which is the only place the
+            // The name given here is the LOCAL designation — "Admin-1", "Stinger2-3". The
+            // ship's
+            // name goes in front of it in Shuttles.renameCraftFor, which is the only place
+            // the
             // two halves are joined. See Shuttle.localName.
             built.setLocalName(name);
             built.setName(name);
@@ -465,9 +520,12 @@ public class ShuttleBay {
     }
 
     private static Shuttle buildShuttleUnnamed(String type) {
-        // A FIGHTER is a catalogue row, not a class (J4.4). Asked first, so a new fighter needs no
-        // code at all: its row carries its stats and its armament, and CataloguedFighter builds
-        // both. Sixteen classes used to live below this switch, every one a constructor repeating
+        // A FIGHTER is a catalogue row, not a class (J4.4). Asked first, so a new
+        // fighter needs no
+        // code at all: its row carries its stats and its armament, and
+        // CataloguedFighter builds
+        // both. Sixteen classes used to live below this switch, every one a constructor
+        // repeating
         // stats the catalogue already held.
         com.sfb.objects.ShuttleCatalog.Entry entry = com.sfb.objects.ShuttleCatalog.get(type);
         if (entry != null && entry.isFighter()) {
@@ -478,8 +536,10 @@ public class ShuttleBay {
         Shuttle s;
         switch (type.toLowerCase()) {
             // What remains are craft that are not fighters, or that genuinely behave
-            // differently: a scatter pack, a suicide shuttle and a wild weasel are SEEKERS and
-            // override a dozen methods each, and those three are roles an admin shuttle takes on
+            // differently: a scatter pack, a suicide shuttle and a wild weasel are SEEKERS
+            // and
+            // override a dozen methods each, and those three are roles an admin shuttle
+            // takes on
             // rather than catalogue stock, which is why they are not rows.
             case "gas":
                 s = new GASShuttle();
@@ -516,16 +576,24 @@ public class ShuttleBay {
     /**
      * Whether this craft may go out through a launch tube (J1.542).
      * <p>
-     * Fighters only: "administrative shuttles (including their variants such as MRS, HTS,
-     * GAS, MSS, etc.) and heavy fighters cannot be launched through launch tubes." The admin
-     * half falls out of the type test — none of those are Fighters — so a Hydran bay of
-     * three tubes and a door puts three Stingers and ONE admin shuttle out in an impulse,
+     * Fighters only: "administrative shuttles (including their variants such as
+     * MRS, HTS,
+     * GAS, MSS, etc.) and heavy fighters cannot be launched through launch tubes."
+     * The admin
+     * half falls out of the type test — none of those are Fighters — so a Hydran
+     * bay of
+     * three tubes and a door puts three Stingers and ONE admin shuttle out in an
+     * impulse,
      * the shuttle going through the door because nothing else will take it.
      * <p>
-     * The heavy-fighter half is NOT enforced, because no heavy fighter exists in the game
-     * data yet (J10.0; the Federation A-20 and F-111 are the usual ones). A flag for a craft
-     * nobody can build would be untestable furniture — but a heavy fighter IS a Fighter, so
-     * whoever adds the first one must exclude it here or it will wrongly take a tube.
+     * The heavy-fighter half is NOT enforced, because no heavy fighter exists in
+     * the game
+     * data yet (J10.0; the Federation A-20 and F-111 are the usual ones). A flag
+     * for a craft
+     * nobody can build would be untestable furniture — but a heavy fighter IS a
+     * Fighter, so
+     * whoever adds the first one must exclude it here or it will wrongly take a
+     * tube.
      */
     private static boolean isLaunchTubeEligible(Shuttle shuttle) {
         return shuttle instanceof Fighter;
@@ -588,7 +656,8 @@ public class ShuttleBay {
     }
 
     /**
-     * As above, with the ship's drone supply so {@link CrewTask#REFILL} has somewhere to
+     * As above, with the ship's drone supply so {@link CrewTask#REFILL} has
+     * somewhere to
      * fetch from (J4.7). A bay given no store simply finds no refilling to do.
      */
     public RearmResult rearmFighters(int turn, DroneStore store) {
@@ -661,13 +730,19 @@ public class ShuttleBay {
     /**
      * Every box in the bay, plus the hatches' cooldowns.
      *
-     * The boxes restore POSITIONALLY, which is safe for the same reason the UIMs and EW circuits
-     * are: a bay's boxes are fixed by the hull and have no name to key on. What is IN each box
+     * The boxes restore POSITIONALLY, which is safe for the same reason the UIMs
+     * and EW circuits
+     * are: a bay's boxes are fixed by the hull and have no name to key on. What is
+     * IN each box
      * is a different matter and travels with it.
      *
-     * <p>The hatch and tube timestamps are J1.58's launch cooldowns. A bay that launched late in
-     * a turn is still waiting early in the next, so dropping them would hand a carrier a free
-     * launch at every turn boundary — the same mistake the drone racks made with their own gap.
+     * <p>
+     * The hatch and tube timestamps are J1.58's launch cooldowns. A bay that
+     * launched late in
+     * a turn is still waiting early in the next, so dropping them would hand a
+     * carrier a free
+     * launch at every turn boundary — the same mistake the drone racks made with
+     * their own gap.
      */
     public java.util.Map<String, Object> exportState() {
         java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
@@ -688,8 +763,7 @@ public class ShuttleBay {
             for (int i = 0; i < Math.min(list.size(), spaces.size()); i++)
                 if (list.get(i) instanceof java.util.Map<?, ?> raw) {
                     @SuppressWarnings("unchecked")
-                    java.util.Map<String, Object> spaceState =
-                            (java.util.Map<String, Object>) raw;
+                    java.util.Map<String, Object> spaceState = (java.util.Map<String, Object>) raw;
                     spaces.get(i).applyState(spaceState);
                 }
 

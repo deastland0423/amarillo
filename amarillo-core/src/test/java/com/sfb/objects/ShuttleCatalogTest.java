@@ -10,16 +10,21 @@ import java.io.File;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
-import com.sfb.objects.shuttles.CataloguedFighter;
 
 /**
- * The catalogue and the Java classes describe the same things and must not drift. The BPVs of
- * the three Kzinti attack shuttles once disagreed with their own documentation for long enough
- * that nobody noticed; these tests turn that class of mistake into a build failure.
+ * The catalogue and the Java classes describe the same things and must not
+ * drift. The BPVs of
+ * the three Kzinti attack shuttles once disagreed with their own documentation
+ * for long enough
+ * that nobody noticed; these tests turn that class of mistake into a build
+ * failure.
  * <p>
- * The important one is {@link #everyCatalogedTypeBuildsToItself()}: ShuttleBay's factory falls
- * back to an admin shuttle for a key it does not know, so a new fighter whose case was never
- * added would silently launch as a shuttle. Building each catalogued type and checking what
+ * The important one is {@link #everyCatalogedTypeBuildsToItself()}:
+ * ShuttleBay's factory falls
+ * back to an admin shuttle for a key it does not know, so a new fighter whose
+ * case was never
+ * added would silently launch as a shuttle. Building each catalogued type and
+ * checking what
  * comes back catches exactly that.
  */
 public class ShuttleCatalogTest {
@@ -38,8 +43,10 @@ public class ShuttleCatalogTest {
     }
 
     /**
-     * Every catalogued type must build into something with the stats the catalogue publishes.
-     * A missing factory case shows up here as an admin shuttle wearing the wrong numbers.
+     * Every catalogued type must build into something with the stats the catalogue
+     * publishes.
+     * A missing factory case shows up here as an admin shuttle wearing the wrong
+     * numbers.
      */
     @Test
     public void everyCatalogedTypeBuildsToItself() {
@@ -88,7 +95,9 @@ public class ShuttleCatalogTest {
         assertTrue(admin.availableTo("hydran"));
     }
 
-    /** The picker's list: what this faction may field this year, and nothing else. */
+    /**
+     * The picker's list: what this faction may field this year, and nothing else.
+     */
     @Test
     public void availableForGivesAFactionItsOwnPlusTheCommonTypes() {
         var hydran = ShuttleCatalog.availableFor("hydran", 175);
@@ -105,7 +114,10 @@ public class ShuttleCatalogTest {
                 early.stream().anyMatch(e -> e.type.equals("stinger2")));
     }
 
-    /** Fighter BPV is what a carrier's fighters add to its price — the fleet-builder question. */
+    /**
+     * Fighter BPV is what a carrier's fighters add to its price — the fleet-builder
+     * question.
+     */
     @Test
     public void bpvOfPricesAFightersComplement() {
         assertEquals("a Hydran LN+ carries four Stinger-2s", 40, 4 * ShuttleCatalog.bpvOf("stinger2"));
@@ -117,16 +129,24 @@ public class ShuttleCatalogTest {
     /**
      * Every catalogued type builds to a craft that REPORTS that same type.
      * <p>
-     * This used to demand a distinct Java CLASS per type, and it earned its keep: when the TAAS
-     * was added, case "haas" was given {@code CataloguedFighter.of("taas")} by copy-paste, so every Highly Advanced
-     * Attack Shuttle in the game was quietly a Tactically Advanced one while "taas" had no case at
-     * all and fell through to an admin shuttle. Two fighters wrong, found only because their BPVs
+     * This used to demand a distinct Java CLASS per type, and it earned its keep:
+     * when the TAAS
+     * was added, case "haas" was given {@code CataloguedFighter.of("taas")} by
+     * copy-paste, so every Highly Advanced
+     * Attack Shuttle in the game was quietly a Tactically Advanced one while "taas"
+     * had no case at
+     * all and fell through to an admin shuttle. Two fighters wrong, found only
+     * because their BPVs
      * were 8 and 9 (2026-09-27).
      * <p>
-     * A fighter is a catalogue ROW now, so they all share one class and distinctness is no test of
-     * anything. Identity is: a built craft carries the catalogue key it was built from. That is
-     * strictly stronger — it would have caught the original bug too, since a "haas" row building a
-     * Fighter would have reported "taas" — and it is the same key the DTO, the ready racks and the
+     * A fighter is a catalogue ROW now, so they all share one class and
+     * distinctness is no test of
+     * anything. Identity is: a built craft carries the catalogue key it was built
+     * from. That is
+     * strictly stronger — it would have caught the original bug too, since a "haas"
+     * row building a
+     * Fighter would have reported "taas" — and it is the same key the DTO, the
+     * ready racks and the
      * fighter lines all identify a craft by.
      */
     @Test
@@ -134,8 +154,7 @@ public class ShuttleCatalogTest {
         java.util.List<String> wrong = new java.util.ArrayList<>();
 
         for (com.sfb.objects.ShuttleCatalog.Entry e : com.sfb.objects.ShuttleCatalog.all()) {
-            com.sfb.objects.shuttles.Shuttle built =
-                    com.sfb.systemgroups.ShuttleBay.buildShuttle(e.type, e.type);
+            com.sfb.objects.shuttles.Shuttle built = com.sfb.systemgroups.ShuttleBay.buildShuttle(e.type, e.type);
             if (!e.type.equalsIgnoreCase(built.getCatalogType()))
                 wrong.add(e.type + " built a craft reporting '" + built.getCatalogType()
                         + "' (a " + built.getClass().getSimpleName() + ")");
@@ -148,8 +167,10 @@ public class ShuttleCatalogTest {
     /**
      * And the non-fighter craft keep a class each, since they hold real behaviour.
      * <p>
-     * Named so the collapse of the fighter classes cannot quietly take these with it: an
-     * administrative shuttle, a GAS and an HTS are not fighters, and the three role craft —
+     * Named so the collapse of the fighter classes cannot quietly take these with
+     * it: an
+     * administrative shuttle, a GAS and an HTS are not fighters, and the three role
+     * craft —
      * scatter pack, suicide shuttle, wild weasel — are seekers.
      */
     @Test
@@ -172,8 +193,10 @@ public class ShuttleCatalogTest {
     /**
      * The hangar panel and the map counter must call one fighter one thing.
      * <p>
-     * They did not: LaunchCoordinator read the catalogue, while the bay used a hardcoded
-     * switch in Shuttles that predated the Kzinti fighters. A craft sat in its box as
+     * They did not: LaunchCoordinator read the catalogue, while the bay used a
+     * hardcoded
+     * switch in Shuttles that predated the Kzinti fighters. A craft sat in its box
+     * as
      * "Aas-1" and launched as "AAS-7" — the same fighter, a case apart.
      */
     @Test
@@ -203,7 +226,8 @@ public class ShuttleCatalogTest {
     }
 
     /**
-     * The acronym types are the ones the old switch got wrong, so they are the ones pinned.
+     * The acronym types are the ones the old switch got wrong, so they are the ones
+     * pinned.
      * A designation is what the SSD prints, and the SSD does not print "Haas_e".
      */
     @Test
@@ -215,13 +239,18 @@ public class ShuttleCatalogTest {
     }
 
     /**
-     * Designation and shortName are different jobs and are ALLOWED to differ — a map counter
-     * has a few pixels, a hangar row has a line. They need not: "AAS" is already as short as
+     * Designation and shortName are different jobs and are ALLOWED to differ — a
+     * map counter
+     * has a few pixels, a hangar row has a line. They need not: "AAS" is already as
+     * short as
      * it goes, and forcing a difference would be inventing one.
      * <p>
-     * The exact spelling of any one of them is the ship owner's taste and deliberately not
-     * pinned here; an earlier version of this test asserted "Stinger-1" and broke the moment
-     * he preferred "Stinger1", which is a test failing for an opinion rather than a defect.
+     * The exact spelling of any one of them is the ship owner's taste and
+     * deliberately not
+     * pinned here; an earlier version of this test asserted "Stinger-1" and broke
+     * the moment
+     * he preferred "Stinger1", which is a test failing for an opinion rather than a
+     * defect.
      * What IS pinned is that both resolve to something printable.
      */
     @Test
@@ -233,8 +262,10 @@ public class ShuttleCatalogTest {
     }
 
     /**
-     * The fallback chain, which is the part that is logic rather than taste: designation, then
-     * the counter label, then the display name. An entry that says nothing still names its
+     * The fallback chain, which is the part that is logic rather than taste:
+     * designation, then
+     * the counter label, then the display name. An entry that says nothing still
+     * names its
      * craft rather than naming it null.
      */
     @Test

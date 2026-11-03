@@ -13,7 +13,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
-import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Towing hazards and beam economy, implemented as prerequisites for the
@@ -429,21 +428,24 @@ public class TowingTest {
         }
         assertFalse(game.establishTractor(fed, placeDrone("Drone-4", 11, 10).getName(), 1).isSuccess());
 
-        // Next turn AND past the quarter-turn delay, which is what frees a beam (G7.13):
-        // the two together, not the turn boundary alone. This used to pass with the clock
+        // Next turn AND past the quarter-turn delay, which is what frees a beam
+        // (G7.13):
+        // the two together, not the turn boundary alone. This used to pass with the
+        // clock
         // barely moving, because beam usage was a flag that the new turn wiped.
         int usedAt = game.getAbsoluteImpulse();
         game.startTurn();
         game.submitAllocation(fed, makeAllocation(fed, 0.0));
         game.submitAllocation(klingon, makeAllocation(klingon, 0.0));
-        // BOTH halves: a later turn, and eight impulses on. Waiting for the delay alone is
-        // not enough — the beams here were used at impulse 0, and impulse 8 is still the
+        // BOTH halves: a later turn, and eight impulses on. Waiting for the delay alone
+        // is
+        // not enough — the beams here were used at impulse 0, and impulse 8 is still
+        // the
         // same turn.
         for (int guard = 0; guard < 2000; guard++) {
             int now = game.getAbsoluteImpulse();
             if (now - usedAt >= com.sfb.systemgroups.BoxCycle.QUARTER_TURN
-                    && com.sfb.systemgroups.BoxCycle.turnOf(now)
-                       != com.sfb.systemgroups.BoxCycle.turnOf(usedAt))
+                    && com.sfb.systemgroups.BoxCycle.turnOf(now) != com.sfb.systemgroups.BoxCycle.turnOf(usedAt))
                 break;
             if (game.isAwaitingAllocation()) {
                 game.submitAllocation(fed, makeAllocation(fed, 0.0));

@@ -2,7 +2,6 @@ package com.sfb.objects;
 
 import static org.junit.Assert.*;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,17 +14,25 @@ import com.sfb.weapons.DroneRail;
 import com.sfb.weapons.Weapon;
 
 /**
- * J1.31: "No shuttle (including fighters) can fire a direct-fire weapon to a range of more than
- * fifteen hexes. (Some weapons have shorter ranges specified, for example, photons are limited
- * to Range 12, disruptors to Range 10.) This range limit is not adjusted by pilot status."
+ * J1.31: "No shuttle (including fighters) can fire a direct-fire weapon to a
+ * range of more than
+ * fifteen hexes. (Some weapons have shorter ranges specified, for example,
+ * photons are limited
+ * to Range 12, disruptors to Range 10.) This range limit is not adjusted by
+ * pilot status."
  * <p>
- * The cap is applied where the weapon is MOUNTED, not inside the weapon, because the phaser a
- * fighter carries is the same class a cruiser carries. That was a live defect until the Klingon
- * Z-1 arrived: it is the first fighter in the data to carry a phaser-2, and a phaser-2 reaches
- * range 50. Every fighter before it carried a phaser-3 or phaser-G (both 15) or a heavy weapon
+ * The cap is applied where the weapon is MOUNTED, not inside the weapon,
+ * because the phaser a
+ * fighter carries is the same class a cruiser carries. That was a live defect
+ * until the Klingon
+ * Z-1 arrived: it is the first fighter in the data to carry a phaser-2, and a
+ * phaser-2 reaches
+ * range 50. Every fighter before it carried a phaser-3 or phaser-G (both 15) or
+ * a heavy weapon
  * that caps itself at 10, so nothing had ever exercised the rule.
  * <p>
- * Note the rule lives in J1.3, the SHUTTLE combat section, not in J4 with the fighter rules —
+ * Note the rule lives in J1.3, the SHUTTLE combat section, not in J4 with the
+ * fighter rules —
  * which is why it was easy to miss while looking for it under fighters.
  */
 public class FighterWeaponRangeTest {
@@ -35,7 +42,9 @@ public class FighterWeaponRangeTest {
         ShuttleCatalog.loadDefault("../data");
     }
 
-    /** No fighter in the catalogue may carry a weapon reaching past fifteen hexes. */
+    /**
+     * No fighter in the catalogue may carry a weapon reaching past fifteen hexes.
+     */
     @Test
     public void noFighterWeaponReachesBeyondFifteenHexes() {
         List<String> problems = new ArrayList<>();
@@ -46,7 +55,7 @@ public class FighterWeaponRangeTest {
             Fighter f = CataloguedFighter.of(entry.type);
             for (Weapon w : f.getWeapons().fetchAllWeapons()) {
                 if (w instanceof DroneRail)
-                    continue;                      // a rail launches, it does not fire
+                    continue; // a rail launches, it does not fire
                 if (w.getMaxRange() > CataloguedFighter.SHUTTLE_MAX_RANGE)
                     problems.add(entry.type + "'s " + w.getName() + " reaches "
                             + w.getMaxRange());
@@ -59,8 +68,10 @@ public class FighterWeaponRangeTest {
     }
 
     /**
-     * The Klingon Z-1 is the case that exposed this: a phaser-2 on a ship reaches 50, and on a
-     * fighter it must reach fifteen. Asserted on the specific hull so the regression has a name.
+     * The Klingon Z-1 is the case that exposed this: a phaser-2 on a ship reaches
+     * 50, and on a
+     * fighter it must reach fifteen. Asserted on the specific hull so the
+     * regression has a name.
      */
     @Test
     public void theZ1sPhaser2IsCutToFifteen() {
@@ -74,8 +85,10 @@ public class FighterWeaponRangeTest {
     }
 
     /**
-     * A CAP, not a setting: the rule's own examples are weapons that reach LESS far, and they
-     * must keep their shorter figures. A fighter disruptor is Range 10 and stays Range 10.
+     * A CAP, not a setting: the rule's own examples are weapons that reach LESS
+     * far, and they
+     * must keep their shorter figures. A fighter disruptor is Range 10 and stays
+     * Range 10.
      */
     @Test
     public void aShorterRangedWeaponKeepsItsOwnLimit() {
@@ -89,7 +102,10 @@ public class FighterWeaponRangeTest {
                 10, disruptor.getMaxRange());
     }
 
-    /** And the cap itself refuses to extend anything, which is why it is not a setter. */
+    /**
+     * And the cap itself refuses to extend anything, which is why it is not a
+     * setter.
+     */
     @Test
     public void cappingNeverLengthensAWeaponsReach() {
         Fighter das = CataloguedFighter.of("das");

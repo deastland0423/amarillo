@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
-import com.sfb.objects.shuttles.Fighter;
 
 /**
  * A single game instance on the server.
@@ -91,10 +90,13 @@ public class GameSession {
     private final ReentrantLock lock = new ReentrantLock(true);
 
     /**
-     * When this session was last used for anything, so a forgotten game can be swept up.
+     * When this session was last used for anything, so a forgotten game can be
+     * swept up.
      *
-     * Nothing ever removed a session, so every game ever hosted stayed in memory and stayed
-     * joinable — a slow leak, and the reason a battle restored from a save had a still-living
+     * Nothing ever removed a session, so every game ever hosted stayed in memory
+     * and stayed
+     * joinable — a slow leak, and the reason a battle restored from a save had a
+     * still-living
      * twin that Resume would walk back into.
      */
     private volatile long lastTouched = System.currentTimeMillis();
@@ -114,13 +116,18 @@ public class GameSession {
     /**
      * Durable account id → the seat token that account holds in THIS game.
      *
-     * The indirection that lets a player come back. Every other per-player map here is keyed by
-     * seat token, and deliberately stays that way: a seat is where the ships are bound and what
-     * the rules care about, while an account is who is sitting in it. Only this map knows about
-     * both, so identity can change (a login arriving, a guest claiming a name) without touching
+     * The indirection that lets a player come back. Every other per-player map here
+     * is keyed by
+     * seat token, and deliberately stays that way: a seat is where the ships are
+     * bound and what
+     * the rules care about, while an account is who is sitting in it. Only this map
+     * knows about
+     * both, so identity can change (a login arriving, a guest claiming a name)
+     * without touching
      * any of the game state keyed by seat.
      *
-     * Empty for a player who never presented an account id, which is why nothing may assume a
+     * Empty for a player who never presented an account id, which is why nothing
+     * may assume a
      * seat has an entry here.
      */
     private final Map<String, String> seatsByAccount = new LinkedHashMap<>();
@@ -137,6 +144,7 @@ public class GameSession {
     private static class DeclarationCommit {
         final List<ActionRequest.FireOrder> fireOrders;
         final List<ActionRequest.EwAdjustment> ewAdjustments;
+
         DeclarationCommit(List<ActionRequest.FireOrder> fire, List<ActionRequest.EwAdjustment> ew) {
             this.fireOrders = fire != null ? fire : List.of();
             this.ewAdjustments = ew != null ? ew : List.of();
@@ -145,14 +153,17 @@ public class GameSession {
 
     private boolean declarationOpen = false;
     private String declarationCallerToken = null;
-    private int declarationImpulse = -1;      // absolute impulse the round belongs to
+    private int declarationImpulse = -1; // absolute impulse the round belongs to
     private boolean declarationSpent = false; // this impulse's round already resolved
     private final Map<String, DeclarationCommit> declarationCommits = new LinkedHashMap<>();
 
     // ---- Launch declaration round (Annex #2, Impulse Activity Segment) ----
-    // Deliberately INDEPENDENT of the fire round above: separate state, separate actions.
-    // Both could be open in the same impulse, and one set of fields doing double duty is how
-    // they would interfere. Same shape, because the table ritual is the same - somebody calls,
+    // Deliberately INDEPENDENT of the fire round above: separate state, separate
+    // actions.
+    // Both could be open in the same impulse, and one set of fields doing double
+    // duty is how
+    // they would interfere. Same shape, because the table ritual is the same -
+    // somebody calls,
     // everyone commits blind, all of it reveals together.
 
     private boolean activityOpen = false;
@@ -178,16 +189,19 @@ public class GameSession {
     private final Set<String> coiDoneTokens = new HashSet<>();
 
     /**
-     * Where each player has set their ships down, by token then ship name. Secret until
-     * everyone is finished: a broadcast carries only how many each player has placed, and a
+     * Where each player has set their ships down, by token then ship name. Secret
+     * until
+     * everyone is finished: a broadcast carries only how many each player has
+     * placed, and a
      * player fetches their own through an authenticated call.
      */
-    private final Map<String, Map<String, com.sfb.scenario.Deployment.Placement>> pendingDeployment
-            = new LinkedHashMap<>();
+    private final Map<String, Map<String, com.sfb.scenario.Deployment.Placement>> pendingDeployment = new LinkedHashMap<>();
 
     /**
-     * Who has said they are finished. Reversible until the last player says it, because there
-     * is no advantage in changing your mind about a setup nobody can see, and clicking Done a
+     * Who has said they are finished. Reversible until the last player says it,
+     * because there
+     * is no advantage in changing your mind about a setup nobody can see, and
+     * clicking Done a
      * moment early should not cost the battle.
      */
     private final Set<String> deploymentDoneTokens = new HashSet<>();
@@ -219,13 +233,19 @@ public class GameSession {
     }
 
     /**
-     * Seat a session around a game that already exists — a battle restored from a save.
+     * Seat a session around a game that already exists — a battle restored from a
+     * save.
      *
-     * The game is passed IN rather than built here because a restored battle cannot be poured
-     * into a session that already holds one: {@code setupFromScenario} appends ships rather than
-     * clearing, so running it over a live game would duplicate the fleet. A restored battle gets
-     * a session of its own, which also means a fresh game code and fresh seats — everybody
-     * re-joins, which is the point, because a saved battle may be continued by different people
+     * The game is passed IN rather than built here because a restored battle cannot
+     * be poured
+     * into a session that already holds one: {@code setupFromScenario} appends
+     * ships rather than
+     * clearing, so running it over a live game would duplicate the fleet. A
+     * restored battle gets
+     * a session of its own, which also means a fresh game code and fresh seats —
+     * everybody
+     * re-joins, which is the point, because a saved battle may be continued by
+     * different people
      * than fought it.
      */
     public GameSession(String id, String hostToken, String hostName, String hostAccountId,
@@ -239,20 +259,28 @@ public class GameSession {
     }
 
     /**
-     * Adopt a restored battle: take the scenario for its metadata, and work out which team held
+     * Adopt a restored battle: take the scenario for its metadata, and work out
+     * which team held
      * each ship WHEN THE SAVE WAS TAKEN.
      *
      * <h2>Why the team comes from the owner first and the scenario second</h2>
-     * Ships change hands. D7.50 transfers a captured ship to its captor, so a ship's owner at
-     * save time may not match the side the scenario started it on. Deriving teams from the
-     * scenario alone would hand every captured hull back to the player it was taken FROM, quietly
-     * undoing a capture somebody fought for. So each ship's team is read from its restored owner
+     * Ships change hands. D7.50 transfers a captured ship to its captor, so a
+     * ship's owner at
+     * save time may not match the side the scenario started it on. Deriving teams
+     * from the
+     * scenario alone would hand every captured hull back to the player it was taken
+     * FROM, quietly
+     * undoing a capture somebody fought for. So each ship's team is read from its
+     * restored owner
      * where it has one, and only falls back to its scenario side when it does not.
      *
      * <h2>Why no seats are attached</h2>
-     * A save records which TEAM owned what, never which person — tokens are per-session and were
-     * never in the file. So every seat starts empty and the host assigns the ships, exactly as
-     * they would in a new game. That is what lets a battle be continued by players who were not
+     * A save records which TEAM owned what, never which person — tokens are
+     * per-session and were
+     * never in the file. So every seat starts empty and the host assigns the ships,
+     * exactly as
+     * they would in a new game. That is what lets a battle be continued by players
+     * who were not
      * in it.
      */
     void adoptRestored(com.sfb.scenario.ScenarioSpec spec) {
@@ -267,7 +295,8 @@ public class GameSession {
             for (int i = 0; i < spec.sides.size(); i++) {
                 com.sfb.scenario.ScenarioSpec.SideSpec side = spec.sides.get(i);
                 String teamName = side.name == null || side.name.isBlank()
-                        ? "Team " + (i + 1) : side.name;
+                        ? "Team " + (i + 1)
+                        : side.name;
                 if (side.ships != null)
                     for (com.sfb.scenario.ScenarioSpec.ShipSetup setup : side.ships)
                         if (setup.shipName != null)
@@ -279,12 +308,18 @@ public class GameSession {
                     && ship.getOwner().getTeamName() != null)
                 shipTeamName.put(ship.getName(), ship.getOwner().getTeamName());
 
-        // Nothing is spoken for until the host says so. The owners the save restored are cleared
-        // HERE, after the loop above has read their teams — that order is the whole trick. The
-        // team is what mattered and it is now safely in shipTeamName, including for a captured
-        // hull; the Player objects themselves are per-session and meaningless without a seat
-        // behind them, so leaving them would make a ship look claimed by somebody who is not in
-        // the room. "No owner" then means exactly what it means in a fresh game: unclaimed.
+        // Nothing is spoken for until the host says so. The owners the save restored
+        // are cleared
+        // HERE, after the loop above has read their teams — that order is the whole
+        // trick. The
+        // team is what mattered and it is now safely in shipTeamName, including for a
+        // captured
+        // hull; the Player objects themselves are per-session and meaningless without a
+        // seat
+        // behind them, so leaving them would make a ship look claimed by somebody who
+        // is not in
+        // the room. "No owner" then means exactly what it means in a fresh game:
+        // unclaimed.
         for (Ship ship : game.getShips())
             ship.setOwner(null);
         game.getPlayers().clear();
@@ -298,7 +333,10 @@ public class GameSession {
             info.setCorePlayer(null);
     }
 
-    /** True for a session holding a battle restored from a save rather than newly set up. */
+    /**
+     * True for a session holding a battle restored from a save rather than newly
+     * set up.
+     */
     public boolean isRestored() {
         return "restored".equals(loadedScenarioId);
     }
@@ -314,7 +352,8 @@ public class GameSession {
     /**
      * Seat a player, optionally recording the durable account sitting down.
      *
-     * @param accountId durable identity, or null for a seat nobody can later prove is theirs
+     * @param accountId durable identity, or null for a seat nobody can later prove
+     *                  is theirs
      */
     public PlayerInfo addPlayer(String token, String name, String accountId) {
         PlayerInfo info = new PlayerInfo(token, name);
@@ -327,15 +366,19 @@ public class GameSession {
     /**
      * The seat this account already holds here, or null if it holds none.
      *
-     * Asked before a join mints a new one — see {@code GameSessionService.joinSession}. Returns
-     * the host's seat for the host, so somebody who leaves their own game and comes back is
+     * Asked before a join mints a new one — see
+     * {@code GameSessionService.joinSession}. Returns
+     * the host's seat for the host, so somebody who leaves their own game and comes
+     * back is
      * still the host rather than a guest locked out of their own scenario picker.
      */
     public String seatFor(String accountId) {
         return accountId == null ? null : seatsByAccount.get(accountId);
     }
 
-    /** The durable identity in a seat, or null if that seat was taken anonymously. */
+    /**
+     * The durable identity in a seat, or null if that seat was taken anonymously.
+     */
     public String accountInSeat(String token) {
         for (Map.Entry<String, String> e : seatsByAccount.entrySet())
             if (e.getValue().equals(token))
@@ -412,8 +455,10 @@ public class GameSession {
             return "Ship already assigned to another player";
 
         pendingAssignments.put(shipName, playerToken);
-        // Before the battle starts, recording the intent is enough: start() is what turns every
-        // pending assignment into a core Player and an owner. A RESTORED battle has already been
+        // Before the battle starts, recording the intent is enough: start() is what
+        // turns every
+        // pending assignment into a core Player and an owner. A RESTORED battle has
+        // already been
         // through that, and start() cannot run again, so the wiring has to happen now.
         if (started)
             attachSeatToShip(playerToken, shipName);
@@ -424,14 +469,21 @@ public class GameSession {
      * Take a ship back off whoever holds it, so it can be given to somebody else.
      *
      * <h2>Why this had to exist</h2>
-     * {@link #assignShip} refuses to take a ship from the player who already has it, which is
-     * right — a Commander's Options loadout is keyed to a token, so moving a ship silently would
-     * strand what its owner chose for it. But that left no way to CORRECT an assignment, and
-     * reassigning a restored battle is exactly where a host misclicks: they are handing out a
-     * fleet they did not set up, possibly to different people than fought it. One shot with no
+     * {@link #assignShip} refuses to take a ship from the player who already has
+     * it, which is
+     * right — a Commander's Options loadout is keyed to a token, so moving a ship
+     * silently would
+     * strand what its owner chose for it. But that left no way to CORRECT an
+     * assignment, and
+     * reassigning a restored battle is exactly where a host misclicks: they are
+     * handing out a
+     * fleet they did not set up, possibly to different people than fought it. One
+     * shot with no
      * undo is not a workable way to do that.
      *
-     * <p>So releasing is explicit and separate. The host says "this ship is nobody's again", and
+     * <p>
+     * So releasing is explicit and separate. The host says "this ship is nobody's
+     * again", and
      * then assigns it. Nothing is taken implicitly.
      *
      * @return an error string, or null on success
@@ -444,7 +496,8 @@ public class GameSession {
 
         pendingAssignments.remove(shipName);
 
-        // In a battle already under way the chain is live, so it has to be unpicked: the ship's
+        // In a battle already under way the chain is live, so it has to be unpicked:
+        // the ship's
         // owner AND that player's unit list, or the ship goes on answering to them.
         Ship ship = findShip(shipName);
         if (ship != null && ship.getOwner() != null) {
@@ -458,20 +511,30 @@ public class GameSession {
      * Give a seat command of a ship in a battle that is already under way.
      *
      * <h2>What this is</h2>
-     * The second half of {@link #start()}, split out so it can run on its own. Start builds the
-     * ships from the scenario and then wires {@code token → PlayerInfo → corePlayer →
-     * Ship.owner}; only that second part is wanted here, because a restored battle already has
+     * The second half of {@link #start()}, split out so it can run on its own.
+     * Start builds the
+     * ships from the scenario and then wires
+     * {@code token → PlayerInfo → corePlayer →
+     * Ship.owner}; only that second part is wanted here, because a restored battle
+     * already has
      * its ships and they already have owners.
      *
-     * <p>That chain is the whole reason this method has to exist. Without it, a restored game is
+     * <p>
+     * That chain is the whole reason this method has to exist. Without it, a
+     * restored game is
      * correct in the engine and unplayable through the server: {@code
-     * getEffectiveShipNamesForPlayer} reads the seat's core player and finds none, so every
-     * player is shown no ships of their own, and {@code getTeamNameFor} returns null so everyone
-     * is treated as a spectator and handed a redacted view of a battle they supposedly command.
+     * getEffectiveShipNamesForPlayer} reads the seat's core player and finds none,
+     * so every
+     * player is shown no ships of their own, and {@code getTeamNameFor} returns
+     * null so everyone
+     * is treated as a spectator and handed a redacted view of a battle they
+     * supposedly command.
      *
      * <h2>Taking a ship from whoever held it</h2>
-     * The previous owner's unit list is corrected, not just the ship's pointer. Leaving the ship
-     * in two players' lists would make it answer to both, and the loser would go on being shown
+     * The previous owner's unit list is corrected, not just the ship's pointer.
+     * Leaving the ship
+     * in two players' lists would make it answer to both, and the loser would go on
+     * being shown
      * a ship they cannot order.
      */
     private void attachSeatToShip(String playerToken, String shipName) {
@@ -500,9 +563,9 @@ public class GameSession {
     /**
      * What happened when a whole side was handed to a player.
      *
-     * @param error         a hard refusal (nothing was assigned), or null
-     * @param assigned      ship names this player now holds
-     * @param heldByOthers  ships left alone because another player already has them
+     * @param error        a hard refusal (nothing was assigned), or null
+     * @param assigned     ship names this player now holds
+     * @param heldByOthers ships left alone because another player already has them
      */
     public record SideAssignmentResult(String error, List<String> assigned,
             List<String> heldByOthers) {
@@ -515,17 +578,27 @@ public class GameSession {
      * Hand every unclaimed ship on one side to one player.
      *
      * <h2>Why a side is the right unit</h2>
-     * Assignment was per ship, two clicks each, and a scenario has usually already decided the
-     * answer: a fleet is brought FOR a side, and a scenario's own units — Nivram's six phaser
-     * batteries, say — are listed under the side that owns them. Asking a host to re-enter that
-     * one ship at a time is asking them to retype the file. The per-ship route stays, because
-     * splitting one side between two players is a real thing to want and is the only reason it
+     * Assignment was per ship, two clicks each, and a scenario has usually already
+     * decided the
+     * answer: a fleet is brought FOR a side, and a scenario's own units — Nivram's
+     * six phaser
+     * batteries, say — are listed under the side that owns them. Asking a host to
+     * re-enter that
+     * one ship at a time is asking them to retype the file. The per-ship route
+     * stays, because
+     * splitting one side between two players is a real thing to want and is the
+     * only reason it
      * was ever per ship.
      *
-     * <p>Delegates to {@link #assignShip}, so it inherits that method's refusal to take a ship
-     * from the player who already holds it. That matters more than it looks: a loadout submitted
-     * in Commander's Options is keyed to a token, so quietly moving a ship after COI would strand
-     * what that player chose for it. Ships held by somebody else are reported, not seized, and
+     * <p>
+     * Delegates to {@link #assignShip}, so it inherits that method's refusal to
+     * take a ship
+     * from the player who already holds it. That matters more than it looks: a
+     * loadout submitted
+     * in Commander's Options is keyed to a token, so quietly moving a ship after
+     * COI would strand
+     * what that player chose for it. Ships held by somebody else are reported, not
+     * seized, and
      * the host can still move one deliberately with the per-ship control.
      */
     public SideAssignmentResult assignSide(String playerToken, String team) {
@@ -565,12 +638,11 @@ public class GameSession {
      * (G15.44). Returns a violation message, or null if within quota / no cartel.
      */
     public String validateCartelQuota(String cartelName,
-                                      Map<String, com.sfb.scenario.CoiLoadout> loadouts) {
+            Map<String, com.sfb.scenario.CoiLoadout> loadouts) {
         if (cartelName == null || cartelName.isBlank() || loadedSideShips == null) {
             return null;
         }
-        com.sfb.objects.OrionCartel cartel =
-                com.sfb.objects.OrionCartelTable.loadDefault().get(cartelName);
+        com.sfb.objects.OrionCartel cartel = com.sfb.objects.OrionCartelTable.loadDefault().get(cartelName);
         if (cartel == null) {
             return null;
         }
@@ -597,9 +669,12 @@ public class GameSession {
 
     /** All ship names across all scenario sides, in order. */
     public List<String> getAllShipNames() {
-        // A RESTORED battle has no loadedSideShips: nothing was built from a spec, the ships came
-        // back from the save already built. Reading the live game is the only source there — and
-        // without this, every assignment in a restored game was refused as "Ship not found",
+        // A RESTORED battle has no loadedSideShips: nothing was built from a spec, the
+        // ships came
+        // back from the save already built. Reading the live game is the only source
+        // there — and
+        // without this, every assignment in a restored game was refused as "Ship not
+        // found",
         // which made the whole reassignment flow silently impossible.
         if (loadedSideShips == null)
             return game.getShips().stream()
@@ -668,17 +743,25 @@ public class GameSession {
             return shuttle.getOwner() == p.getCorePlayer();
 
         /*
-         * And a craft still in a BAY, which is owned by whoever owns the carrier holding it.
+         * And a craft still in a BAY, which is owned by whoever owns the carrier
+         * holding it.
          *
-         * Without this, every action naming a fighter before it launches was refused: the pod-EW
-         * declaration (J4.961) is made from the energy allocation, which happens while the whole
-         * squadron is still aboard, and it sends the fighter's own name. A player opening the EA
-         * form and declaring a split got "You do not own ship: HAAS-E-1" — the one fighter that
+         * Without this, every action naming a fighter before it launches was refused:
+         * the pod-EW
+         * declaration (J4.961) is made from the energy allocation, which happens while
+         * the whole
+         * squadron is still aboard, and it sends the fighter's own name. A player
+         * opening the EA
+         * form and declaring a split got "You do not own ship: HAAS-E-1" — the one
+         * fighter that
          * most needs declaring for.
          *
-         * It went unnoticed because the test for that action calls GameSession.executeAction
-         * directly, below the layer that checks ownership. A bay fighter has no owner of its own
-         * either — ownership is stamped on launch — so asking the carrier is the only way to
+         * It went unnoticed because the test for that action calls
+         * GameSession.executeAction
+         * directly, below the layer that checks ownership. A bay fighter has no owner
+         * of its own
+         * either — ownership is stamped on launch — so asking the carrier is the only
+         * way to
          * answer, and is the right question: a fighter in your carrier's bay is yours.
          */
         for (Ship carrier : game.getShips())
@@ -703,11 +786,15 @@ public class GameSession {
      * May be called with an empty map to skip COI.
      */
     /**
-     * What these COI selections would fail to do, per ship, without doing any of it.
+     * What these COI selections would fail to do, per ship, without doing any of
+     * it.
      *
-     * Runs the REAL applyCoi against a freshly built set of ships and reads the notes off
-     * them. A separate implementation of the checks would drift from the one that decides
-     * the battle, and running it against the actual ships would spend their drones twice
+     * Runs the REAL applyCoi against a freshly built set of ships and reads the
+     * notes off
+     * them. A separate implementation of the checks would drift from the one that
+     * decides
+     * the battle, and running it against the actual ships would spend their drones
+     * twice
      * over — so this builds its own and throws them away.
      */
     public Map<String, java.util.List<String>> previewCoi(
@@ -716,8 +803,7 @@ public class GameSession {
         if (loadedSpec == null || loadouts == null || loadouts.isEmpty())
             return problems;
 
-        for (java.util.List<com.sfb.objects.Ship> side
-                : com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec))
+        for (java.util.List<com.sfb.objects.Ship> side : com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec))
             for (com.sfb.objects.Ship ship : side) {
                 com.sfb.scenario.CoiLoadout loadout = loadouts.get(ship.getName());
                 if (loadout == null)
@@ -730,16 +816,24 @@ public class GameSession {
     }
 
     /**
-     * Why these Commander's Option selections may not be bought, or null if they may (S3.2).
+     * Why these Commander's Option selections may not be bought, or null if they
+     * may (S3.2).
      * <p>
-     * The client already shows a running cost against each ship's budget and refuses to submit
-     * an over-budget one, but the client is not the authority — a direct call to the endpoint
-     * would otherwise be accepted, and {@code applyCoi} would then silently drop whatever did
-     * not fit, in its own fixed order rather than the player's priority. This is the check that
-     * makes the refusal real, and it is the only place a PLAYER'S loadout is refused outright;
-     * a loadout written into a scenario file still reaches applyCoi's per-item trimming.
+     * The client already shows a running cost against each ship's budget and
+     * refuses to submit
+     * an over-budget one, but the client is not the authority — a direct call to
+     * the endpoint
+     * would otherwise be accepted, and {@code applyCoi} would then silently drop
+     * whatever did
+     * not fit, in its own fixed order rather than the player's priority. This is
+     * the check that
+     * makes the refusal real, and it is the only place a PLAYER'S loadout is
+     * refused outright;
+     * a loadout written into a scenario file still reaches applyCoi's per-item
+     * trimming.
      * <p>
-     * Ships are loaded fresh, exactly as the endpoint that told the client each ship's budget
+     * Ships are loaded fresh, exactly as the endpoint that told the client each
+     * ship's budget
      * does, so the two cannot disagree about what a ship could afford.
      */
     public String validateCoiBudget(Map<String, com.sfb.scenario.CoiLoadout> loadouts) {
@@ -751,8 +845,7 @@ public class GameSession {
                 : com.sfb.scenario.CoiBudget.DEFAULT_PERCENT;
 
         List<String> refusals = new java.util.ArrayList<>();
-        for (java.util.List<com.sfb.objects.Ship> side
-                : com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec))
+        for (java.util.List<com.sfb.objects.Ship> side : com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec))
             for (com.sfb.objects.Ship ship : side) {
                 com.sfb.scenario.CoiLoadout loadout = loadouts.get(ship.getName());
                 if (loadout == null)
@@ -783,8 +876,10 @@ public class GameSession {
     // -------------------------------------------------------------------------
 
     /**
-     * True when this battle expects players to place their own ships — that is, when a side was
-     * given ground to set up on. A hand-written scenario that names every hex does not, and its
+     * True when this battle expects players to place their own ships — that is,
+     * when a side was
+     * given ground to set up on. A hand-written scenario that names every hex does
+     * not, and its
      * players go straight from Commander's Options to the first turn.
      */
     public boolean isDeploymentRequired() {
@@ -811,13 +906,19 @@ public class GameSession {
     /**
      * Ships the SCENARIO puts in place itself, which no player deploys.
      * <p>
-     * A ground base names a planet and a face (R1.14) and is sited by {@code setupFromScenario}
-     * once the terrain is down. It must be kept out of deployment entirely: it has no startHex,
-     * so auto-arrange scattered the Nivram batteries across the map, and its real hex is the
-     * PLANET'S, which {@code Deployment.check} refuses as no-entry (P2.224). Between the two there
-     * was no legal placement, so deployment could never be completed and the game could not start.
+     * A ground base names a planet and a face (R1.14) and is sited by
+     * {@code setupFromScenario}
+     * once the terrain is down. It must be kept out of deployment entirely: it has
+     * no startHex,
+     * so auto-arrange scattered the Nivram batteries across the map, and its real
+     * hex is the
+     * PLANET'S, which {@code Deployment.check} refuses as no-entry (P2.224).
+     * Between the two there
+     * was no legal placement, so deployment could never be completed and the game
+     * could not start.
      * <p>
-     * They are still OWNED by their side — the player commands them in play — which is why this is
+     * They are still OWNED by their side — the player commands them in play — which
+     * is why this is
      * a separate question from {@code getAssignedShipsFor}.
      */
     public java.util.Set<String> scenarioSitedShips() {
@@ -834,7 +935,10 @@ public class GameSession {
         return sited;
     }
 
-    /** This player's ships that actually need placing: theirs, less the ones the scenario sites. */
+    /**
+     * This player's ships that actually need placing: theirs, less the ones the
+     * scenario sites.
+     */
     public List<String> deployableShipsFor(String token) {
         java.util.Set<String> sited = scenarioSitedShips();
         return getAssignedShipsFor(token).stream()
@@ -853,24 +957,30 @@ public class GameSession {
         return com.sfb.scenario.Deployment.noEntryHexes(loadedSpec);
     }
 
-    /** This player's own placements — never broadcast, only fetched by the player themselves. */
+    /**
+     * This player's own placements — never broadcast, only fetched by the player
+     * themselves.
+     */
     public Map<String, com.sfb.scenario.Deployment.Placement> deploymentFor(String token) {
         return new LinkedHashMap<>(pendingDeployment.getOrDefault(token, Map.of()));
     }
 
     /**
-     * Record where a player has put their ships, replacing whatever they had before.
+     * Record where a player has put their ships, replacing whatever they had
+     * before.
      *
      * @return everything wrong with the setup; empty means it was accepted
      */
     public List<String> submitDeployment(String token,
-                                         List<com.sfb.scenario.Deployment.Placement> placements) {
+            List<com.sfb.scenario.Deployment.Placement> placements) {
         List<String> mine = deployableShipsFor(token);
         java.util.Set<String> sited = scenarioSitedShips();
         List<String> problems = new java.util.ArrayList<>();
 
-        // A client holding a stale list may still send a ground base. Drop it rather than refuse
-        // the whole setup: the scenario decides where it stands and the player never could.
+        // A client holding a stale list may still send a ground base. Drop it rather
+        // than refuse
+        // the whole setup: the scenario decides where it stands and the player never
+        // could.
         placements = placements.stream()
                 .filter(p -> !sited.contains(p.shipName()))
                 .toList();
@@ -900,16 +1010,17 @@ public class GameSession {
     }
 
     /**
-     * Lay this player's ships out for them, somewhere legal in their own ground. Somewhere to
-     * start from rather than somewhere to finish — the core works out the pattern, and the
+     * Lay this player's ships out for them, somewhere legal in their own ground.
+     * Somewhere to
+     * start from rather than somewhere to finish — the core works out the pattern,
+     * and the
      * player moves whatever they do not like.
      */
     public List<String> autoArrange(String token) {
-        List<com.sfb.scenario.Deployment.Placement> placements =
-                com.sfb.scenario.Deployment.autoArrange(
-                        deployableShipsFor(token), deploymentZoneFor(token), noEntryHexes(),
-                        loadedSpec != null ? loadedSpec.mapCols : 42,
-                        loadedSpec != null ? loadedSpec.mapRows : 32);
+        List<com.sfb.scenario.Deployment.Placement> placements = com.sfb.scenario.Deployment.autoArrange(
+                deployableShipsFor(token), deploymentZoneFor(token), noEntryHexes(),
+                loadedSpec != null ? loadedSpec.mapCols : 42,
+                loadedSpec != null ? loadedSpec.mapRows : 32);
         return submitDeployment(token, placements);
     }
 
@@ -917,7 +1028,7 @@ public class GameSession {
     public boolean isDeploymentComplete(String token) {
         List<String> mine = deployableShipsFor(token);
         if (mine.isEmpty())
-            return true;   // nothing to place
+            return true; // nothing to place
         return com.sfb.scenario.Deployment.isComplete(
                 mine, new java.util.ArrayList<>(deploymentFor(token).values()),
                 deploymentZoneFor(token), noEntryHexes(),
@@ -948,8 +1059,10 @@ public class GameSession {
     /**
      * Write the placements into the scenario and rebuild the ships from it.
      * <p>
-     * Into the spec rather than onto the ships, because the spec is what builds them: startHex,
-     * startHeading and startSpeed are read by ScenarioLoader, and going through it keeps one
+     * Into the spec rather than onto the ships, because the spec is what builds
+     * them: startHex,
+     * startHeading and startSpeed are read by ScenarioLoader, and going through it
+     * keeps one
      * path from "where a ship starts" to "where the ship is".
      */
     private void applyDeployments() {
@@ -968,7 +1081,7 @@ public class GameSession {
             for (com.sfb.scenario.ScenarioSpec.ShipSetup setup : side.ships) {
                 com.sfb.scenario.Deployment.Placement p = all.get(setup.shipName);
                 if (p == null)
-                    continue;   // never placed: it keeps the starting line it was given
+                    continue; // never placed: it keeps the starting line it was given
                 setup.startHex = p.hex();
                 setup.startHeading = p.heading();
                 setup.startSpeed = p.speed();
@@ -992,9 +1105,12 @@ public class GameSession {
     }
 
     /**
-     * Take a scenario that was built rather than read — a battle between bought fleets
-     * (S8.0). From here on it is indistinguishable from a hand-authored one, which is the
-     * point: assignment, Commander's Options, victory and the lobby all work from the spec.
+     * Take a scenario that was built rather than read — a battle between bought
+     * fleets
+     * (S8.0). From here on it is indistinguishable from a hand-authored one, which
+     * is the
+     * point: assignment, Commander's Options, victory and the lobby all work from
+     * the spec.
      */
     public void loadBuiltScenario(com.sfb.scenario.ScenarioSpec spec, String id) {
         com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
@@ -1340,8 +1456,10 @@ public class GameSession {
                     }
                 }
 
-                // Scout function channels (G24.14) — power the requested channels (1 energy each),
-                // plus the ship-level pool of EW points the scout generates for lending (G24.211).
+                // Scout function channels (G24.14) — power the requested channels (1 energy
+                // each),
+                // plus the ship-level pool of EW points the scout generates for lending
+                // (G24.211).
                 if (request.getPoweredChannels() != null) {
                     e.setPoweredChannels(request.getPoweredChannels());
                 }
@@ -1351,8 +1469,8 @@ public class GameSession {
                 // where the allocation is (Ship.startTurn), so they cannot be bypassed here.
                 if (request.getSquadronEw() != null) {
                     java.util.Map<String, int[]> pools = new java.util.LinkedHashMap<>();
-                    for (java.util.Map.Entry<String, java.util.Map<String, Integer>> entry
-                            : request.getSquadronEw().entrySet()) {
+                    for (java.util.Map.Entry<String, java.util.Map<String, Integer>> entry : request.getSquadronEw()
+                            .entrySet()) {
                         java.util.Map<String, Integer> half = entry.getValue();
                         if (half == null)
                             continue;
@@ -1385,7 +1503,7 @@ public class GameSession {
                         double amount = dialled;
                         double holdCost = hw.holdEnergyCost();
                         if (amount <= 0) {
-                            e.getArmingEnergy().put(w, 0.0);   // discharge it (E4.22)
+                            e.getArmingEnergy().put(w, 0.0); // discharge it (E4.22)
                             continue;
                         }
                         if (amount < holdCost)
@@ -1410,7 +1528,7 @@ public class GameSession {
                     if (dialled != null && w instanceof com.sfb.weapons.Photon && !hw.isArmed()) {
                         double amount = dialled;
                         if (amount <= 0) {
-                            e.getArmingEnergy().put(w, 0.0);   // discharge / don't arm
+                            e.getArmingEnergy().put(w, 0.0); // discharge / don't arm
                             continue;
                         }
                         if (amount < com.sfb.weapons.Photon.STANDARD_PER_TURN)
@@ -1432,7 +1550,8 @@ public class GameSession {
                                     + ": a proximity torpedo cannot be overloaded (E4.34)");
                         e.getArmingType().put(w, prox ? WeaponArmingType.SPECIAL
                                 : amount > com.sfb.weapons.Photon.STANDARD_PER_TURN
-                                ? WeaponArmingType.OVERLOAD : WeaponArmingType.STANDARD);
+                                        ? WeaponArmingType.OVERLOAD
+                                        : WeaponArmingType.STANDARD);
                         continue;
                     }
 
@@ -1520,7 +1639,7 @@ public class GameSession {
                     for (Map.Entry<String, Integer> post : postings.entrySet()) {
                         Integer cap = wanted.get(post.getKey());
                         if (cap == null || post.getValue() == null)
-                            continue;   // no work in that box; silently not posted
+                            continue; // no work in that box; silently not posted
                         int n = Math.min(Math.max(0, post.getValue()), Math.min(cap, crewsLeft));
                         if (n > 0) {
                             clean.put(post.getKey(), n);
@@ -1559,7 +1678,8 @@ public class GameSession {
 
                 // Type-D activation energy (FP9.22): half a point per torpedo, for the ship's
                 // own plasma racks and its fighters' rails alike. Bounded by what is actually
-                // inactive aboard, so a client asking for more cannot burn energy into nothing -
+                // inactive aboard, so a client asking for more cannot burn energy into nothing
+                // -
                 // the same guard the capacitor line gets, and for the same reason.
                 if (request.getPlasmaActivationEnergy() > 0) {
                     double room = ship.plasmaActivationWanted();
@@ -1660,7 +1780,7 @@ public class GameSession {
                             try {
                                 wanted = com.sfb.objects.DroneType.valueOf(droneType);
                             } catch (IllegalArgumentException ex) {
-                                continue;   // a type this build does not know; say nothing, load nothing
+                                continue; // a type this build does not know; say nothing, load nothing
                             }
                             // takeForRack, not take: FD2.4421 pulls a cargo drone up into the
                             // opening a RACK reload leaves. The scatter-pack path below keeps plain
@@ -1772,22 +1892,21 @@ public class GameSession {
                                 // or fewer, and the catalogue has been the authority since
                                 // role eligibility became data. An MRS at eight would have
                                 // silently loaded six here.
-                                if (pack.getPayloadSpaces() + pack.getPendingSpaces() + dt.rack
-                                        > pack.getMaxDroneSpaces())
+                                if (pack.getPayloadSpaces() + pack.getPendingSpaces() + dt.rack > pack
+                                        .getMaxDroneSpaces())
                                     break;
                                 // J4.8172: two deck crews to a box, one space each, so two
                                 // spaces onto this pack this turn whatever the ship has
                                 // spare. The pack refuses beyond it as well — this is the
                                 // early exit, not the guard.
-                                if (pack.getPendingSpaces() + dt.rack
-                                        > com.sfb.objects.shuttles.ScatterPack
-                                                .MAX_SPACES_LOADED_PER_TURN)
+                                if (pack.getPendingSpaces()
+                                        + dt.rack > com.sfb.objects.shuttles.ScatterPack.MAX_SPACES_LOADED_PER_TURN)
                                     break;
                                 // From the SHIP's stockpile (FD2.422), which is what this loop
                                 // was already doing by hand across every rack — now said once.
                                 List<Drone> one = ship.reloadStockpile().take(dt, 1);
                                 if (one.isEmpty())
-                                    break;   // no more of this type in the stockpile
+                                    break; // no more of this type in the stockpile
                                 Drone pulledDrone = one.get(0);
                                 // If the pack refuses it, PUT IT BACK. The drone has already left
                                 // the stockpile by this point, and the previous version of this
@@ -2354,8 +2473,7 @@ public class GameSession {
             case "DESIGNATE_EW_SOURCE": {
                 // J4.922: one source at a time, changeable every eight impulses. The interval
                 // and the eligibility are core's; this only resolves the names.
-                com.sfb.objects.shuttles.Fighter fighter =
-                        findActiveFighter(request.getShipName());
+                com.sfb.objects.shuttles.Fighter fighter = findActiveFighter(request.getShipName());
                 if (fighter == null)
                     return ActionResult.fail("Active fighter not found: " + request.getShipName());
                 String wanted = request.getEwSourceName();
@@ -2446,8 +2564,7 @@ public class GameSession {
                 // A plasma-D leaves a RAIL, so this looks like LAUNCH_DRONE rather than the
                 // ship's plasma action - but it is its own action because FP9.22 gates it on
                 // activation energy and the payload is a torpedo, not a drone.
-                com.sfb.objects.shuttles.Shuttle pdCraft =
-                        findLaunchedShuttle(request.getShipName());
+                com.sfb.objects.shuttles.Shuttle pdCraft = findLaunchedShuttle(request.getShipName());
                 if (!(pdCraft instanceof com.sfb.objects.shuttles.Fighter pdFighter))
                     return ActionResult.fail("Fighter not found on the map: "
                             + request.getShipName());
@@ -2456,7 +2573,8 @@ public class GameSession {
                     return ActionResult.fail("Target not found: " + request.getTargetName());
                 String pdRailName = request.getWeaponNames() != null
                         && !request.getWeaponNames().isEmpty()
-                        ? request.getWeaponNames().get(0) : null;
+                                ? request.getWeaponNames().get(0)
+                                : null;
                 com.sfb.weapons.DroneRail pdRail = null;
                 for (com.sfb.weapons.Weapon w : pdFighter.getWeapons().fetchAllWeapons())
                     if (w instanceof com.sfb.weapons.DroneRail dr && dr.isPlasmaD()
@@ -2480,15 +2598,15 @@ public class GameSession {
                 // A fighter launches from its own rail, and by different rules: one drone a
                 // turn (J4.431), its own lock-on, and the half-turn wait since it launched
                 // (J1.341). Checked before findShip, which would never find it.
-                com.sfb.objects.shuttles.Shuttle craft =
-                        findLaunchedShuttle(request.getShipName());
+                com.sfb.objects.shuttles.Shuttle craft = findLaunchedShuttle(request.getShipName());
                 if (craft instanceof com.sfb.objects.shuttles.Fighter fighter) {
                     Unit fTarget = findUnit(request.getTargetName());
                     if (fTarget == null)
                         return ActionResult.fail("Target not found: " + request.getTargetName());
                     String railName = request.getWeaponNames() != null
                             && !request.getWeaponNames().isEmpty()
-                            ? request.getWeaponNames().get(0) : null;
+                                    ? request.getWeaponNames().get(0)
+                                    : null;
                     com.sfb.weapons.DroneRail rail = null;
                     for (com.sfb.weapons.Weapon w : fighter.getWeapons().fetchAllWeapons())
                         if (w instanceof com.sfb.weapons.DroneRail dr
@@ -2543,7 +2661,8 @@ public class GameSession {
                     return ActionResult.fail("Target not found: " + request.getTargetName());
                 String rackName = request.getWeaponNames() != null
                         && !request.getWeaponNames().isEmpty()
-                        ? request.getWeaponNames().get(0) : null;
+                                ? request.getWeaponNames().get(0)
+                                : null;
                 if (rackName == null)
                     return ActionResult.fail("No plasma rack specified");
                 com.sfb.weapons.PlasmaRack rack = attacker.getWeapons().fetchAllWeapons().stream()
@@ -2554,7 +2673,8 @@ public class GameSession {
                 if (rack == null)
                     return ActionResult.fail("Plasma rack not found: " + rackName);
                 // FP10.21: the mode is the player's declaration, so it is required rather than
-                // defaulted - picking for them would spend one of the ship's two offensive places
+                // defaulted - picking for them would spend one of the ship's two offensive
+                // places
                 // under FP10.242, or give away the reach the other mode would have had.
                 com.sfb.weapons.PlasmaRack.RackMode mode;
                 try {
@@ -2604,9 +2724,12 @@ public class GameSession {
             /**
              * F4.0 ballistic targeting, and P2.713 bombardment, through one door.
              * <p>
-             * Which one it is depends on whether a target was NAMED. A request carrying only a
-             * hex is an ordinary ballistic shot: it flies there and evades (F4.21). A request
-             * that also names a ground base is a bombardment: it flies there and explodes. The
+             * Which one it is depends on whether a target was NAMED. A request carrying
+             * only a
+             * hex is an ordinary ballistic shot: it flies there and evades (F4.21). A
+             * request
+             * that also names a ground base is a bombardment: it flies there and explodes.
+             * The
              * client's chooser offers both from the same hex, because the rules do.
              */
             case "LAUNCH_SEEKER_BALLISTIC": {
@@ -2665,7 +2788,8 @@ public class GameSession {
                 String weaponName = request.getWeaponNames() != null
                         && !request.getWeaponNames().isEmpty()
                         && !request.getWeaponNames().get(0).isBlank()
-                        ? request.getWeaponNames().get(0) : null;
+                                ? request.getWeaponNames().get(0)
+                                : null;
                 if (weaponName == null)
                     return ActionResult.fail("No weapon specified");
 
@@ -2677,7 +2801,7 @@ public class GameSession {
 
                 ActionResult result;
                 if (weapon instanceof com.sfb.weapons.DroneRack rack) {
-                    int droneIndex = request.getRange();   // as LAUNCH_DRONE does
+                    int droneIndex = request.getRange(); // as LAUNCH_DRONE does
                     if (droneIndex < 0 || droneIndex >= rack.getAmmo().size())
                         return ActionResult.fail("Invalid drone index: " + droneIndex);
                     com.sfb.objects.Drone drone = rack.getAmmo().get(droneIndex);
@@ -3073,7 +3197,8 @@ public class GameSession {
                             return ActionResult.fail("Cannot launch from another player's unit: "
                                     + o.getShipName());
                 activityCommits.put(aToken, request.getActivityOrders() != null
-                        ? request.getActivityOrders() : List.of());
+                        ? request.getActivityOrders()
+                        : List.of());
                 appendCombatLog(api.getName() + " has committed launch orders ("
                         + activityCommits.size() + "/" + players.size() + ")");
                 if (activityCommits.size() >= players.size())
@@ -3120,17 +3245,26 @@ public class GameSession {
             /**
              * D13.0 aegis: one of the EXTRA firings, resolved immediately.
              *
-             * Not part of the sealed fire declaration, and that is the rule rather than a shortcut.
-             * D13.11 has aegis fire resolve as it happens, and D13.14 makes the FIRST aegis firing
-             * coincide with the ship's ordinary volley — so by the time this action is used, firing
-             * one is already spent in the sealed orders and what is left are the extras (three on a
-             * full system, one on a limited). Resolving them at once is safe because every legal
+             * Not part of the sealed fire declaration, and that is the rule rather than a
+             * shortcut.
+             * D13.11 has aegis fire resolve as it happens, and D13.14 makes the FIRST aegis
+             * firing
+             * coincide with the ship's ordinary volley — so by the time this action is
+             * used, firing
+             * one is already spent in the sealed orders and what is left are the extras
+             * (three on a
+             * full system, one on a limited). Resolving them at once is safe because every
+             * legal
              * target takes its damage together with no DAC choice and no owner decision.
              *
-             * Thin on purpose: every rule lives in Game.fireAegisPulse, which refuses with the rule
-             * number for the wrong phase, no operating fire control, no pulses left, an ineligible
-             * target (D13.21/D13.23) and both halves of D13.22. Ownership is already gated by the
-             * controller, which checks hasPlayer and ownsShip(shipName) before any action reaches
+             * Thin on purpose: every rule lives in Game.fireAegisPulse, which refuses with
+             * the rule
+             * number for the wrong phase, no operating fire control, no pulses left, an
+             * ineligible
+             * target (D13.21/D13.23) and both halves of D13.22. Ownership is already gated
+             * by the
+             * controller, which checks hasPlayer and ownsShip(shipName) before any action
+             * reaches
              * here.
              */
             case "AEGIS_PULSE": {
@@ -3164,29 +3298,43 @@ public class GameSession {
             /**
              * D13.3: one aegis identification attempt at one incoming seeking weapon.
              *
-             * One attempt per call, deliberately. D13.322 has attempts in the same impulse "all
-             * rolled simultaneously", which sounds like a batch — but it also says they "do not
-             * count as 'previous' to each other" for D13.321's modifier, so rolling them one at a
-             * time changes no outcome, and the player wants to see each answer before spending the
-             * next of only six a turn. A batch would also have to decide what to do when the third
+             * One attempt per call, deliberately. D13.322 has attempts in the same impulse
+             * "all
+             * rolled simultaneously", which sounds like a batch — but it also says they "do
+             * not
+             * count as 'previous' to each other" for D13.321's modifier, so rolling them
+             * one at a
+             * time changes no outcome, and the player wants to see each answer before
+             * spending the
+             * next of only six a turn. A batch would also have to decide what to do when
+             * the third
              * of four is refused.
              *
-             * Thin, like AEGIS_PULSE beside it: every rule is in Game.identifyWithAegis, which
-             * refuses with the rule number for the wrong stage (6B4), a limited system (D13.35), no
-             * operating fire control, the turn and impulse allowances (D13.31/D13.32), a friendly
-             * target, and a range beyond six. Ownership is gated by the controller before any
+             * Thin, like AEGIS_PULSE beside it: every rule is in Game.identifyWithAegis,
+             * which
+             * refuses with the rule number for the wrong stage (6B4), a limited system
+             * (D13.35), no
+             * operating fire control, the turn and impulse allowances (D13.31/D13.32), a
+             * friendly
+             * target, and a range beyond six. Ownership is gated by the controller before
+             * any
              * action reaches here.
              *
-             * The result goes to the shared combat log, as the lab and scout identification in
-             * IDENTIFY_SEEKER above does — the same information by a different instrument (D13.34),
+             * The result goes to the shared combat log, as the lab and scout identification
+             * in
+             * IDENTIFY_SEEKER above does — the same information by a different instrument
+             * (D13.34),
              * so it is logged the same way.
              */
             /**
              * D13.142: give up one of this ship's four aegis firings without taking it.
              *
-             * Needed because D13.141 sequences the force — until every aegis ship has fired or
-             * skipped the firing it is on, none of them moves to the next — so a player who does not
-             * want to shoot with one escort must be able to say so rather than leave the other
+             * Needed because D13.141 sequences the force — until every aegis ship has fired
+             * or
+             * skipped the firing it is on, none of them moves to the next — so a player who
+             * does not
+             * want to shoot with one escort must be able to say so rather than leave the
+             * other
              * stalled. The opportunity is spent and cannot be made up.
              */
             case "AEGIS_SKIP": {
@@ -3229,11 +3377,14 @@ public class GameSession {
     }
 
     /**
-     * Which Annex #2 stage an order belongs to. Seeking weapons are 6B6, shuttles 6B8 - so
-     * in one impulse the drones are away before a weasel goes up, which is the whole reason
+     * Which Annex #2 stage an order belongs to. Seeking weapons are 6B6, shuttles
+     * 6B8 - so
+     * in one impulse the drones are away before a weasel goes up, which is the
+     * whole reason
      * the round exists rather than resolving on click.
      * <p>
-     * Only the two stages this round collects. Sequencing all eleven would slow the game to
+     * Only the two stages this round collects. Sequencing all eleven would slow the
+     * game to
      * a crawl for no gain; these are where the outcomes differ.
      */
     private static int activityStage(ActionRequest.ActivityOrder o) {
@@ -3242,24 +3393,28 @@ public class GameSession {
             case "PLASMA":
             case "PLASMA_RACK":
             case "DRONE":
-                return 6;                 // 6B6 Seeking Weapons Stage
+                return 6; // 6B6 Seeking Weapons Stage
             case "SHUTTLE":
             case "WEASEL":
             case "SUICIDE":
             case "SCATTER_PACK":
-                return 8;                 // 6B8 Shuttle & PF Functions Stage
+                return 8; // 6B8 Shuttle & PF Functions Stage
             default:
-                return 9;                 // unknown: last, and it will fail with a reason
+                return 9; // unknown: last, and it will fail with a reason
         }
     }
 
     /**
      * Turn a sealed order into the action that already knows how to perform it.
      * <p>
-     * The individual launch actions grew up reusing fields - a shuttle's name arrives in
-     * `action`, its facing in `range`, a drone's index in `range` as well. ActivityOrder has
-     * properly named fields and this method is the single place that maps them onto what each
-     * action reads, so the reuse stays contained instead of spreading into the new round.
+     * The individual launch actions grew up reusing fields - a shuttle's name
+     * arrives in
+     * `action`, its facing in `range`, a drone's index in `range` as well.
+     * ActivityOrder has
+     * properly named fields and this method is the single place that maps them onto
+     * what each
+     * action reads, so the reuse stays contained instead of spreading into the new
+     * round.
      */
     private ActionRequest activityOrderToAction(ActionRequest.ActivityOrder o, String token) {
         ActionRequest r = new ActionRequest();
@@ -3287,7 +3442,7 @@ public class GameSession {
             case "DRONE":
                 r.setType("LAUNCH_DRONE");
                 r.setWeaponNames(List.of(o.getWeaponName() == null ? "" : o.getWeaponName()));
-                r.setRange(o.getDroneIndex());     // LAUNCH_DRONE reads the index from range
+                r.setRange(o.getDroneIndex()); // LAUNCH_DRONE reads the index from range
                 r.setFacing(o.getFacing());
                 break;
             case "BALLISTIC":
@@ -3310,14 +3465,15 @@ public class GameSession {
             case "SHUTTLE":
             case "WEASEL":
                 r.setType("WEASEL".equals(kind) ? "LAUNCH_WILD_WEASEL" : "LAUNCH_SHUTTLE");
-                r.setAction(o.getShuttleName());   // both read the name from action
-                r.setRange(o.getFacing());         // and the facing from range
+                r.setAction(o.getShuttleName()); // both read the name from action
+                r.setRange(o.getFacing()); // and the facing from range
                 r.setSpeed(o.getSpeed());
                 break;
             case "SUICIDE":
             case "SCATTER_PACK":
                 r.setType("SUICIDE".equals(kind)
-                        ? "LAUNCH_SUICIDE_SHUTTLE" : "LAUNCH_SCATTER_PACK");
+                        ? "LAUNCH_SUICIDE_SHUTTLE"
+                        : "LAUNCH_SCATTER_PACK");
                 r.setAction(o.getShuttleName());
                 // These two read facing and speed from their own named fields, unlike the
                 // shuttle and weasel launches above. Omitting them sent every pack out on
@@ -3335,12 +3491,16 @@ public class GameSession {
     /**
      * The reveal: every player has answered, so the collected launches happen.
      *
-     * Sorted into Annex #2 stage order and otherwise left in the order they were drafted -
-     * List.sort is stable, so a player's own two drones still go in the order they chose.
-     * Each order is REPLAYED as the action that already performs it: those six launch cases
+     * Sorted into Annex #2 stage order and otherwise left in the order they were
+     * drafted -
+     * List.sort is stable, so a player's own two drones still go in the order they
+     * chose.
+     * Each order is REPLAYED as the action that already performs it: those six
+     * launch cases
      * are correct, and a resolver with its own copies of them would be two of each.
      * <p>
-     * An order that turns out to be illegal fizzles with its reason in the log rather than
+     * An order that turns out to be illegal fizzles with its reason in the log
+     * rather than
      * rejecting the sealed round, the same way a fire order does.
      */
     private void resolveActivityRound() {
@@ -3351,7 +3511,8 @@ public class GameSession {
                 all.add(new java.util.AbstractMap.SimpleEntry<>(e.getKey(), o));
         all.sort(java.util.Comparator.comparingInt(e -> activityStage(e.getValue())));
 
-        // Closed before resolving: a launch can cascade back into executeAction (a weasel
+        // Closed before resolving: a launch can cascade back into executeAction (a
+        // weasel
         // release voids tractors, for instance) and must not find the round still open.
         activityOpen = false;
         activitySpent = true;
@@ -3433,12 +3594,15 @@ public class GameSession {
     }
 
     /**
-     * Fire aimed at a PLACE rather than a unit: clearing a path through asteroids (P3.25)
+     * Fire aimed at a PLACE rather than a unit: clearing a path through asteroids
+     * (P3.25)
      * or bombarding a planet's surface (P2.311/P2.525).
      * <p>
-     * One method for both, because the client should not have to know which rule the hex
+     * One method for both, because the client should not have to know which rule
+     * the hex
      * it clicked falls under — the server can see what is there. Reached only from
-     * the declaration reveal, so a bombardment is sealed and simultaneous like any other
+     * the declaration reveal, so a bombardment is sealed and simultaneous like any
+     * other
      * volley rather than resolving the moment it is ordered.
      */
     private ActionResult resolveHexFire(String shipName, int hexCol, int hexRow,
@@ -3500,7 +3664,8 @@ public class GameSession {
                 // per-weapon choice already has a place to put one.
                 //
                 // Declared only; it is CONSUMED by the shot, and a rack that has already fired
-                // this turn ignores it, since FP10.21 does not let the mode change until the next.
+                // this turn ignores it, since FP10.21 does not let the mode change until the
+                // next.
                 if (w instanceof com.sfb.weapons.PlasmaRack rack) {
                     String mode = shotModes.get(w.getName());
                     try {
@@ -3514,12 +3679,18 @@ public class GameSession {
             }
         }
 
-        // PPDs LEAVE THE VOLLEY (E11.0). A PPD is a DirectFire and would otherwise be accepted
-        // into an ordinary FireCommand — firing once, scoring on a single shield, and never
-        // registering the run that gives it its other three pulses. It is not an ordinary shot:
-        // E11.31 fires it "before any other fire by that side", E11.332 resolves its damage as
-        // its own splash volley, and E11.30 carries it over the next three impulses. So it is
-        // taken out here, fired through its own path, and the rest of the volley proceeds.
+        // PPDs LEAVE THE VOLLEY (E11.0). A PPD is a DirectFire and would otherwise be
+        // accepted
+        // into an ordinary FireCommand — firing once, scoring on a single shield, and
+        // never
+        // registering the run that gives it its other three pulses. It is not an
+        // ordinary shot:
+        // E11.31 fires it "before any other fire by that side", E11.332 resolves its
+        // damage as
+        // its own splash volley, and E11.30 carries it over the next three impulses. So
+        // it is
+        // taken out here, fired through its own path, and the rest of the volley
+        // proceeds.
         StringBuilder ppdLog = new StringBuilder();
         List<String> remaining = new ArrayList<>();
         for (String wName : weaponNames) {
@@ -3537,7 +3708,8 @@ public class GameSession {
                 remaining.add(wName);
             }
         }
-        // A declaration naming nothing but PPDs is complete: there is no volley to follow.
+        // A declaration naming nothing but PPDs is complete: there is no volley to
+        // follow.
         if (remaining.isEmpty())
             return ActionResult.ok(ppdLog.toString());
 
@@ -3638,7 +3810,9 @@ public class GameSession {
     }
 
     /** Find any Unit (ship, active shuttle, or seeker) by name. */
-    /** A launched shuttle or fighter by name, or null — findShip will never see one. */
+    /**
+     * A launched shuttle or fighter by name, or null — findShip will never see one.
+     */
     private Shuttle findLaunchedShuttle(String name) {
         if (name == null)
             return null;
@@ -3762,9 +3936,12 @@ public class GameSession {
     /**
      * The named fighter, on the map or still in a bay.
      * <p>
-     * Bays included because J4.961 puts the pod declaration at the head of the turn, when an
-     * EW fighter has usually not launched yet — a lookup that only knew about craft on the map
-     * would refuse the declaration in exactly the situation the rule is written for.
+     * Bays included because J4.961 puts the pod declaration at the head of the
+     * turn, when an
+     * EW fighter has usually not launched yet — a lookup that only knew about craft
+     * on the map
+     * would refuse the declaration in exactly the situation the rule is written
+     * for.
      */
     private com.sfb.objects.shuttles.Fighter findActiveFighter(String name) {
         if (name == null)

@@ -6,16 +6,20 @@ import org.junit.Test;
 
 import com.sfb.objects.Drone;
 import com.sfb.objects.DroneType;
-import com.sfb.objects.shuttles.CataloguedFighter;
 
 /**
  * How fast a scatter pack can be filled (J4.8172, FD7.22).
  * <p>
- * Two limits that are easy to conflate: how much a pack HOLDS, which is FD7.21 and belongs
- * to the type it was built from, and how much its deck crews can move in ONE TURN, which is
- * J4.8172 — two crews to a shuttle box, one drone space each. A six-space admin shuttle can
- * therefore hold six and still take three turns to fill, and that is the constraint that
- * makes a scatter pack something a captain plans rather than produces on demand.
+ * Two limits that are easy to conflate: how much a pack HOLDS, which is FD7.21
+ * and belongs
+ * to the type it was built from, and how much its deck crews can move in ONE
+ * TURN, which is
+ * J4.8172 — two crews to a shuttle box, one drone space each. A six-space admin
+ * shuttle can
+ * therefore hold six and still take three turns to fill, and that is the
+ * constraint that
+ * makes a scatter pack something a captain plans rather than produces on
+ * demand.
  */
 public class ScatterPackLoadingTest {
 
@@ -43,7 +47,8 @@ public class ScatterPackLoadingTest {
     }
 
     /**
-     * Spaces, not drones. A type-VI is half a space, so a turn's work is four of them — the
+     * Spaces, not drones. A type-VI is half a space, so a turn's work is four of
+     * them — the
      * limit counts what the crews HANDLE, and the rule prices the handling by size.
      */
     @Test
@@ -74,7 +79,7 @@ public class ScatterPackLoadingTest {
         pack.addPendingDrone(new Drone(DroneType.TypeI));
         pack.addPendingDrone(new Drone(DroneType.TypeI));
 
-        pack.applyPendingPayload();   // end of turn
+        pack.applyPendingPayload(); // end of turn
 
         assertEquals("what was staged is aboard now", 2.0, pack.getPayloadSpaces(), 0.001);
         assertEquals(0.0, pack.getPendingSpaces(), 0.001);
@@ -82,7 +87,9 @@ public class ScatterPackLoadingTest {
                 pack.addPendingDrone(new Drone(DroneType.TypeI)));
     }
 
-    /** Three turns to fill a six-space pack, and the capacity still stops it at six. */
+    /**
+     * Three turns to fill a six-space pack, and the capacity still stops it at six.
+     */
     @Test
     public void aFullAdminShuttlePackTakesThreeTurns() {
         ScatterPack pack = emptyPack();
@@ -98,7 +105,10 @@ public class ScatterPackLoadingTest {
                 pack.addPendingDrone(new Drone(DroneType.TypeI)));
     }
 
-    /** A fighter packs at its own smaller capacity, and the per-turn limit still applies. */
+    /**
+     * A fighter packs at its own smaller capacity, and the per-turn limit still
+     * applies.
+     */
     @Test
     public void aFighterPacksAtItsOwnCapacity() {
         ScatterPack pack = new ScatterPack(CataloguedFighter.of("aas"));

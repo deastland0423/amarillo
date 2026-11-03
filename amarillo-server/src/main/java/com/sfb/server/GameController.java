@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import com.sfb.objects.shuttles.CataloguedFighter;
 
 /**
  * REST API for game session management.
@@ -111,8 +110,10 @@ public class GameController {
     }
 
     /**
-     * Tell the room where things stand. The broker is absent when a controller is exercised
-     * directly rather than through Spring, and a missing audience is not a reason to fail the
+     * Tell the room where things stand. The broker is absent when a controller is
+     * exercised
+     * directly rather than through Spring, and a missing audience is not a reason
+     * to fail the
      * action that was just taken.
      */
     private void broadcastLobby(GameSession session) {
@@ -130,14 +131,20 @@ public class GameController {
     /**
      * Every ship in the library, with what a picker needs to display and price it.
      * <p>
-     * Defaults to the whole library, because a force may be drawn from several allied empires
-     * (S8.6) and the builder switches between them freely — the lot is about 17KB, cheaper
-     * than a round trip per tab. Revisit if the library ever grows by an order of magnitude.
+     * Defaults to the whole library, because a force may be drawn from several
+     * allied empires
+     * (S8.6) and the builder switches between them freely — the lot is about 17KB,
+     * cheaper
+     * than a round trip per tab. Revisit if the library ever grows by an order of
+     * magnitude.
      * <p>
-     * {@code ?faction=} narrows it, and repeats to name several: {@code ?faction=Klingon&faction=Lyran}.
+     * {@code ?faction=} narrows it, and repeats to name several:
+     * {@code ?faction=Klingon&faction=Lyran}.
      * <p>
-     * Prices come from FleetValidator, not from the JSON, so the shelf price and the price
-     * the validator charges cannot drift apart: a scout shows its economic value and a
+     * Prices come from FleetValidator, not from the JSON, so the shelf price and
+     * the price
+     * the validator charges cannot drift apart: a scout shows its economic value
+     * and a
      * carrier shows its fighters.
      */
     @GetMapping("/ships")
@@ -171,42 +178,66 @@ public class GameController {
     /**
      * One hull from the catalogue, in full, for the fleet-builder's ship viewer.
      *
-     * <p><b>Why this returns a ShipDto and not a bespoke shape.</b> The viewer renders with
-     * {@code SsdPanel}, the same component the battle map opens on a live ship, so the preview is
-     * built the only way that cannot drift from it: make a one-ship {@link com.sfb.Game}, place the
-     * hull in it, and serialise through the ordinary {@link GameStateDto}. A hand-rolled catalogue
-     * shape would be a second description of a ship, and the two would disagree within a release —
+     * <p>
+     * <b>Why this returns a ShipDto and not a bespoke shape.</b> The viewer renders
+     * with
+     * {@code SsdPanel}, the same component the battle map opens on a live ship, so
+     * the preview is
+     * built the only way that cannot drift from it: make a one-ship
+     * {@link com.sfb.Game}, place the
+     * hull in it, and serialise through the ordinary {@link GameStateDto}. A
+     * hand-rolled catalogue
+     * shape would be a second description of a ship, and the two would disagree
+     * within a release —
      * the lesson {@code weaponDamageTables.ts} already carries.
      *
-     * <p><b>Why showing everything is correct here.</b> Nothing on a Ship Systems Display is secret:
-     * SSDs are printed in the rulebook, which is why {@code SsdPanel} has always worked on an enemy
-     * ship. So the snapshot is taken omniscient (null viewer team) deliberately, and that is not a
-     * hole in {@link GameStateDto#redactForEnemy}: this endpoint is addressed by <b>faction and
-     * type</b>, never by a live ship's id, so there is no live ship it could be pointed at. Keep it
-     * that way — taking an id here would make it exactly the back door it currently cannot be.
+     * <p>
+     * <b>Why showing everything is correct here.</b> Nothing on a Ship Systems
+     * Display is secret:
+     * SSDs are printed in the rulebook, which is why {@code SsdPanel} has always
+     * worked on an enemy
+     * ship. So the snapshot is taken omniscient (null viewer team) deliberately,
+     * and that is not a
+     * hole in {@link GameStateDto#redactForEnemy}: this endpoint is addressed by
+     * <b>faction and
+     * type</b>, never by a live ship's id, so there is no live ship it could be
+     * pointed at. Keep it
+     * that way — taking an id here would make it exactly the back door it currently
+     * cannot be.
      *
-     * <p>The {@code year} parameter is not cosmetic. S8.131 makes the date decide which fighters a
-     * carrier flies, so the same hull honestly shows a different air wing in Y168 and Y180, and a
+     * <p>
+     * The {@code year} parameter is not cosmetic. S8.131 makes the date decide
+     * which fighters a
+     * carrier flies, so the same hull honestly shows a different air wing in Y168
+     * and Y180, and a
      * buyer cannot otherwise discover that before paying for it.
      */
 
     /**
      * One shelf row for a hull, priced for a year.
      *
-     * <p>Extracted from the catalogue loop so a hull with refits applied on the fly can be
-     * described the same way. A combination nobody NAMED - an Orion CA with OAKDISC, say - has
-     * no row in the library, and the builder still has to show what it costs before anyone
+     * <p>
+     * Extracted from the catalogue loop so a hull with refits applied on the fly
+     * can be
+     * described the same way. A combination nobody NAMED - an Orion CA with
+     * OAKDISC, say - has
+     * no row in the library, and the builder still has to show what it costs before
+     * anyone
      * buys it. Two row builders would be two prices.
      */
     private Map<String, Object> catalogRow(com.sfb.objects.ShipSpec spec, int year) {
         com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
-        // S8.131: the date decides which fighters a carrier flies, and S8.11 charges for
-        // them, so the shelf price is only honest once the complement matches the year the
-        // fleet is being built in. A year of 0 — nobody has picked a date yet — leaves the
+        // S8.131: the date decides which fighters a carrier flies, and S8.11 charges
+        // for
+        // them, so the shelf price is only honest once the complement matches the year
+        // the
+        // fleet is being built in. A year of 0 — nobody has picked a date yet — leaves
+        // the
         // ship as its own service year built it, which is the right thing to show when
         // browsing without a date rather than a guess at some house default.
         //
-        // And the fighters are only one of five year-gated rules. outfitForYear runs them
+        // And the fighters are only one of five year-gated rules. outfitForYear runs
+        // them
         // all, so the shelf quotes what FleetLoader will price and what the battle will
         // field — a Y175 refitCost included, which 46 hulls and refits declare.
         com.sfb.scenario.ScenarioLoader.outfitForYear(ship, spec.faction, year, spec);
@@ -214,25 +245,36 @@ public class GameController {
         row.put("faction", spec.faction);
         row.put("type", spec.type);
         row.put("name", spec.name != null ? spec.name : "");
-        // The class written out — "Command Cruiser", "Heavy Carrier", "Galactic Survey Cruiser".
-        // Worth sending because it is NOT the line's display name on 305 of 355 hulls: a CC and a
-        // CVB both sit on the CA line under a "Heavy Cruiser" header, and a Fed CVA sits under
-        // "Dreadnought". The shelf showed the type code and the ship's own name, so what the hull
+        // The class written out — "Command Cruiser", "Heavy Carrier", "Galactic Survey
+        // Cruiser".
+        // Worth sending because it is NOT the line's display name on 305 of 355 hulls:
+        // a CC and a
+        // CVB both sit on the CA line under a "Heavy Cruiser" header, and a Fed CVA
+        // sits under
+        // "Dreadnought". The shelf showed the type code and the ship's own name, so
+        // what the hull
         // actually IS was the one thing missing.
         row.put("typeName", spec.typeName != null ? spec.typeName : "");
-        // REFITS (S3.24). A synthesised variant knows the hull it was built from and which
-        // refits made it, which is what lets the shelf show one row per HULL with its refits as
-        // a choice instead of one row per combination. Lyran's 71 hulls are 26 ships; the Klingon
+        // REFITS (S3.24). A synthesised variant knows the hull it was built from and
+        // which
+        // refits made it, which is what lets the shelf show one row per HULL with its
+        // refits as
+        // a choice instead of one row per combination. Lyran's 71 hulls are 26 ships;
+        // the Klingon
         // D7 is one ship with three switches, not four ships.
         //
-        // Sent only on a variant, so a base hull's row is unchanged and a client that ignores
-        // these fields keeps working — which is how the shelf behaved through the migration.
+        // Sent only on a variant, so a base hull's row is unchanged and a client that
+        // ignores
+        // these fields keeps working — which is how the shelf behaved through the
+        // migration.
         if (spec.refitOf != null) {
             row.put("refitOf", spec.refitOf);
             row.put("appliedRefits", spec.appliedRefits);
         }
-        // And on a BASE hull, what may be fitted to it: each refit's code, name, year and cost,
-        // so the shelf can offer "power pack, +9" rather than make a player decode "CWB".
+        // And on a BASE hull, what may be fitted to it: each refit's code, name, year
+        // and cost,
+        // so the shelf can offer "power pack, +9" rather than make a player decode
+        // "CWB".
         if (spec.refits != null && !spec.refits.isEmpty()) {
             List<Map<String, Object>> offers = new java.util.ArrayList<>();
             for (com.sfb.objects.ShipSpec.RefitSpec r : spec.refits) {
@@ -261,15 +303,16 @@ public class GameController {
         // (biggest warship down to smallest, then civilians), not alphabetically.
         row.put("lineOrder", com.sfb.objects.ShipLineCatalog.orderOf(spec.line));
         row.put("lineCivilian", com.sfb.objects.ShipLineCatalog.isCivilian(spec.line));
-        // An OUTER grouping where an empire has generations worth telling apart (Romulan
-        // Eagle/Kestrel/Hawk). Null on every ship that declares none, which is almost all
+        // An OUTER grouping where an empire has generations worth telling apart
+        // (Romulan
+        // Eagle/Kestrel/Hawk). Null on every ship that declares none, which is almost
+        // all
         // of them, and the shelf then groups by line alone exactly as before.
         if (spec.series != null && !spec.series.isBlank()) {
             row.put("series", spec.series);
             row.put("seriesName", com.sfb.objects.ShipLineCatalog.seriesNameOf(spec.series));
             row.put("seriesOrder", com.sfb.objects.ShipLineCatalog.seriesOrderOf(spec.series));
-            com.sfb.objects.ShipLineCatalog.Series meta =
-                    com.sfb.objects.ShipLineCatalog.series(spec.series);
+            com.sfb.objects.ShipLineCatalog.Series meta = com.sfb.objects.ShipLineCatalog.series(spec.series);
             if (meta != null && !meta.about.isBlank())
                 row.put("seriesAbout", meta.about);
         }
@@ -280,9 +323,12 @@ public class GameController {
         row.put("fighterBpv", com.sfb.scenario.FleetValidator.carriedFighterBpv(ship));
         row.put("cost", com.sfb.scenario.FleetValidator.costOf(ship));
         row.put("coiAllowance", com.sfb.scenario.FleetValidator.coiAllowance(ship));
-        // J4.61/J4.62 capability: "CAPABLE" flies its own fighters, "CASUAL" only services
-        // other ships', null is neither. Deliberately NOT the same question as requiresEscort,
-        // which is S8.315 fleet legality — the shelf's carrier filter wants capability, and the
+        // J4.61/J4.62 capability: "CAPABLE" flies its own fighters, "CASUAL" only
+        // services
+        // other ships', null is neither. Deliberately NOT the same question as
+        // requiresEscort,
+        // which is S8.315 fleet legality — the shelf's carrier filter wants capability,
+        // and the
         // escort obligation is a separate flag it must not be confused with.
         row.put("carrierClass", spec.carrierClass);
         row.put("isScout", ship.isScout());
@@ -292,32 +338,47 @@ public class GameController {
         row.put("isBCH", spec.isBCH);
         return row;
     }
+
     /**
-     * The option mounts a hull has, and what may legally go in each, for a given year (G15.4).
+     * The option mounts a hull has, and what may legally go in each, for a given
+     * year (G15.4).
      *
      * <h2>Why this exists beside the COI form's own listing</h2>
-     * The COI form asks the same question of a ship already in a battle. The FLEET BUILDER has
-     * to ask it of a hull on the shelf, before any game exists — G15.415 makes a loadout part of
+     * The COI form asks the same question of a ship already in a battle. The FLEET
+     * BUILDER has
+     * to ask it of a hull on the shelf, before any game exists — G15.415 makes a
+     * loadout part of
      * the purchase, so the choice is made while buying.
      *
      * <h2>Not filtered by cartel, deliberately</h2>
-     * G15.441 splits the FORCE's mounts 70/20/10 across home, operating zone and anyone, so no
-     * single option is legal or illegal on its own: a Klingon disruptor is fine until it is the
-     * eleventh one. The empires each option comes from are returned instead, and the caller
-     * tiers and totals them across the fleet — which is what {@code CartelQuota} does on submit.
+     * G15.441 splits the FORCE's mounts 70/20/10 across home, operating zone and
+     * anyone, so no
+     * single option is legal or illegal on its own: a Klingon disruptor is fine
+     * until it is the
+     * eleventh one. The empires each option comes from are returned instead, and
+     * the caller
+     * tiers and totals them across the fleet — which is what {@code CartelQuota}
+     * does on submit.
      */
     /**
      * A hull with refits applied on the fly, described as a shelf row (S3.24).
      *
      * <h2>Why the catalogue cannot answer</h2>
-     * The library registers the variants a hull was NAMED in — a Klingon D6 yields D6B, D6K,
-     * D6Bu — so those are buyable by name. A combination nobody named is not: 16 of the 17 Orion
-     * files declare their refits as switches and name no variant at all, so OAKDISC, the cloak
-     * and the Plus refit could be ticked and never bought. S3.24 makes the combination legal;
+     * The library registers the variants a hull was NAMED in — a Klingon D6 yields
+     * D6B, D6K,
+     * D6Bu — so those are buyable by name. A combination nobody named is not: 16 of
+     * the 17 Orion
+     * files declare their refits as switches and name no variant at all, so
+     * OAKDISC, the cloak
+     * and the Plus refit could be ticked and never bought. S3.24 makes the
+     * combination legal;
      * only the catalogue was silent.
      *
-     * <p>Naming every combination is not the fix. The Orion CA has four refits, so fifteen
-     * combinations, and unlike a D6B an OAKDISC-fitted CA has no canonical type name to give it.
+     * <p>
+     * Naming every combination is not the fix. The Orion CA has four refits, so
+     * fifteen
+     * combinations, and unlike a D6B an OAKDISC-fitted CA has no canonical type
+     * name to give it.
      * Resolving on demand answers for every faction's unnamed combinations at once.
      */
     @GetMapping("/ships/{faction}/{type}/refit")
@@ -336,11 +397,12 @@ public class GameController {
             if (!code.isBlank())
                 wanted.add(code.trim());
 
-        com.sfb.objects.ShipSpec resolved =
-                wanted.isEmpty() ? base : com.sfb.objects.RefitResolver.apply(base, wanted);
+        com.sfb.objects.ShipSpec resolved = wanted.isEmpty() ? base : com.sfb.objects.RefitResolver.apply(base, wanted);
         Map<String, Object> row = catalogRow(resolved, year);
-        // The BASE type and the codes, so a fleet records what was ticked rather than a type
-        // name that does not exist. FleetLoader re-applies them when the fleet is resolved.
+        // The BASE type and the codes, so a fleet records what was ticked rather than a
+        // type
+        // name that does not exist. FleetLoader re-applies them when the fleet is
+        // resolved.
         row.put("baseType", base.type);
         row.put("appliedRefits", wanted);
         return ResponseEntity.ok(row);
@@ -357,8 +419,7 @@ public class GameController {
             return ResponseEntity.notFound().build();
 
         com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
-        com.sfb.objects.OptionMountCatalog catalog =
-                com.sfb.objects.OptionMountCatalog.loadDefault();
+        com.sfb.objects.OptionMountCatalog catalog = com.sfb.objects.OptionMountCatalog.loadDefault();
         List<Map<String, Object>> mounts = new ArrayList<>();
         for (com.sfb.objects.OptionMount m : ship.getOptionMounts()) {
             Map<String, Object> mo = new java.util.LinkedHashMap<>();
@@ -372,7 +433,7 @@ public class GameController {
                 Map<String, Object> opt = new java.util.LinkedHashMap<>();
                 opt.put("name", e.name);
                 opt.put("cost", e.cost);
-                opt.put("empires", e.empires);   // null/empty = universal, cartel-exempt
+                opt.put("empires", e.empires); // null/empty = universal, cartel-exempt
                 opt.put("mountsRequired", e.mountsRequired);
                 // R8.R3 leaves a wing disruptor's or fusion beam's arc to the player, so the
                 // picker must offer it. The ARC LABELS, computed by core, so the view needs no
@@ -388,11 +449,16 @@ public class GameController {
         body.put("faction", spec.faction);
         body.put("type", spec.type);
         body.put("optionMounts", mounts);
-        // The hull's runs of CONSECUTIVE mounts, which is what an asterisked option in Annex #8B
-        // needs two of: the ESGs, the four plasma-G/S entries, the PPD and the SFG each fill two
-        // adjacent mounts. Without the runs a picker cannot say WHICH second mount a choice eats
-        // — on the Battle Raider's A-B-C, picking B takes A or C depending on what is free — so
-        // it offered a mount that was about to be occupied. Order is meaningful; a run is not a
+        // The hull's runs of CONSECUTIVE mounts, which is what an asterisked option in
+        // Annex #8B
+        // needs two of: the ESGs, the four plasma-G/S entries, the PPD and the SFG each
+        // fill two
+        // adjacent mounts. Without the runs a picker cannot say WHICH second mount a
+        // choice eats
+        // — on the Battle Raider's A-B-C, picking B takes A or C depending on what is
+        // free — so
+        // it offered a mount that was about to be occupied. Order is meaningful; a run
+        // is not a
         // set (Ship.mountsAreAdjacent).
         body.put("adjacentRuns", ship.getAdjacentMountRuns());
         return ResponseEntity.ok(body);
@@ -416,10 +482,14 @@ public class GameController {
         if (base == null)
             return ResponseEntity.notFound().build();
 
-        // Refit codes to apply on top, for a combination nobody NAMED a hull for (S3.24). The
-        // shelf can buy those now, so the viewer has to be able to SHOW them: an OAKDISC-fitted
-        // Orion CA is a "CAO", which is not a library type, and the (i) button 404ed on it. The
-        // caller sends the BASE type plus the codes it ticked, exactly as it does when buying.
+        // Refit codes to apply on top, for a combination nobody NAMED a hull for
+        // (S3.24). The
+        // shelf can buy those now, so the viewer has to be able to SHOW them: an
+        // OAKDISC-fitted
+        // Orion CA is a "CAO", which is not a library type, and the (i) button 404ed on
+        // it. The
+        // caller sends the BASE type plus the codes it ticked, exactly as it does when
+        // buying.
         List<String> refitCodes = new ArrayList<>();
         for (String code : codes.split(","))
             if (!code.isBlank())
@@ -428,22 +498,32 @@ public class GameController {
                 : com.sfb.objects.RefitResolver.apply(base, refitCodes);
 
         com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
-        // Every year-gated rule, not just the fighters. The viewer showed a Federation NCD at
-        // Y176 carrying the type-A drone racks it was BUILT with, where the Y175 refit gives it
-        // type-B — and the same omission hid ADD upgrades, plasma-rack reloads, ESG capacitors,
+        // Every year-gated rule, not just the fighters. The viewer showed a Federation
+        // NCD at
+        // Y176 carrying the type-A drone racks it was BUILT with, where the Y175 refit
+        // gives it
+        // type-B — and the same omission hid ADD upgrades, plasma-rack reloads, ESG
+        // capacitors,
         // fusion holding and UIM availability. Reported from the fleet builder.
         com.sfb.scenario.ScenarioLoader.outfitForYear(ship, spec.faction, year, spec);
 
         com.sfb.Game preview = new com.sfb.Game();
         preview.getShips().add(ship);
-        // startTurn() would be wrong — it runs the allocation queue — but it is also where ships
-        // normally have the clock injected, and several DTO fields ask the ship a question about
-        // the current impulse (aegis operation, EM announcements). So attach it by hand.
+        // startTurn() would be wrong — it runs the allocation queue — but it is also
+        // where ships
+        // normally have the clock injected, and several DTO fields ask the ship a
+        // question about
+        // the current impulse (aegis operation, EM announcements). So attach it by
+        // hand.
         ship.attachClock(preview.getClock());
-        // A nominal berth, because SsdPanel draws its arc diagram around the ship's real hex and
-        // falls back to "off the map, no bearing to draw" without one. Mid-map on the default
-        // 42x32 board, comfortably more than the diagram's 5-hex radius from any edge, so no arc
-        // is clipped by the board rather than by its own shape. Facing 1 is up, so FA points the
+        // A nominal berth, because SsdPanel draws its arc diagram around the ship's
+        // real hex and
+        // falls back to "off the map, no bearing to draw" without one. Mid-map on the
+        // default
+        // 42x32 board, comfortably more than the diagram's 5-hex radius from any edge,
+        // so no arc
+        // is clipped by the board rather than by its own shape. Facing 1 is up, so FA
+        // points the
         // way a printed SSD does.
         ship.setLocation(new com.sfb.properties.Location(21, 16));
         ship.setFacing(1);
@@ -460,9 +540,12 @@ public class GameController {
     // -------------------------------------------------------------------------
 
     /**
-     * Check a fleet without committing to it. The rules live in amarillo-core so that a limit
-     * is enforced wherever a fleet arrives from, not only where a form happens to check it;
-     * this endpoint exists so the builder can show the whole picture as it is assembled.
+     * Check a fleet without committing to it. The rules live in amarillo-core so
+     * that a limit
+     * is enforced wherever a fleet arrives from, not only where a form happens to
+     * check it;
+     * this endpoint exists so the builder can show the whole picture as it is
+     * assembled.
      */
     @PostMapping("/fleets/validate")
     public ResponseEntity<Map<String, Object>> validateFleet(@RequestBody com.sfb.scenario.FleetSpec spec) {
@@ -471,20 +554,29 @@ public class GameController {
     }
 
     /**
-     * What each ship of a fleet UNDER CONSTRUCTION may buy with its option points (S8.12).
+     * What each ship of a fleet UNDER CONSTRUCTION may buy with its option points
+     * (S8.12).
      *
      * <h2>Why a POST, and why it builds a scenario first</h2>
-     * The fleet being edited is not saved yet and has no game behind it, so neither the by-id
-     * route nor the session route can answer for it — the spec arrives in the body instead.
-     * And rather than a second implementation of the COI payload, the fleet is converted into
-     * the scenario it would become ({@code FleetsToScenario}) and the one builder answers for
+     * The fleet being edited is not saved yet and has no game behind it, so neither
+     * the by-id
+     * route nor the session route can answer for it — the spec arrives in the body
+     * instead.
+     * And rather than a second implementation of the COI payload, the fleet is
+     * converted into
+     * the scenario it would become ({@code FleetsToScenario}) and the one builder
+     * answers for
      * both. A fleet is one side, so the response has one entry.
      *
      * <h2>Weapon status is deliberately left at its default</h2>
-     * S8.134 has weapon status "defined by die roll or by mutual agreement" when the battle is
-     * arranged, so it is a condition of the fight rather than part of what the fleet costs. At
-     * the default the dialog simply does not offer the WS-3 arming controls, which is correct:
-     * a player buying a fleet is choosing drones and T-bombs, not how the photons are held.
+     * S8.134 has weapon status "defined by die roll or by mutual agreement" when
+     * the battle is
+     * arranged, so it is a condition of the fight rather than part of what the
+     * fleet costs. At
+     * the default the dialog simply does not offer the WS-3 arming controls, which
+     * is correct:
+     * a player buying a fleet is choosing drones and T-bombs, not how the photons
+     * are held.
      */
     @PostMapping("/fleets/coi-data")
     public ResponseEntity<List<Map<String, Object>>> fleetCoiData(
@@ -501,7 +593,10 @@ public class GameController {
         }
     }
 
-    /** Resolve a fleet, validate it, and describe the result the way every caller wants it. */
+    /**
+     * Resolve a fleet, validate it, and describe the result the way every caller
+     * wants it.
+     */
     private Map<String, Object> judge(com.sfb.scenario.FleetSpec spec) {
         com.sfb.scenario.FleetLoader.Resolution resolved = com.sfb.scenario.FleetLoader.resolve(spec);
 
@@ -517,13 +612,14 @@ public class GameController {
             return body;
         }
 
-        // The cartel comes with the fleet so G15.44's quota is judged here, at BUILD time, where
-        // the option mounts now exist. Dropping it left the quota reachable only at COI, which
+        // The cartel comes with the fleet so G15.44's quota is judged here, at BUILD
+        // time, where
+        // the option mounts now exist. Dropping it left the quota reachable only at
+        // COI, which
         // is after the force has been declared legal.
         com.sfb.scenario.FleetValidator.Fleet fleet = new com.sfb.scenario.FleetValidator.Fleet(
                 resolved.ships(), resolved.flagshipName(), spec.budget, spec.year, spec.cartel);
-        List<com.sfb.scenario.FleetValidator.Violation> violations =
-                com.sfb.scenario.FleetValidator.validate(fleet);
+        List<com.sfb.scenario.FleetValidator.Violation> violations = com.sfb.scenario.FleetValidator.validate(fleet);
 
         List<Map<String, Object>> rows = new ArrayList<>();
         for (com.sfb.scenario.FleetValidator.Violation v : violations) {
@@ -548,25 +644,33 @@ public class GameController {
     // Starting a battle from saved fleets (S8.0)
     // -------------------------------------------------------------------------
 
-    /** One side of a fleet battle: whose fleet, the team flying it, and where it sets up. */
+    /**
+     * One side of a fleet battle: whose fleet, the team flying it, and where it
+     * sets up.
+     */
     public static class FleetSideRequest {
         public String fleetId;
         /**
-         * The side this fleet flies for. In a written situation this names one of its sides —
+         * The side this fleet flies for. In a written situation this names one of its
+         * sides —
          * "Defender", "Attacker" — and in a plain battle it is just what to call them.
          */
         public String team;
         /**
-         * Where this fleet may deploy, overriding whatever the situation gave that side. The
-         * plain battle uses it; an authored one usually should not, since its ground tends to
+         * Where this fleet may deploy, overriding whatever the situation gave that
+         * side. The
+         * plain battle uses it; an authored one usually should not, since its ground
+         * tends to
          * be measured from something.
          */
         public com.sfb.scenario.MapRegion zone;
     }
 
     /**
-     * The conditions the host agrees before anyone chooses a fleet, and the fleets themselves.
-     * Several fleets may share a team, which is how allied players field separate forces.
+     * The conditions the host agrees before anyone chooses a fleet, and the fleets
+     * themselves.
+     * Several fleets may share a team, which is how allied players field separate
+     * forces.
      */
     public static class FleetGameRequest {
         public List<FleetSideRequest> sides = new ArrayList<>();
@@ -574,18 +678,21 @@ public class GameController {
         public int budget;
         public int mapCols = 42;
         public int mapRows = 32;
-        public int weaponStatus = 2;   // S8.134: agreed, or rolled for
+        public int weaponStatus = 2; // S8.134: agreed, or rolled for
         /**
          * What is on the map: "OPEN_SPACE", "ASTEROID_FIELD", "PLANET" or "GAS_GIANT".
-         * Settled before forces are bought (S8.15), though saved fleets are bought earlier
+         * Settled before forces are bought (S8.15), though saved fleets are bought
+         * earlier
          * still — which is why a player keeps several and brings the one that suits.
          */
         public String terrain;
         /** Rolled once by the host if absent, so every player sees the same map. */
         public Long terrainSeed;
         /**
-         * A written situation to bring the fleets to — the id of a file in data/scenarios whose
-         * sides are marked bringYourOwn. Omit it for a plain battle, which is the same thing
+         * A written situation to bring the fleets to — the id of a file in
+         * data/scenarios whose
+         * sides are marked bringYourOwn. Omit it for a plain battle, which is the same
+         * thing
          * with nothing specified.
          */
         public String scenarioId;
@@ -594,9 +701,12 @@ public class GameController {
     /**
      * Build a battle out of saved fleets, in place of naming a scenario file.
      * <p>
-     * Every fleet is revalidated against the host's conditions rather than the ones it was
-     * saved with: what matters is whether it is legal for THIS battle. A fleet built for a
-     * thousand points is welcome in a nine-hundred point game if it fits, and a fleet whose
+     * Every fleet is revalidated against the host's conditions rather than the ones
+     * it was
+     * saved with: what matters is whether it is legal for THIS battle. A fleet
+     * built for a
+     * thousand points is welcome in a nine-hundred point game if it fits, and a
+     * fleet whose
      * ships have been edited since it was saved may no longer fit anywhere.
      */
     @PostMapping("/{id}/fleets")
@@ -617,8 +727,10 @@ public class GameController {
             if (req.sides == null || req.sides.isEmpty())
                 return ResponseEntity.badRequest().body(Map.of("error", "A battle needs at least one fleet"));
 
-            // Whether this battle has room is a question about the battle, and is asked before
-            // any fleet is judged — a fleet's own problems should not hide "there is nowhere to
+            // Whether this battle has room is a question about the battle, and is asked
+            // before
+            // any fleet is judged — a fleet's own problems should not hide "there is
+            // nowhere to
             // put it".
             com.sfb.scenario.ScenarioSpec template = null;
             String situation = "fleet-battle";
@@ -647,8 +759,10 @@ public class GameController {
 
             // A WRITTEN situation's date is binding (S8.131). A situation is a historical
             // moment, so bringing a fleet from a later decade to it is the same error as
-            // bringing a ship that does not exist yet -- and the drone speed a ship sails with
-            // is fitted from this year too (S2.11), so a disagreement arms the fleet for one
+            // bringing a ship that does not exist yet -- and the drone speed a ship sails
+            // with
+            // is fitted from this year too (S2.11), so a disagreement arms the fleet for
+            // one
             // decade and judges it in another.
             //
             // A situation may state NO year, which is the general case: "a convoy meets a
@@ -657,9 +771,9 @@ public class GameController {
             int effectiveYear = template != null && template.year > 0 ? template.year : req.year;
             String yearNote = template != null && template.year > 0 && req.year > 0
                     && req.year != template.year
-                    ? template.name + " is set in Y" + template.year
-                            + ", so the fleets are judged against that rather than Y" + req.year
-                    : null;
+                            ? template.name + " is set in Y" + template.year
+                                    + ", so the fleets are judged against that rather than Y" + req.year
+                            : null;
 
             List<com.sfb.scenario.FleetsToScenario.Entry> entries = new ArrayList<>();
             List<Map<String, Object>> reports = new ArrayList<>();
@@ -713,19 +827,18 @@ public class GameController {
                 body.put("fleets", reports);
                 // Overruling what the host asked for without saying so would make an illegal
                 // fleet look like a mystery: they typed one year and were judged on another.
-                if (yearNote != null) body.put("yearNote", yearNote);
+                if (yearNote != null)
+                    body.put("yearNote", yearNote);
                 return ResponseEntity.badRequest().body(body);
             }
 
             long terrainSeed = req.terrainSeed != null ? req.terrainSeed : new java.util.Random().nextLong();
-            List<com.sfb.scenario.TerrainGenerator.Plan> terrain =
-                    com.sfb.scenario.TerrainGenerator.forChoice(
-                            req.terrain, terrainSeed, req.mapCols, req.mapRows);
+            List<com.sfb.scenario.TerrainGenerator.Plan> terrain = com.sfb.scenario.TerrainGenerator.forChoice(
+                    req.terrain, terrainSeed, req.mapCols, req.mapRows);
 
-            com.sfb.scenario.FleetsToScenario.Conditions conditions =
-                    new com.sfb.scenario.FleetsToScenario.Conditions(
-                            effectiveYear, req.budget, req.mapCols, req.mapRows,
-                            req.weaponStatus, terrain);
+            com.sfb.scenario.FleetsToScenario.Conditions conditions = new com.sfb.scenario.FleetsToScenario.Conditions(
+                    effectiveYear, req.budget, req.mapCols, req.mapRows,
+                    req.weaponStatus, terrain);
 
             if (template == null)
                 template = com.sfb.scenario.FleetsToScenario.pickupTemplate(entries, conditions);
@@ -737,11 +850,14 @@ public class GameController {
             body.put("message", "Battle assembled from " + entries.size() + " fleets");
             body.put("fleets", reports);
             body.put("terrain", req.terrain != null ? req.terrain : "OPEN_SPACE");
-            body.put("terrainSeed", terrainSeed);   // so a host can lay the same map again
-            // The host asked for one year and the situation imposed another. They are entitled
-            // to know on the way IN, not only when a fleet is refused: a legal battle fought in
+            body.put("terrainSeed", terrainSeed); // so a host can lay the same map again
+            // The host asked for one year and the situation imposed another. They are
+            // entitled
+            // to know on the way IN, not only when a fleet is refused: a legal battle
+            // fought in
             // a decade nobody typed is the quieter half of the same surprise.
-            if (yearNote != null) body.put("yearNote", yearNote);
+            if (yearNote != null)
+                body.put("yearNote", yearNote);
             return ResponseEntity.ok(body);
         });
     }
@@ -753,9 +869,9 @@ public class GameController {
     /** One ship, set down. */
     public static class PlacementRequest {
         public String shipName;
-        public String hex;          // CCRR
-        public String heading;      // "A"-"F"
-        public int    speed = 16;   // 16 = Speed Max
+        public String hex; // CCRR
+        public String heading; // "A"-"F"
+        public int speed = 16; // 16 = Speed Max
     }
 
     /** A whole setup, replacing whatever this player had before. */
@@ -766,8 +882,10 @@ public class GameController {
     /**
      * This player's own setup, and the ground they may use.
      * <p>
-     * Fetched rather than broadcast: placements are secret until everyone is finished, and a
-     * websocket topic goes to the whole room. What the room hears is only how many ships each
+     * Fetched rather than broadcast: placements are secret until everyone is
+     * finished, and a
+     * websocket topic goes to the whole room. What the room hears is only how many
+     * ships each
      * player has put down.
      */
     @GetMapping("/{id}/deployment")
@@ -791,7 +909,8 @@ public class GameController {
             Map<String, Object> body = new java.util.LinkedHashMap<>();
             body.put("required", session.isDeploymentRequired());
             // Only the ships the player must place: a ground base is sited by the scenario
-            // (R1.14) and listing it here is what put the Nivram batteries on the map by hand.
+            // (R1.14) and listing it here is what put the Nivram batteries on the map by
+            // hand.
             body.put("ships", session.deployableShipsFor(token));
             body.put("zone", zone == null ? null
                     : LobbyStateDto.ZoneDto.of(zone, cols, rows));
@@ -813,7 +932,10 @@ public class GameController {
         });
     }
 
-    /** Set this player's ships down. Replaces their whole setup, so partial work is fine. */
+    /**
+     * Set this player's ships down. Replaces their whole setup, so partial work is
+     * fine.
+     */
     @PostMapping("/{id}/deployment")
     public ResponseEntity<Map<String, Object>> submitDeployment(
             @PathVariable String id,
@@ -848,7 +970,10 @@ public class GameController {
         });
     }
 
-    /** Lay this player's ships out in their own ground, as a starting point to adjust. */
+    /**
+     * Lay this player's ships out in their own ground, as a starting point to
+     * adjust.
+     */
     @PostMapping("/{id}/deployment/auto")
     public ResponseEntity<Map<String, Object>> autoArrange(
             @PathVariable String id,
@@ -877,8 +1002,10 @@ public class GameController {
     /**
      * Say you are finished setting up, or that you are not after all.
      * <p>
-     * Reversible right up until the last player says it: there is no advantage in changing your
-     * mind about a setup nobody can see, and clicking Done a moment early should not cost the
+     * Reversible right up until the last player says it: there is no advantage in
+     * changing your
+     * mind about a setup nobody can see, and clicking Done a moment early should
+     * not cost the
      * battle.
      */
     @PostMapping("/{id}/deployment/done")
@@ -922,10 +1049,14 @@ public class GameController {
     /**
      * List the saved battles.
      *
-     * Deliberately NOT revalidated the way saved fleets are. A fleet's badge is a judgement about
-     * whether it is still legal to field; a save is a record of something that already happened,
-     * and nothing about a later rules or data change makes a battle that was fought invalid. What
-     * a later data change CAN do is make it restore as a different ship, which is the fingerprint
+     * Deliberately NOT revalidated the way saved fleets are. A fleet's badge is a
+     * judgement about
+     * whether it is still legal to field; a save is a record of something that
+     * already happened,
+     * and nothing about a later rules or data change makes a battle that was fought
+     * invalid. What
+     * a later data change CAN do is make it restore as a different ship, which is
+     * the fingerprint
      * problem noted on {@code SavedGame} and belongs on load, not in a list.
      */
     @GetMapping("/saves")
@@ -965,11 +1096,16 @@ public class GameController {
      * Body: { "id": "optional-file-id", "label": "optional label" }
      *
      * <h2>Only at a turn boundary</h2>
-     * The snapshot is designed for one: almost everything held by object identity rather than by
-     * name — who moved this impulse, pending volleys, pending DAC choices — is empty between
-     * turns and would have to be serialised faithfully otherwise. Refusing mid-turn is therefore
-     * not a limitation to apologise for, it is the thing that makes the format small enough to
-     * be correct. A player saving at the wrong moment gets told which moment to use.
+     * The snapshot is designed for one: almost everything held by object identity
+     * rather than by
+     * name — who moved this impulse, pending volleys, pending DAC choices — is
+     * empty between
+     * turns and would have to be serialised faithfully otherwise. Refusing mid-turn
+     * is therefore
+     * not a limitation to apologise for, it is the thing that makes the format
+     * small enough to
+     * be correct. A player saving at the wrong moment gets told which moment to
+     * use.
      */
     @PostMapping("/{id}/save")
     public ResponseEntity<Map<String, Object>> saveGame(
@@ -996,12 +1132,13 @@ public class GameController {
             if (!game.isAwaitingAllocation())
                 return ResponseEntity.badRequest().body(Map.of(
                         "error", "A game can only be saved between turns, during energy "
-                               + "allocation — finish the turn and save then"));
+                                + "allocation — finish the turn and save then"));
 
             Map<String, String> input = body == null ? Map.of() : body;
             String saveId = input.get("id");
             // The turn ABOUT TO BE PLAYED. Both clock accessors are ambiguous at a turn
-            // boundary, which is the only moment a save is taken — see turnAboutToBePlayed().
+            // boundary, which is the only moment a save is taken — see
+            // turnAboutToBePlayed().
             int turn = game.turnAboutToBePlayed();
             String label = input.getOrDefault("label", spec.name + " — turn " + turn);
             if (saveId == null || saveId.isBlank())
@@ -1032,32 +1169,49 @@ public class GameController {
     /*
      * LOADING A SAVE BACK INTO A SESSION IS NOT HERE, AND THAT IS DELIBERATE.
      *
-     * Taking a save is a read: it cannot hurt the game it snapshots, and the format is proven by
-     * SavedGameJsonTest in core. Putting one BACK runs into three things that want deciding
+     * Taking a save is a read: it cannot hurt the game it snapshots, and the format
+     * is proven by
+     * SavedGameJsonTest in core. Putting one BACK runs into three things that want
+     * deciding
      * rather than plumbing:
      *
-     *   - GameSession.game is final, and setupFromScenario APPENDS ships rather than clearing,
-     *     so a restored battle cannot simply be poured into a session that already holds one —
-     *     it would duplicate the fleet. A restored game wants a fresh session built around it.
-     *   - a restored game is already STARTED, so the lobby's assignment, COI and deployment
-     *     stages have all been passed. Those stages are what currently give a player their
-     *     ships.
-     *   - and the ships come back owned by a TEAM, not by a seat. Re-attaching the people is the
-     *     account-and-seat question from the front-door work (slices A and B): a durable account
-     *     is exactly what lets somebody prove they are the player who owned that fleet, which is
-     *     the reason that work was put ahead of this.
+     * - GameSession.game is final, and setupFromScenario APPENDS ships rather than
+     * clearing,
+     * so a restored battle cannot simply be poured into a session that already
+     * holds one —
+     * it would duplicate the fleet. A restored game wants a fresh session built
+     * around it.
+     * - a restored game is already STARTED, so the lobby's assignment, COI and
+     * deployment
+     * stages have all been passed. Those stages are what currently give a player
+     * their
+     * ships.
+     * - and the ships come back owned by a TEAM, not by a seat. Re-attaching the
+     * people is the
+     * account-and-seat question from the front-door work (slices A and B): a
+     * durable account
+     * is exactly what lets somebody prove they are the player who owned that fleet,
+     * which is
+     * the reason that work was put ahead of this.
      *
-     * So restoring is its own slice, and SavedGame.restore() already does the engine half of it.
+     * So restoring is its own slice, and SavedGame.restore() already does the
+     * engine half of it.
      */
 
     /**
-     * A save id nobody is using yet, by adding a counter when the obvious name is taken.
+     * A save id nobody is using yet, by adding a counter when the obvious name is
+     * taken.
      *
-     * The generated name is the game code and the turn, which collides the moment somebody saves
-     * the same turn twice — and they will, because saving before and after trying something is
-     * the whole point of having saves. Overwriting silently would destroy the earlier snapshot
-     * with no warning, which is the one thing a save feature must never do. An explicit id passed
-     * by the caller is left alone: naming a file is a decision, and replacing one deliberately is
+     * The generated name is the game code and the turn, which collides the moment
+     * somebody saves
+     * the same turn twice — and they will, because saving before and after trying
+     * something is
+     * the whole point of having saves. Overwriting silently would destroy the
+     * earlier snapshot
+     * with no warning, which is the one thing a save feature must never do. An
+     * explicit id passed
+     * by the caller is left alone: naming a file is a decision, and replacing one
+     * deliberately is
      * allowed.
      */
     private static String uniqueSaveId(String preferred) {
@@ -1077,14 +1231,22 @@ public class GameController {
      * Body: { "name": "host name", "accountId": "optional durable id" }
      *
      * <h2>Ships come back unassigned, on purpose</h2>
-     * A save records which TEAM owned each ship, never which person — tokens are per-session and
-     * were never in the file. So the battle is restored complete and every seat starts empty, and
-     * the host hands the ships out exactly as in a new game, with the per-ship control or
-     * "Give side". That is what lets a saved battle be continued by players who were not in it.
+     * A save records which TEAM owned each ship, never which person — tokens are
+     * per-session and
+     * were never in the file. So the battle is restored complete and every seat
+     * starts empty, and
+     * the host hands the ships out exactly as in a new game, with the per-ship
+     * control or
+     * "Give side". That is what lets a saved battle be continued by players who
+     * were not in it.
      *
-     * <p>The teams offered are the ones that held each ship WHEN THE SAVE WAS TAKEN, not the
-     * sides the scenario started them on. Ships change hands — D7.50 gives a captured hull to its
-     * captor — and offering the scenario's view would quietly hand every capture back.
+     * <p>
+     * The teams offered are the ones that held each ship WHEN THE SAVE WAS TAKEN,
+     * not the
+     * sides the scenario started them on. Ships change hands — D7.50 gives a
+     * captured hull to its
+     * captor — and offering the scenario's view would quietly hand every capture
+     * back.
      */
     @PostMapping("/saves/{saveId}/open")
     public ResponseEntity<Map<String, Object>> openSave(
@@ -1146,12 +1308,14 @@ public class GameController {
     private static final File FLEET_DIR = new File("data/fleets");
 
     /**
-     * Ids become filenames, so they are kept to a shape that cannot climb out of the
-     * directory. Anything else is refused rather than sanitised, so a caller is told its id
+     * Ids become filenames, so they are kept to a shape that cannot climb out of
+     * the
+     * directory. Anything else is refused rather than sanitised, so a caller is
+     * told its id
      * was wrong instead of quietly getting a different one.
      */
-    private static final java.util.regex.Pattern SAFE_ID =
-            java.util.regex.Pattern.compile("[A-Za-z0-9][A-Za-z0-9_-]{0,63}");
+    private static final java.util.regex.Pattern SAFE_ID = java.util.regex.Pattern
+            .compile("[A-Za-z0-9][A-Za-z0-9_-]{0,63}");
 
     private static File fleetFile(String id) {
         return new File(FLEET_DIR, id + ".json");
@@ -1160,8 +1324,10 @@ public class GameController {
     /**
      * Saved fleets, each revalidated as it is listed.
      * <p>
-     * Revalidating is the point of the badge: a fleet is only legal against the conditions it
-     * was built under, and the ships it names go on being edited after it is saved. A force
+     * Revalidating is the point of the badge: a fleet is only legal against the
+     * conditions it
+     * was built under, and the ships it names go on being edited after it is saved.
+     * A force
      * that was legal in March can be illegal in April because a BPV moved.
      */
     @GetMapping("/fleets")
@@ -1216,8 +1382,10 @@ public class GameController {
     }
 
     /**
-     * Save a fleet, legal or not. A force half assembled is worth keeping — the badge says
-     * what is wrong with it, and the lobby is where an illegal one is refused a battle.
+     * Save a fleet, legal or not. A force half assembled is worth keeping — the
+     * badge says
+     * what is wrong with it, and the lobby is where an illegal one is refused a
+     * battle.
      */
     @PostMapping("/fleets")
     public ResponseEntity<Map<String, Object>> saveFleet(@RequestBody com.sfb.scenario.FleetSpec spec) {
@@ -1346,7 +1514,7 @@ public class GameController {
                     entry.put("openSides", open);
                     entry.put("fixedTerrain",
                             (spec.terrain != null && !spec.terrain.isEmpty())
-                            || (spec.terrainPlan != null && !spec.terrainPlan.isEmpty()));
+                                    || (spec.terrainPlan != null && !spec.terrainPlan.isEmpty()));
 
                     result.add(entry);
                 } catch (Exception e) {
@@ -1365,7 +1533,8 @@ public class GameController {
     /**
      * Commander's Option data for a scenario file, by id.
      * <p>
-     * Kept for callers that know a scenario by name. A battle assembled from saved fleets is
+     * Kept for callers that know a scenario by name. A battle assembled from saved
+     * fleets is
      * not a file, so the game-scoped route below is the one that works for both.
      */
     @GetMapping("/scenarios/{scenarioId}/coi-data")
@@ -1380,8 +1549,10 @@ public class GameController {
     }
 
     /**
-     * Commander's Option data for the battle this game is actually sitting down to, taken from
-     * the spec the session holds. Works whether that spec was read from disk or assembled from
+     * Commander's Option data for the battle this game is actually sitting down to,
+     * taken from
+     * the spec the session holds. Works whether that spec was read from disk or
+     * assembled from
      * saved fleets, which the by-id route cannot be.
      */
     @GetMapping("/{id}/coi-data")
@@ -1402,468 +1573,462 @@ public class GameController {
 
     /** What each side may buy with its option points, ship by ship. */
     List<Map<String, Object>> coiDataFor(ScenarioSpec spec) {
-            List<List<Ship>> sideShips = com.sfb.scenario.ScenarioLoader.loadShips(spec);
+        List<List<Ship>> sideShips = com.sfb.scenario.ScenarioLoader.loadShips(spec);
 
-            List<Map<String, Object>> result = new ArrayList<>();
-            for (int i = 0; i < spec.sides.size(); i++) {
-                ScenarioSpec.SideSpec side = spec.sides.get(i);
-                List<Ship> ships = i < sideShips.size() ? sideShips.get(i) : List.of();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (int i = 0; i < spec.sides.size(); i++) {
+            ScenarioSpec.SideSpec side = spec.sides.get(i);
+            List<Ship> ships = i < sideShips.size() ? sideShips.get(i) : List.of();
 
-                List<Map<String, Object>> shipList = new ArrayList<>();
-                for (Ship ship : ships) {
-                    Map<String, Object> s = new java.util.LinkedHashMap<>();
-                    s.put("shipName", ship.getName());
-                    s.put("bpv", ship.getBattlePointValue());
+            List<Map<String, Object>> shipList = new ArrayList<>();
+            for (Ship ship : ships) {
+                Map<String, Object> s = new java.util.LinkedHashMap<>();
+                s.put("shipName", ship.getName());
+                s.put("bpv", ship.getBattlePointValue());
 
-                    // Find this ship's weaponStatus from the spec
-                    int ws = side.ships.stream()
-                            .filter(ss -> ship.getName().equals(ss.shipName))
-                            .mapToInt(ss -> ss.weaponStatus).findFirst().orElse(0);
-                    s.put("weaponStatus", ws);
+                // Find this ship's weaponStatus from the spec
+                int ws = side.ships.stream()
+                        .filter(ss -> ship.getName().equals(ss.shipName))
+                        .mapToInt(ss -> ss.weaponStatus).findFirst().orElse(0);
+                s.put("weaponStatus", ws);
 
-                    // Heavy weapons that can have arming modes chosen at WS-3
-                    List<Map<String, Object>> heavy = new ArrayList<>();
-                    int droneIndex = 0;
-                    List<Map<String, Object>> drones = new ArrayList<>();
-                    for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
-                        if (w instanceof com.sfb.weapons.HeavyWeapon
-                                && !(w instanceof com.sfb.weapons.Fusion)
-                                && !(w instanceof com.sfb.weapons.Disruptor)
-                                && !(w instanceof com.sfb.weapons.DroneRack)) {
-                            boolean canHold = !(w instanceof com.sfb.weapons.PlasmaLauncher)
-                                    || ((com.sfb.weapons.PlasmaLauncher) w).canHold();
-                            if (canHold) {
-                                Map<String, Object> hw = new java.util.LinkedHashMap<>();
-                                hw.put("designator", w.getDesignator());
-                                hw.put("type", w.getType());
-                                hw.put("isPlasma", w instanceof com.sfb.weapons.PlasmaLauncher);
-                                heavy.add(hw);
-                            }
-                        }
-                        if (w instanceof com.sfb.weapons.DroneRack) {
-                            com.sfb.weapons.DroneRack rack = (com.sfb.weapons.DroneRack) w;
-                            Map<String, Object> dr = new java.util.LinkedHashMap<>();
-                            dr.put("index", droneIndex++);
-                            dr.put("designator", w.getDesignator());
-                            dr.put("spaces", rack.getSpaces());
-                            dr.put("reloadCount", rack.getNumberOfReloads());
-                            // What is in the rack before any COI, each drone in the same
-                            // textual form a loadout sends back — so a composed drone
-                            // (FD10.2) is reported as what it is rather than as the catalogue
-                            // drone it was built from, which would have the dialog show an
-                            // armored type-IV as a plain one and then quietly replace it.
-                            List<String> defAmmo = new ArrayList<>();
-                            for (com.sfb.objects.Drone d : rack.getAmmo()) {
-                                if (d.getDroneType() == null) {
-                                    defAmmo.add("TypeI");
-                                    continue;
-                                }
-                                defAmmo.add(new com.sfb.objects.DroneLoad(
-                                        d.getDroneType(), d.getSpec()).format());
-                            }
-                            dr.put("defaultAmmo", defAmmo);
-                            // Ask the rack, which is where FD2.51 and FD3.5 live. This used
-                            // to be a third copy of the E/G/H list, alongside core's and the
-                            // COI loader's.
-                            dr.put("canLoadTypeVI",
-                                    rack.accepts(com.sfb.objects.DroneType.TypeVI));
-                            // FD3.70: only a type-G has the anti-drone targeting system.
-                            dr.put("canLoadAntiDrones", rack.acceptsAntiDrones());
-                            dr.put("antiDroneSpace",
-                                    com.sfb.weapons.DroneRack.ANTI_DRONE_SPACE);
-                            // Ready-made loadouts for this rack in this year, so the dialog can
-                            // fill a magazine with one click instead of four. Core decides which
-                            // ones are legal (FD3.5, FD10.65, FD3.0) and prices each against the
-                            // budget; the view only renders them. No label is sent because the
-                            // dialog already knows how to write a drone list as "4 x Type-IF".
-                            List<Map<String, Object>> presets = new ArrayList<>();
-                            for (com.sfb.scenario.DroneRackPresets.Preset p
-                                    : com.sfb.scenario.DroneRackPresets.forRack(rack, spec.year)) {
-                                Map<String, Object> pm = new java.util.LinkedHashMap<>();
-                                List<String> names = new ArrayList<>();
-                                for (com.sfb.objects.DroneLoad d : p.drones())
-                                    names.add(d.format());
-                                pm.put("drones", names);
-                                pm.put("antiDrones", p.antiDrones());
-                                pm.put("surcharge", p.surcharge());
-                                presets.add(pm);
-                            }
-                            dr.put("presets", presets);
-                            drones.add(dr);
+                // Heavy weapons that can have arming modes chosen at WS-3
+                List<Map<String, Object>> heavy = new ArrayList<>();
+                int droneIndex = 0;
+                List<Map<String, Object>> drones = new ArrayList<>();
+                for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                    if (w instanceof com.sfb.weapons.HeavyWeapon
+                            && !(w instanceof com.sfb.weapons.Fusion)
+                            && !(w instanceof com.sfb.weapons.Disruptor)
+                            && !(w instanceof com.sfb.weapons.DroneRack)) {
+                        boolean canHold = !(w instanceof com.sfb.weapons.PlasmaLauncher)
+                                || ((com.sfb.weapons.PlasmaLauncher) w).canHold();
+                        if (canHold) {
+                            Map<String, Object> hw = new java.util.LinkedHashMap<>();
+                            hw.put("designator", w.getDesignator());
+                            hw.put("type", w.getType());
+                            hw.put("isPlasma", w instanceof com.sfb.weapons.PlasmaLauncher);
+                            heavy.add(hw);
                         }
                     }
-                    s.put("heavyWeapons", heavy);
-                    s.put("droneRacks", drones);
-
-                    // J4.62/J4.621: a casual carrier's fighter facilities, and which models they
-                    // could be built for in THIS scenario's year. Absent on every other ship, so
-                    // the dialog shows nothing rather than an empty control.
-                    int facilities = 0;
-                    String facilityLine = null;
-                    for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
-                        facilities += bay.getFighterFacilities();
-                        if (bay.getFighterFacilities() > 0 && bay.getFighterComplement() != null)
-                            facilityLine = bay.getFighterComplement().getLine();
-                    }
-                    if (facilities > 0 && facilityLine != null) {
-                        Map<String, Object> ff = new java.util.LinkedHashMap<>();
-                        ff.put("count", facilities);
-                        ff.put("line", facilityLine);
-                        List<Map<String, Object>> models = new ArrayList<>();
-                        Map<String, String> byRole = com.sfb.objects.FighterComplement
-                                .facilityModelsFor(facilityLine, spec.year);
-                        for (Map.Entry<String, String> m : byRole.entrySet()) {
-                            Map<String, Object> entry2 = new java.util.LinkedHashMap<>();
-                            entry2.put("role", m.getKey());
-                            entry2.put("type", m.getValue());
-                            // The name the player knows it by - "Gladiator-SF", not "gsf".
-                            entry2.put("name",
-                                    com.sfb.objects.ShuttleCatalog.displayNameOf(m.getValue()));
-                            models.add(entry2);
-                        }
-                        ff.put("models", models);
-                        // The standard fighter, which is what the ship has if nobody chooses.
-                        ff.put("defaultType", byRole.get(
-                                com.sfb.objects.ShuttleCatalog.LineEra.STANDARD));
-                        s.put("fighterFacilities", ff);
-                    }
-
-                    // Orion option mounts (G15.4) — empty for non-Orion ships. Each
-                    // mount lists the options legal for it (position/size/year/etc.),
-                    // filtered against the same validator that equips them.
-                    if (!ship.getOptionMounts().isEmpty()) {
-                        com.sfb.objects.OptionMountCatalog catalog =
-                                com.sfb.objects.OptionMountCatalog.loadDefault();
-                        List<Map<String, Object>> mounts = new ArrayList<>();
-                        for (com.sfb.objects.OptionMount m : ship.getOptionMounts()) {
-                            Map<String, Object> mo = new java.util.LinkedHashMap<>();
-                            mo.put("designator", m.getDesignator());
-                            mo.put("position", m.getPosition().name());
-                            mo.put("arcs", m.getArcs());
-                            mo.put("currentOption", m.isEmpty() ? null : m.getWeapon().getName());
-                            List<Map<String, Object>> legal = new ArrayList<>();
-                            for (com.sfb.objects.OptionCatalogEntry e : catalog.all()) {
-                                if (com.sfb.objects.OptionMountLoadout.validate(ship, m, e, spec.year) == null) {
-                                    Map<String, Object> opt = new java.util.LinkedHashMap<>();
-                                    opt.put("name", e.name);
-                                    opt.put("cost", e.cost);
-                                    opt.put("empires", e.empires);  // null = universal (cartel-exempt)
-                                    // Annex #8B's asterisk: two ADJACENT mounts. Omitted here
-                                    // until now, so the COI form could offer the mount an ESG
-                                    // was about to eat — the same hole the fleet builder had.
-                                    opt.put("mountsRequired", e.mountsRequired);
-                                    opt.put("arcChoices",
-                                            com.sfb.objects.OptionMountArcs.arcChoiceLabels(e, m));
-                                    legal.add(opt);
-                                }
-                            }
-                            mo.put("legalOptions", legal);
-                            mounts.add(mo);
-                        }
-                        s.put("optionMounts", mounts);
-                        // The runs of consecutive mounts, which is what decides WHICH second
-                        // mount a two-mount option fills. See the option-mounts endpoint.
-                        s.put("adjacentMountRuns", ship.getAdjacentMountRuns());
-                    }
-
-                    // Commander's options budget (S3.2), on S3.211's basis — which includes the
-                    // ship's fighters, so a carrier's budget is not the hull's alone.
-                    int budgetPct = spec.commanderOptions != null
-                            ? spec.commanderOptions.budgetPercent
-                            : com.sfb.scenario.CoiBudget.DEFAULT_PERCENT;
-                    s.put("coiBudget", com.sfb.scenario.CoiBudget.allowanceFor(ship, budgetPct));
-                    // Where that figure came from, so a carrier's budget can explain itself: it
-                    // is larger than a share of the hull, and the fighters are the reason.
-                    s.put("coiBudgetPercent", budgetPct);
-                    s.put("coiBudgetBasis",
-                            com.sfb.scenario.CoiBudget.effectiveAdjustedCombatBpv(ship));
-                    s.put("coiFighterBpv", com.sfb.scenario.CoiBudget.carriedFighterBpv(ship));
-                    // S2.11's mandatory drone speed charge, which is deliberately NOT part of
-                    // coiBudgetBasis above (S3.211) and so would be invisible without a field of
-                    // its own. Worth showing because it is the one thing on this screen the
-                    // player is charged for without choosing it, and because it explains why a
-                    // drone ship is dearer to lose than its printed BPV: S2.14 scores it.
-                    s.put("droneSpeedBpv", ship.getDroneSpeedBpv());
-                    s.put("allowTBombs", spec.commanderOptions == null
-                            || spec.commanderOptions.allowTBombs);
-                    s.put("allowCommandos", spec.commanderOptions == null
-                            || spec.commanderOptions.allowCommandos);
-                    s.put("maxTBombs", com.sfb.constants.Constants.MAX_TBOMBS[ship.getSizeClass()]);
-                    // S3.2/J4.816: a fully capable carrier may hire deck crews; nobody else
-                    // may, so the option is offered rather than refused after the fact.
-                    s.put("maxExtraDeckCrews", ship.getCarrierClass().isCarrier()
-                            ? com.sfb.scenario.CoiLoadout.MAX_EXTRA_DECK_CREWS : 0);
-                    s.put("deckCrews", ship.getCrew().getDeckCrews());
-                    s.put("extraDeckCrewCost", com.sfb.scenario.CoiLoadout.COST_EXTRA_DECK_CREW);
-
-                    // S4.10-S4.12: which fighters may start ready, and how many. Nothing to
-                    // choose at WS-3, where S4.13 arms the lot.
-                    //
-                    // Only fighters a deck crew can actually do something to. A Hydran
-                    // Stinger-E (R1.F7) carries one Ph-G and two permanent EW pods, so it is
-                    // ready at every weapon status and picking it would do nothing — it was
-                    // offered as a checkbox that changed no outcome. Asked here rather than
-                    // in the client because "is there anything to arm" is a rules question.
-                    java.util.List<java.util.Map<String, Object>> fighters = new ArrayList<>();
-                    for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
-                        for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces())
-                            if (box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter
-                                    && com.sfb.systemgroups.FighterArming
-                                            .needsArming(box.getShuttle())) {
-                                java.util.Map<String, Object> f = new java.util.LinkedHashMap<>();
-                                f.put("name", box.getShuttle().getName());
-                                // Two fields, because the client needs both and they are not the
-                                // same thing. `type` is the CATALOGUE KEY it groups by — taken from
-                                // the Java class name while each fighter had one of its own, which
-                                // would now read "CataloguedFighter" for every entry. `designation`
-                                // is what the row SHOWS a player: "HAAS-E", not "haas_e".
-                                String catalogType = box.getShuttle().getCatalogType();
-                                f.put("type", catalogType);
-                                com.sfb.objects.ShuttleCatalog.Entry ce =
-                                        com.sfb.objects.ShuttleCatalog.get(catalogType);
-                                f.put("designation", ce != null ? ce.designation : catalogType);
-                                fighters.add(f);
-                            }
-                    s.put("fighters", fighters);
-                    s.put("maxArmedFighters", ws >= 3 ? fighters.size() : ws == 2 ? -1 : 2);
-                    s.put("maxDroneSpeed", spec.commanderOptions != null
-                            ? spec.commanderOptions.maxDroneSpeed
-                            : null);
-
-                    // Available drone types — filtered by scenario year and speed cap
-                    Integer maxSpeed = spec.commanderOptions != null
-                            ? spec.commanderOptions.maxDroneSpeed
-                            : null;
-                    List<Map<String, Object>> droneTypes = new ArrayList<>();
-                    for (com.sfb.objects.DroneType dt : com.sfb.objects.DroneType.values()) {
-                        if (!dt.availableIn(spec.year))
-                            continue;
-                        if (maxSpeed != null && dt.speed > maxSpeed)
-                            continue;
-                        Map<String, Object> dtMap = new java.util.LinkedHashMap<>();
-                        dtMap.put("name", dt.name());
-                        dtMap.put("speed", dt.speed);
-                        dtMap.put("damage", dt.damage);
-                        dtMap.put("rack", dt.rack);
-                        // What KIND of drone it is, so the picker can group by it instead of
-                        // reading the name. The suffix is speed and nothing else (M=20, F=32), so
-                        // grouping by family with speed as the choice inside is what makes a
-                        // Type-I and a Type-IM tell themselves apart.
-                        dtMap.put("family", dt.family.name());
-                        dtMap.put("familyLabel", dt.family.label);
-                        // Endurance varies WITHIN a family (a type-II is a standard drone with 64
-                        // impulses instead of 96), so it belongs on each drone, not the heading.
-                        // Worth showing: a dogfight drone is spent after 32 impulses, one turn.
-                        dtMap.put("endurance", dt.endurance);
-                        dtMap.put("selfGuiding", dt.selfGuiding);
-                        dtMap.put("dogfight", dt.isDogfightDrone());
-                        // FD2.54: a dogfight drone's warhead depends on the target — two points
-                        // on a ship against its printed eight on a fighter. Sent rather than
-                        // hardcoded in the picker, which would be the view holding a rules number.
-                        dtMap.put("damageVsShip", dt.isDogfightDrone()
-                                ? com.sfb.objects.Drone.DOGFIGHT_DAMAGE_VS_SHIP : dt.damage);
-
-                        // What may be built ON this drone (FD10.2). The payload space it has
-                        // to fill, whether its payload can be chosen at all — FD10.21's
-                        // half-space frame "cannot be modified" — and then the modules and
-                        // additions it will actually accept.
-                        dtMap.put("payloadSpaces", dt.spec.effectiveFrame().payloadSpaces);
-                        dtMap.put("modular", dt.spec.frame().modular);
-
-                        // Asked by BUILDING each candidate and seeing whether the rules allow
-                        // it, through the same parser the dialog's own strings go through. So
-                        // the list cannot drift from what a submission will accept, and nothing
-                        // here restates a prohibition that lives in DroneSpec: FD2.222 bars
-                        // extended range from a dogfight drone, FD10.23 bars ATG from a
-                        // type-III, FD10.4 bars a two-space module from a one-space frame, and
-                        // each falls out of its own refusal.
-                        //
-                        // A COMBINATION can still be illegal where each part alone is fine
-                        // (FD10.443's ECM-and-armor is the one that bites), and that is caught
-                        // on submission and reported with its clause. Enumerating every pair
-                        // here would be a worse answer than the refusal already in hand.
-                        List<String> legalModules = new ArrayList<>();
-                        for (com.sfb.objects.PayloadModule m
-                                : com.sfb.objects.PayloadModule.values()) {
-                            if (!m.isPlayerChoice())
+                    if (w instanceof com.sfb.weapons.DroneRack) {
+                        com.sfb.weapons.DroneRack rack = (com.sfb.weapons.DroneRack) w;
+                        Map<String, Object> dr = new java.util.LinkedHashMap<>();
+                        dr.put("index", droneIndex++);
+                        dr.put("designator", w.getDesignator());
+                        dr.put("spaces", rack.getSpaces());
+                        dr.put("reloadCount", rack.getNumberOfReloads());
+                        // What is in the rack before any COI, each drone in the same
+                        // textual form a loadout sends back — so a composed drone
+                        // (FD10.2) is reported as what it is rather than as the catalogue
+                        // drone it was built from, which would have the dialog show an
+                        // armored type-IV as a plain one and then quietly replace it.
+                        List<String> defAmmo = new ArrayList<>();
+                        for (com.sfb.objects.Drone d : rack.getAmmo()) {
+                            if (d.getDroneType() == null) {
+                                defAmmo.add("TypeI");
                                 continue;
-                            if (com.sfb.objects.DroneLoad.refusalFor(
-                                    dt.name() + "+" + m.name()) == null)
-                                legalModules.add(m.name());
-                        }
-                        dtMap.put("legalModules", legalModules);
-
-                        List<String> legalAdditions = new ArrayList<>();
-                        for (com.sfb.objects.FrameAddition a
-                                : com.sfb.objects.FrameAddition.values()) {
-                            if (!a.isPlayerChoice())
-                                continue;
-                            if (com.sfb.objects.DroneLoad.refusalFor(
-                                    dt.name() + "+" + a.name()) == null)
-                                legalAdditions.add(a.name());
-                        }
-                        dtMap.put("legalAdditions", legalAdditions);
-
-                        // FD10.24: extended range turns a type-III into a type-III-XX, "which
-                        // are two-space drones with one payload space". The only modification
-                        // in the game that changes how much of a RACK a drone fills, so the
-                        // dialog is sent the figure rather than left to derive a frame change.
-                        String extended = dt.name() + "+" + com.sfb.objects.FrameAddition.EXTENDED_RANGE.name();
-                        if (com.sfb.objects.DroneLoad.refusalFor(extended) == null)
-                            dtMap.put("rackWithExtendedRange",
-                                    com.sfb.objects.DroneLoad.parse(extended).rackSpaces());
-
-                        // FD2.22's surcharge, in the four parts DroneSpec.pointCost is made of,
-                        // so the dialog can price a drone the player is still ASSEMBLING. No
-                        // catalogue holds a composed drone, so no single figure can be sent for
-                        // one; these are its terms, and the view adds them to the modules' own
-                        // costs it already has. coiDroneCost.ts does the adding and is pinned to
-                        // FD2.11's published values at that end.
-                        dtMap.put("engineCost", dt.spec.engineCost());
-                        dtMap.put("payloadCost", dt.spec.payloadCost());
-                        dtMap.put("frameCost", dt.spec.frameCost());
-                        // What the SHIP's BPV carries rather than the budget (S2.11/S3.221), so
-                        // the year is already baked in and the view never sees a date.
-                        dtMap.put("speedCredit", dt.spec.speedCostIn(spec.year));
-
-                        // The same two for the frame FD10.24 grows: a type-III given extended
-                        // range "become[s] type-III-XX, which are two-space drones", and FD10.52
-                        // prices its engine from the two-space column. Sent only where the
-                        // combination is legal, which is the same test rackWithExtendedRange
-                        // above already makes.
-                        if (com.sfb.objects.DroneLoad.refusalFor(extended) == null) {
-                            com.sfb.objects.DroneSpec grown =
-                                    com.sfb.objects.DroneLoad.parse(extended).spec();
-                            dtMap.put("engineCostWithExtendedRange", grown.engineCost());
-                            dtMap.put("speedCreditWithExtendedRange",
-                                    grown.speedCostIn(spec.year));
-                        }
-
-                        droneTypes.add(dtMap);
-                    }
-                    s.put("availableDroneTypes", droneTypes);
-
-                    // FD10.4's payload modules and FD10.53's frame additions: the third axis
-                    // of a drone, which until DroneLoad arrived could not be ORDERED however
-                    // well it was built. Sent as a catalogue so the dialog can offer them;
-                    // every rule about which may share a drone with which stays in DroneSpec,
-                    // and a composition the player should not have been offered is refused on
-                    // submission with its clause number.
-                    //
-                    // The availability TIER is resolved for this scenario's year here, because
-                    // FD10.6's ladder is a rules fact and the view holding a year table would
-                    // be the view deciding one.
-                    List<Map<String, Object>> modules = new ArrayList<>();
-                    for (com.sfb.objects.PayloadModule m
-                            : com.sfb.objects.PayloadModule.values()) {
-                        if (!m.isPlayerChoice())
-                            continue;
-                        Map<String, Object> mod = new java.util.LinkedHashMap<>();
-                        mod.put("name", m.name());
-                        mod.put("label", m.label);
-                        mod.put("spaces", m.spaces);
-                        mod.put("cost", m.cost);
-                        mod.put("availability", m.availability.name());
-                        // FD10.41: what it contributes to the drone's single explosion. Zero
-                        // for a module that is not a warhead at all, which an ECM drone is not.
-                        mod.put("strength", m.strength);
-                        // FD12.21, and zero for everything but armor.
-                        mod.put("hullBonus", m.hullBonus);
-                        // FD10.402: it must be in the forward payload space, so a drone cannot
-                        // carry more than one payload space of them.
-                        mod.put("requiresForward", m.requiresForward);
-                        // FD10.443: an ECM module cannot share a drone with armor of either
-                        // kind, which is the one prohibition a picker wants to see coming.
-                        mod.put("armor", m.isArmor());
-                        // FD10.431: type-VI drones carried instead of a warhead, which bring
-                        // FD8.44's second set of engines with them.
-                        mod.put("submunitions", m.submunitions);
-                        modules.add(mod);
-                    }
-                    s.put("availableDroneModules", modules);
-
-                    List<Map<String, Object>> additions = new ArrayList<>();
-                    for (com.sfb.objects.FrameAddition a
-                            : com.sfb.objects.FrameAddition.values()) {
-                        if (!a.isPlayerChoice())
-                            continue;
-                        Map<String, Object> add = new java.util.LinkedHashMap<>();
-                        add.put("name", a.name());
-                        add.put("label", a.label);
-                        add.put("cost", a.cost);
-                        add.put("availability", a.availability.name());
-                        add.put("hullBonus", a.hullBonus);
-                        // FD12.13: it hangs outside the payload, so it costs no space — and
-                        // FD12.132 charges it in speed instead, which the dialog shows per
-                        // drone because the chart depends on the frame AND the engine.
-                        add.put("externalArmor", a.isExternalArmor());
-                        additions.add(add);
-                    }
-                    s.put("availableDroneAdditions", additions);
-
-                    // FD8.11: "five type-VI drones (any speed available for the year)". The
-                    // submunitions' own engine, which FD8.24 buys separately from the bus's and
-                    // FD8.44 requires them all to share. Speed 8 is not on the list: FD10.52
-                    // prints a dash in the half-space column, and FD2.227 puts a type-VI's slow
-                    // at 12.
-                    List<Map<String, Object>> subSpeeds = new ArrayList<>();
-                    for (com.sfb.objects.Propulsion p
-                            : com.sfb.objects.Propulsion.values()) {
-                        if (!p.fits(com.sfb.objects.DroneFrame.HALF_SPACE))
-                            continue;
-                        if (!p.existsIn(spec.year))
-                            continue;
-                        if (maxSpeed != null && p.speed > maxSpeed)
-                            continue;
-                        Map<String, Object> sp = new java.util.LinkedHashMap<>();
-                        sp.put("name", p.name());
-                        sp.put("speed", p.speed);
-                        sp.put("availability", p.availabilityIn(spec.year).name());
-                        // FD8.44: the bus pays this for EVERY submunition it carries, over the
-                        // speed-12 that FD2.227 makes a type-VI's slowest. The view multiplies
-                        // it by the module's own submunition count, which it already has.
-                        sp.put("surchargePerSubmunition",
-                                p.costOn(com.sfb.objects.DroneFrame.HALF_SPACE)
-                                - com.sfb.objects.Propulsion.SPEED_12.costOn(
-                                        com.sfb.objects.DroneFrame.HALF_SPACE));
-                        subSpeeds.add(sp);
-                    }
-                    s.put("availableSubmunitionSpeeds", subSpeeds);
-
-                    // Shuttles eligible for pre-game conversion, with supported types per shuttle
-                    List<Map<String, Object>> convertibleShuttles = new ArrayList<>();
-                    for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
-                        for (com.sfb.objects.shuttles.Shuttle sh : bay.getInventory()) {
-                            List<String> types = new ArrayList<>();
-                            if (sh.canBecomeSuicide())
-                                types.add("suicide");
-                            if (sh.canBecomeScatterPack())
-                                types.add("scatterpack");
-                            if (sh.canBecomeWildWeasel())
-                                types.add("wildweasel");
-                            if (!types.isEmpty()) {
-                                Map<String, Object> shMap = new java.util.LinkedHashMap<>();
-                                shMap.put("name", sh.getName());
-                                shMap.put("types", types);
-                                convertibleShuttles.add(shMap);
                             }
+                            defAmmo.add(new com.sfb.objects.DroneLoad(
+                                    d.getDroneType(), d.getSpec()).format());
                         }
+                        dr.put("defaultAmmo", defAmmo);
+                        // Ask the rack, which is where FD2.51 and FD3.5 live. This used
+                        // to be a third copy of the E/G/H list, alongside core's and the
+                        // COI loader's.
+                        dr.put("canLoadTypeVI",
+                                rack.accepts(com.sfb.objects.DroneType.TypeVI));
+                        // FD3.70: only a type-G has the anti-drone targeting system.
+                        dr.put("canLoadAntiDrones", rack.acceptsAntiDrones());
+                        dr.put("antiDroneSpace",
+                                com.sfb.weapons.DroneRack.ANTI_DRONE_SPACE);
+                        // Ready-made loadouts for this rack in this year, so the dialog can
+                        // fill a magazine with one click instead of four. Core decides which
+                        // ones are legal (FD3.5, FD10.65, FD3.0) and prices each against the
+                        // budget; the view only renders them. No label is sent because the
+                        // dialog already knows how to write a drone list as "4 x Type-IF".
+                        List<Map<String, Object>> presets = new ArrayList<>();
+                        for (com.sfb.scenario.DroneRackPresets.Preset p : com.sfb.scenario.DroneRackPresets
+                                .forRack(rack, spec.year)) {
+                            Map<String, Object> pm = new java.util.LinkedHashMap<>();
+                            List<String> names = new ArrayList<>();
+                            for (com.sfb.objects.DroneLoad d : p.drones())
+                                names.add(d.format());
+                            pm.put("drones", names);
+                            pm.put("antiDrones", p.antiDrones());
+                            pm.put("surcharge", p.surcharge());
+                            presets.add(pm);
+                        }
+                        dr.put("presets", presets);
+                        drones.add(dr);
                     }
-                    s.put("convertibleShuttles", convertibleShuttles);
-                    // Max shuttle conversions allowed based on weapon status
-                    s.put("maxPreparedShuttles", ws >= 3 ? 2 : ws == 2 ? 1 : 0);
+                }
+                s.put("heavyWeapons", heavy);
+                s.put("droneRacks", drones);
 
-                    shipList.add(s);
+                // J4.62/J4.621: a casual carrier's fighter facilities, and which models they
+                // could be built for in THIS scenario's year. Absent on every other ship, so
+                // the dialog shows nothing rather than an empty control.
+                int facilities = 0;
+                String facilityLine = null;
+                for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+                    facilities += bay.getFighterFacilities();
+                    if (bay.getFighterFacilities() > 0 && bay.getFighterComplement() != null)
+                        facilityLine = bay.getFighterComplement().getLine();
+                }
+                if (facilities > 0 && facilityLine != null) {
+                    Map<String, Object> ff = new java.util.LinkedHashMap<>();
+                    ff.put("count", facilities);
+                    ff.put("line", facilityLine);
+                    List<Map<String, Object>> models = new ArrayList<>();
+                    Map<String, String> byRole = com.sfb.objects.FighterComplement
+                            .facilityModelsFor(facilityLine, spec.year);
+                    for (Map.Entry<String, String> m : byRole.entrySet()) {
+                        Map<String, Object> entry2 = new java.util.LinkedHashMap<>();
+                        entry2.put("role", m.getKey());
+                        entry2.put("type", m.getValue());
+                        // The name the player knows it by - "Gladiator-SF", not "gsf".
+                        entry2.put("name",
+                                com.sfb.objects.ShuttleCatalog.displayNameOf(m.getValue()));
+                        models.add(entry2);
+                    }
+                    ff.put("models", models);
+                    // The standard fighter, which is what the ship has if nobody chooses.
+                    ff.put("defaultType", byRole.get(
+                            com.sfb.objects.ShuttleCatalog.LineEra.STANDARD));
+                    s.put("fighterFacilities", ff);
                 }
 
-                Map<String, Object> sideMap = new java.util.LinkedHashMap<>();
-                sideMap.put("faction", side.faction != null ? side.faction : "");
-                sideMap.put("name", side.name != null ? side.name : "");
-                sideMap.put("cartel", side.cartel);           // scenario-fixed Orion cartel, or null (player picks)
-                sideMap.put("cartelPinned", side.cartel != null);
-                sideMap.put("ships", shipList);
-                result.add(sideMap);
+                // Orion option mounts (G15.4) — empty for non-Orion ships. Each
+                // mount lists the options legal for it (position/size/year/etc.),
+                // filtered against the same validator that equips them.
+                if (!ship.getOptionMounts().isEmpty()) {
+                    com.sfb.objects.OptionMountCatalog catalog = com.sfb.objects.OptionMountCatalog.loadDefault();
+                    List<Map<String, Object>> mounts = new ArrayList<>();
+                    for (com.sfb.objects.OptionMount m : ship.getOptionMounts()) {
+                        Map<String, Object> mo = new java.util.LinkedHashMap<>();
+                        mo.put("designator", m.getDesignator());
+                        mo.put("position", m.getPosition().name());
+                        mo.put("arcs", m.getArcs());
+                        mo.put("currentOption", m.isEmpty() ? null : m.getWeapon().getName());
+                        List<Map<String, Object>> legal = new ArrayList<>();
+                        for (com.sfb.objects.OptionCatalogEntry e : catalog.all()) {
+                            if (com.sfb.objects.OptionMountLoadout.validate(ship, m, e, spec.year) == null) {
+                                Map<String, Object> opt = new java.util.LinkedHashMap<>();
+                                opt.put("name", e.name);
+                                opt.put("cost", e.cost);
+                                opt.put("empires", e.empires); // null = universal (cartel-exempt)
+                                // Annex #8B's asterisk: two ADJACENT mounts. Omitted here
+                                // until now, so the COI form could offer the mount an ESG
+                                // was about to eat — the same hole the fleet builder had.
+                                opt.put("mountsRequired", e.mountsRequired);
+                                opt.put("arcChoices",
+                                        com.sfb.objects.OptionMountArcs.arcChoiceLabels(e, m));
+                                legal.add(opt);
+                            }
+                        }
+                        mo.put("legalOptions", legal);
+                        mounts.add(mo);
+                    }
+                    s.put("optionMounts", mounts);
+                    // The runs of consecutive mounts, which is what decides WHICH second
+                    // mount a two-mount option fills. See the option-mounts endpoint.
+                    s.put("adjacentMountRuns", ship.getAdjacentMountRuns());
+                }
+
+                // Commander's options budget (S3.2), on S3.211's basis — which includes the
+                // ship's fighters, so a carrier's budget is not the hull's alone.
+                int budgetPct = spec.commanderOptions != null
+                        ? spec.commanderOptions.budgetPercent
+                        : com.sfb.scenario.CoiBudget.DEFAULT_PERCENT;
+                s.put("coiBudget", com.sfb.scenario.CoiBudget.allowanceFor(ship, budgetPct));
+                // Where that figure came from, so a carrier's budget can explain itself: it
+                // is larger than a share of the hull, and the fighters are the reason.
+                s.put("coiBudgetPercent", budgetPct);
+                s.put("coiBudgetBasis",
+                        com.sfb.scenario.CoiBudget.effectiveAdjustedCombatBpv(ship));
+                s.put("coiFighterBpv", com.sfb.scenario.CoiBudget.carriedFighterBpv(ship));
+                // S2.11's mandatory drone speed charge, which is deliberately NOT part of
+                // coiBudgetBasis above (S3.211) and so would be invisible without a field of
+                // its own. Worth showing because it is the one thing on this screen the
+                // player is charged for without choosing it, and because it explains why a
+                // drone ship is dearer to lose than its printed BPV: S2.14 scores it.
+                s.put("droneSpeedBpv", ship.getDroneSpeedBpv());
+                s.put("allowTBombs", spec.commanderOptions == null
+                        || spec.commanderOptions.allowTBombs);
+                s.put("allowCommandos", spec.commanderOptions == null
+                        || spec.commanderOptions.allowCommandos);
+                s.put("maxTBombs", com.sfb.constants.Constants.MAX_TBOMBS[ship.getSizeClass()]);
+                // S3.2/J4.816: a fully capable carrier may hire deck crews; nobody else
+                // may, so the option is offered rather than refused after the fact.
+                s.put("maxExtraDeckCrews", ship.getCarrierClass().isCarrier()
+                        ? com.sfb.scenario.CoiLoadout.MAX_EXTRA_DECK_CREWS
+                        : 0);
+                s.put("deckCrews", ship.getCrew().getDeckCrews());
+                s.put("extraDeckCrewCost", com.sfb.scenario.CoiLoadout.COST_EXTRA_DECK_CREW);
+
+                // S4.10-S4.12: which fighters may start ready, and how many. Nothing to
+                // choose at WS-3, where S4.13 arms the lot.
+                //
+                // Only fighters a deck crew can actually do something to. A Hydran
+                // Stinger-E (R1.F7) carries one Ph-G and two permanent EW pods, so it is
+                // ready at every weapon status and picking it would do nothing — it was
+                // offered as a checkbox that changed no outcome. Asked here rather than
+                // in the client because "is there anything to arm" is a rules question.
+                java.util.List<java.util.Map<String, Object>> fighters = new ArrayList<>();
+                for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
+                    for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces())
+                        if (box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter
+                                && com.sfb.systemgroups.FighterArming
+                                        .needsArming(box.getShuttle())) {
+                            java.util.Map<String, Object> f = new java.util.LinkedHashMap<>();
+                            f.put("name", box.getShuttle().getName());
+                            // Two fields, because the client needs both and they are not the
+                            // same thing. `type` is the CATALOGUE KEY it groups by — taken from
+                            // the Java class name while each fighter had one of its own, which
+                            // would now read "CataloguedFighter" for every entry. `designation`
+                            // is what the row SHOWS a player: "HAAS-E", not "haas_e".
+                            String catalogType = box.getShuttle().getCatalogType();
+                            f.put("type", catalogType);
+                            com.sfb.objects.ShuttleCatalog.Entry ce = com.sfb.objects.ShuttleCatalog.get(catalogType);
+                            f.put("designation", ce != null ? ce.designation : catalogType);
+                            fighters.add(f);
+                        }
+                s.put("fighters", fighters);
+                s.put("maxArmedFighters", ws >= 3 ? fighters.size() : ws == 2 ? -1 : 2);
+                s.put("maxDroneSpeed", spec.commanderOptions != null
+                        ? spec.commanderOptions.maxDroneSpeed
+                        : null);
+
+                // Available drone types — filtered by scenario year and speed cap
+                Integer maxSpeed = spec.commanderOptions != null
+                        ? spec.commanderOptions.maxDroneSpeed
+                        : null;
+                List<Map<String, Object>> droneTypes = new ArrayList<>();
+                for (com.sfb.objects.DroneType dt : com.sfb.objects.DroneType.values()) {
+                    if (!dt.availableIn(spec.year))
+                        continue;
+                    if (maxSpeed != null && dt.speed > maxSpeed)
+                        continue;
+                    Map<String, Object> dtMap = new java.util.LinkedHashMap<>();
+                    dtMap.put("name", dt.name());
+                    dtMap.put("speed", dt.speed);
+                    dtMap.put("damage", dt.damage);
+                    dtMap.put("rack", dt.rack);
+                    // What KIND of drone it is, so the picker can group by it instead of
+                    // reading the name. The suffix is speed and nothing else (M=20, F=32), so
+                    // grouping by family with speed as the choice inside is what makes a
+                    // Type-I and a Type-IM tell themselves apart.
+                    dtMap.put("family", dt.family.name());
+                    dtMap.put("familyLabel", dt.family.label);
+                    // Endurance varies WITHIN a family (a type-II is a standard drone with 64
+                    // impulses instead of 96), so it belongs on each drone, not the heading.
+                    // Worth showing: a dogfight drone is spent after 32 impulses, one turn.
+                    dtMap.put("endurance", dt.endurance);
+                    dtMap.put("selfGuiding", dt.selfGuiding);
+                    dtMap.put("dogfight", dt.isDogfightDrone());
+                    // FD2.54: a dogfight drone's warhead depends on the target — two points
+                    // on a ship against its printed eight on a fighter. Sent rather than
+                    // hardcoded in the picker, which would be the view holding a rules number.
+                    dtMap.put("damageVsShip", dt.isDogfightDrone()
+                            ? com.sfb.objects.Drone.DOGFIGHT_DAMAGE_VS_SHIP
+                            : dt.damage);
+
+                    // What may be built ON this drone (FD10.2). The payload space it has
+                    // to fill, whether its payload can be chosen at all — FD10.21's
+                    // half-space frame "cannot be modified" — and then the modules and
+                    // additions it will actually accept.
+                    dtMap.put("payloadSpaces", dt.spec.effectiveFrame().payloadSpaces);
+                    dtMap.put("modular", dt.spec.frame().modular);
+
+                    // Asked by BUILDING each candidate and seeing whether the rules allow
+                    // it, through the same parser the dialog's own strings go through. So
+                    // the list cannot drift from what a submission will accept, and nothing
+                    // here restates a prohibition that lives in DroneSpec: FD2.222 bars
+                    // extended range from a dogfight drone, FD10.23 bars ATG from a
+                    // type-III, FD10.4 bars a two-space module from a one-space frame, and
+                    // each falls out of its own refusal.
+                    //
+                    // A COMBINATION can still be illegal where each part alone is fine
+                    // (FD10.443's ECM-and-armor is the one that bites), and that is caught
+                    // on submission and reported with its clause. Enumerating every pair
+                    // here would be a worse answer than the refusal already in hand.
+                    List<String> legalModules = new ArrayList<>();
+                    for (com.sfb.objects.PayloadModule m : com.sfb.objects.PayloadModule.values()) {
+                        if (!m.isPlayerChoice())
+                            continue;
+                        if (com.sfb.objects.DroneLoad.refusalFor(
+                                dt.name() + "+" + m.name()) == null)
+                            legalModules.add(m.name());
+                    }
+                    dtMap.put("legalModules", legalModules);
+
+                    List<String> legalAdditions = new ArrayList<>();
+                    for (com.sfb.objects.FrameAddition a : com.sfb.objects.FrameAddition.values()) {
+                        if (!a.isPlayerChoice())
+                            continue;
+                        if (com.sfb.objects.DroneLoad.refusalFor(
+                                dt.name() + "+" + a.name()) == null)
+                            legalAdditions.add(a.name());
+                    }
+                    dtMap.put("legalAdditions", legalAdditions);
+
+                    // FD10.24: extended range turns a type-III into a type-III-XX, "which
+                    // are two-space drones with one payload space". The only modification
+                    // in the game that changes how much of a RACK a drone fills, so the
+                    // dialog is sent the figure rather than left to derive a frame change.
+                    String extended = dt.name() + "+" + com.sfb.objects.FrameAddition.EXTENDED_RANGE.name();
+                    if (com.sfb.objects.DroneLoad.refusalFor(extended) == null)
+                        dtMap.put("rackWithExtendedRange",
+                                com.sfb.objects.DroneLoad.parse(extended).rackSpaces());
+
+                    // FD2.22's surcharge, in the four parts DroneSpec.pointCost is made of,
+                    // so the dialog can price a drone the player is still ASSEMBLING. No
+                    // catalogue holds a composed drone, so no single figure can be sent for
+                    // one; these are its terms, and the view adds them to the modules' own
+                    // costs it already has. coiDroneCost.ts does the adding and is pinned to
+                    // FD2.11's published values at that end.
+                    dtMap.put("engineCost", dt.spec.engineCost());
+                    dtMap.put("payloadCost", dt.spec.payloadCost());
+                    dtMap.put("frameCost", dt.spec.frameCost());
+                    // What the SHIP's BPV carries rather than the budget (S2.11/S3.221), so
+                    // the year is already baked in and the view never sees a date.
+                    dtMap.put("speedCredit", dt.spec.speedCostIn(spec.year));
+
+                    // The same two for the frame FD10.24 grows: a type-III given extended
+                    // range "become[s] type-III-XX, which are two-space drones", and FD10.52
+                    // prices its engine from the two-space column. Sent only where the
+                    // combination is legal, which is the same test rackWithExtendedRange
+                    // above already makes.
+                    if (com.sfb.objects.DroneLoad.refusalFor(extended) == null) {
+                        com.sfb.objects.DroneSpec grown = com.sfb.objects.DroneLoad.parse(extended).spec();
+                        dtMap.put("engineCostWithExtendedRange", grown.engineCost());
+                        dtMap.put("speedCreditWithExtendedRange",
+                                grown.speedCostIn(spec.year));
+                    }
+
+                    droneTypes.add(dtMap);
+                }
+                s.put("availableDroneTypes", droneTypes);
+
+                // FD10.4's payload modules and FD10.53's frame additions: the third axis
+                // of a drone, which until DroneLoad arrived could not be ORDERED however
+                // well it was built. Sent as a catalogue so the dialog can offer them;
+                // every rule about which may share a drone with which stays in DroneSpec,
+                // and a composition the player should not have been offered is refused on
+                // submission with its clause number.
+                //
+                // The availability TIER is resolved for this scenario's year here, because
+                // FD10.6's ladder is a rules fact and the view holding a year table would
+                // be the view deciding one.
+                List<Map<String, Object>> modules = new ArrayList<>();
+                for (com.sfb.objects.PayloadModule m : com.sfb.objects.PayloadModule.values()) {
+                    if (!m.isPlayerChoice())
+                        continue;
+                    Map<String, Object> mod = new java.util.LinkedHashMap<>();
+                    mod.put("name", m.name());
+                    mod.put("label", m.label);
+                    mod.put("spaces", m.spaces);
+                    mod.put("cost", m.cost);
+                    mod.put("availability", m.availability.name());
+                    // FD10.41: what it contributes to the drone's single explosion. Zero
+                    // for a module that is not a warhead at all, which an ECM drone is not.
+                    mod.put("strength", m.strength);
+                    // FD12.21, and zero for everything but armor.
+                    mod.put("hullBonus", m.hullBonus);
+                    // FD10.402: it must be in the forward payload space, so a drone cannot
+                    // carry more than one payload space of them.
+                    mod.put("requiresForward", m.requiresForward);
+                    // FD10.443: an ECM module cannot share a drone with armor of either
+                    // kind, which is the one prohibition a picker wants to see coming.
+                    mod.put("armor", m.isArmor());
+                    // FD10.431: type-VI drones carried instead of a warhead, which bring
+                    // FD8.44's second set of engines with them.
+                    mod.put("submunitions", m.submunitions);
+                    modules.add(mod);
+                }
+                s.put("availableDroneModules", modules);
+
+                List<Map<String, Object>> additions = new ArrayList<>();
+                for (com.sfb.objects.FrameAddition a : com.sfb.objects.FrameAddition.values()) {
+                    if (!a.isPlayerChoice())
+                        continue;
+                    Map<String, Object> add = new java.util.LinkedHashMap<>();
+                    add.put("name", a.name());
+                    add.put("label", a.label);
+                    add.put("cost", a.cost);
+                    add.put("availability", a.availability.name());
+                    add.put("hullBonus", a.hullBonus);
+                    // FD12.13: it hangs outside the payload, so it costs no space — and
+                    // FD12.132 charges it in speed instead, which the dialog shows per
+                    // drone because the chart depends on the frame AND the engine.
+                    add.put("externalArmor", a.isExternalArmor());
+                    additions.add(add);
+                }
+                s.put("availableDroneAdditions", additions);
+
+                // FD8.11: "five type-VI drones (any speed available for the year)". The
+                // submunitions' own engine, which FD8.24 buys separately from the bus's and
+                // FD8.44 requires them all to share. Speed 8 is not on the list: FD10.52
+                // prints a dash in the half-space column, and FD2.227 puts a type-VI's slow
+                // at 12.
+                List<Map<String, Object>> subSpeeds = new ArrayList<>();
+                for (com.sfb.objects.Propulsion p : com.sfb.objects.Propulsion.values()) {
+                    if (!p.fits(com.sfb.objects.DroneFrame.HALF_SPACE))
+                        continue;
+                    if (!p.existsIn(spec.year))
+                        continue;
+                    if (maxSpeed != null && p.speed > maxSpeed)
+                        continue;
+                    Map<String, Object> sp = new java.util.LinkedHashMap<>();
+                    sp.put("name", p.name());
+                    sp.put("speed", p.speed);
+                    sp.put("availability", p.availabilityIn(spec.year).name());
+                    // FD8.44: the bus pays this for EVERY submunition it carries, over the
+                    // speed-12 that FD2.227 makes a type-VI's slowest. The view multiplies
+                    // it by the module's own submunition count, which it already has.
+                    sp.put("surchargePerSubmunition",
+                            p.costOn(com.sfb.objects.DroneFrame.HALF_SPACE)
+                                    - com.sfb.objects.Propulsion.SPEED_12.costOn(
+                                            com.sfb.objects.DroneFrame.HALF_SPACE));
+                    subSpeeds.add(sp);
+                }
+                s.put("availableSubmunitionSpeeds", subSpeeds);
+
+                // Shuttles eligible for pre-game conversion, with supported types per shuttle
+                List<Map<String, Object>> convertibleShuttles = new ArrayList<>();
+                for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+                    for (com.sfb.objects.shuttles.Shuttle sh : bay.getInventory()) {
+                        List<String> types = new ArrayList<>();
+                        if (sh.canBecomeSuicide())
+                            types.add("suicide");
+                        if (sh.canBecomeScatterPack())
+                            types.add("scatterpack");
+                        if (sh.canBecomeWildWeasel())
+                            types.add("wildweasel");
+                        if (!types.isEmpty()) {
+                            Map<String, Object> shMap = new java.util.LinkedHashMap<>();
+                            shMap.put("name", sh.getName());
+                            shMap.put("types", types);
+                            convertibleShuttles.add(shMap);
+                        }
+                    }
+                }
+                s.put("convertibleShuttles", convertibleShuttles);
+                // Max shuttle conversions allowed based on weapon status
+                s.put("maxPreparedShuttles", ws >= 3 ? 2 : ws == 2 ? 1 : 0);
+
+                shipList.add(s);
             }
+
+            Map<String, Object> sideMap = new java.util.LinkedHashMap<>();
+            sideMap.put("faction", side.faction != null ? side.faction : "");
+            sideMap.put("name", side.name != null ? side.name : "");
+            sideMap.put("cartel", side.cartel); // scenario-fixed Orion cartel, or null (player picks)
+            sideMap.put("cartelPinned", side.cartel != null);
+            sideMap.put("ships", shipList);
+            result.add(sideMap);
+        }
         return result;
     }
 
@@ -1894,8 +2059,10 @@ public class GameController {
             @RequestBody Map<String, String> body) {
 
         String hostName = body.getOrDefault("name", "Host");
-        // Optional: a browser that has minted a durable identity sends it, so the host can later
-        // come back to this game by code and be given their own seat rather than a new one.
+        // Optional: a browser that has minted a durable identity sends it, so the host
+        // can later
+        // come back to this game by code and be given their own seat rather than a new
+        // one.
         String accountId = body.get("accountId");
         GameSession session = sessionService.createSession(hostName, accountId);
 
@@ -1915,7 +2082,7 @@ public class GameController {
             @RequestBody Map<String, String> body) {
 
         String playerName = body.getOrDefault("name", "Player");
-        String accountId  = body.get("accountId");
+        String accountId = body.get("accountId");
         GameSession session = sessionService.getSession(id);
         if (session == null)
             return ResponseEntity.notFound().build();
@@ -1929,8 +2096,10 @@ public class GameController {
 
             broadcastLobby(session);
 
-            // `resumed` lets the client tell "you are back in your seat" from "you have joined",
-            // and `isHost` matters because resuming a host seat must restore the host's screen.
+            // `resumed` lets the client tell "you are back in your seat" from "you have
+            // joined",
+            // and `isHost` matters because resuming a host seat must restore the host's
+            // screen.
             return ResponseEntity.ok(Map.of(
                     "playerToken", token,
                     "resumed", String.valueOf(resumed),
@@ -1991,7 +2160,7 @@ public class GameController {
                     && loaded.sides.stream().anyMatch(sd -> sd.bringYourOwn))
                 return ResponseEntity.badRequest().body(Map.of("error",
                         (loaded.name != null ? loaded.name : scenarioId)
-                        + " is a situation — choose it under Saved fleets and bring a force to it"));
+                                + " is a situation — choose it under Saved fleets and bring a force to it"));
 
             broadcastLobby(session);
             return ResponseEntity.ok(Map.of("message", "Scenario loaded: " + scenarioId));
@@ -2018,9 +2187,11 @@ public class GameController {
 
             Map<String, com.sfb.scenario.CoiLoadout> loadouts = new java.util.LinkedHashMap<>();
             String cartel = null;
-            // A drone the request named and the rules refuse (FD10.2). Collected here rather
+            // A drone the request named and the rules refuse (FD10.2). Collected here
+            // rather
             // than dropped, because a composed drone is assembled rather than picked from a
-            // list, so "nothing arrived in rack 2" is now a thing a player can cause and needs
+            // list, so "nothing arrived in rack 2" is now a thing a player can cause and
+            // needs
             // to be told about.
             Map<String, java.util.List<String>> droneRefusals = new java.util.LinkedHashMap<>();
             for (Map.Entry<String, com.sfb.scenario.CoiChoices> entry : body.entrySet()) {
@@ -2039,8 +2210,10 @@ public class GameController {
                 return ResponseEntity.badRequest().body(Map.of("error", quotaViolation));
             }
 
-            // Commander's Option budget (S3.2) — reject an over-budget loadout. An ERROR, unlike
-            // the warnings below: the budget is a hard limit, and accepting the submission would
+            // Commander's Option budget (S3.2) — reject an over-budget loadout. An ERROR,
+            // unlike
+            // the warnings below: the budget is a hard limit, and accepting the submission
+            // would
             // leave applyCoi to decide which items the player loses.
             String budgetViolation = session.validateCoiBudget(loadouts);
             if (budgetViolation != null) {
@@ -2049,8 +2222,7 @@ public class GameController {
 
             // What could not be applied, while there is still time to change it. Warnings,
             // not errors: the setup stands, it simply came out different from the request.
-            Map<String, java.util.List<String>> problems =
-                    new java.util.LinkedHashMap<>(session.previewCoi(loadouts));
+            Map<String, java.util.List<String>> problems = new java.util.LinkedHashMap<>(session.previewCoi(loadouts));
             for (Map.Entry<String, java.util.List<String>> e : droneRefusals.entrySet())
                 problems.computeIfAbsent(e.getKey(), k -> new ArrayList<>()).addAll(e.getValue());
 
@@ -2160,13 +2332,20 @@ public class GameController {
      *
      * Body: { "playerToken": "...", "team": "Defender" }
      *
-     * <p>The per-ship endpoint above remains for splitting a side between players. This one
-     * exists because a scenario has usually already decided the answer — a fleet is brought FOR
-     * a side, and a scenario's own units are listed under the side that owns them — so asking
+     * <p>
+     * The per-ship endpoint above remains for splitting a side between players.
+     * This one
+     * exists because a scenario has usually already decided the answer — a fleet is
+     * brought FOR
+     * a side, and a scenario's own units are listed under the side that owns them —
+     * so asking
      * the host to re-enter it a ship at a time is asking them to retype the file.
      *
-     * <p>Ships another player already holds are reported rather than seized: a Commander's
-     * Options loadout is keyed to a token, so moving a ship after COI would strand what that
+     * <p>
+     * Ships another player already holds are reported rather than seized: a
+     * Commander's
+     * Options loadout is keyed to a token, so moving a ship after COI would strand
+     * what that
      * player chose for it.
      */
     @PostMapping("/{id}/assign-side")
@@ -2201,7 +2380,7 @@ public class GameController {
             out.put("heldByOthers", result.heldByOthers());
             out.put("message", result.assigned().size() + " ship(s) of " + team + " assigned"
                     + (result.heldByOthers().isEmpty() ? ""
-                       : ", " + result.heldByOthers().size() + " left with their current player"));
+                            : ", " + result.heldByOthers().size() + " left with their current player"));
             return ResponseEntity.ok(out);
         });
     }
@@ -2263,8 +2442,10 @@ public class GameController {
     /**
      * Everything one attacker needs to know about firing at one target.
      *
-     * The single implementation of the question: {@code /fire-options} answers it for a
-     * named pair, {@code /fire-targets} answers it for every candidate a ship has. A second
+     * The single implementation of the question: {@code /fire-options} answers it
+     * for a
+     * named pair, {@code /fire-targets} answers it for every candidate a ship has.
+     * A second
      * copy of this would drift the moment a range or shield rule changed.
      */
     private Map<String, Object> fireOptionsFor(GameSession session, Unit attackerUnit, Unit targetUnit) {
@@ -2286,7 +2467,8 @@ public class GameController {
 
         List<String> weaponsInArc = bearingWeaponNames(attackerUnit, targetUnit);
 
-        // A fighter holds lock-ons too (J1.31 gives every shuttle sensor rating six, automatic
+        // A fighter holds lock-ons too (J1.31 gives every shuttle sensor rating six,
+        // automatic
         // under D6.11), and asking only ships reported every fighter as having none.
         boolean hasLockOn = attackerUnit instanceof Ship ship
                 ? ship.hasLockOn(targetUnit)
@@ -2297,14 +2479,18 @@ public class GameController {
         // answer: natural ECM is counted along the line of sight (P3.33, P2.51,
         // P2.223), so the same target presents a different figure to every shooter and
         // no number on a ship's own panel can stand for it.
-        // Asked of ANY attacker, not only a ship. This used to skip the whole calculation
-        // unless the shooter was a Ship, so a fighter taking a shot was shown zero ECM on its
-        // target, zero ECCM of its own, and a shift of zero — while the resolution behind it
-        // counted J4.47's two points and whatever its squadron was lending (J4.92). Both
-        // Game.ewAgainst and Game.eccmOf take a Unit; the Ship-only gate was left behind when
+        // Asked of ANY attacker, not only a ship. This used to skip the whole
+        // calculation
+        // unless the shooter was a Ship, so a fighter taking a shot was shown zero ECM
+        // on its
+        // target, zero ECCM of its own, and a shift of zero — while the resolution
+        // behind it
+        // counted J4.47's two points and whatever its squadron was lending (J4.92).
+        // Both
+        // Game.ewAgainst and Game.eccmOf take a Unit; the Ship-only gate was left
+        // behind when
         // they were widened.
-        com.sfb.properties.EwBreakdown ew =
-                session.getGame().ewAgainst(attackerUnit, targetUnit);
+        com.sfb.properties.EwBreakdown ew = session.getGame().ewAgainst(attackerUnit, targetUnit);
         int eccm = session.getGame().eccmOf(attackerUnit);
         int ecmPoints = ew.total();
         int ecmShift = com.sfb.Game.netEcmShift(ecmPoints - eccm);
@@ -2314,10 +2500,14 @@ public class GameController {
         body.put("range", range);
         body.put("adjustedRange", adjRange);
         body.put("shieldNumber", shieldNumber);
-        // The target's size class. Public - a counter on the map announces what it is - and the
-        // client needs it to show WHY a plasma rack's defensive mode cannot engage a given
-        // target: FP10.212 reaches "size-5 and smaller targets within an effective range of six
-        // hexes". Mirrored in the pad as an affordance only; core refuses authoritatively.
+        // The target's size class. Public - a counter on the map announces what it is -
+        // and the
+        // client needs it to show WHY a plasma rack's defensive mode cannot engage a
+        // given
+        // target: FP10.212 reaches "size-5 and smaller targets within an effective
+        // range of six
+        // hexes". Mirrored in the pad as an affordance only; core refuses
+        // authoritatively.
         body.put("sizeClass", targetUnit.getSizeClass());
         body.put("weaponsInArc", weaponsInArc);
         body.put("hasLockOn", hasLockOn);
@@ -2328,7 +2518,10 @@ public class GameController {
         return body;
     }
 
-    /** Names of the attacker's weapons that bear on this target, ADDs only where they apply. */
+    /**
+     * Names of the attacker's weapons that bear on this target, ADDs only where
+     * they apply.
+     */
     private List<String> bearingWeaponNames(Unit attackerUnit, Unit targetUnit) {
         com.sfb.systemgroups.Weapons wGroup = attackerUnit instanceof Ship
                 ? ((Ship) attackerUnit).getWeapons()
@@ -2352,19 +2545,28 @@ public class GameController {
     }
 
     /**
-     * Every unit this attacker could fire at, with the same figures {@code /fire-options}
-     * gives for one of them. One call per ship instead of one per candidate, so the pad can
+     * Every unit this attacker could fire at, with the same figures
+     * {@code /fire-options}
+     * gives for one of them. One call per ship instead of one per candidate, so the
+     * pad can
      * list targets by name instead of making the player find them on the map.
      *
-     * A candidate is a unit the caller does not own, that at least one weapon bears on, with
-     * line of sight to it. Each of those tests comes from the code that decides the shot -
-     * {@code losBlocked} (P2.321) and {@code fetchAllBearingWeapons} - rather than being
-     * worked out again here. An exploding or spent wild weasel is excluded because it cannot
+     * A candidate is a unit the caller does not own, that at least one weapon bears
+     * on, with
+     * line of sight to it. Each of those tests comes from the code that decides the
+     * shot -
+     * {@code losBlocked} (P2.321) and {@code fetchAllBearingWeapons} - rather than
+     * being
+     * worked out again here. An exploding or spent wild weasel is excluded because
+     * it cannot
      * be killed again (J3.21).
      *
-     * Attacker-level refusals are NOT applied (G7.91, D19.23, breakdown lockout, one volley
-     * per pair per segment): they live in DamageResolver.fireWeapons, and a second copy here
-     * would drift. An order that runs into one fizzles at the reveal with its reason.
+     * Attacker-level refusals are NOT applied (G7.91, D19.23, breakdown lockout,
+     * one volley
+     * per pair per segment): they live in DamageResolver.fireWeapons, and a second
+     * copy here
+     * would drift. An order that runs into one fizzles at the reveal with its
+     * reason.
      */
     @GetMapping("/{id}/fire-targets")
     public ResponseEntity<?> getFireTargets(
@@ -2384,17 +2586,24 @@ public class GameController {
             if (attackerUnit.getLocation() == null)
                 return ResponseEntity.ok(List.of());
 
-            // The same ownership source COMMIT_FIRE_DECLARATION checks against, so a unit the
-            // reveal would refuse as "another player's" is never offered as a target either.
+            // The same ownership source COMMIT_FIRE_DECLARATION checks against, so a unit
+            // the
+            // reveal would refuse as "another player's" is never offered as a target
+            // either.
             GameSession.PlayerInfo me = session.getPlayers().get(token);
             java.util.Set<String> mine = new java.util.HashSet<>(
                     me != null ? me.getShipNames() : java.util.List.<String>of());
 
-            // D13.21/D13.23: with ?aegis=true the answer is narrowed to what this ship's aegis may
-            // engage — size class 6 or smaller, within six hexes, with a lock-on. Asked of core
-            // rather than filtered here on sizeClass and range, because the eligibility IS the rule
-            // and a second copy of it in this method would drift from Ship.canAegisEngage. A
-            // non-ship attacker has no aegis, so it gets an empty list rather than everything.
+            // D13.21/D13.23: with ?aegis=true the answer is narrowed to what this ship's
+            // aegis may
+            // engage — size class 6 or smaller, within six hexes, with a lock-on. Asked of
+            // core
+            // rather than filtered here on sizeClass and range, because the eligibility IS
+            // the rule
+            // and a second copy of it in this method would drift from Ship.canAegisEngage.
+            // A
+            // non-ship attacker has no aegis, so it gets an empty list rather than
+            // everything.
             int nowImpulse = session.getGame().getAbsoluteImpulse();
             if (aegis && !(attackerUnit instanceof Ship))
                 return ResponseEntity.ok(List.of());
@@ -2402,7 +2611,7 @@ public class GameController {
             List<Map<String, Object>> out = new java.util.ArrayList<>();
             for (Unit candidate : attackableCandidates(session, attackerUnit, mine)) {
                 if (session.getGame().losBlocked(attackerUnit.getLocation(), candidate.getLocation()))
-                    continue;       // P2.321
+                    continue; // P2.321
                 if (bearingWeaponNames(attackerUnit, candidate).isEmpty())
                     continue;
                 if (aegis && !((Ship) attackerUnit).canAegisEngage(candidate, nowImpulse))
@@ -2425,31 +2634,49 @@ public class GameController {
     }
 
     /**
-     * What this ship's aegis may attempt to IDENTIFY (D13.3), as distinct from what it may shoot.
+     * What this ship's aegis may attempt to IDENTIFY (D13.3), as distinct from what
+     * it may shoot.
      *
      * <h3>A separate endpoint, because the eligibility is a different rule</h3>
-     * {@code /fire-targets?aegis=true} answers D13.21/D13.23 — size class 6 or smaller, within six
-     * hexes, <b>with a lock-on</b>, and a weapon that bears. None of that governs identification.
-     * D13.3 needs no lock-on and no weapon at all; it is the sensor suite reading an incoming
-     * seeker, and the only distance rule is its own table, which stops at six hexes. Answering it
-     * through the fire endpoint would have meant a seeker you could see but not shoot going
-     * unidentifiable, which is backwards: identifying it is how you decide whether to bother.
+     * {@code /fire-targets?aegis=true} answers D13.21/D13.23 — size class 6 or
+     * smaller, within six
+     * hexes, <b>with a lock-on</b>, and a weapon that bears. None of that governs
+     * identification.
+     * D13.3 needs no lock-on and no weapon at all; it is the sensor suite reading
+     * an incoming
+     * seeker, and the only distance rule is its own table, which stops at six
+     * hexes. Answering it
+     * through the fire endpoint would have meant a seeker you could see but not
+     * shoot going
+     * unidentifiable, which is backwards: identifying it is how you decide whether
+     * to bother.
      *
      * <h3>Shuttles are candidates on purpose</h3>
-     * D13.32: "This procedure can be used against shuttles that are <b>suspected</b> to be seeking
-     * weapons." That is the point of the rule — an admin shuttle and a suicide shuttle look alike
-     * until someone looks, so a player must be able to spend an attempt on something that may turn
-     * out to be nothing. The list therefore includes every enemy non-ship unit in range.
+     * D13.32: "This procedure can be used against shuttles that are
+     * <b>suspected</b> to be seeking
+     * weapons." That is the point of the rule — an admin shuttle and a suicide
+     * shuttle look alike
+     * until someone looks, so a player must be able to spend an attempt on
+     * something that may turn
+     * out to be nothing. The list therefore includes every enemy non-ship unit in
+     * range.
      *
      * <h3>What each row carries</h3>
-     * {@code needs} is the die that identifies at this range, straight from D13.31's table, and
-     * {@code repeat} says whether D13.321's -1 applies because this ship's last attempt in an
-     * EARLIER impulse was at this same seeker. Both come from core rather than being recomputed
-     * here: the table is a rule, and D13.322's "attempts during the same impulse do not count as
+     * {@code needs} is the die that identifies at this range, straight from
+     * D13.31's table, and
+     * {@code repeat} says whether D13.321's -1 applies because this ship's last
+     * attempt in an
+     * EARLIER impulse was at this same seeker. Both come from core rather than
+     * being recomputed
+     * here: the table is a rule, and D13.322's "attempts during the same impulse do
+     * not count as
      * previous to each other" is a subtlety no client should be asked to reproduce.
      *
-     * <p>Already-identified units are left out. Nothing in the rules forbids attempting one again,
-     * but there is nothing to learn and only six attempts a turn, so offering it would be offering
+     * <p>
+     * Already-identified units are left out. Nothing in the rules forbids
+     * attempting one again,
+     * but there is nothing to learn and only six attempts a turn, so offering it
+     * would be offering
      * a mistake.
      */
     @GetMapping("/{id}/aegis-id-targets")
@@ -2469,7 +2696,8 @@ public class GameController {
             Ship ship = (Ship) attackerUnit;
             if (ship.getLocation() == null)
                 return ResponseEntity.ok(List.of());
-            // D13.35/D13.412: a limited system cannot do this at all, so it gets an empty list
+            // D13.35/D13.412: a limited system cannot do this at all, so it gets an empty
+            // list
             // rather than rows it would be refused for.
             if (!ship.getAegisFitted().canIdentifySeekers())
                 return ResponseEntity.ok(List.of());
@@ -2484,7 +2712,7 @@ public class GameController {
             List<Map<String, Object>> out = new java.util.ArrayList<>();
             for (Unit candidate : attackableCandidates(session, attackerUnit, mine)) {
                 if (candidate instanceof Ship)
-                    continue;                       // a ship is not a seeking weapon
+                    continue; // a ship is not a seeking weapon
                 if (candidate instanceof com.sfb.objects.Seeker
                         && ((com.sfb.objects.Seeker) candidate).isIdentified())
                     continue;
@@ -2494,9 +2722,9 @@ public class GameController {
                 int range = MapUtils.getRange(ship, candidate);
                 int needs = Ship.aegisIdentifyNeeds(range);
                 if (needs < 0)
-                    continue;                       // D13.31: seven or more, not allowed
+                    continue; // D13.31: seven or more, not allowed
                 if (session.getGame().losBlocked(ship.getLocation(), candidate.getLocation()))
-                    continue;                       // P2.321
+                    continue; // P2.321
 
                 Map<String, Object> row = new java.util.LinkedHashMap<>();
                 row.put("name", candidate.getName());
@@ -2515,26 +2743,41 @@ public class GameController {
     /**
      * Which of the caller's units this seeker is bearing down on, or null.
      *
-     * An INFERENCE from the board, not a disclosure: it reads the seeker's position and
-     * facing, both of which every player can see, and the caller's own positions. It never
-     * consults the seeker's target — that is hidden until the seeker is identified (G4.2),
+     * An INFERENCE from the board, not a disclosure: it reads the seeker's position
+     * and
+     * facing, both of which every player can see, and the caller's own positions.
+     * It never
+     * consults the seeker's target — that is hidden until the seeker is identified
+     * (G4.2),
      * and a pad that quietly leaked it would be worse than one that said nothing.
      * <p>
-     * So the wording that goes with this is never "targeting". A drone flying at your flagship
-     * may be aimed at something else entirely; what is true is where it is pointed. The test is
-     * a cone roughly 45 degrees either side of dead ahead, nearest unit first — the same
+     * So the wording that goes with this is never "targeting". A drone flying at
+     * your flagship
+     * may be aimed at something else entirely; what is true is where it is pointed.
+     * The test is
+     * a cone roughly 45 degrees either side of dead ahead, nearest unit first — the
+     * same
      * judgement a player makes by eye.
      * <p>
-     * That caution was already written here and was not enough. In a game on 2026-10-10 a player
-     * read the pad's "closing on <ship>" grouping as his opponent's drone ORDERS being visible,
-     * and reported it as a leak. It was not one, but a phrase that an experienced player reads
-     * as "targeting" is doing the damage anyway, so the label it feeds now says "pointed at".
+     * That caution was already written here and was not enough. In a game on
+     * 2026-10-10 a player
+     * read the pad's "closing on <ship>" grouping as his opponent's drone ORDERS
+     * being visible,
+     * and reported it as a leak. It was not one, but a phrase that an experienced
+     * player reads
+     * as "targeting" is doing the damage anyway, so the label it feeds now says
+     * "pointed at".
      * <p>
-     * It also considered only SHIPS, which made it quietly wrong rather than merely vague: a
-     * drone chasing a shuttle, a fighter or another drone was filed under whichever of the
-     * caller's ships happened to lie ahead of it. A craft the caller owns is a unit a seeker can
-     * be pointed at, so they are all in the running now — and because ownership of a craft is
-     * ownership of its parent (the same rule GameSession.ownsShip keeps), a fighter counts when
+     * It also considered only SHIPS, which made it quietly wrong rather than merely
+     * vague: a
+     * drone chasing a shuttle, a fighter or another drone was filed under whichever
+     * of the
+     * caller's ships happened to lie ahead of it. A craft the caller owns is a unit
+     * a seeker can
+     * be pointed at, so they are all in the running now — and because ownership of
+     * a craft is
+     * ownership of its parent (the same rule GameSession.ownsShip keeps), a fighter
+     * counts when
      * its carrier is the caller's.
      */
     private String closingOn(Unit seeker, GameSession session, java.util.Set<String> mine) {
@@ -2544,8 +2787,10 @@ public class GameController {
         for (Ship ship : session.getGame().getShips())
             if (containsIgnoreCase(mine, ship.getName()))
                 candidates.add(ship);
-        // The caller's CRAFT as well — a seeker pointed at your shuttle is pointed at your
-        // shuttle, and saying "your cruiser" instead is a wrong answer, not a vague one.
+        // The caller's CRAFT as well — a seeker pointed at your shuttle is pointed at
+        // your
+        // shuttle, and saying "your cruiser" instead is a wrong answer, not a vague
+        // one.
         for (com.sfb.objects.shuttles.Shuttle craft : session.getGame().getActiveShuttles())
             if (containsIgnoreCase(mine, craft.getParentShipName()))
                 candidates.add(craft);
@@ -2557,10 +2802,10 @@ public class GameController {
                 continue;
             int bearing = MapUtils.getBearing(seeker.getLocation(), unit.getLocation());
             if (bearing == 0)
-                continue;                         // same hex: no bearing exists
+                continue; // same hex: no bearing exists
             int relative = MapUtils.getRelativeBearing(bearing, seeker.getFacing());
             if (relative > 3 && relative < 22)
-                continue;                         // not ahead of it
+                continue; // not ahead of it
             int range = MapUtils.getRange(seeker.getLocation(), unit.getLocation());
             if (range < bestRange) {
                 bestRange = range;
@@ -2571,12 +2816,16 @@ public class GameController {
     }
 
     /**
-     * Everything on the map this attacker could be pointed at, before the weapon-specific
-     * tests: on the map, not itself, not the caller's own, and not a wild weasel that is
+     * Everything on the map this attacker could be pointed at, before the
+     * weapon-specific
+     * tests: on the map, not itself, not the caller's own, and not a wild weasel
+     * that is
      * already exploding or spent (J3.21 - the decoy cannot be killed twice).
      *
-     * Shared by both target endpoints so there is one notion of an attackable unit. What
-     * each of them adds is its own: line of sight and bearing weapons for direct fire, the
+     * Shared by both target endpoints so there is one notion of an attackable unit.
+     * What
+     * each of them adds is its own: line of sight and bearing weapons for direct
+     * fire, the
      * tractor restriction for launches.
      */
     private List<Unit> attackableCandidates(GameSession session, Unit attackerUnit,
@@ -2588,8 +2837,7 @@ public class GameController {
             if (ownedBy(candidate, mine))
                 continue;
             if (candidate instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
-                com.sfb.objects.shuttles.WildWeaselShuttle ww =
-                        (com.sfb.objects.shuttles.WildWeaselShuttle) candidate;
+                com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) candidate;
                 if (ww.isExploding() || ww.isPostExplosion())
                     continue;
             }
@@ -2601,21 +2849,29 @@ public class GameController {
     /**
      * What this ship may send a seeking weapon at.
      *
-     * Simpler than {@code /fire-targets} but not arc-free. A drone rack sends one any way it
-     * likes, so for drones any candidate will do; a PLASMA LAUNCHER has an arc, and what the
-     * arc constrains is the launch direction (FP1.3) — which, when the player names no
-     * direction, is the bearing to the target. So each row reports the launchers that could
+     * Simpler than {@code /fire-targets} but not arc-free. A drone rack sends one
+     * any way it
+     * likes, so for drones any candidate will do; a PLASMA LAUNCHER has an arc, and
+     * what the
+     * arc constrains is the launch direction (FP1.3) — which, when the player names
+     * no
+     * direction, is the bearing to the target. So each row reports the launchers
+     * that could
      * actually send one that way, and a target dead astern comes back with none.
      * <p>
      * Two more target-dependent rules shape the list itself.
      * <p>
-     * A tractored ship may only launch seeking weapons at the ship holding it (G7.943, and
+     * A tractored ship may only launch seeking weapons at the ship holding it
+     * (G7.943, and
      * G7.91 for plasma). That is unconditional, so a non-holder is not offered.
      * <p>
-     * A lock-on is needed to launch at a target (D6.121) - EXCEPT that a self-guiding drone
-     * under passive fire control acquires its own after launch (D19.221). Whether the lock-on
+     * A lock-on is needed to launch at a target (D6.121) - EXCEPT that a
+     * self-guiding drone
+     * under passive fire control acquires its own after launch (D19.221). Whether
+     * the lock-on
      * matters therefore depends on which seeker is chosen, not on the target, so
-     * {@code hasLockOn} is REPORTED rather than filtered on and core refuses at the reveal
+     * {@code hasLockOn} is REPORTED rather than filtered on and core refuses at the
+     * reveal
      * with the citation. Filtering here would hide a legal launch.
      */
     @GetMapping("/{id}/launch-targets")
@@ -2679,25 +2935,33 @@ public class GameController {
     /**
      * Plasma launchers that could send a torpedo toward this target.
      *
-     * Tested against the launcher's FIRING arc, which is what limits what it may target -
-     * not against its launch directions, which are a different and often narrower thing. A
-     * Romulan KR's Plasma-G launches straight ahead only, yet may target anything in FA, so
-     * judging targets by the launch directions would wrongly rule out most of the arc.
+     * Tested against the launcher's FIRING arc, which is what limits what it may
+     * target -
+     * not against its launch directions, which are a different and often narrower
+     * thing. A
+     * Romulan KR's Plasma-G launches straight ahead only, yet may target anything
+     * in FA, so
+     * judging targets by the launch directions would wrongly rule out most of the
+     * arc.
      * <p>
-     * Drone racks are absent by design: a rack has no arc, so every candidate is reachable
+     * Drone racks are absent by design: a rack has no arc, so every candidate is
+     * reachable
      * and a list of them would say nothing.
      */
     private List<String> plasmaLaunchersBearing(Ship launcherShip, Unit target) {
         List<String> out = new java.util.ArrayList<>();
         int bearing = MapUtils.getBearing(launcherShip.getLocation(), target.getLocation());
         if (bearing == 0)
-            return out;                       // same hex: no bearing exists to test
+            return out; // same hex: no bearing exists to test
         int relative = MapUtils.getRelativeBearing(bearing, launcherShip.getFacing());
         for (com.sfb.weapons.Weapon w : launcherShip.getWeapons().fetchAllWeapons()) {
-            // Plasma RACKS belong here too: FP10.222 launches a seeking type-D from one, and
-            // FP10.12 gives it a 180-degree firing arc to test - "they can engage any target in
+            // Plasma RACKS belong here too: FP10.222 launches a seeking type-D from one,
+            // and
+            // FP10.12 gives it a 180-degree firing arc to test - "they can engage any
+            // target in
             // this arc". Unlike a drone rack, which has no arc and is therefore left out, a
-            // plasma rack's arc is exactly what decides whether a candidate is reachable, so
+            // plasma rack's arc is exactly what decides whether a candidate is reachable,
+            // so
             // omitting it left every rack out of the launch pad and the launch unreachable.
             boolean isPlasmaMount = w instanceof com.sfb.weapons.PlasmaLauncher
                     || w instanceof com.sfb.weapons.PlasmaRack;
@@ -2734,7 +2998,9 @@ public class GameController {
         return all;
     }
 
-    /** Whether one of the caller's own ships owns, launched, or controls this unit. */
+    /**
+     * Whether one of the caller's own ships owns, launched, or controls this unit.
+     */
     private boolean ownedBy(Unit candidate, java.util.Set<String> mine) {
         if (candidate instanceof Ship)
             return containsIgnoreCase(mine, candidate.getName());
@@ -2766,12 +3032,18 @@ public class GameController {
         return false;
     }
 
-    /** What the pad should call this row: SHIP, DRONE, PLASMA, SHUTTLE or WEASEL. */
+    /**
+     * What the pad should call this row: SHIP, DRONE, PLASMA, SHUTTLE or WEASEL.
+     */
     private String candidateKind(Unit candidate) {
-        if (candidate instanceof Ship)                                             return "SHIP";
-        if (candidate instanceof com.sfb.objects.Drone)                            return "DRONE";
-        if (candidate instanceof com.sfb.objects.shuttles.WildWeaselShuttle)       return "WEASEL";
-        if (candidate instanceof com.sfb.objects.shuttles.Shuttle)                 return "SHUTTLE";
+        if (candidate instanceof Ship)
+            return "SHIP";
+        if (candidate instanceof com.sfb.objects.Drone)
+            return "DRONE";
+        if (candidate instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+            return "WEASEL";
+        if (candidate instanceof com.sfb.objects.shuttles.Shuttle)
+            return "SHUTTLE";
         return "PLASMA";
     }
 
@@ -2940,15 +3212,23 @@ public class GameController {
      * End a game for everybody and free it. Host only.
      *
      * <h2>Why a game needs an end at all</h2>
-     * Nothing ever removed a session, so every game ever hosted stayed in memory and stayed
-     * joinable. That is a slow leak, but the sharper cost is GHOSTS: after a battle is restored
-     * from a save, the pre-save game is still alive, and a player who clicks Resume lands in a
-     * copy that looks identical and diverges silently from the one everybody else is playing.
+     * Nothing ever removed a session, so every game ever hosted stayed in memory
+     * and stayed
+     * joinable. That is a slow leak, but the sharper cost is GHOSTS: after a battle
+     * is restored
+     * from a save, the pre-save game is still alive, and a player who clicks Resume
+     * lands in a
+     * copy that looks identical and diverges silently from the one everybody else
+     * is playing.
      * Ending the old one is how a host stops that happening.
      *
-     * <p>The lobby is broadcast BEFORE the session is removed, so clients that are listening
-     * learn the game is finished while there is still a game to tell them about. After the
-     * removal, every request for it answers 404, which clients already read as "that game is
+     * <p>
+     * The lobby is broadcast BEFORE the session is removed, so clients that are
+     * listening
+     * learn the game is finished while there is still a game to tell them about.
+     * After the
+     * removal, every request for it answers 404, which clients already read as
+     * "that game is
      * gone" — the resume check clears a saved seat on exactly that.
      */
     @PostMapping("/{id}/end")
@@ -2997,9 +3277,12 @@ public class GameController {
                     .collect(Collectors.toList());
 
             // `restored` and `unassignedShips` are here for ROUTING. A restored battle is
-            // already started, so a client that only knows "started" sends the host straight to
-            // the map — where there is no way to hand out the ships, because assignment lives on
-            // the pre-game screen. Together these let the client send them to assign first, and
+            // already started, so a client that only knows "started" sends the host
+            // straight to
+            // the map — where there is no way to hand out the ships, because assignment
+            // lives on
+            // the pre-game screen. Together these let the client send them to assign first,
+            // and
             // keep doing so if they reload mid-assignment.
             return ResponseEntity.ok(Map.of(
                     "gameId", session.getId(),

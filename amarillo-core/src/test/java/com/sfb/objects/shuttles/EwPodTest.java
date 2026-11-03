@@ -8,19 +8,22 @@ import com.sfb.objects.Drone;
 import com.sfb.objects.DroneType;
 import com.sfb.weapons.DroneRail;
 import com.sfb.weapons.Weapon;
-import com.sfb.objects.shuttles.CataloguedFighter;
-import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Electronic warfare pods (J4.96).
  * <p>
- * A fighter's built-in two-and-two (J4.47) is all it ever has of its own; pods are how it
- * gets more, and by J4.965 they are the ONLY points it may lend to its squadron. So the
+ * A fighter's built-in two-and-two (J4.47) is all it ever has of its own; pods
+ * are how it
+ * gets more, and by J4.965 they are the ONLY points it may lend to its
+ * squadron. So the
  * distinction is load-bearing even though both add to the same to-hit sum.
  * <p>
- * A pod is not free. J4.962: "An EWP replaces one drone carried by the fighter" — which is
- * what the SSDs show, an EW fighter with the same rails as the standard model, pods on
- * them and two fewer drones aboard. The only pods that do NOT cost a drone are the extras
+ * A pod is not free. J4.962: "An EWP replaces one drone carried by the fighter"
+ * — which is
+ * what the SSDs show, an EW fighter with the same rails as the standard model,
+ * pods on
+ * them and two fewer drones aboard. The only pods that do NOT cost a drone are
+ * the extras
  * of J4.9621, and those cost speed and dogfight rating instead.
  */
 public class EwPodTest {
@@ -111,8 +114,10 @@ public class EwPodTest {
     }
 
     /**
-     * A HAAS-E has only two standard rails, so reaching J4.964's four means two on the
-     * rails and two slung extra. That is this airframe's arithmetic, NOT a general rule:
+     * A HAAS-E has only two standard rails, so reaching J4.964's four means two on
+     * the
+     * rails and two slung extra. That is this airframe's arithmetic, NOT a general
+     * rule:
      * a fighter with four standard rails carries all four on them — see below.
      */
     @Test
@@ -135,7 +140,7 @@ public class EwPodTest {
     @Test
     public void eachPodIsTwoPoints() {
         Fighter ew = ewFighter();
-        ew.setExtraEwPods(2);   // four pods, eight points
+        ew.setExtraEwPods(2); // four pods, eight points
 
         assertTrue("all eight as ECM", ew.allocatePodEw(8, 0));
         assertEquals(8, ew.getPodEcm());
@@ -149,7 +154,7 @@ public class EwPodTest {
     @Test
     public void anAllocationMustSpendExactlyWhatThePodsMake() {
         Fighter aas = ordinary();
-        aas.fitEwPods(2);   // four points
+        aas.fitEwPods(2); // four points
 
         assertFalse("three is not four", aas.allocatePodEw(2, 1));
         assertFalse("five is not four", aas.allocatePodEw(3, 2));
@@ -232,7 +237,7 @@ public class EwPodTest {
     public void aFighterCannotUseMoreThanSixOfEither() {
         Fighter ew = ewFighter();
         ew.setExtraEwPods(2);
-        ew.allocatePodEw(8, 0);   // eight pod points, all ECM
+        ew.allocatePodEw(8, 0); // eight pod points, all ECM
 
         assertEquals("plus two built-in would be ten; J4.91 stops at six",
                 6, ew.totalOwnEcm());
@@ -263,9 +268,11 @@ public class EwPodTest {
     // -------------------------------------------------------------------------
 
     /**
-     * "EW pods can be carried on standard drone rails, but cannot be carried on other
+     * "EW pods can be carried on standard drone rails, but cannot be carried on
+     * other
      * types of rails." Stricter than the space argument: a pod is one space so a
-     * half-space LIGHT rail obviously cannot take one, but the rule bars a HEAVY rail
+     * half-space LIGHT rail obviously cannot take one, but the rule bars a HEAVY
+     * rail
      * too, which has room to spare.
      */
     @Test
@@ -284,8 +291,7 @@ public class EwPodTest {
 
     @Test
     public void aLightRailRefusesAPodOutright() {
-        com.sfb.weapons.DroneRail light =
-                new com.sfb.weapons.DroneRail(DroneRail.DroneRailType.LIGHT);
+        com.sfb.weapons.DroneRail light = new com.sfb.weapons.DroneRail(DroneRail.DroneRailType.LIGHT);
         light.setDesignator("C");
 
         try {
@@ -296,7 +302,10 @@ public class EwPodTest {
         }
     }
 
-    /** A TAAS has two standard rails and two light: only the standard pair take pods. */
+    /**
+     * A TAAS has two standard rails and two light: only the standard pair take
+     * pods.
+     */
     @Test
     public void aMixedRailFighterHangsPodsOnItsStandardRailsOnly() {
         Fighter taas = CataloguedFighter.of("taas");
@@ -311,7 +320,8 @@ public class EwPodTest {
     }
 
     /**
-     * The general case, which the HAAS-E's two rails hide: a fighter with four standard
+     * The general case, which the HAAS-E's two rails hide: a fighter with four
+     * standard
      * rails carries J4.964's full four ON them. No extras, so no speed or dogfight
      * penalty (J4.9621) — the cost is four drones instead.
      */
@@ -319,7 +329,7 @@ public class EwPodTest {
     public void aFourRailEwFighterCarriesAllFourOnItsRails() {
         Fighter wide = new Fighter() {
             {
-                setTwoSeater(true);          // J4.964's exception: four pods
+                setTwoSeater(true); // J4.964's exception: four pods
                 setMaxSpeed(12);
                 for (char tag = 'A'; tag < 'E'; tag++) {
                     DroneRail rail = new DroneRail(DroneRail.DroneRailType.STANDARD);
@@ -345,7 +355,7 @@ public class EwPodTest {
     public void railsDoNotRaiseAnOrdinaryFightersLimit() {
         Fighter wide = new Fighter() {
             {
-                setMaxSpeed(12);             // not a two-seater
+                setMaxSpeed(12); // not a two-seater
                 for (char tag = 'A'; tag < 'E'; tag++) {
                     DroneRail rail = new DroneRail(DroneRail.DroneRailType.STANDARD);
                     rail.setDesignator(String.valueOf(tag));
@@ -359,9 +369,12 @@ public class EwPodTest {
     }
 
     /**
-     * A podded rail carries no drone, so the box behind it stocks no reload for one (J4.822,
-     * J4.962). A HAAS-E with both rails podded needs no ready rack at all — and previously
-     * got one holding two Type-Is it could never load, charging its carrier two spaces of
+     * A podded rail carries no drone, so the box behind it stocks no reload for one
+     * (J4.822,
+     * J4.962). A HAAS-E with both rails podded needs no ready rack at all — and
+     * previously
+     * got one holding two Type-Is it could never load, charging its carrier two
+     * spaces of
      * Annex #7G stores for drones nobody could reach.
      */
     @Test
@@ -372,8 +385,7 @@ public class EwPodTest {
                 com.sfb.systemgroups.ReadyRack.forFighter(ewf));
 
         Fighter plain = CataloguedFighter.of("haas");
-        com.sfb.systemgroups.ReadyRack rack =
-                com.sfb.systemgroups.ReadyRack.forFighter(plain);
+        com.sfb.systemgroups.ReadyRack rack = com.sfb.systemgroups.ReadyRack.forFighter(plain);
         assertNotNull("the drone-armed model still gets one", rack);
         assertEquals("one reload per rail (J4.822)", 2, rack.capacity());
     }
@@ -386,8 +398,7 @@ public class EwPodTest {
             if (w instanceof DroneRail rail)
                 rail.clearEwPod();
 
-        com.sfb.systemgroups.ReadyRack rack =
-                com.sfb.systemgroups.ReadyRack.forFighter(ewf);
+        com.sfb.systemgroups.ReadyRack rack = com.sfb.systemgroups.ReadyRack.forFighter(ewf);
         assertNotNull(rack);
         assertEquals(2, rack.capacity());
     }
@@ -397,8 +408,10 @@ public class EwPodTest {
     // -------------------------------------------------------------------------
 
     /**
-     * R1.F7: the Hydrans, ISC and Tholians "built a specific EW fighter which was the only
-     * type they used" and do not convert a standard fighter. A Stinger-E's two fusion beams
+     * R1.F7: the Hydrans, ISC and Tholians "built a specific EW fighter which was
+     * the only
+     * type they used" and do not convert a standard fighter. A Stinger-E's two
+     * fusion beams
      * were replaced by two EW pods at the factory.
      */
     @Test
@@ -413,8 +426,10 @@ public class EwPodTest {
     }
 
     /**
-     * The pods cost it no speed, which is what rules out J4.9621's "extra" pods — their
-     * whole signature is a point of speed and dogfight rating apiece. The SSD prints 15,
+     * The pods cost it no speed, which is what rules out J4.9621's "extra" pods —
+     * their
+     * whole signature is a point of speed and dogfight rating apiece. The SSD
+     * prints 15,
      * the same as the Stinger-2 this derives from.
      */
     @Test
@@ -425,9 +440,12 @@ public class EwPodTest {
     }
 
     /**
-     * The bug this airframe would have exposed. Pods were modelled as living on standard
-     * drone rails (J4.962) — true of a Kzinti HAAS-E, and impossible for a Hydran fighter,
-     * which has no rails at all. A Stinger-E built with {@code fitEwPods(2)} would have
+     * The bug this airframe would have exposed. Pods were modelled as living on
+     * standard
+     * drone rails (J4.962) — true of a Kzinti HAAS-E, and impossible for a Hydran
+     * fighter,
+     * which has no rails at all. A Stinger-E built with {@code fitEwPods(2)} would
+     * have
      * come out with nothing and lent its squadron nothing.
      */
     @Test
@@ -438,7 +456,10 @@ public class EwPodTest {
         assertEquals("and the permanent pair is untouched", 2, ewf.getEwPods());
     }
 
-    /** J4.961: two pods, four points — all of them lendable, since none are built-in EW. */
+    /**
+     * J4.961: two pods, four points — all of them lendable, since none are built-in
+     * EW.
+     */
     @Test
     public void aStingerEGeneratesFourPodPoints() {
         Fighter ewf = CataloguedFighter.of("stinger_e");
@@ -450,14 +471,16 @@ public class EwPodTest {
     }
 
     /**
-     * J1.3322 draws the line between built-in POINTS and built-in PODS: "EW systems (EW
-     * pods, MRS, SWAC) cease to function if the shuttle is crippled. Built-in EW points
+     * J1.3322 draws the line between built-in POINTS and built-in PODS: "EW systems
+     * (EW
+     * pods, MRS, SWAC) cease to function if the shuttle is crippled. Built-in EW
+     * points
      * continue to operate." Permanent or not, a pod is a pod.
      */
     @Test
     public void cripplingTakesEvenPermanentPods() {
         Fighter ewf = CataloguedFighter.of("stinger_e");
-        ewf.applyCripplingEffects();                       // J1.33
+        ewf.applyCripplingEffects(); // J1.33
 
         assertEquals("the pods stop", 0, ewf.getPodEcm());
         assertEquals("J4.47's two-and-two survives", 2, ewf.totalOwnEcm());
@@ -466,7 +489,8 @@ public class EwPodTest {
     }
 
     /**
-     * J4.964 lets an EWF carry four "including any built-in", so a Stinger-E's two leave
+     * J4.964 lets an EWF carry four "including any built-in", so a Stinger-E's two
+     * leave
      * room for two J4.9621 extras — at a point of speed each, which is the trade.
      */
     @Test
@@ -488,8 +512,10 @@ public class EwPodTest {
     }
 
     /**
-     * A Stinger-E reads READY, because it is. It has nothing to arm, which is not the same as
-     * being unarmed — showing it blank beside its green-dotted squadron-mates in the launch pad
+     * A Stinger-E reads READY, because it is. It has nothing to arm, which is not
+     * the same as
+     * being unarmed — showing it blank beside its green-dotted squadron-mates in
+     * the launch pad
      * said the opposite of the truth.
      */
     @Test
@@ -499,14 +525,18 @@ public class EwPodTest {
                 com.sfb.systemgroups.FighterArming.needsArming(CataloguedFighter.of("stinger_e")));
     }
 
-    /** An empty drone fighter is a different thing entirely, and must keep saying so. */
+    /**
+     * An empty drone fighter is a different thing entirely, and must keep saying
+     * so.
+     */
     @Test
     public void anUnarmedDroneFighterStillReadsEmpty() {
         assertEquals("EMPTY", com.sfb.systemgroups.FighterArming.armingState(CataloguedFighter.of("haas")));
     }
 
     /**
-     * Null stays reserved for craft the question does not reach. An admin shuttle is not
+     * Null stays reserved for craft the question does not reach. An admin shuttle
+     * is not
      * "unarmed" — it is not a combat craft, and a green dot on one would be noise.
      */
     @Test
@@ -520,10 +550,14 @@ public class EwPodTest {
     // -------------------------------------------------------------------------
 
     /**
-     * The crash this found in playtest. Picking the HAAS-E in the Commander's Options
-     * "Fighters Ready" list threw IllegalStateException out of the submit endpoint: the
-     * arming arithmetic counted its two podded rails as work to do, so it looked armable,
-     * so armFully asked a podded rail to take a drone — and DroneRail.loadDrone refuses
+     * The crash this found in playtest. Picking the HAAS-E in the Commander's
+     * Options
+     * "Fighters Ready" list threw IllegalStateException out of the submit endpoint:
+     * the
+     * arming arithmetic counted its two podded rails as work to do, so it looked
+     * armable,
+     * so armFully asked a podded rail to take a drone — and DroneRail.loadDrone
+     * refuses
      * rather than quietly drop the pod.
      */
     @Test
@@ -531,7 +565,7 @@ public class EwPodTest {
         Fighter ewf = CataloguedFighter.of("haas_e");
         assertEquals("both rails carry pods", 2, ewf.railEwPods());
 
-        com.sfb.systemgroups.FighterArming.armFully(ewf);   // must not throw
+        com.sfb.systemgroups.FighterArming.armFully(ewf); // must not throw
 
         assertEquals("and the pods are still there", 2, ewf.getEwPods());
         assertEquals("with no drone smuggled aboard", 0,
@@ -539,8 +573,10 @@ public class EwPodTest {
     }
 
     /**
-     * The reason it was offered at all. A podded rail is not work for a deck crew, so a HAAS-E
-     * with both rails podded has nothing to arm — the same answer as a Stinger-E, reached by a
+     * The reason it was offered at all. A podded rail is not work for a deck crew,
+     * so a HAAS-E
+     * with both rails podded has nothing to arm — the same answer as a Stinger-E,
+     * reached by a
      * different route.
      */
     @Test

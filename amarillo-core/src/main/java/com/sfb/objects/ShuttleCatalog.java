@@ -11,19 +11,25 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sfb.objects.shuttles.Fighter;
 
 /**
- * The pre-game view of shuttles and fighters, read from data/shuttles/shuttles.json.
+ * The pre-game view of shuttles and fighters, read from
+ * data/shuttles/shuttles.json.
  * <p>
- * A {@link com.sfb.objects.shuttles.Shuttle} answers what a shuttle is doing once it exists;
- * this answers what exists at all — what a bay may be stocked with, whose it is, from which
- * year, and what it costs to buy. Fleet building, force-legality checks and pickers all need
+ * A {@link com.sfb.objects.shuttles.Shuttle} answers what a shuttle is doing
+ * once it exists;
+ * this answers what exists at all — what a bay may be stocked with, whose it
+ * is, from which
+ * year, and what it costs to buy. Fleet building, force-legality checks and
+ * pickers all need
  * those answers before any shuttle has been built.
  * <p>
- * Deliberately not under data/factions: that tree is ships. Suicide shuttles, scatter-packs and
- * wild weasels are deliberately absent too — they are roles an admin shuttle takes on rather
- * than types anyone stocks, and CoiLoadout prices those conversions in Commander's Option
+ * Deliberately not under data/factions: that tree is ships. Suicide shuttles,
+ * scatter-packs and
+ * wild weasels are deliberately absent too — they are roles an admin shuttle
+ * takes on rather
+ * than types anyone stocks, and CoiLoadout prices those conversions in
+ * Commander's Option
  * points.
  */
 public final class ShuttleCatalog {
@@ -31,28 +37,45 @@ public final class ShuttleCatalog {
     /** Faction token meaning every faction may field the type. */
     public static final String ANY_FACTION = "any";
 
-    /** One catalogued type. Immutable; the live object is built by ShuttleBay.buildShuttle. */
     /**
-     * What a craft is built WITH: its armament and the handful of fitted systems that are not
+     * One catalogued type. Immutable; the live object is built by
+     * ShuttleBay.buildShuttle.
+     */
+    /**
+     * What a craft is built WITH: its armament and the handful of fitted systems
+     * that are not
      * weapons (J4.8x, J4.96x, D11.0).
      *
-     * One record rather than six more constructor parameters, and on the catalogue rather than in
-     * a Java class per fighter. Sixteen fighter classes used to hold this, every one of them a
-     * constructor and nothing else, with their stats duplicated here and kept honest only by a
-     * test — which is how three of them came to carry their base fighter's BPV. A fighter is a
+     * One record rather than six more constructor parameters, and on the catalogue
+     * rather than in
+     * a Java class per fighter. Sixteen fighter classes used to hold this, every
+     * one of them a
+     * constructor and nothing else, with their stats duplicated here and kept
+     * honest only by a
+     * test — which is how three of them came to carry their base fighter's BPV. A
+     * fighter is a
      * ROW now, and a new faction's suite is a data change.
      *
-     * @param weapons                     recipes, built by {@link WeaponFactory} exactly as a
+     * @param weapons                     recipes, built by {@link WeaponFactory}
+     *                                    exactly as a
      *                                    ship's are
-     * @param ewPods                      J4.962: pods fitted ON RAILS, each displacing a drone
-     * @param fixedEwPods                 J4.964: pods built in and not removable — the Hydran
-     *                                    Stinger-E, whose pods replaced its fusions outright
-     * @param chaffPacks                  D11.0: chaff aboard, already a plain count on Shuttle
-     * @param twoSeater                   J4.43: two seats, which every EW fighter has. NOT
-     *                                    derived from the pods: J4.43 permits a two-seat fighter
-     *                                    that is no EW fighter, and an EW fighter that has lost
+     * @param ewPods                      J4.962: pods fitted ON RAILS, each
+     *                                    displacing a drone
+     * @param fixedEwPods                 J4.964: pods built in and not removable —
+     *                                    the Hydran
+     *                                    Stinger-E, whose pods replaced its fusions
+     *                                    outright
+     * @param chaffPacks                  D11.0: chaff aboard, already a plain count
+     *                                    on Shuttle
+     * @param twoSeater                   J4.43: two seats, which every EW fighter
+     *                                    has. NOT
+     *                                    derived from the pods: J4.43 permits a
+     *                                    two-seat fighter
+     *                                    that is no EW fighter, and an EW fighter
+     *                                    that has lost
      *                                    its pods is still one
-     * @param mayLaunchAtDifferentTargets J4.242's exception, named for the F-15 and TAAS
+     * @param mayLaunchAtDifferentTargets J4.242's exception, named for the F-15 and
+     *                                    TAAS
      * @param mayLaunchTwoStandardDrones  J4.242's other half, the same ships
      */
     public record Loadout(
@@ -64,42 +87,49 @@ public final class ShuttleCatalog {
             boolean mayLaunchAtDifferentTargets,
             boolean mayLaunchTwoStandardDrones) {
 
-        static final Loadout NONE =
-                new Loadout(List.of(), 0, 0, 0, false, false, false);
+        static final Loadout NONE = new Loadout(List.of(), 0, 0, 0, false, false, false);
     }
 
     public static final class Entry {
-        public final String type;          // key used by ship JSON and the ShuttleBay factory
-        public final String name;          // display name
+        public final String type; // key used by ship JSON and the ShuttleBay factory
+        public final String name; // display name
         /**
-         * Short form used in a launched shuttle's name, e.g. "Admin", "GAS". Falls back to
+         * Short form used in a launched shuttle's name, e.g. "Admin", "GAS". Falls back
+         * to
          * the display name. It names what the craft IS, never the role it is playing —
-         * that is the whole point (J3.0, FD7.0, J2.0 all rely on a role being unreadable
+         * that is the whole point (J3.0, FD7.0, J2.0 all rely on a role being
+         * unreadable
          * from outside).
          */
         public final String shortName;
         /**
-         * The SSD designation — "AAS", "Stinger-1", "HAAS-E". What the craft is CALLED, at
+         * The SSD designation — "AAS", "Stinger-1", "HAAS-E". What the craft is CALLED,
+         * at
          * the length a list can afford to print.
          * <p>
-         * Distinct from {@link #shortName}, which is tuned for a map counter and is terser
-         * still ("St-1"): a counter has a few pixels, a hangar row has a line and the name
-         * is the headline of it. Falls back to shortName, then to the display name, so a
+         * Distinct from {@link #shortName}, which is tuned for a map counter and is
+         * terser
+         * still ("St-1"): a counter has a few pixels, a hangar row has a line and the
+         * name
+         * is the headline of it. Falls back to shortName, then to the display name, so
+         * a
          * catalogue entry that does not bother saying still names the craft sensibly.
          */
         public final String designation;
-        public final String kind;          // "fighter" (costs BPV) or "shuttle" (carried free)
+        public final String kind; // "fighter" (costs BPV) or "shuttle" (carried free)
         public final List<String> factions;
-        public final int year;             // first year of service
+        public final int year; // first year of service
         public final int speed;
         public final int hull;
-        public final int crippled;         // damage that cripples it; 0 = no crippled state
-        public final int bpv;              // 0 for anything not bought with BPV
+        public final int crippled; // damage that cripples it; 0 = no crippled state
+        public final int bpv; // 0 for anything not bought with BPV
         /** J3.18: may this be charged as a Wild Weasel? Fighters never may. */
         public final boolean canWeasel;
         /**
-         * J2.222: may this be armed as a suicide shuttle? Admin, minesweeping, MRS, SWAC
-         * and minelaying shuttles may; fighters, HTS and GAS may not — a third list again
+         * J2.222: may this be armed as a suicide shuttle? Admin, minesweeping, MRS,
+         * SWAC
+         * and minelaying shuttles may; fighters, HTS and GAS may not — a third list
+         * again
          * distinct from the other two.
          */
         public final boolean canSuicide;
@@ -114,44 +144,62 @@ public final class ShuttleCatalog {
         /**
          * Whether this craft may GUIDE the seeking weapons it launches.
          *
-         * <p>Defaults to true, because almost everything can. The Master Fighter Chart marks the
-         * exceptions in its "Other Weapons" column with the words "No drone control" — the
-         * Kzinti AS and ASM among them. Such a fighter still CARRIES drones and still launches
-         * them; it simply cannot steer them afterwards, so they need another unit's channels or
+         * <p>
+         * Defaults to true, because almost everything can. The Master Fighter Chart
+         * marks the
+         * exceptions in its "Other Weapons" column with the words "No drone control" —
+         * the
+         * Kzinti AS and ASM among them. Such a fighter still CARRIES drones and still
+         * launches
+         * them; it simply cannot steer them afterwards, so they need another unit's
+         * channels or
          * they fly on unguided.
          *
-         * <p>On the row rather than derived, because it does not follow from anything else on the
-         * craft: the AS and the AAS carry the same two rails and the same phaser, and differ in
+         * <p>
+         * On the row rather than derived, because it does not follow from anything else
+         * on the
+         * craft: the AS and the AAS carry the same two rails and the same phaser, and
+         * differ in
          * this and one point of BPV.
          */
         public final boolean controlsDrones;
 
-        /** How this craft is armed and fitted; {@link Loadout#NONE} for a row that says nothing. */
+        /**
+         * How this craft is armed and fitted; {@link Loadout#NONE} for a row that says
+         * nothing.
+         */
         public final Loadout loadout;
 
         /**
-         * Counter art for this craft, as a path under {@code amarillo-web/public/tokens}, or null
+         * Counter art for this craft, as a path under
+         * {@code amarillo-web/public/tokens}, or null
          * to be drawn as its faction's generic shuttle.
          *
-         * <p>On the ROW rather than on a class, because a fighter is a catalogue row and not a
-         * class (J4.4) — the same reason its stats and armament live here. It is the craft's
-         * equivalent of {@code ShipSpec.tokenArt}, and it exists because the Stinger art had been
-         * drawn and sat unusable: nothing outside ShipSpec could name a picture, so every craft
+         * <p>
+         * On the ROW rather than on a class, because a fighter is a catalogue row and
+         * not a
+         * class (J4.4) — the same reason its stats and armament live here. It is the
+         * craft's
+         * equivalent of {@code ShipSpec.tokenArt}, and it exists because the Stinger
+         * art had been
+         * drawn and sat unusable: nothing outside ShipSpec could name a picture, so
+         * every craft
          * in the game drew its faction's generic shuttle counter.
          */
         public final String tokenArt;
 
         Entry(String type, String name, String kind, List<String> factions,
-              int year, int speed, int hull, int crippled, int bpv,
-              boolean canWeasel, boolean canSuicide, int scatterPackSize,
-              String shortName, String designation, Loadout loadout, String tokenArt,
-              boolean controlsDrones) {
+                int year, int speed, int hull, int crippled, int bpv,
+                boolean canWeasel, boolean canSuicide, int scatterPackSize,
+                String shortName, String designation, Loadout loadout, String tokenArt,
+                boolean controlsDrones) {
             this.controlsDrones = controlsDrones;
             this.tokenArt = tokenArt == null || tokenArt.isBlank() ? null : tokenArt;
             this.loadout = loadout == null ? Loadout.NONE : loadout;
             this.shortName = shortName == null || shortName.isBlank() ? name : shortName;
             this.designation = designation == null || designation.isBlank()
-                    ? this.shortName : designation;
+                    ? this.shortName
+                    : designation;
             this.canWeasel = canWeasel;
             this.canSuicide = canSuicide;
             this.scatterPackSize = scatterPackSize;
@@ -167,19 +215,20 @@ public final class ShuttleCatalog {
         }
 
         /** FD7.11: true if this type may be armed and launched as a scatter pack. */
-    public boolean canScatterPack() {
-        return scatterPackSize > 0;
-    }
+        public boolean canScatterPack() {
+            return scatterPackSize > 0;
+        }
 
-    /** True if this type costs BPV and is added to its carrier's price. */
+        /** True if this type costs BPV and is added to its carrier's price. */
         public boolean isFighter() {
             return "fighter".equalsIgnoreCase(kind);
         }
 
-        /** True if {@code faction} may field it — either its own, or it is open to all. */
+        /**
+         * True if {@code faction} may field it — either its own, or it is open to all.
+         */
         public boolean availableTo(String faction) {
-            return factions.stream().anyMatch(f ->
-                    ANY_FACTION.equalsIgnoreCase(f) || f.equalsIgnoreCase(faction));
+            return factions.stream().anyMatch(f -> ANY_FACTION.equalsIgnoreCase(f) || f.equalsIgnoreCase(faction));
         }
 
         /** True if it is in service by {@code gameYear}. */
@@ -200,19 +249,28 @@ public final class ShuttleCatalog {
     }
 
     /**
-     * One era of a fighter line: the year it begins, and which type fills each role.
+     * One era of a fighter line: the year it begins, and which type fills each
+     * role.
      * <p>
-     * Roles are named rather than positional (superiority / attack / assault / ew) because a carrier
-     * declares how many of each it carries and the era decides what they are. An era that has
-     * no type for a role leaves it absent, and {@link #typeFor} falls back to the superiority —
-     * which is how a Hydran RN carries nine Stinger-1s before the Stinger-E existed and six
-     * Stinger-2s, two Stinger-Hs and one Stinger-E after, from a single declaration.
+     * Roles are named rather than positional (superiority / attack / assault / ew)
+     * because a carrier
+     * declares how many of each it carries and the era decides what they are. An
+     * era that has
+     * no type for a role leaves it absent, and {@link #typeFor} falls back to the
+     * superiority —
+     * which is how a Hydran RN carries nine Stinger-1s before the Stinger-E existed
+     * and six
+     * Stinger-2s, two Stinger-Hs and one Stinger-E after, from a single
+     * declaration.
      */
     public static final class LineEra {
         /**
-         * The role every other falls back to (see {@link #typeFor}). Named SUPERIORITY after the
-         * annex's own term: "two will be superiority fighters and two will be assault fighters".
-         * Load-bearing in code as well as data, so {@code FighterRoleNameTest} pins that it is
+         * The role every other falls back to (see {@link #typeFor}). Named SUPERIORITY
+         * after the
+         * annex's own term: "two will be superiority fighters and two will be assault
+         * fighters".
+         * Load-bearing in code as well as data, so {@code FighterRoleNameTest} pins
+         * that it is
          * itself a role and that every era declares one.
          */
         public static final String STANDARD = "superiority";
@@ -225,7 +283,10 @@ public final class ShuttleCatalog {
             this.byRole = Collections.unmodifiableMap(new LinkedHashMap<>(byRole));
         }
 
-        /** The type filling {@code role} in this era, falling back to the standard fighter. */
+        /**
+         * The type filling {@code role} in this era, falling back to the standard
+         * fighter.
+         */
         public String typeFor(String role) {
             String t = byRole.get(role);
             return t != null ? t : byRole.get(STANDARD);
@@ -250,12 +311,16 @@ public final class ShuttleCatalog {
     private static final Map<String, List<LineEra>> fighterLines = new LinkedHashMap<>();
 
     /**
-     * Type keys claimed by more than one file in the last load, mapped to a description of which
+     * Type keys claimed by more than one file in the last load, mapped to a
+     * description of which
      * file lost. Empty when the folder is clean.
      * <p>
-     * Only possible since the catalogue was split per faction (2026-10-06). One file cannot hold
-     * two entries for {@code f18}; seven files can, and the loser would vanish in silence — which
-     * is precisely how a Hydran hull once disappeared from {@code ShipLibrary}. The detection ships
+     * Only possible since the catalogue was split per faction (2026-10-06). One
+     * file cannot hold
+     * two entries for {@code f18}; seven files can, and the loser would vanish in
+     * silence — which
+     * is precisely how a Hydran hull once disappeared from {@code ShipLibrary}. The
+     * detection ships
      * with the split rather than after it.
      */
     private static final Map<String, String> duplicates = new LinkedHashMap<>();
@@ -269,11 +334,14 @@ public final class ShuttleCatalog {
      * Load every {@code *.json} in a directory into ONE catalogue.
      * <p>
      * The registry is cleared once here and NOT between files — the same choice
-     * {@code ShipLibrary.loadAllSpecs} documents, and the whole point of the split: each file adds
-     * its own empire's craft and fighter lines to a shared registry. A per-file clear would leave
+     * {@code ShipLibrary.loadAllSpecs} documents, and the whole point of the split:
+     * each file adds
+     * its own empire's craft and fighter lines to a shared registry. A per-file
+     * clear would leave
      * whichever file sorted last as the entire catalogue.
      * <p>
-     * Files are taken in name order so a duplicate always reports the same winner, which keeps the
+     * Files are taken in name order so a duplicate always reports the same winner,
+     * which keeps the
      * failure reproducible rather than filesystem-dependent.
      */
     public static void loadAll(File dir) throws IOException {
@@ -292,9 +360,12 @@ public final class ShuttleCatalog {
     /**
      * Load one file, REPLACING anything already loaded.
      * <p>
-     * Kept for a caller that genuinely wants a single file in isolation. Everything in the game
-     * should use {@link #loadAll} or {@link #loadDefault} instead: since the split, one file is one
-     * empire, and loading it alone leaves every other empire's craft uncatalogued — which reads as
+     * Kept for a caller that genuinely wants a single file in isolation. Everything
+     * in the game
+     * should use {@link #loadAll} or {@link #loadDefault} instead: since the split,
+     * one file is one
+     * empire, and loading it alone leaves every other empire's craft uncatalogued —
+     * which reads as
      * "that fighter does not exist" rather than as an error.
      */
     public static void load(File file) throws IOException {
@@ -309,12 +380,12 @@ public final class ShuttleCatalog {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(file);
         JsonNode lines = root.path("fighterLines");
-        for (java.util.Iterator<String> it = lines.fieldNames(); it.hasNext(); ) {
+        for (java.util.Iterator<String> it = lines.fieldNames(); it.hasNext();) {
             String lineName = it.next();
             List<LineEra> eras = new ArrayList<>();
             for (JsonNode eraNode : lines.path(lineName)) {
                 Map<String, String> byRole = new LinkedHashMap<>();
-                for (java.util.Iterator<String> rf = eraNode.fieldNames(); rf.hasNext(); ) {
+                for (java.util.Iterator<String> rf = eraNode.fieldNames(); rf.hasNext();) {
                     String role = rf.next();
                     if (!"from".equals(role))
                         byRole.put(role, eraNode.path(role).asText());
@@ -362,9 +433,12 @@ public final class ShuttleCatalog {
     /**
      * Read a craft's armament and fitted systems out of its catalogue row.
      * <p>
-     * Weapon recipes use the SAME shape a ship file uses — {@code type}, {@code designator},
-     * {@code arcs}, plus whatever that weapon needs — so {@link WeaponFactory} builds a fighter's
-     * phaser exactly as it builds a cruiser's. A row with no {@code weapons} array yields
+     * Weapon recipes use the SAME shape a ship file uses — {@code type},
+     * {@code designator},
+     * {@code arcs}, plus whatever that weapon needs — so {@link WeaponFactory}
+     * builds a fighter's
+     * phaser exactly as it builds a cruiser's. A row with no {@code weapons} array
+     * yields
      * {@link Loadout#NONE}, which is right for an administrative shuttle.
      */
     private static Loadout loadoutFrom(JsonNode n) {
@@ -415,14 +489,17 @@ public final class ShuttleCatalog {
     /** The entry for a type key, or null if it is not catalogued. */
     /**
      * Where to look when nobody has loaded the catalogue explicitly. Mirrors
-     * OrionCartelTable: the working directory differs between the server (repo root) and a
-     * test run (module directory), and forgetting to load is not an acceptable failure —
-     * every role eligibility answer depends on this file, so an unloaded catalogue silently
+     * OrionCartelTable: the working directory differs between the server (repo
+     * root) and a
+     * test run (module directory), and forgetting to load is not an acceptable
+     * failure —
+     * every role eligibility answer depends on this file, so an unloaded catalogue
+     * silently
      * makes every shuttle ineligible for everything.
      */
     private static final String[] DEFAULT_PATHS = {
-        "data/shuttles",
-        "../data/shuttles",
+            "data/shuttles",
+            "../data/shuttles",
     };
 
     /** Load from the standard location if nothing has loaded it yet. */
@@ -456,7 +533,9 @@ public final class ShuttleCatalog {
         return Collections.unmodifiableList(new ArrayList<>(registry.values()));
     }
 
-    /** Everything {@code faction} may field in {@code gameYear} — the picker's list. */
+    /**
+     * Everything {@code faction} may field in {@code gameYear} — the picker's list.
+     */
     public static List<Entry> availableFor(String faction, int gameYear) {
         return registry.values().stream()
                 .filter(e -> e.availableTo(faction) && e.availableIn(gameYear))
@@ -464,7 +543,8 @@ public final class ShuttleCatalog {
     }
 
     /**
-     * What a type costs to buy. Fighters are added to their carrier's price; plain shuttles
+     * What a type costs to buy. Fighters are added to their carrier's price; plain
+     * shuttles
      * ride along free, so this is zero for them.
      */
     public static int bpvOf(String type) {
@@ -473,10 +553,13 @@ public final class ShuttleCatalog {
     }
 
     /**
-     * The name stem a craft of this type is numbered from — "HAAS-E" giving "HAAS-E-1".
+     * The name stem a craft of this type is numbered from — "HAAS-E" giving
+     * "HAAS-E-1".
      * <p>
-     * Here rather than in Shuttles because the designation it prefers is a catalogue field, and
-     * two callers now need the same answer: the bay built from a literal list, and a complement
+     * Here rather than in Shuttles because the designation it prefers is a
+     * catalogue field, and
+     * two callers now need the same answer: the bay built from a literal list, and
+     * a complement
      * resolved from a fighter line.
      */
     public static String displayNameOf(String type) {
@@ -486,8 +569,10 @@ public final class ShuttleCatalog {
         if (e != null && e.designation != null)
             return e.designation;
         switch (type.toLowerCase()) {
-            case "suicide":     return "Suicide";
-            case "scatterpack": return "ScatterPack";
+            case "suicide":
+                return "Suicide";
+            case "scatterpack":
+                return "ScatterPack";
             default:
                 return Character.toUpperCase(type.charAt(0)) + type.substring(1);
         }
@@ -497,7 +582,9 @@ public final class ShuttleCatalog {
     // Fighter lines (J4.4): which fighter fills a role in a given year
     // -------------------------------------------------------------------------
 
-    /** Every era of a named line, ascending by year; empty if the line is unknown. */
+    /**
+     * Every era of a named line, ascending by year; empty if the line is unknown.
+     */
     public static List<LineEra> lineEras(String lineName) {
         ensureLoaded();
         if (lineName == null)
@@ -512,11 +599,14 @@ public final class ShuttleCatalog {
     }
 
     /**
-     * The era of {@code lineName} in force in {@code year} — the latest one whose year has
+     * The era of {@code lineName} in force in {@code year} — the latest one whose
+     * year has
      * arrived — or null if the line is unknown or had not started yet.
      * <p>
-     * A year of 0 means "unspecified", which happens for a ship built outside any scenario.
-     * Those get the EARLIEST era rather than nothing, because a carrier with an empty bay is a
+     * A year of 0 means "unspecified", which happens for a ship built outside any
+     * scenario.
+     * Those get the EARLIEST era rather than nothing, because a carrier with an
+     * empty bay is a
      * worse answer than a carrier with its original fighters.
      */
     public static LineEra eraFor(String lineName, int year) {
@@ -536,8 +626,10 @@ public final class ShuttleCatalog {
     }
 
     /**
-     * The fighter type filling {@code role} on {@code lineName} in {@code year}, or null if
-     * the line is unknown or has not begun. Falls back to the line's standard fighter where
+     * The fighter type filling {@code role} on {@code lineName} in {@code year}, or
+     * null if
+     * the line is unknown or has not begun. Falls back to the line's standard
+     * fighter where
      * the era has no type for the role.
      */
     public static String fighterFor(String lineName, String role, int year) {

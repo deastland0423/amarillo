@@ -2,7 +2,6 @@ package com.sfb.objects;
 
 import static org.junit.Assert.*;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,15 +16,22 @@ import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.systemgroups.ShuttleBay;
 
 /**
- * J4.4: which fighter a carrier flies is decided by the YEAR, not by the ship file.
+ * J4.4: which fighter a carrier flies is decided by the YEAR, not by the ship
+ * file.
  * <p>
- * A Kzinti CVS entered service in Y170 with AAS aboard and re-equipped with the HAAS in Y173,
- * the TAAS in Y177, the TADS in Y180 and the TADSC in Y183 — none of which changes its SSD. The
- * ship declares how many of each ROLE it carries and the line supplies the types.
+ * A Kzinti CVS entered service in Y170 with AAS aboard and re-equipped with the
+ * HAAS in Y173,
+ * the TAAS in Y177, the TADS in Y180 and the TADSC in Y183 — none of which
+ * changes its SSD. The
+ * ship declares how many of each ROLE it carries and the line supplies the
+ * types.
  * <p>
- * The rule that makes one declaration cover every era is the fallback: a role the era has no
- * type for takes the standard fighter. That is how the Hydran RN carries nine Stinger-1s before
- * any EW fighter existed and six Stinger-2s, two Stinger-Hs and one Stinger-E afterwards, from
+ * The rule that makes one declaration cover every era is the fallback: a role
+ * the era has no
+ * type for takes the standard fighter. That is how the Hydran RN carries nine
+ * Stinger-1s before
+ * any EW fighter existed and six Stinger-2s, two Stinger-Hs and one Stinger-E
+ * afterwards, from
  * the same six/two/one declaration.
  */
 public class FighterLineTest {
@@ -38,11 +44,16 @@ public class FighterLineTest {
     /**
      * A complement whose middle count is the line's HEAVY-WEAPON role.
      * <p>
-     * Named by role rather than hard-coded, because the two are not interchangeable: the Kzinti
-     * and Hydran lines put their heavy-weapon fighters (DAS disruptors, Stinger-H hellbores) in
-     * {@code assault}, while the Klingon Z-1 — a phaser-2 and drones, no heavy weapon — stays in
-     * {@code attack}. Passing the wrong one does not fail loudly; those slots quietly fall back
-     * to the superiority fighter, which is exactly what this helper hid when it said "attack"
+     * Named by role rather than hard-coded, because the two are not
+     * interchangeable: the Kzinti
+     * and Hydran lines put their heavy-weapon fighters (DAS disruptors, Stinger-H
+     * hellbores) in
+     * {@code assault}, while the Klingon Z-1 — a phaser-2 and drones, no heavy
+     * weapon — stays in
+     * {@code attack}. Passing the wrong one does not fail loudly; those slots
+     * quietly fall back
+     * to the superiority fighter, which is exactly what this helper hid when it
+     * said "attack"
      * for every line.
      */
     private FighterComplement complement(String line, int superiority, String role, int roleCount,
@@ -59,7 +70,10 @@ public class FighterLineTest {
         return complement(line, superiority, "assault", assault, ew);
     }
 
-    /** Types grouped and counted, so order within a role does not matter to the assertion. */
+    /**
+     * Types grouped and counted, so order within a role does not matter to the
+     * assertion.
+     */
     private Map<String, Integer> tally(List<String> types) {
         Map<String, Integer> out = new LinkedHashMap<>();
         for (String t : types)
@@ -89,7 +103,10 @@ public class FighterLineTest {
                 tally(cvs.typesFor(182)));
     }
 
-    /** This is the CVS bug the lines exist to fix: at its own service year it flew AAS. */
+    /**
+     * This is the CVS bug the lines exist to fix: at its own service year it flew
+     * AAS.
+     */
     @Test
     public void theCvsFliesAasInTheYearItEnteredService() {
         assertEquals(Map.of("aas", 11, "aas_e", 1),
@@ -105,7 +122,8 @@ public class FighterLineTest {
     // ---------------------------------------------------------------- the fallback
 
     /**
-     * The Hydran RN, from ONE declaration. In Y170 the line has all three roles; in Y134 only
+     * The Hydran RN, from ONE declaration. In Y170 the line has all three roles; in
+     * Y134 only
      * the Stinger-1 existed, so the attack and EW slots fall back to it.
      */
     @Test
@@ -130,12 +148,16 @@ public class FighterLineTest {
     }
 
     /**
-     * A carrier with spaces dedicated to attack fighters, in a year before any attack fighter
+     * A carrier with spaces dedicated to attack fighters, in a year before any
+     * attack fighter
      * exists, flies STANDARD fighters in them.
      * <p>
-     * The Kzinti line is the live case: the DAS arrives in Y172, so a carrier declaring two
-     * attack slots has two AAS in them in Y170 and two DAS from Y172 — without the ship file
-     * knowing anything about either date. Before the DAS this was only testable hypothetically.
+     * The Kzinti line is the live case: the DAS arrives in Y172, so a carrier
+     * declaring two
+     * attack slots has two AAS in them in Y170 and two DAS from Y172 — without the
+     * ship file
+     * knowing anything about either date. Before the DAS this was only testable
+     * hypothetically.
      */
     /** The attack role changes hands in Y183: the DASC takes over from the DAS. */
     @Test
@@ -166,11 +188,13 @@ public class FighterLineTest {
 
     @Test
     public void aLineWithNoAttackRoleGivesStandardsInstead() {
-        // The Kzinti line has no attack fighter in any era; asking for one yields the standard.
+        // The Kzinti line has no attack fighter in any era; asking for one yields the
+        // standard.
         assertEquals(Map.of("aas", 12), tally(complement("kzinti-attack", 10, 2, 0).typesFor(170)));
     }
 
-    // ---------------------------------------------------------------- lookups and edges
+    // ---------------------------------------------------------------- lookups and
+    // edges
 
     @Test
     public void anUnknownLineResolvesToNothingRatherThanThrowing() {
@@ -180,15 +204,22 @@ public class FighterLineTest {
     }
 
     /**
-     * Year 0 means "no scenario year given", which happens for a ship built straight from the
+     * Year 0 means "no scenario year given", which happens for a ship built
+     * straight from the
      * library. The earliest era is a better answer than an empty bay.
      * <p>
-     * The expected value moved when the line grew BACKWARDS: the AS era (Y161) was added in front
-     * of the AAS era (Y164) to cover the DDV, which enters service in Y163. It has no EW fighter
-     * — the AAS-E does not arrive until Y172 — so the EW position falls back to superiority, which
-     * is what the superiority role is documented to be for. Pinning the earliest era by name is
-     * the point of this test, so it is meant to be edited when the earliest era changes; see
-     * {@code bothLinesAreCatalogued} for the counts this file deliberately does NOT pin.
+     * The expected value moved when the line grew BACKWARDS: the AS era (Y161) was
+     * added in front
+     * of the AAS era (Y164) to cover the DDV, which enters service in Y163. It has
+     * no EW fighter
+     * — the AAS-E does not arrive until Y172 — so the EW position falls back to
+     * superiority, which
+     * is what the superiority role is documented to be for. Pinning the earliest
+     * era by name is
+     * the point of this test, so it is meant to be edited when the earliest era
+     * changes; see
+     * {@code bothLinesAreCatalogued} for the counts this file deliberately does NOT
+     * pin.
      */
     @Test
     public void anUnspecifiedYearTakesTheEarliestEra() {
@@ -197,9 +228,12 @@ public class FighterLineTest {
     }
 
     /**
-     * Both lines exist and have eras. Deliberately NOT an exact era count: this test pinned the
-     * Kzinti line at five and broke the moment a Y172 era was added for the DAS, which is a line
-     * growing as intended rather than a regression. What matters is that each line is populated
+     * Both lines exist and have eras. Deliberately NOT an exact era count: this
+     * test pinned the
+     * Kzinti line at five and broke the moment a Y172 era was added for the DAS,
+     * which is a line
+     * growing as intended rather than a regression. What matters is that each line
+     * is populated
      * and that the eras below resolve to the right fighters.
      */
     @Test
@@ -234,17 +268,24 @@ public class FighterLineTest {
     /**
      * And the CONVERSE: every catalogued fighter must be named by some line's era.
      * <p>
-     * {@link #everyTypeNamedByEveryLineIsACataloguedFighter} above checks one direction only — a
-     * line may not name a fighter that does not exist. An ORPHAN is the other failure: a fighter
-     * sitting in the catalogue that no era ever names, so no carrier can seat it and no ship file
+     * {@link #everyTypeNamedByEveryLineIsACataloguedFighter} above checks one
+     * direction only — a
+     * line may not name a fighter that does not exist. An ORPHAN is the other
+     * failure: a fighter
+     * sitting in the catalogue that no era ever names, so no carrier can seat it
+     * and no ship file
      * can reach it. Nothing else fails, because every guard walks the LINES.
      * <p>
-     * It happened on 2026-10-05: the Gorn G-18B and G-18B-E were entered with no Y182 era to name
-     * them, so a pair of fighters existed and could never fly. Same shape as a ship file whose
+     * It happened on 2026-10-05: the Gorn G-18B and G-18B-E were entered with no
+     * Y182 era to name
+     * them, so a pair of fighters existed and could never fly. Same shape as a ship
+     * file whose
      * faction+type nothing can look up, and the same reason it needs its own test.
      * <p>
-     * Shuttles are deliberately exempt — admin, GAS, HTS and the rest are named by ship files
-     * directly rather than by a fighter line, so only {@code kind == "fighter"} is in scope.
+     * Shuttles are deliberately exempt — admin, GAS, HTS and the rest are named by
+     * ship files
+     * directly rather than by a fighter line, so only {@code kind == "fighter"} is
+     * in scope.
      */
     @Test
     public void everyCataloguedFighterIsNamedBySomeLine() {
@@ -266,14 +307,20 @@ public class FighterLineTest {
     /**
      * A role, once a line has one, must appear in every later era.
      * <p>
-     * This is the hazard of writing eras as whole rows: each row repeats every role, so adding a
-     * new standard fighter means remembering to carry the attack and EW entries forward into it.
-     * Forget one and that era's attack slots silently fall back to standard fighters — a wrong
-     * complement with no error anywhere, because falling back is legitimate behaviour that
+     * This is the hazard of writing eras as whole rows: each row repeats every
+     * role, so adding a
+     * new standard fighter means remembering to carry the attack and EW entries
+     * forward into it.
+     * Forget one and that era's attack slots silently fall back to standard
+     * fighters — a wrong
+     * complement with no error anywhere, because falling back is legitimate
+     * behaviour that
      * cannot tell an omission from an intention.
      * <p>
-     * `attack: das` is currently repeated across four eras and `dasc` takes over in the fifth, so
-     * there are already five chances to drop it. If a role ever genuinely should lapse, this test
+     * `attack: das` is currently repeated across four eras and `dasc` takes over in
+     * the fifth, so
+     * there are already five chances to drop it. If a role ever genuinely should
+     * lapse, this test
      * is the place to say so out loud.
      */
     @Test
@@ -283,8 +330,8 @@ public class FighterLineTest {
             for (ShuttleCatalog.LineEra era : ShuttleCatalog.lineEras(line)) {
                 for (String role : seen)
                     assertTrue(line + " era from Y" + era.from + " is missing the '" + role
-                                    + "' role an earlier era had — its slots would quietly"
-                                    + " fall back to standard fighters. Era is " + era,
+                            + "' role an earlier era had — its slots would quietly"
+                            + " fall back to standard fighters. Era is " + era,
                             era.hasOwnTypeFor(role));
                 seen.addAll(era.roles().keySet());
             }
@@ -294,11 +341,16 @@ public class FighterLineTest {
     /**
      * Each era must begin no earlier than the fighters it names became available.
      * <p>
-     * A type MISSING from the catalogue is skipped rather than dereferenced, and that is not
-     * laziness: {@link #everyTypeNamedByEveryLineIsACataloguedFighter} already owns "does it
-     * exist at all" and names the offender. This test used to read {@code e.year} off a null
-     * and die with "Cannot read field year because e is null", which told the author nothing
-     * and buried the useful failure from the other test under a crash. One problem, one
+     * A type MISSING from the catalogue is skipped rather than dereferenced, and
+     * that is not
+     * laziness: {@link #everyTypeNamedByEveryLineIsACataloguedFighter} already owns
+     * "does it
+     * exist at all" and names the offender. This test used to read {@code e.year}
+     * off a null
+     * and die with "Cannot read field year because e is null", which told the
+     * author nothing
+     * and buried the useful failure from the other test under a crash. One problem,
+     * one
      * message.
      */
     @Test
@@ -314,7 +366,8 @@ public class FighterLineTest {
                 }
     }
 
-    // ---------------------------------------------------------------- seating in a bay
+    // ---------------------------------------------------------------- seating in a
+    // bay
 
     private ShuttleBay bayWithAdminShuttles(int admins, int fighterSpaces) {
         ShuttleBay bay = new ShuttleBay(null);
@@ -349,16 +402,18 @@ public class FighterLineTest {
     }
 
     /**
-     * Re-seating is what the scenario year does to a ship already built from its own file, so it
-     * must replace rather than stack — this ran twice for every carrier in a scenario.
+     * Re-seating is what the scenario year does to a ship already built from its
+     * own file, so it
+     * must replace rather than stack — this ran twice for every carrier in a
+     * scenario.
      */
     @Test
     public void reSeatingReplacesRatherThanStacks() {
         ShuttleBay bay = bayWithAdminShuttles(3, 12);
         FighterComplement cvs = complement("kzinti-attack", 11, 0, 1);
 
-        cvs.applyTo(bay, 170, "");    // as built: AAS
-        cvs.applyTo(bay, 183, "");    // scenario year: TADSC
+        cvs.applyTo(bay, 170, ""); // as built: AAS
+        cvs.applyTo(bay, 183, ""); // scenario year: TADSC
 
         assertEquals("still 15 spaces, not 27", 15, bay.getTotalSpaces());
         List<String> fighters = fighterClassNames(bay);
@@ -382,14 +437,17 @@ public class FighterLineTest {
         assertTrue(names.toString(), names.contains("KHS Watchful TAAS-E-1"));
     }
 
-    /** A complement the line cannot resolve must leave the bay untouched, not empty it. */
+    /**
+     * A complement the line cannot resolve must leave the bay untouched, not empty
+     * it.
+     */
     @Test
     public void anUnresolvableComplementChangesNothing() {
         ShuttleBay bay = bayWithAdminShuttles(2, 2);
         complement("kzinti-attack", 2, 0, 0).applyTo(bay, 170, "");
         assertEquals(2, fighterClassNames(bay).size());
 
-        complement("kzinti-attack", 2, 0, 0).applyTo(bay, 150, "");  // before the line begins
+        complement("kzinti-attack", 2, 0, 0).applyTo(bay, 150, ""); // before the line begins
         assertEquals("the Y170 fighters are still aboard", 2, fighterClassNames(bay).size());
     }
 

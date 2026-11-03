@@ -8,14 +8,12 @@ import org.junit.Test;
 import com.sfb.Game.ActionResult;
 import com.sfb.objects.Drone;
 import com.sfb.objects.DroneType;
-import com.sfb.Player;
 import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.shuttles.AdminShuttle;
 import com.sfb.objects.shuttles.CataloguedFighter;
 import com.sfb.objects.shuttles.Fighter;
-import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.objects.shuttles.SuicideShuttle;
 import com.sfb.properties.Location;
 import com.sfb.samples.KlingonShips;
@@ -25,14 +23,19 @@ import com.sfb.weapons.DroneRail;
 import com.sfb.weapons.PlasmaLauncher;
 
 /**
- * Every kind of seeking weapon can be put on a ballistic course (F4.0), not just a drone off a
+ * Every kind of seeking weapon can be put on a ballistic course (F4.0), not
+ * just a drone off a
  * ship's rack.
  * <p>
  * The movement half was never in doubt — the movers steer by
- * {@link com.sfb.objects.Seeker#destination()} and do not care what they are moving. What each
- * weapon needed was a DOOR: a launch path that takes a hex. The gates differ per weapon and
- * none of the differences are about the target, so what drops out is the same every time —
- * the lock-on (D6.121 has nothing to lock on to), the control channel (F4.12), and for a
+ * {@link com.sfb.objects.Seeker#destination()} and do not care what they are
+ * moving. What each
+ * weapon needed was a DOOR: a launch path that takes a hex. The gates differ
+ * per weapon and
+ * none of the differences are about the target, so what drops out is the same
+ * every time —
+ * the lock-on (D6.121 has nothing to lock on to), the control channel (F4.12),
+ * and for a
  * plasma the self-guidance (FP4.23).
  */
 public class BallisticLaunchDoorsTest {
@@ -49,7 +52,7 @@ public class BallisticLaunchDoorsTest {
         romulan.init(RomulanShips.getRomKr());
         romulan.setName("IRW Gauntlet");
         romulan.setLocation(new Location(10, 10));
-        romulan.setFacing(1);                       // pointing up the column
+        romulan.setFacing(1); // pointing up the column
 
         klingon = new Ship();
         klingon.init(KlingonShips.getD7());
@@ -60,7 +63,7 @@ public class BallisticLaunchDoorsTest {
         game.getShips().add(romulan);
         game.getShips().add(klingon);
 
-        game.advancePhase();                        // MOVEMENT -> ACTIVITY
+        game.advancePhase(); // MOVEMENT -> ACTIVITY
         assertEquals(Game.ImpulsePhase.ACTIVITY, game.getCurrentPhase());
     }
 
@@ -81,12 +84,16 @@ public class BallisticLaunchDoorsTest {
         fail("fixture: never completed a movement phase");
     }
 
-    // ------------------------------------------------------------------ plasma, from a tube
+    // ------------------------------------------------------------------ plasma,
+    // from a tube
 
     /**
-     * FP4.23: "a ballistically launched plasma torpedo cannot acquire its own target." A plasma
-     * is otherwise self-guiding, so this is the clause that stops a ballistic one quietly
-     * behaving like an ordinary one. It is enforced by giving it nothing to acquire with.
+     * FP4.23: "a ballistically launched plasma torpedo cannot acquire its own
+     * target." A plasma
+     * is otherwise self-guiding, so this is the clause that stops a ballistic one
+     * quietly
+     * behaving like an ordinary one. It is enforced by giving it nothing to acquire
+     * with.
      */
     @Test
     public void aPlasmaTorpedoCanBeLaunchedAtAHex() {
@@ -103,7 +110,10 @@ public class BallisticLaunchDoorsTest {
         assertEquals(new Location(10, 6), torp.destination());
     }
 
-    /** It flies the course and does not explode on whatever is standing there (F4.21/F4.412). */
+    /**
+     * It flies the course and does not explode on whatever is standing there
+     * (F4.21/F4.412).
+     */
     @Test
     public void aBallisticPlasmaFliesPastAShipInItsHex() {
         klingon.setLocation(new Location(10, 6));
@@ -121,7 +131,10 @@ public class BallisticLaunchDoorsTest {
                 shieldsBefore, totalShields(klingon));
     }
 
-    /** The launcher's own firing arc still binds — the hex is judged exactly as a unit was. */
+    /**
+     * The launcher's own firing arc still binds — the hex is judged exactly as a
+     * unit was.
+     */
     @Test
     public void theLauncherArcStillBinds() {
         ActionResult r = game.launchPlasmaBallistic(romulan, new Location(10, 14),
@@ -140,10 +153,12 @@ public class BallisticLaunchDoorsTest {
         assertTrue(r.getMessage(), r.getMessage().contains("F4.11"));
     }
 
-    // ------------------------------------------------------------------ suicide shuttle
+    // ------------------------------------------------------------------ suicide
+    // shuttle
 
     /**
-     * F4.21 again, and it is the whole point of sending one: it will NOT explode at the hex.
+     * F4.21 again, and it is the whole point of sending one: it will NOT explode at
+     * the hex.
      * What it buys is deception, which the rule names outright.
      */
     @Test
@@ -182,12 +197,16 @@ public class BallisticLaunchDoorsTest {
                 new Location(10, 6), 1, 6).isSuccess());
     }
 
-    // ------------------------------------------------------------------ a fighter's own drone
+    // ------------------------------------------------------------------ a
+    // fighter's own drone
 
     /**
-     * The interesting one. J4.222 exists because some fighters carry no guidance equipment of
-     * their own — the Kzinti AS, "only a manned drone launch platform" — and must hand their
-     * drones to a carrier. A BALLISTIC drone needs no guidance from anybody (F4.12), so that
+     * The interesting one. J4.222 exists because some fighters carry no guidance
+     * equipment of
+     * their own — the Kzinti AS, "only a manned drone launch platform" — and must
+     * hand their
+     * drones to a carrier. A BALLISTIC drone needs no guidance from anybody
+     * (F4.12), so that
      * fighter can launch one with no friendly unit involved at all.
      */
     @Test
@@ -202,9 +221,9 @@ public class BallisticLaunchDoorsTest {
         aas.setFacing(1);
         aas.setOwner(kz);
         g.getActiveShuttles().add(aas);
-        g.advancePhase();                                     // MOVEMENT -> ACTIVITY
+        g.advancePhase(); // MOVEMENT -> ACTIVITY
         assertEquals(Game.ImpulsePhase.ACTIVITY, g.getCurrentPhase());
-        aas.setLaunchImpulse(g.getAbsoluteImpulse() - 100);   // J1.341 satisfied
+        aas.setLaunchImpulse(g.getAbsoluteImpulse() - 100); // J1.341 satisfied
 
         DroneRail rail = aas.getWeapons().fetchAllWeapons().stream()
                 .filter(w -> w instanceof DroneRail)
@@ -224,12 +243,16 @@ public class BallisticLaunchDoorsTest {
         assertNull("nobody had to take guidance (F4.12)", drone.getController());
     }
 
-    // ------------------------------------------------------------------ the one refusal
+    // ------------------------------------------------------------------ the one
+    // refusal
 
     /**
-     * A RULING, not a quotation, and worth a test for that reason. Defensive mode buys its rate
-     * of fire with FP10.212's restrictions on the target's size class and range; a hex has
-     * neither, so a defensive ballistic shot would take the rate without paying for it.
+     * A RULING, not a quotation, and worth a test for that reason. Defensive mode
+     * buys its rate
+     * of fire with FP10.212's restrictions on the target's size class and range; a
+     * hex has
+     * neither, so a defensive ballistic shot would take the rate without paying for
+     * it.
      */
     @Test
     public void aPlasmaRackMayOnlyFireBallisticallyInOffensiveMode() {

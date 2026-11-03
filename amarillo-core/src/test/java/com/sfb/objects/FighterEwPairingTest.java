@@ -2,7 +2,6 @@ package com.sfb.objects;
 
 import static org.junit.Assert.*;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -13,27 +12,40 @@ import org.junit.Test;
 /**
  * An EW fighter has to be able to KEEP UP with the squadron it flies with.
  * <p>
- * The guard the fighter-line data was missing. The existing ones check that a type exists
- * (everyTypeNamedByEveryLineIsACataloguedFighter), that a role name is one the engine knows,
- * and that no era names a fighter before its year — all of which a stale EW seat passes
- * without complaint, because the older variant is a perfectly real fighter that existed
+ * The guard the fighter-line data was missing. The existing ones check that a
+ * type exists
+ * (everyTypeNamedByEveryLineIsACataloguedFighter), that a role name is one the
+ * engine knows,
+ * and that no era names a fighter before its year — all of which a stale EW
+ * seat passes
+ * without complaint, because the older variant is a perfectly real fighter that
+ * existed
  * perfectly long ago.
  * <p>
  * The owner's rule, 2026-10-02, and it is about speed rather than naming:
  * <blockquote>
- * "The EW fighter for those fighters doesn't ever change again. Once you get the faster F18-B
- * and its accompanying F18-B-E, no other F18 gets faster. And so no further EW variants are
+ * "The EW fighter for those fighters doesn't ever change again. Once you get
+ * the faster F18-B
+ * and its accompanying F18-B-E, no other F18 gets faster. And so no further EW
+ * variants are
  * needed."
  * </blockquote>
- * So an EW variant is not minted per airframe variant — it is minted when the airframe gets
- * FASTER, because that is when the old one can no longer stay with the squadron. The whole
- * Federation line falls out of that: the F-18's EW fighter changed exactly once, at Y177,
- * when the airframe went 13 to 15; the F-14 and F-15 were already 15, so theirs never changed
+ * So an EW variant is not minted per airframe variant — it is minted when the
+ * airframe gets
+ * FASTER, because that is when the old one can no longer stay with the
+ * squadron. The whole
+ * Federation line falls out of that: the F-18's EW fighter changed exactly
+ * once, at Y177,
+ * when the airframe went 13 to 15; the F-14 and F-15 were already 15, so theirs
+ * never changed
  * at all, and `f18b_e` goes on serving the F-18B+ and the F-18C.
  * <p>
- * Which makes SPEED the invariant worth pinning, not the naming convention. A guard saying
- * "use {@code <type>_e} if the catalogue has one" would encode the symptom and would have to
- * be suppressed on every deliberate case; this one states the reason and is silent on all of
+ * Which makes SPEED the invariant worth pinning, not the naming convention. A
+ * guard saying
+ * "use {@code <type>_e} if the catalogue has one" would encode the symptom and
+ * would have to
+ * be suppressed on every deliberate case; this one states the reason and is
+ * silent on all of
  * them.
  */
 public class FighterEwPairingTest {
@@ -46,7 +58,7 @@ public class FighterEwPairingTest {
     /** The combat role an EW key accompanies: {@code elite_ew} to {@code elite}. */
     private static String combatRoleOf(String ewKey) {
         if (FighterComplement.EW.equals(ewKey))
-            return ShuttleCatalog.LineEra.STANDARD;   // the bare key means the standard line
+            return ShuttleCatalog.LineEra.STANDARD; // the bare key means the standard line
         return ewKey.substring(0, ewKey.length() - ("_" + FighterComplement.EW).length());
     }
 
@@ -63,7 +75,7 @@ public class FighterEwPairingTest {
                         continue;
                     String combat = era.roles().get(combatRoleOf(role.getKey()));
                     if (combat == null)
-                        continue;   // no combat seat of that programme this era; nothing to pair
+                        continue; // no combat seat of that programme this era; nothing to pair
                     out.add(new String[] {
                             line + " from Y" + era.from + " " + role.getKey(),
                             combat, role.getValue() });
@@ -71,11 +83,14 @@ public class FighterEwPairingTest {
         return out;
     }
 
-    // ---------------------------------------------------------------- the invariant
+    // ---------------------------------------------------------------- the
+    // invariant
 
     /**
-     * The one that matters. A squadron flies together (J4.46), so an EW fighter slower than
-     * the fighters it supports is left behind — and the failure is silent, because the stale
+     * The one that matters. A squadron flies together (J4.46), so an EW fighter
+     * slower than
+     * the fighters it supports is left behind — and the failure is silent, because
+     * the stale
      * type is a real catalogue entry that existed years earlier.
      */
     @Test
@@ -85,7 +100,7 @@ public class FighterEwPairingTest {
             ShuttleCatalog.Entry combat = ShuttleCatalog.get(pair[1]);
             ShuttleCatalog.Entry ew = ShuttleCatalog.get(pair[2]);
             if (combat == null || ew == null)
-                continue;           // existence is another guard's job
+                continue; // existence is another guard's job
             if (ew.speed < combat.speed)
                 wrong.add("  " + pair[0] + ": " + pair[2] + " (speed " + ew.speed
                         + ") cannot keep up with " + pair[1] + " (speed " + combat.speed + ")");
@@ -98,8 +113,10 @@ public class FighterEwPairingTest {
     }
 
     /**
-     * And not the other way either. A faster EW fighter is not a safety margin, it is a sign
-     * the combat seat was left behind when the EW one advanced — the same copy-forward
+     * And not the other way either. A faster EW fighter is not a safety margin, it
+     * is a sign
+     * the combat seat was left behind when the EW one advanced — the same
+     * copy-forward
      * mistake, mirrored.
      */
     @Test
@@ -119,12 +136,16 @@ public class FighterEwPairingTest {
                 odd.isEmpty());
     }
 
-    // ---------------------------------------------------------------- it is the right kind
+    // ---------------------------------------------------------------- it is the
+    // right kind
 
     /**
-     * A type in an EW seat must actually carry pods. Naming the plain fighter there seats a
-     * craft that is an "EW fighter" in the complement and generates nothing (J4.96), which no
-     * other guard would notice: the type exists, the role is known, the year is right.
+     * A type in an EW seat must actually carry pods. Naming the plain fighter there
+     * seats a
+     * craft that is an "EW fighter" in the complement and generates nothing
+     * (J4.96), which no
+     * other guard would notice: the type exists, the role is known, the year is
+     * right.
      */
     @Test
     public void everyEwSeatHoldsACraftWithPods() {
@@ -141,8 +162,10 @@ public class FighterEwPairingTest {
     }
 
     /**
-     * And the reverse: a COMBAT seat must not hold a pod-carrying craft. An EW fighter seated
-     * as an ordinary one spends its rails on pods (J4.962) and shows up as a fighter that
+     * And the reverse: a COMBAT seat must not hold a pod-carrying craft. An EW
+     * fighter seated
+     * as an ordinary one spends its rails on pods (J4.962) and shows up as a
+     * fighter that
      * cannot carry a full drone load, for no visible reason.
      */
     @Test
@@ -167,26 +190,32 @@ public class FighterEwPairingTest {
     // ------------------------------------------------- the same drone exemptions
 
     /**
-     * An EW fighter must hold the same J4.242 drone exemptions as the fighter it flies with.
+     * An EW fighter must hold the same J4.242 drone exemptions as the fighter it
+     * flies with.
      * <p>
-     * J4.43 is the reason: an EW fighter is a two-seat version, and the two-seater "has the
-     * same performance" as the standard one, differing only in control capacity. So an F-15E
-     * that could not split its pair when an F-15 can would be a difference the rules do not
+     * J4.43 is the reason: an EW fighter is a two-seat version, and the two-seater
+     * "has the
+     * same performance" as the standard one, differing only in control capacity. So
+     * an F-15E
+     * that could not split its pair when an F-15 can would be a difference the
+     * rules do not
      * grant.
      * <p>
-     * This is the guard for the mistake that prompted it. The exemptions live in hand-authored
-     * data, one flag per catalogue row, and applying them to a programme means remembering
-     * every variant AND its EW twin - four rows for the F-14, three for the F-15, four for the
-     * Z-Y. Forgetting the {@code _e} is the natural slip, and nothing else would notice.
+     * This is the guard for the mistake that prompted it. The exemptions live in
+     * hand-authored
+     * data, one flag per catalogue row, and applying them to a programme means
+     * remembering
+     * every variant AND its EW twin - four rows for the F-14, three for the F-15,
+     * four for the
+     * Z-Y. Forgetting the {@code _e} is the natural slip, and nothing else would
+     * notice.
      */
     @Test
     public void everyEwFighterSharesItsSquadronsDroneExemptions() {
         List<String> mismatched = new ArrayList<>();
         for (String[] pair : pairs()) {
-            com.sfb.objects.shuttles.Fighter combat =
-                    com.sfb.objects.shuttles.CataloguedFighter.of(pair[1]);
-            com.sfb.objects.shuttles.Fighter ew =
-                    com.sfb.objects.shuttles.CataloguedFighter.of(pair[2]);
+            com.sfb.objects.shuttles.Fighter combat = com.sfb.objects.shuttles.CataloguedFighter.of(pair[1]);
+            com.sfb.objects.shuttles.Fighter ew = com.sfb.objects.shuttles.CataloguedFighter.of(pair[2]);
             if (combat == null || ew == null)
                 continue;
             if (combat.mayLaunchAtDifferentTargets() != ew.mayLaunchAtDifferentTargets())
@@ -203,7 +232,8 @@ public class FighterEwPairingTest {
                 + String.join("\n", mismatched), mismatched.isEmpty());
     }
 
-    // ---------------------------------------------------------------- the fixture itself
+    // ---------------------------------------------------------------- the fixture
+    // itself
 
     /** The guard is worthless if it never looks at anything. */
     @Test

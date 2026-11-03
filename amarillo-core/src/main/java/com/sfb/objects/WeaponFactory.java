@@ -26,7 +26,6 @@ import com.sfb.weapons.PhaserG;
 import com.sfb.weapons.Photon;
 import com.sfb.weapons.PlasmaLauncher;
 import com.sfb.weapons.Weapon;
-import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Builds a {@link Weapon} instance from a {@link WeaponSpec} recipe. Extracted
@@ -37,7 +36,8 @@ import com.sfb.objects.shuttles.Fighter;
  */
 public final class WeaponFactory {
 
-    private WeaponFactory() {}
+    private WeaponFactory() {
+    }
 
     /**
      * Build a weapon for the given arc labels (e.g. ["FA"]), setting both the
@@ -56,17 +56,25 @@ public final class WeaponFactory {
         return w;
     }
 
-    /** Build a weapon with a pre-computed arc bitmask. Returns null for an unknown recipe. */
+    /**
+     * Build a weapon with a pre-computed arc bitmask. Returns null for an unknown
+     * recipe.
+     */
     public static Weapon build(WeaponSpec ws, int arcMask) {
         return build(ws, arcMask, null);
     }
 
     /**
-     * @param arcLabels the arcs this weapon is actually being given, when the caller knows them
-     *                  and the spec does not. An Orion option mount is the case: its weapon's
-     *                  arcs come from the MOUNT (R8.R3), so {@code ws.arcs} is null, and a
-     *                  plasma launcher that derived its launch directions from the spec got
-     *                  none at all (D2.34). Null everywhere else, where the spec states them.
+     * @param arcLabels the arcs this weapon is actually being given, when the
+     *                  caller knows them
+     *                  and the spec does not. An Orion option mount is the case:
+     *                  its weapon's
+     *                  arcs come from the MOUNT (R8.R3), so {@code ws.arcs} is
+     *                  null, and a
+     *                  plasma launcher that derived its launch directions from the
+     *                  spec got
+     *                  none at all (D2.34). Null everywhere else, where the spec
+     *                  states them.
      */
     public static Weapon build(WeaponSpec ws, int arcMask, List<String> arcLabels) {
         if (ws == null || ws.type == null) {
@@ -92,9 +100,12 @@ public final class WeaponFactory {
                 p.setDesignator(ws.designator);
                 return p;
             }
-            // The phaser-4 is a BASE weapon (E2.0), which is why it was never reachable: the
-            // class and its full damage chart have existed all along, but no hull in the data
-            // carried one until the Federation Base Station, and the factory had no case for it.
+            // The phaser-4 is a BASE weapon (E2.0), which is why it was never reachable:
+            // the
+            // class and its full damage chart have existed all along, but no hull in the
+            // data
+            // carried one until the Federation Base Station, and the factory had no case
+            // for it.
             // ShipWeaponsBuildTest caught it the moment the first BS listed six.
             case "Phaser4": {
                 Phaser4 p = new Phaser4();
@@ -123,7 +134,7 @@ public final class WeaponFactory {
                 // has no say. A file may still state it — nothing in the data does any more —
                 // and a stated list wins, so an exception remains expressible if one is ever
                 // found. See ArcUtils.plasmaLaunchDirections for what stating it used to cost.
-                pl.setIscRearFiring(ws.iscRearFiring);   // R13.1C
+                pl.setIscRearFiring(ws.iscRearFiring); // R13.1C
                 pl.setLaunchDirections(ws.launchDirections != null && !ws.launchDirections.isEmpty()
                         ? ArcUtils.calculateMask(ws.launchDirections)
                         : ArcUtils.plasmaLaunchDirections(effectiveArcs));
@@ -138,7 +149,8 @@ public final class WeaponFactory {
                     rack.setSpaces(ws.spaces);
                 }
                 rack.setDesignator(ws.designator);
-                // Default ammo: fill all spaces with TypeI drones; setAmmo builds reloads automatically.
+                // Default ammo: fill all spaces with TypeI drones; setAmmo builds reloads
+                // automatically.
                 List<Drone> ammo = new ArrayList<>();
                 for (int i = 0; i < rack.getSpaces(); i++) {
                     ammo.add(new Drone(DroneType.TypeI));
@@ -211,8 +223,10 @@ public final class WeaponFactory {
                 return esg;
             }
             // ---- Fighter-borne weapons (J4.8x) ----
-            // A fighter carries no reactor, so these run on CHARGES from its box rather than
-            // arming energy. They are ordinary recipes all the same: what differs is the weapon
+            // A fighter carries no reactor, so these run on CHARGES from its box rather
+            // than
+            // arming energy. They are ordinary recipes all the same: what differs is the
+            // weapon
             // class, not the way a ship file names it.
             case "FighterFusion": {
                 FighterFusion ff = new FighterFusion();
@@ -253,8 +267,10 @@ public final class WeaponFactory {
                 return fpf;
             }
             /*
-             * A rail is not a rack: the RAIL decides what will fit on it and what that costs
-             * (J4.231), so railType is required rather than defaulted. A rail of the wrong type
+             * A rail is not a rack: the RAIL decides what will fit on it and what that
+             * costs
+             * (J4.231), so railType is required rather than defaulted. A rail of the wrong
+             * type
              * silently accepts the wrong drones, which is worse than refusing to build.
              */
             case "DroneRail": {
