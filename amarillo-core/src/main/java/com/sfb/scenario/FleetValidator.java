@@ -227,14 +227,19 @@ public final class FleetValidator {
      * reading it here
      * picks that decision up instead of a figure fixed before it was made.
      *
-     * <h2>What it still does not count</h2>
+     * <h2>It counts the fighters' drones too</h2>
      * FD2.45 charges "a single loading of each launch rack <b>and/or fighter</b>",
-     * and
-     * {@code chargeDroneSpeed} walks only the ship's own racks -- so a carrier's
-     * drone-armed
-     * fighters still fly their year's drones for nothing. That is a gap in the
-     * CHARGE rather than
-     * in this sum, and patching it here would put it in the wrong place.
+     * and for a
+     * while {@code chargeDroneSpeed} walked only the ship's own racks -- so a
+     * carrier's
+     * drone-armed fighters flew their year's drones for nothing. It walks the
+     * fighter boxes as
+     * well now, so the figure read here already includes them; see
+     * {@link com.sfb.scenario.FighterDroneSpeedCostTest}. It is a Y183 Kzinti CVS's
+     * largest
+     * single line item at ninety points, which is why the fix belonged in the CHARGE
+     * and not in
+     * this sum.
      *
      * <h2>And it must not reach the option allowance</h2>
      * S3.211 takes the Commander's Option percentage of a basis "not including the

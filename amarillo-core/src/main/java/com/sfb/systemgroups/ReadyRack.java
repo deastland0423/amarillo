@@ -288,6 +288,30 @@ public class ReadyRack {
         return java.util.Collections.unmodifiableList(drones);
     }
 
+    /**
+     * Swap each drone held here for whatever {@code swap} returns for it — the door the
+     * scenario year's speed refit comes through (FD2.45, S2.11).
+     * <p>
+     * A function rather than a setter, and not {@link #contents()} made mutable, because the
+     * only legitimate change to a stocked rack's CONTENTS from outside is a like-for-like
+     * substitution: J4.8222 makes the rack hold "the same drones that the fighter it is
+     * designed to service carries", so a refit may change what a slot is carrying but never
+     * how many slots there are or what shape {@link #design()} says they have. Handing out a
+     * mutable list would let a caller add a thirteenth drone to a twelve-slot rack.
+     * <p>
+     * A null answer leaves the slot as it was, so a caller that cannot improve a given drone
+     * simply says nothing about it.
+     */
+    public void refit(java.util.function.UnaryOperator<Drone> swap) {
+        if (swap == null)
+            return;
+        for (int i = 0; i < drones.size(); i++) {
+            Drone now = swap.apply(drones.get(i));
+            if (now != null)
+                drones.set(i, now);
+        }
+    }
+
     /** J4.831's rule for capacitors applies here too: the box dies, its stores die with it. */
     public void destroy() {
         drones.clear();

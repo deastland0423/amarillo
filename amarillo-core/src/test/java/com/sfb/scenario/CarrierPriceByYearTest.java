@@ -91,25 +91,54 @@ public class CarrierPriceByYearTest {
          * <p>
          * And each carries S2.11's drone speed charge, which S8.133 keeps out of the
          * hull's BPV:
-         * "the only drones that are included in the BPV of a unit are type-I slow". It
-         * moves twice
-         * over the span. Y170 and Y173 are sixteen mediums at half a point, 8. From
-         * Y177 the Y175
-         * rack refit has widened the magazines to twenty, so 10. From Y180 fast drones
-         * are standard
-         * issue at a point each, so 20.
+         * "the only drones that are included in the BPV of a unit are type-I slow".
+         * <p>
+         * That charge is in TWO parts, and the second one is the squadron's. FD2.45
+         * pays "for a
+         * single loading of each launch rack <b>and/or fighter</b>", so a carrier owes
+         * for its
+         * fighters' drones as well as its own racks' — see
+         * {@link FighterDroneSpeedCostTest},
+         * which is where that half is pinned. The fighter half is the one that moves
+         * most here,
+         * because the complement gains rails as it modernises:
+         * <ul>
+         * <li><b>Y170, Y173</b> — 16 ship mediums at a half, 8. Eleven AAS (then HAAS)
+         * of two
+         * standard rails: 22 type-I mediums at a half, 11. The EW craft's two pods
+         * replace both
+         * its rails (J4.962), so it has no ready rack at all. Total 19.</li>
+         * <li><b>Y177</b> — the Y175 refit has widened the magazines to twenty, so 10
+         * for the
+         * ship. A TAAS adds two LIGHT rails: 11 x (2 x 0.50 + 2 x 0.25) = 16.5, and the
+         * TAAS-E's
+         * two surviving light rails 0.50. Total 27.</li>
+         * <li><b>Y180</b> — fast drones are standard issue at a point each, so 20 for
+         * the ship.
+         * A TADS adds two SPECIAL rails: 11 x (2 x 1 + 2 x 0.50 + 2 x 1) = 55, plus the
+         * TADS-E's
+         * four at 3. Total 78.</li>
+         * <li><b>Y183</b> — the TADSC trades its light rails for standard ones, so
+         * every one of
+         * the squadron's 70 drones is a whole point. Total 90.</li>
+         * </ul>
+         * Ninety points of drones on a 175-point hull is not a rounding error, and it
+         * was being
+         * handed over free: before FD2.45's fighter clause was implemented these five
+         * figures
+         * read 251, 275, 295, 329 and 341.
          */
         @Test
         public void theKzintiCvsIsPricedAcrossItsFighterEras() {
-                assertEquals("Y170, eleven AAS at 6 and an AAS-E at 8, on a 169 hull, and 8 of drones",
-                                251, FleetValidator.costOf(cvsInFleetOf(170)), 1e-9);
-                assertEquals("Y173, HAAS", 275, FleetValidator.costOf(cvsInFleetOf(173)), 1e-9);
-                assertEquals("Y177, TAAS, plus the Y175 rack refit at 6, and 20 drones at a half",
-                                295, FleetValidator.costOf(cvsInFleetOf(177)), 1e-9);
-                assertEquals("Y180, TADS, plus the refit, and twenty FAST drones at a point",
-                                329, FleetValidator.costOf(cvsInFleetOf(180)), 1e-9);
-                assertEquals("Y183, TADSC, plus the refit and the same drones",
-                                341, FleetValidator.costOf(cvsInFleetOf(183)), 1e-9);
+                assertEquals("Y170, eleven AAS at 6 and an AAS-E at 8, on a 169 hull, and 19 of drones",
+                                262, FleetValidator.costOf(cvsInFleetOf(170)), 1e-9);
+                assertEquals("Y173, HAAS", 286, FleetValidator.costOf(cvsInFleetOf(173)), 1e-9);
+                assertEquals("Y177, TAAS, plus the Y175 rack refit at 6, and 27 of drones",
+                                312, FleetValidator.costOf(cvsInFleetOf(177)), 1e-9);
+                assertEquals("Y180, TADS, plus the refit, and 78 of FAST drones",
+                                387, FleetValidator.costOf(cvsInFleetOf(180)), 1e-9);
+                assertEquals("Y183, TADSC, plus the refit, and 90 now that every rail is standard",
+                                411, FleetValidator.costOf(cvsInFleetOf(183)), 1e-9);
         }
 
         /**

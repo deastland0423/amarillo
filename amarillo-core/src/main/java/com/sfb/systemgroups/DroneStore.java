@@ -287,6 +287,31 @@ public class DroneStore implements PlasmaDSupply {
         return Collections.unmodifiableList(reserve);
     }
 
+    /**
+     * Swap each drone in the hold for whatever {@code swap} returns for it — the scenario
+     * year's speed refit (FD2.45, S2.11).
+     * <p>
+     * The hold is refitted and NOT charged for, which is the whole point of the rule: FD2.45
+     * says the improved-drone cost "is paid only for a single loading of each launch rack
+     * and/or fighter; the reloads (and drones stored on a carrier for use by its fighters) are
+     * presumed to be of the same type without additional cost." Same type, same speed, no
+     * second bill — so this moves with the racks and the bill does not.
+     * <p>
+     * A function rather than a mutable {@link #contents()} for the reason stated there: every
+     * drone in here was handed over by something, and a supply that a caller can lengthen is a
+     * supply that is infinite. A refit swaps what a space holds; it never changes how many
+     * spaces are held.
+     */
+    public void refit(java.util.function.UnaryOperator<Drone> swap) {
+        if (swap == null)
+            return;
+        for (int i = 0; i < reserve.size(); i++) {
+            Drone now = swap.apply(reserve.get(i));
+            if (now != null)
+                reserve.set(i, now);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Saved game
     // -------------------------------------------------------------------------
