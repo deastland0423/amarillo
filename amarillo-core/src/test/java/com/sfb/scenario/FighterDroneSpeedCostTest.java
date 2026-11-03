@@ -40,11 +40,16 @@ import com.sfb.weapons.Weapon;
  * at ships moving 31 — the exact defect {@link DroneSpeedYearTest} was written to close for
  * ship racks, surviving intact one layer down.
  *
- * <h2>Where the loading is counted</h2>
- * In the box's ready rack and on the rails of the fighter in that box, together. J4.8223 has a
- * carrier at rest with "racks full, fighters unloaded" and {@code applyFighterWeaponStatus} then
- * moves part of that forward onto the rails, so neither place alone is the loading and the union
- * of the two always is.
+ * <h2>The loading is the READY RACK, and the fighters are not counted</h2>
+ * Owner's ruling, 2026-11-03: "Ready racks have one full load for the fighter they serve.
+ * Carriers (even casual carriers) pay for speed upgrades of drones in these ready racks. We do
+ * not want to count fighters in addition to this. After all, any drones on fighters at the start
+ * of a scenario came out of the ready racks, which would be empty."
+ *
+ * <p>So the charge reads each box's rack, at its full {@link ReadyRack#design()}, and never looks
+ * at a fighter. The first attempt read the rack's CONTENTS plus the fighters' rails instead, on
+ * the argument that a drone leaving the rack lands on a rail so the union is invariant —
+ * {@link #theChargeDoesNotMoveWithTheWeaponStatus} is the test that shows it is not, and why.
  *
  * @see ScenarioLoader#chargeDroneSpeed
  */
@@ -87,7 +92,7 @@ public class FighterDroneSpeedCostTest {
         return racks;
     }
 
-    /** Every drone in every ready rack aboard. */
+    /** Every drone sitting in a ready rack aboard. */
     private static List<Drone> rackDronesOf(Ship ship) {
         List<Drone> drones = new ArrayList<>();
         for (ReadyRack rack : racksOf(ship))
@@ -95,38 +100,48 @@ public class FighterDroneSpeedCostTest {
         return drones;
     }
 
+    /** Every slot the ship's ready racks were built with — the loading FD2.45 charges for. */
+    private static int designSlotsOf(Ship ship) {
+        int slots = 0;
+        for (ReadyRack rack : racksOf(ship))
+            slots += rack.design().size();
+        return slots;
+    }
+
     // ------------------------------------------------------------------ the charge
 
     /**
      * The Y170 CVS, where the arithmetic is small enough to do by hand.
      *
-     * <p>Eleven AAS boxes, two type-I rails apiece: twenty-two drones. Medium speed is General
+     * <p>Eleven AAS boxes, two type-I rails apiece: twenty-two slots. Medium speed is General
      * from Y167 (FD10.65) and FD2.223 prices it at half a point, so the squadron owes eleven.
      * The hull's four type-A racks of four owe eight more by FD2.454's own worked example.
      * Nineteen, and it used to be eight.
+     *
+     * <p>The AAS-E has no ready rack at all: J4.962's two EW pods replace both its rails, so
+     * there is no slot to stock and nothing to charge (eleven racks on fifteen boxes).
      */
     @Test
     public void aCarriersFightersPayForTheirOwnLoading() {
         Ship cvs = bought("Kzinti", "CVS", 170);
 
         assertEquals("fixture: eleven AAS boxes", 11, racksOf(cvs).size());
-        assertEquals("fixture: two type-I rails each", 22, rackDronesOf(cvs).size());
+        assertEquals("fixture: two type-I slots each", 22, designSlotsOf(cvs));
         assertEquals("8 for the ship's racks + 11 for the squadron", 19, cvs.getDroneSpeedBpv());
     }
 
     /**
-     * The squadron's share, isolated: empty every ready rack and re-price. What is left is the
-     * hull's own four racks, and the difference is what the fighters were getting free.
+     * The squadron's share, isolated: destroy every fighter box and re-price. J4.831 takes a
+     * box's stores with it, so what is left is the hull's own four racks — and the difference is
+     * what the fighters were getting free.
      */
     @Test
-    public void emptyingTheReadyRacksLeavesOnlyTheHullsOwnBill() {
+    public void losingTheBoxesLeavesOnlyTheHullsOwnBill() {
         Ship cvs = bought("Kzinti", "CVS", 170);
         int withSquadron = cvs.getDroneSpeedBpv();
 
-        for (ReadyRack rack : racksOf(cvs))
-            while (rack.take() != null) {
-                // strip it to the walls
-            }
+        for (ShuttleSpace box : boxesOf(cvs))
+            box.destroy();
         ScenarioLoader.chargeDroneSpeed(cvs, 170);
 
         assertEquals("FD2.454's sixteen medium drones at half a point", 8, cvs.getDroneSpeedBpv());
@@ -136,7 +151,7 @@ public class FighterDroneSpeedCostTest {
 
     /**
      * A Y183 CVS, which is the case that makes the rule worth having: twelve TADSC boxes of six
-     * rails, seventy drones, and fast speed is a whole point each (FD2.224).
+     * rails, seventy slots, and fast speed is a whole point each (FD2.224).
      *
      * <p>Seventy for the squadron on top of twenty for the hull's refitted racks. The carrier
      * is a 175-point hull that now owes ninety for its drones alone.
@@ -146,7 +161,7 @@ public class FighterDroneSpeedCostTest {
         Ship cvs = bought("Kzinti", "CVS", 183);
 
         assertEquals("fixture: twelve boxes with racks", 12, racksOf(cvs).size());
-        assertEquals("fixture: seventy drones across them", 70, rackDronesOf(cvs).size());
+        assertEquals("fixture: seventy slots across them", 70, designSlotsOf(cvs));
         assertEquals("20 for the hull's racks + 70 for the squadron", 90, cvs.getDroneSpeedBpv());
         assertTrue("and the squadron's fighters are charged for on top of it",
                 FleetValidator.costOf(cvs) > cvs.getBpv() + 90);
@@ -175,45 +190,108 @@ public class FighterDroneSpeedCostTest {
         assertEquals("and none of those spaces are billed", 90, cvs.getDroneSpeedBpv());
     }
 
-    // ------------------------------------------------------------------ where it sits
+    // --------------------------------------------- the loading, wherever the loading has got to
 
     /**
-     * The loading is charged once, wherever it happens to be. Arm the fighters from their boxes —
-     * which is what {@code applyFighterWeaponStatus} does at weapon status 2 and 3 — and the
-     * drones move from the ready rack onto the rails without changing hands or changing the bill.
+     * The charge is the rack's FULL load whether the rack is holding it or not. Strip every rack
+     * to the walls — which is what arming the whole squadron does — and the bill does not move.
      *
-     * <p>This is why the charge reads both places rather than the rack alone. Counting the rack
-     * would have made a carrier cheaper the more of its squadron was ready to fly.
+     * <p>This is the owner's ruling made testable, and it is why the charge reads
+     * {@link ReadyRack#design()} rather than {@link ReadyRack#contents()}: "any drones on
+     * fighters at the start of a scenario came out of the ready racks, which would be empty."
      */
     @Test
-    public void armingTheFightersDoesNotChangeWhatTheyCost() {
+    public void theChargeIsOneFullLoadingWhetherTheRackIsHoldingItOrNot() {
         Ship cvs = bought("Kzinti", "CVS", 170);
-        int unloaded = cvs.getDroneSpeedBpv();
+        int full = cvs.getDroneSpeedBpv();
 
-        int moved = 0;
-        for (ShuttleSpace box : boxesOf(cvs)) {
-            if (box.getReadyRack() == null || box.getShuttle() == null)
-                continue;
-            for (Weapon w : box.getShuttle().getWeapons().fetchAllWeapons()) {
-                if (!(w instanceof DroneRail rail) || rail.isLoaded())
-                    continue;
-                Drone d = box.getReadyRack().takeFor(rail);
-                if (d != null) {
-                    rail.loadDrone(d);
-                    moved++;
-                }
+        for (ReadyRack rack : racksOf(cvs))
+            while (rack.take() != null) {
+                // every drone forward onto the squadron
             }
-        }
-        assertEquals("fixture: twenty-two drones should move onto rails", 22, moved);
-        ScenarioLoader.chargeDroneSpeed(cvs, 170);
         for (ReadyRack rack : racksOf(cvs))
             assertTrue("fixture: the racks should now be empty", rack.isEmpty());
+        ScenarioLoader.chargeDroneSpeed(cvs, 170);
 
-        assertEquals("the same loading, in a different place", unloaded, cvs.getDroneSpeedBpv());
-        // Stated absolutely as well, because "unchanged" is also true of charging nothing at
-        // either end — which is exactly what this method did before, and the assertion above
-        // passed against it.
-        assertEquals("8 for the ship's racks + 11 now on the rails", 19, cvs.getDroneSpeedBpv());
+        assertEquals("the loading is paid for once, wherever it has got to",
+                full, cvs.getDroneSpeedBpv());
+        assertEquals("8 for the ship's racks + 11 for the squadron", 19, cvs.getDroneSpeedBpv());
+    }
+
+    /**
+     * And nothing is added for the fighters, which is the other half of the ruling: "we do not
+     * want to count fighters in addition to this."
+     *
+     * <p>Loading the rails while the racks stay full is not a contrived state — it is exactly
+     * what {@code FighterArming.armOccupantFully} does, and the reason this assertion matters
+     * rather than merely restating the one above.
+     *
+     * <p>The rails are loaded with a copy of the drone the rack is holding, not with
+     * {@code new Drone(rail.getDesignDrone())}. That matters: a design drone is a type-I-SLOW,
+     * which costs nothing at any date, so a rail loaded that way would leave the bill unmoved
+     * under the wrong model too and this test would pass for no reason. A copy of the refitted
+     * type-IM costs half a point, so counting the rails would plainly double the squadron.
+     */
+    @Test
+    public void dronesOnTheFightersThemselvesAreNotChargedForAgain() {
+        Ship cvs = bought("Kzinti", "CVS", 170);
+        int racksAlone = cvs.getDroneSpeedBpv();
+
+        int loaded = 0;
+        for (ShuttleSpace box : boxesOf(cvs)) {
+            ReadyRack rack = box.getReadyRack();
+            if (rack == null || box.getShuttle() == null)
+                continue;
+            for (Weapon w : box.getShuttle().getWeapons().fetchAllWeapons()) {
+                if (!(w instanceof DroneRail rail) || rail.isLoaded()
+                        || rail.getDesignDrone() == null || rail.hasEwPod())
+                    continue;   // J4.962: a podded rail carries no drone
+                Drone forward = rack.takeFor(rail);
+                assertNotNull("fixture: the rack should be able to arm its own fighter", forward);
+                rail.loadDrone(forward);
+                // And the deck crew puts an identical one back, so both places hold a loading.
+                assertTrue("fixture: the rack should take a replacement",
+                        rack.put(new Drone(forward.getDroneType())));
+                loaded++;
+            }
+        }
+        assertEquals("fixture: twenty-two rails loaded", 22, loaded);
+        assertEquals("fixture: and the racks are full again", 22, rackDronesOf(cvs).size());
+        for (Drone d : rackDronesOf(cvs))
+            assertEquals("fixture: a replacement that is NOT free to upgrade", 20, d.getSpeed());
+        ScenarioLoader.chargeDroneSpeed(cvs, 170);
+
+        assertEquals("a fighter is not a second rack to pay for",
+                racksAlone, cvs.getDroneSpeedBpv());
+    }
+
+    /**
+     * The regression that condemned the first implementation. S2.11 charges "based on the date
+     * of the scenario", so the bill is a function of the hull and the year — never of how much
+     * of the squadron happens to be bolted up when the invoice is written.
+     *
+     * <p>It was. Reading the rack's contents plus the fighters' rails gave a Y183 CVS <b>80 at
+     * WS-0, 90 at WS-2 and 32 at WS-3</b>, because {@code FighterArming.armOccupantFully} loads
+     * a rail with {@code new Drone(rail.getDesignDrone())} — a fresh drone at the frame's
+     * baseline — rather than with the refitted drone sitting in the box. At WS-3 the whole
+     * squadron is armed, every drone on it is a speed-8 type-I, and the carrier was being
+     * invoiced for the slow drones it had been handed by mistake.
+     *
+     * <p><b>That arming defect is still live and is NOT what this test guards.</b> It is a real
+     * rules bug — a Y183 TADSC flies speed-8 drones in play — and it belongs in
+     * {@code FighterArming}, not here. What this pins is that the BILL no longer moves with it,
+     * so fixing it cannot silently reprice a fleet and failing to fix it cannot discount one.
+     */
+    @Test
+    public void theChargeDoesNotMoveWithTheWeaponStatus() {
+        for (int weaponStatus : new int[] { 0, 1, 2, 3 }) {
+            Ship cvs = bought("Kzinti", "CVS", 183);
+            ScenarioLoader.applyWeaponStatus(cvs, weaponStatus);
+            ScenarioLoader.chargeDroneSpeed(cvs, 183);
+
+            assertEquals("WS-" + weaponStatus + " must cost what every other status costs",
+                    90, cvs.getDroneSpeedBpv());
+        }
     }
 
     /** J4.831: a box's stores die with it, so a carrier stops paying for them. */
@@ -248,6 +326,29 @@ public class FighterDroneSpeedCostTest {
             assertEquals("fast speed is General by Y183 (FD2.224)", 32, d.getSpeed());
     }
 
+    /**
+     * A scenario's drone cap has to reach the ready racks too, and pricing a rack from its
+     * DESIGN is what makes that a live question: the speed is worked out at the moment of
+     * charging rather than read off a drone that was fitted under the cap already.
+     *
+     * <p>nivram_assault is the scenario that found this shape the first time — Y180 with a cap
+     * of 20, its racks filled with speed-32 drones the picker had no row for. A carrier billed
+     * for fast drones in a medium-speed scenario is the same mistake with the sign flipped.
+     */
+    @Test
+    public void theScenariosDroneCapReachesAReadyRacksBill() {
+        Ship capped = bought("Kzinti", "CVS", 183);
+        ScenarioLoader.applyDroneSpeed(capped, 183, 20);
+
+        assertTrue("a capped scenario bills less than an uncapped one: " + capped
+                .getDroneSpeedBpv(), capped.getDroneSpeedBpv() < 90);
+        // 20 for the hull's racks, which were fitted fast before the cap and are left alone
+        // (upgradeOne only ever raises a speed), plus 46 type-I slots at a half and 24 type-III
+        // slots at a half: 10 + 23 + 12 = 55.
+        assertEquals("medium speed for the squadron, FD2.223 at a half a point",
+                55, capped.getDroneSpeedBpv());
+    }
+
     // ------------------------------------------------------------------ J4.621
 
     /**
@@ -266,7 +367,7 @@ public class FighterDroneSpeedCostTest {
         Ship dwe = bought("Kzinti", "DWE", 183);
 
         assertEquals("fixture: two fighter facilities", 2, racksOf(dwe).size());
-        assertEquals("fixture: a TADSC loading apiece", 12, rackDronesOf(dwe).size());
+        assertEquals("fixture: a TADSC loading apiece", 12, designSlotsOf(dwe));
         for (ShuttleSpace box : boxesOf(dwe))
             if (box.getReadyRack() != null)
                 assertTrue("fixture: J4.62 — racks, but no fighter in the box",

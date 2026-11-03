@@ -370,7 +370,7 @@ public class ScenarioLoader {
                 upgradeLoad(set, year, maxDroneSpeed);
         }
         refitFighterDrones(ship, year, maxDroneSpeed);
-        chargeDroneSpeed(ship, year);
+        chargeDroneSpeed(ship, year, maxDroneSpeed);
     }
 
     /**
@@ -464,26 +464,32 @@ public class ScenarioLoader {
      * cost." FD2.454's worked example counts the same way -- a Kzinti CS's sixteen points for
      * fast drones is its four racks of four, not the reloads behind them.
      *
-     * <h2>"and/or fighter": the carrier's loading is charged too</h2>
+     * <h2>"and/or fighter": the ready racks are charged too</h2>
      * A drone-armed fighter is a launch rack for this rule's purposes -- FD2.45 says so in as
      * many words, "fighters are equivalent to drone racks for the purpose of loading ready
      * racks" -- so a carrier pays for one loading of each of them. It did not, and a Kzinti CVS
      * therefore flew a squadron of fast drones for nothing while the frigate beside it paid for
      * sixteen.
      *
-     * <p>That loading is counted where it SITS rather than where it belongs, because those are
-     * two different places and which one depends on the weapon status. J4.8223 gives a carrier's
-     * resting state as "racks full, fighters unloaded", and {@code applyFighterWeaponStatus} then
-     * moves some of it forward onto the rails. The union of the box's ready rack and the rails of
-     * the fighter in that box is one loading either way: a drone that leaves the rack arrives on
-     * a rail, and nothing refills the rack before the scenario starts. Counting the rack's
-     * {@link com.sfb.systemgroups.ReadyRack#design()} instead would be a shorter sentence and
-     * would price a speed the ship might not have taken, since FD2.454 lets a player decline the
-     * year's drones and sail with something slower.
+     * <p>Charged at the READY RACK, which holds exactly that one loading (J4.8222: "each ready
+     * rack holds the same drones that the fighter it is designed to service carries"), and
+     * <b>the fighters are not counted at all</b>. Owner's ruling, 2026-11-03: "any drones on
+     * fighters at the start of a scenario came out of the ready racks, which would be empty."
+     * The rack is the whole of the loading whether it is holding it or the squadron is.
      *
-     * <p>The hold behind them is free, by the same sentence of FD2.45 that frees a rack's
+     * <p>From the rack's {@link com.sfb.systemgroups.ReadyRack#design()} rather than its
+     * contents, and that is the load-bearing part. This first walked the rack's contents PLUS
+     * the fighters' rails, on the argument that a drone leaving the rack arrives on a rail so the
+     * union is invariant. It is not: a Y183 CVS priced 80 at WS-0, 90 at WS-2 and <b>32</b> at
+     * WS-3, because {@code FighterArming.armOccupantFully} loads a rail with
+     * {@code new Drone(rail.getDesignDrone())} -- a fresh drone at the frame's baseline -- rather
+     * than with what the refit put in the box. Reading the design instead makes the bill depend
+     * on the hull and the date alone, which is what S2.11 asks for, and leaves that defect to be
+     * fixed where it lives instead of quietly discounting the ship for it.
+     *
+     * <p>The hold behind the racks is free, by the same sentence of FD2.45 that frees a rack's
      * reloads, so {@link com.sfb.systemgroups.DroneStore} is not read here. J4.621 settles the
-     * casual carrier -- an escort with ready racks and no fighters aboard -- the same way, and
+     * casual carrier -- an escort with ready racks and no fighter aboard -- the same way, and
      * the per-box walk below gets it for nothing: "pay the cost of speed upgrades for one loading
      * of the ready racks (FD2.45); the rest are held in fighter storage."
      *
@@ -492,6 +498,17 @@ public class ScenarioLoader {
      * of three medium drones owes a point and a half whatever is in the rack beside it.
      */
     static void chargeDroneSpeed(Ship ship, int year) {
+        chargeDroneSpeed(ship, year, null);
+    }
+
+    /**
+     * @param maxDroneSpeed the scenario's cap, or null for the year's own answer. The ship's own
+     *                      racks hold real drones and need no cap -- they were fitted under one
+     *                      already -- but a ready rack is priced from its DESIGN, so the speed
+     *                      has to be worked out here and a scenario that caps drones at 20 must
+     *                      not be billed for 32.
+     */
+    static void chargeDroneSpeed(Ship ship, int year, Integer maxDroneSpeed) {
         double owed = 0;
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (!(w instanceof DroneRack rack)) continue;
@@ -499,39 +516,53 @@ public class ScenarioLoader {
                 if (d != null && d.getSpec() != null)
                     owed += d.getSpec().speedCostIn(year);
         }
-        owed += fighterDroneSpeedCost(ship, year);
+        owed += readyRackDroneSpeedCost(ship, year, maxDroneSpeed);
         ship.setDroneSpeedBpv((int) Math.round(owed));
     }
 
     /**
-     * FD2.45's "and/or fighter": one loading per drone fighter box, wherever it is sitting.
+     * FD2.45's "and/or fighter": one full loading per drone ready rack, and nothing per fighter.
      *
      * <p>A destroyed box is skipped. It cannot happen during setup, which is the only time this
      * runs, but J4.831's rule for a box's stores is that they die with it -- so if this ever
      * were re-priced mid-battle, the right answer is that the carrier is not asked to pay for
      * drones that are no longer aboard.
+     *
+     * <p>A plasma-D or type-K rack costs nothing here and has no design slots to walk, which is
+     * right rather than a gap: FP9.18 says type-Ds "do not have guidance options, different
+     * speeds, or warhead modules as drones do", so there is no speed to upgrade. A rail carrying
+     * an EW pod has no slot either, because {@link com.sfb.systemgroups.ReadyRack#forFighter}
+     * already left it out (J4.962).
      */
-    private static double fighterDroneSpeedCost(Ship ship, int year) {
+    private static double readyRackDroneSpeedCost(Ship ship, int year, Integer maxDroneSpeed) {
         double owed = 0;
         for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
             for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces()) {
-                if (box.isDestroyed())
+                if (box.isDestroyed() || box.getReadyRack() == null)
                     continue;
-                if (box.getReadyRack() != null)
-                    for (Drone d : box.getReadyRack().contents())
-                        if (d != null && d.getSpec() != null)
-                            owed += d.getSpec().speedCostIn(year);
-                com.sfb.objects.shuttles.Shuttle occupant = box.getShuttle();
-                if (occupant == null)
-                    continue;
-                for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons()) {
-                    if (!(w instanceof com.sfb.weapons.DroneRail rail)) continue;
-                    for (Drone d : rail.getAmmo())
-                        if (d != null && d.getSpec() != null)
-                            owed += d.getSpec().speedCostIn(year);
-                }
+                for (DroneType slot : box.getReadyRack().design())
+                    owed += slotSpeedCost(slot, year, maxDroneSpeed);
             }
         return owed;
+    }
+
+    /**
+     * What one ready-rack slot's drone costs in speed upgrades, at the year the ship is fielded.
+     *
+     * <p>Priced through {@link #upgradeOne} rather than by reading the chart again, so the slot
+     * is billed for precisely the drone {@link #refitFighterDrones} puts in it -- including the
+     * sibling swap that makes a medium type-I a type-IM, and including the scenario cap. A slot
+     * the year cannot improve costs whatever its own baseline does, which for a type-I-slow or
+     * a type-III-slow is nothing (S8.133: "the only drones that are included in the BPV of a
+     * unit are type-I slow").
+     */
+    private static double slotSpeedCost(DroneType slot, int year, Integer maxDroneSpeed) {
+        if (slot == null)
+            return 0;
+        Drone baseline = new Drone(slot);
+        Drone fitted = upgradeOne(baseline, year, maxDroneSpeed);
+        Drone priced = fitted != null ? fitted : baseline;
+        return priced.getSpec() == null ? 0 : priced.getSpec().speedCostIn(year);
     }
 
     /** BPV a single UIM is worth (D6.5), read off the "u" refit variants. */
@@ -1222,7 +1253,8 @@ public class ScenarioLoader {
         // slower drones on board" -- stops paying for speed they no longer have. Idempotent by
         // construction: it sets the figure rather than adding to it, so running after
         // applyDroneSpeed already ran cannot double-charge.
-        chargeDroneSpeed(ship, spec.year);
+        chargeDroneSpeed(ship, spec.year, spec.commanderOptions == null
+                ? null : spec.commanderOptions.maxDroneSpeed);
 
         // Record the COI spend so the enemy is awarded these points at scenario end
         // (S2.20 step B). Option-mount weapon costs are excluded — they ride the ship's
