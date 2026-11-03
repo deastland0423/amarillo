@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { coiInitialFor, withCoiApplied } from './fleetCoiMapping';
-import type { CoiSubmission, FleetShipEntry } from '../api/gameApi';
+import { activeCoiView, coiInitialFor, fleetCoiKey, withCoiApplied } from './fleetCoiMapping';
+import type { CoiView } from './fleetCoiMapping';
+import type { CoiSideData, CoiSubmission, FleetShipEntry, FleetSpec } from '../api/gameApi';
 
 /**
  * The join between a fleet's ships and a dialog that knows them by name.
@@ -99,5 +100,107 @@ describe('withCoiApplied', () => {
     withCoiApplied(before, ['KHS Pair'], { 'KHS Pair': OTHER });
 
     expect(before[0].coi).toBe(CHOICES);
+  });
+});
+
+
+/**
+ * Which fleet an options payload belongs to.
+ *
+ * Reported from live play, 2026-11-02: adjust the Kzinti fleet's options, save it, load Task
+ * Force Optimus, and its Options view is the Kzinti fleet. Nothing on the way back through the
+ * fleet list cleared the payload or the resolved names, so the dialog reopened on the force it
+ * had finished with — and since the join is POSITIONAL, submitting it would have written one
+ * fleet's purchases onto another fleet's ships.
+ */
+describe('fleetCoiKey', () => {
+  const kzinti: FleetSpec = {
+    id: 'kzinti-musketeers', name: 'Musketeers', factions: ['Kzinti'],
+    year: 180, budget: 300,
+    ships: [{ faction: 'Kzinti', type: 'CS' }, { faction: 'Kzinti', type: 'FF' }],
+  };
+
+  it('tells two saved fleets apart', () => {
+    const fed: FleetSpec = { ...kzinti, id: 'task-force-optimus', name: 'Optimus' };
+    expect(fleetCoiKey(fed)).not.toBe(fleetCoiKey(kzinti));
+  });
+
+  /** The year decides availability and price (S8.131, S8.133), so the payload moves with it. */
+  it('changes with the year', () => {
+    expect(fleetCoiKey({ ...kzinti, year: 175 })).not.toBe(fleetCoiKey(kzinti));
+  });
+
+  it('changes when a ship is bought or sold', () => {
+    expect(fleetCoiKey({ ...kzinti, ships: [kzinti.ships[0]] })).not.toBe(fleetCoiKey(kzinti));
+  });
+
+  /** Positional join, so the ORDER is part of the identity even with the same two hulls. */
+  it('changes when the ships are reordered', () => {
+    const swapped = { ...kzinti, ships: [kzinti.ships[1], kzinti.ships[0]] };
+    expect(fleetCoiKey(swapped)).not.toBe(fleetCoiKey(kzinti));
+  });
+
+  /** A refit can change the racks the dialog offers — a type-A becomes a type-B in Y175. */
+  it('changes when a refit is ticked', () => {
+    const refitted = { ...kzinti, ships: [{ ...kzinti.ships[0], refits: ['+'] }, kzinti.ships[1]] };
+    expect(fleetCoiKey(refitted)).not.toBe(fleetCoiKey(kzinti));
+  });
+
+  /** Renaming a ship moves the name the dialog answers with, which is the join's other half. */
+  it('changes when a ship is renamed', () => {
+    const renamed = { ...kzinti, ships: [{ ...kzinti.ships[0], name: 'KHS Claw' }, kzinti.ships[1]] };
+    expect(fleetCoiKey(renamed)).not.toBe(fleetCoiKey(kzinti));
+  });
+
+  /**
+   * The purchases themselves are NOT in the key. Keying on them would have the act of
+   * submitting the dialog invalidate the payload that submitted it.
+   */
+  it('does not change when a ship records what it bought', () => {
+    const bought = { ...kzinti, ships: [{ ...kzinti.ships[0], coi: CHOICES }, kzinti.ships[1]] };
+    expect(fleetCoiKey(bought)).toBe(fleetCoiKey(kzinti));
+  });
+
+  it('is stable for the same fleet', () => {
+    expect(fleetCoiKey({ ...kzinti })).toBe(fleetCoiKey(kzinti));
+  });
+});
+
+describe('activeCoiView', () => {
+  const SIDES = [{ side: 'Kzinti', ships: [] }] as unknown as CoiSideData[];
+
+  const kzinti: FleetSpec = {
+    id: 'kzinti-musketeers', name: 'Musketeers', factions: ['Kzinti'],
+    year: 180, budget: 300, ships: [{ faction: 'Kzinti', type: 'CS' }],
+  };
+  const view: CoiView = {
+    forFleet: fleetCoiKey(kzinti), sides: SIDES, names: ['KHS Claw'],
+  };
+
+  it('keeps the dialog open on the fleet it was fetched for', () => {
+    expect(activeCoiView(view, kzinti)).toBe(view);
+  });
+
+  /** The reported bug, as reported. */
+  it('shuts the dialog when another fleet is loaded', () => {
+    const fed: FleetSpec = {
+      id: 'task-force-optimus', name: 'Optimus', factions: ['Federation'],
+      year: 180, budget: 300, ships: [{ faction: 'Federation', type: 'CA' }],
+    };
+    expect(activeCoiView(view, fed)).toBeNull();
+  });
+
+  /** And when the same fleet is edited underneath it. */
+  it('shuts the dialog when the fleet changes underneath it', () => {
+    expect(activeCoiView(view, { ...kzinti, year: 175 })).toBeNull();
+  });
+
+  it('survives the fleet recording what the dialog bought', () => {
+    const bought = { ...kzinti, ships: [{ ...kzinti.ships[0], coi: CHOICES }] };
+    expect(activeCoiView(view, bought)).toBe(view);
+  });
+
+  it('is null when nothing is open', () => {
+    expect(activeCoiView(null, kzinti)).toBeNull();
   });
 });

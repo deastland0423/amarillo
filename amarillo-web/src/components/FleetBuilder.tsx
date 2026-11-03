@@ -1,12 +1,13 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gameApi } from '../api/gameApi';
 import CoiDialog from './CoiDialog';
-import { coiInitialFor, withCoiApplied } from './fleetCoiMapping';
+import { activeCoiView, coiInitialFor, fleetCoiKey, withCoiApplied } from './fleetCoiMapping';
+import type { CoiView } from './fleetCoiMapping';
 import { familiesOf, matchesSearch, resolveFamily, toggleRefit, variantOf } from './shelfFamilies';
 import { isGeneratedName, nameForNewShip } from './fleetNaming';
 import type {
   CatalogShip, Cartel, FleetSpec, FleetSummary, FleetValidation, FleetViolation,
-  HullOptionMounts, CoiSideData, CoiSubmission,
+  HullOptionMounts, CoiSubmission,
 } from '../api/gameApi';
 import { tierFor, quotaOf, describeQuota, describeCartel } from './cartelQuota';
 import { seatAll } from './optionMountSeating';
@@ -90,10 +91,13 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
    * produced — which are not always the names in the spec. An entry may have no name at all
    * (meaning the ship file's own) and two ships of one type get " #2" appended so a violation can
    * point at one of them. So the answer is mapped back by POSITION, using the order the resolver
-   * reports, and `coiNames[i]` is the name standing for `spec.ships[i]`.
+   * reports, and `coiView.names[i]` is the name standing for `spec.ships[i]`.
+   *
+   * <p>It carries the fleet it was fetched for, and {@link activeCoiView} is what the render
+   * asks — so loading another fleet shuts the dialog rather than reopening it on the force it
+   * had finished with. See {@link CoiView} for the playtest that found it.
    */
-  const [coiSides, setCoiSides] = useState<CoiSideData[] | null>(null);
-  const [coiNames, setCoiNames] = useState<string[]>([]);
+  const [coiView, setCoiView] = useState<CoiView | null>(null);
   /**
    * The hull being inspected, or null. Held separately from the shelf row that opened it because
    * the viewer shows what the row cannot — shields, armament, bays — and that arrives from its own
@@ -459,6 +463,15 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
   const spent = check?.totalCost ?? 0;
   const remaining = spec.budget - spent;
 
+  /**
+   * The options dialog to show, which is `coiView` only while it still belongs to this fleet.
+   *
+   * Asked here rather than guarded at each load point, because a guard at each load point is a
+   * guard someone has to remember to add to the next one. The playtest that found this is in
+   * {@link CoiView}.
+   */
+  const openOptions = activeCoiView(coiView, spec);
+
   // ---- editing ----------------------------------------------------------
 
   function startNew() {
@@ -572,6 +585,7 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
   async function openCoi() {
     setError('');
     setBusy(true);
+    setCoiView(null);    // never leave a previous fleet's payload up if this one fails
     try {
       const sides = await gameApi.fleetCoiData(spec);
       const ships = sides[0]?.ships ?? [];
@@ -579,8 +593,7 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
         setError('The fleet could not be priced — try saving and reopening it.');
         return;
       }
-      setCoiNames(ships.map(sh => sh.shipName));
-      setCoiSides(sides);
+      setCoiView({ forFleet: fleetCoiKey(spec), sides, names: ships.map(sh => sh.shipName) });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not read the options for this fleet.');
     } finally {
@@ -590,8 +603,9 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
 
   /** Both halves of the join live in fleetCoiMapping, where they are tested. */
   async function applyCoi(submission: CoiSubmission) {
-    setSpec(sp => ({ ...sp, ships: withCoiApplied(sp.ships, coiNames, submission) }));
-    setCoiSides(null);
+    const names = coiView?.names ?? [];
+    setSpec(sp => ({ ...sp, ships: withCoiApplied(sp.ships, names, submission) }));
+    setCoiView(null);
   }
 
   async function save() {
@@ -732,14 +746,14 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
       {/* The same dialog the pre-battle lobby uses, seeded with what the fleet already carries so
           that reopening it shows the purchases rather than offering to replace them with nothing.
           There is no player token here: a fleet is being built, not submitted to a game. */}
-      {coiSides && (
+      {openOptions && (
         <CoiDialog
-          sides={coiSides}
+          sides={openOptions.sides}
           playerToken=""
-          initial={coiInitialFor(spec.ships, coiNames)}
+          initial={coiInitialFor(spec.ships, openOptions.names)}
           busy={busy}
           onSubmit={applyCoi}
-          onSkip={() => setCoiSides(null)}
+          onSkip={() => setCoiView(null)}
         />
       )}
 

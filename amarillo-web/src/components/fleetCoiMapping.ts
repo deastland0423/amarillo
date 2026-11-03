@@ -1,4 +1,6 @@
-import type { CoiShipChoices, CoiSubmission, FleetShipEntry } from '../api/gameApi';
+import type {
+  CoiShipChoices, CoiSideData, CoiSubmission, FleetShipEntry, FleetSpec,
+} from '../api/gameApi';
 
 /**
  * Matching a fleet's ships to the Commander's Options dialog, which knows them by NAME.
@@ -53,4 +55,62 @@ export function withCoiApplied(
     }
     return { ...entry, coi: chosen };
   });
+}
+
+/**
+ * The options payload the dialog is open on, together with the fleet it was fetched FOR.
+ *
+ * <h2>Why the fleet is carried alongside</h2>
+ * Reported from live play, 2026-11-02: adjust the Kzinti fleet's options, save it, load Task
+ * Force Optimus — and its Options view is the Kzinti fleet. The payload and the ship names
+ * were held in state of their own, and nothing on the way back through the fleet list cleared
+ * them, so the dialog reopened on the force it had finished with. Worse than looking wrong: the
+ * join to `spec.ships` is POSITIONAL, so submitting it would have written one fleet's purchases
+ * onto another fleet's ships.
+ *
+ * <p>Resetting at each load point was the obvious fix and the wrong one — it holds only until
+ * someone adds a fourth way to change the fleet. So the data states which fleet it belongs to
+ * and {@link activeCoiView} refuses it against any other. A load path cannot forget to
+ * invalidate a cache that invalidates itself.
+ */
+export interface CoiView {
+  /** The {@link fleetCoiKey} of the fleet this was fetched for. */
+  forFleet: string;
+  sides: CoiSideData[];
+  /** `names[i]` is the name the resolver gave `spec.ships[i]`. */
+  names: string[];
+}
+
+/**
+ * What a fleet must still be for an options payload fetched against it to mean anything.
+ *
+ * Everything the payload depends on, and nothing else:
+ * <ul>
+ *   <li>the saved fleet's id, which is what changes when another fleet is loaded;</li>
+ *   <li>the year, because availability and price both move with it (S8.131, S8.133);</li>
+ *   <li>each ship in ORDER, since the join is positional — its faction, type, name and the
+ *       refits ticked on it, because a refit can change the racks the dialog offers to load
+ *       (a type-A becomes a type-B in Y175).</li>
+ * </ul>
+ *
+ * <p>Deliberately NOT included: the `coi` blocks themselves. Those are the dialog's own answer,
+ * and keying on them would have the act of submitting invalidate the thing that submitted it.
+ */
+export function fleetCoiKey(spec: FleetSpec): string {
+  const ships = spec.ships.map(e =>
+    [e.faction ?? '', e.type, e.name ?? '', (e.refits ?? []).join('+')].join(':'));
+  return [spec.id ?? 'unsaved', spec.year, ships.join('|')].join('#');
+}
+
+/**
+ * The view if it still belongs to this fleet, otherwise null — which closes the dialog.
+ *
+ * <p>An unsaved fleet has no id, so two different new fleets can share the 'unsaved' slot. The
+ * ship list is in the key for that case: two blank fleets with no ships are genuinely
+ * interchangeable as far as this payload goes, and the Options button is disabled until one of
+ * them has a ship.
+ */
+export function activeCoiView(view: CoiView | null, spec: FleetSpec): CoiView | null {
+  if (!view) return null;
+  return view.forFleet === fleetCoiKey(spec) ? view : null;
 }
