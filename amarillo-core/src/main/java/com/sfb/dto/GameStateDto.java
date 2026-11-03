@@ -2341,7 +2341,7 @@ public class GameStateDto {
         // 360-degree Ph-3, and both core and the fire endpoint have always been willing to
         // fire it - the client simply never heard about it, so the shuttle could not be
         // picked as an attacker and its phaser was unreachable from the game.
-        dto.weapons = buildWeaponDtos(shuttle.getWeapons());
+        dto.weapons = buildWeaponDtos(shuttle.getWeapons(), hideSecrets);
         dto.isFighter = shuttle instanceof com.sfb.objects.shuttles.Fighter;
         // The type is a visible property of the craft; the ROLE it is playing is not, and
         // is never sent. The hover used to call every non-fighter an "Admin Shuttle".
@@ -2556,7 +2556,22 @@ public class GameStateDto {
             }
     }
 
-    private static List<WeaponDto> buildWeaponDtos(com.sfb.systemgroups.Weapons wGroup) {
+    /**
+     * The weapons of a SHUTTLE, which is the other builder — {@code fromShip} has its own loop
+     * and its own {@code redactForEnemy}.
+     *
+     * <h2>It had no viewer at all</h2>
+     * {@code fromShuttle} already says what the rule is: "What a shuttle carries is not public:
+     * G4.233 gives up whether it is manned and whether it is seeking, and stops there." This
+     * builder never honoured it, because it was handed a weapons group and nothing else. So a
+     * fighter published {@code chargesRemaining} outright, and a {@code readyToFire} computed
+     * from it — and for a fighter, charges ARE the arming state, refilled by J4.83 rearming in
+     * the bay. An opponent could count a Stinger's fusion shots and watch it run dry.
+     *
+     * @param hideSecrets true when the viewer is not on this craft's side
+     */
+    private static List<WeaponDto> buildWeaponDtos(com.sfb.systemgroups.Weapons wGroup,
+            boolean hideSecrets) {
         List<WeaponDto> list = new ArrayList<>();
         for (com.sfb.weapons.Weapon w : wGroup.fetchAllWeapons()) {
             WeaponDto wd = new WeaponDto();
@@ -2570,21 +2585,27 @@ public class GameStateDto {
             wd.functional = w.isFunctional();
             wd.arcLabel = w.getArcLabel();
             wd.arcMask = w.getArcs();
-            wd.readyToFire = w.isFunctional() && w.canFire();
+            // Readiness from the firing record alone for an enemy, exactly as fromShip does.
+            wd.readyToFire = w.isFunctional()
+                    && (hideSecrets ? w.apparentReadyToFireAtTarget() : w.canFire());
             wd.maxShotsPerTurn = w.getMaxShotsPerTurn();
             wd.shotsThisTurn = w.getShotsThisTurn();
-            wd.shotsAvailableNow = w.shotsAvailableNow();
+            wd.shotsAvailableNow = hideSecrets
+                    ? w.apparentShotsAvailableNow() : w.shotsAvailableNow();
             wd.minImpulseGap = w.getMinImpulseGap();
             if (w instanceof com.sfb.weapons.FighterFusion) {
                 com.sfb.weapons.FighterFusion ff = (com.sfb.weapons.FighterFusion) w;
-                wd.chargesRemaining = ff.getChargesRemaining();
-                wd.canFireDouble = ff.canFireDouble();
+                // NULL rather than 0: "not disclosed" instead of the plausible lie "none left",
+                // which is also how the Fire Orders pad tells a fusion from a phaser.
+                wd.chargesRemaining = hideSecrets ? null : ff.getChargesRemaining();
+                wd.canFireDouble = hideSecrets
+                        ? ff.apparentCanFireDouble() : ff.canFireDouble();
             }
             if (w instanceof com.sfb.weapons.ADD) {
                 com.sfb.weapons.ADD add = (com.sfb.weapons.ADD) w;
-                wd.addShots = add.getShots();
-                wd.addReloads = add.getReloadsAvailable();
-                wd.addCapacity = add.getCapacity();
+                wd.addShots = hideSecrets ? null : add.getShots();
+                wd.addReloads = hideSecrets ? null : add.getReloadsAvailable();
+                wd.addCapacity = add.getCapacity();   // on the SSD, as on a ship
             }
             list.add(wd);
         }

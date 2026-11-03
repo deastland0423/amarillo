@@ -156,6 +156,28 @@ public class FighterPhoton extends HitOrMissWeapon implements DirectFire {
         return chargesRemaining > 0 && super.canFire();
     }
 
+    /**
+     * An opponent is told the photon is charged whether it is or not.
+     *
+     * <p>For a fighter {@code chargesRemaining} IS its arming state — J4.83 rearming in the
+     * bay is what refills it — and the owner's ruling (2026-11-02) is that "you don't have a
+     * view into an opponent's arming status" beyond when a weapon might next be available from
+     * its last firing impulse. A ship's heavy weapons have always been redacted on exactly that
+     * basis; a fighter's reached the client through a builder that had no notion of a viewer.
+     *
+     * <p>What stays is the firing record: the shots taken and the cooldown they impose.
+     */
+    @Override
+    public boolean apparentReadyToFireAtTarget() {
+        return super.canFire();
+    }
+
+    /** The shot count, for the same reason. */
+    @Override
+    public int apparentShotsAvailableNow() {
+        return super.canFire() ? shotsLeftNow() : 0;
+    }
+
     @Override
     public int fire(int realRange, int adjustedRange)
             throws WeaponUnarmedException, TargetOutOfRangeException, CapacitorException {

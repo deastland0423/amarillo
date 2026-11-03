@@ -109,6 +109,40 @@ public class FighterFusion extends VariableDamageWeapon implements DirectFire {
         return chargesRemaining >= 2 && super.canFire();
     }
 
+    /**
+     * An opponent is told the fusion is charged whether it is or not.
+     *
+     * <p>For a fighter {@code chargesRemaining} IS its arming state — J4.83 rearming in the
+     * bay is what refills it — and the owner's ruling (2026-11-02) is that "you don't have a
+     * view into an opponent's arming status" beyond when a weapon might next be available from
+     * its last firing impulse. A ship's heavy weapons have always been redacted on exactly that
+     * basis; a fighter's reached the client through a builder that had no notion of a viewer.
+     *
+     * <p>What stays is the firing record: the shots taken and the cooldown they impose.
+     */
+    @Override
+    public boolean apparentReadyToFireAtTarget() {
+        return super.canFire();
+    }
+
+    /** The shot count, for the same reason. */
+    @Override
+    public int apparentShotsAvailableNow() {
+        return super.canFire() ? shotsLeftNow() : 0;
+    }
+    /**
+     * And the double-shot offer, which leaks "two or more charges" on its own.
+     *
+     * <p>A primitive {@code boolean} on the wire, so it cannot say "not disclosed" — publishing
+     * {@code false} would trade the leak for a lie (E7.2: any fighter fusion fires double with
+     * two charges, so false states the charges are not there). It answers as the rest do:
+     * as though charged.
+     */
+    public boolean apparentCanFireDouble() {
+        return super.canFire();
+    }
+
+
     @Override
     public int fire(int range)
             throws WeaponUnarmedException, TargetOutOfRangeException, CapacitorException {
