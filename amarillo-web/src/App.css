@@ -1918,6 +1918,37 @@ h3 {
   gap: 1rem;
 }
 
+/* The conditions a fleet is being bought under, pinned to the top of the window while the
+   shipyard and roster scroll beneath. Not decoration: the year filters the shelf, the budget
+   says whether the next hull fits, and the cartel gates every option mount (G15.44), so these
+   are read while buying rather than set once. The roster is long enough that they left the
+   screen, which made the mount panel's "pick a cartel above" point at nothing.
+
+   Opaque and in the page's own colour, because content passes UNDER it. The negative margins
+   cancel .fb's padding so the bar spans the full window and nothing shows above it; the padding
+   puts that inset back inside. z-index stays low — the SSD viewer (60) and the dialogs (1000)
+   must still come over the top of it. */
+/* .fb-field's `flex: 1 1 200px` is a WIDTH basis, written for the row that holds the name, the
+   year and the budget. The Empires block is a child of this COLUMN, where the same shorthand
+   reads as 200px of HEIGHT — so the chip row claimed 200px and sat in a pool of its own empty
+   space. It was invisible while the shipyard was rendered, because the page then overflowed and
+   flex-shrink squashed the basis back to the content; hiding the shipyard for the options pane
+   took the overflow away and the claim stood up. Size it to its chips instead. */
+.fb-header > .fb-field { flex: 0 0 auto; }
+
+.fb-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: #0d1117;
+  margin: -1.5rem -2rem 0;
+  padding: 1.5rem 2rem 0.75rem;
+  border-bottom: 1px solid #30363d;
+}
+
 .fb-topbar {
   display: flex;
   align-items: center;
@@ -2049,6 +2080,23 @@ h3 {
 .fb-role-chips .fb-chip-on .fb-hint { color: #0d1117; opacity: 0.7; }
 
 /* --- the two panels --- */
+
+/* The Commander's Options form standing in the shipyard's place, and the shipyard put away
+   while it does. The form scrolls inside its own pane rather than scrolling the page, so the
+   pinned .fb-header stays where it is and the form's Save button cannot end up beneath it.
+   The card inside sets its own width, so this only has to centre it. */
+.fb-options {
+  display: flex;
+  justify-content: center;
+  /* flex-start, NOT the default stretch. A row flex container gives its items the line's cross
+     size, which here is this box's own capped height — so the card was forced to 72vh and its
+     last drone rack, the shuttle conversions and the buttons all spilled out below its border,
+     outside the box they belong in. The card sizes itself to its content; this box scrolls. */
+  align-items: flex-start;
+  max-height: 72vh;
+  overflow-y: auto;
+}
+.fb-hidden { display: none; }
 
 .fb-shipyard {
   display: grid;

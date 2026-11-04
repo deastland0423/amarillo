@@ -58,6 +58,16 @@ interface Props {
    * to replace it with nothing.
    */
   initial?:    CoiSubmission;
+  /**
+   * What the button that leaves without submitting is called.
+   *
+   * Before a battle it is "Skip (defaults)", and that is the truth there: nothing is sent and
+   * the server fits every ship out as standard. In the fleet builder it sends nothing either,
+   * but nothing is DEFAULTED — the purchases already applied to the fleet stay exactly as they
+   * were and only the unsaved edits on screen are dropped. Calling that "skip" read as an offer
+   * to replace the fleet's loadout with defaults, which is the one thing it does not do.
+   */
+  skipLabel?:  string;
 }
 
 
@@ -1143,7 +1153,7 @@ function DronePayloadEditor({
   );
 }
 
-export default function CoiDialog({ sides, onSubmit, onSkip, busy, initial }: Props) {
+export default function CoiDialog({ sides, onSubmit, onSkip, busy, initial, skipLabel }: Props) {
   const [coiMap, setCoiMap] = useState<Record<string, ShipCoi>>(() => {
     const init: Record<string, ShipCoi> = {};
     for (const side of sides) {
@@ -1309,7 +1319,7 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy, initial }: Pr
           {busy ? 'Saving…' : 'Save & Continue'}
         </button>
         <button className="secondary" onClick={onSkip} disabled={busy}>
-          Skip (defaults)
+          {skipLabel ?? 'Skip (defaults)'}
         </button>
       </div>
       {anyOverBudget && (

@@ -722,90 +722,117 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
 
   return (
     <div className="fb">
-      <div className="fb-topbar">
-        <h1>{spec.name || 'New fleet'}</h1>
-        <div className="fb-topbar-actions">
-          {saved && <span className="fb-saved">{saved}</span>}
-          {/* S8.12 lists Commander's Options under the conditions for building a force, beside
-              "units are purchased for their combat BPV" — so they are bought here, and
-              FleetValidator.totalCost has always charged them against the fleet's budget. */}
-          <button className="fb-btn" disabled={busy || spec.ships.length === 0}
-                  title={spec.ships.length === 0
-                    ? 'Buy a ship first — the allowance is a share of its BPV (S3.2)'
-                    : "Commander's Options for this fleet (S8.12)"}
-                  onClick={openCoi}>
-            Options
-          </button>
-          <button className="fb-btn fb-btn-primary" disabled={busy} onClick={save}>Save</button>
-          <button className="fb-btn" onClick={() => { setView('list'); refreshFleets(); }}>Back</button>
+      {/* The conditions the next purchase depends on, pinned (.fb-header). The year decides
+          which hulls the shelf offers, the budget whether the next one fits, and the cartel is
+          a PRECONDITION for fitting an option mount (G15.44) — so a mount panel reading "pick
+          a cartel above" was pointing at a control that had scrolled off the top of the page. */}
+      <div className="fb-header">
+        <div className="fb-topbar">
+          <h1>{spec.name || 'New fleet'}</h1>
+          <div className="fb-topbar-actions">
+            {saved && <span className="fb-saved">{saved}</span>}
+            {/* S8.12 lists Commander's Options under the conditions for building a force, beside
+                "units are purchased for their combat BPV" — so they are bought here, and
+                FleetValidator.totalCost has always charged them against the fleet's budget. */}
+            {/* One way in and the same way out, because the form takes the shipyard's place
+                rather than floating over it. Leaving applies nothing: what the fleet already
+                carries stays, and only unsaved edits on screen are dropped. */}
+            <button className="fb-btn" disabled={busy || spec.ships.length === 0}
+                    title={openOptions
+                      ? 'Back to the shipyard — unsaved option edits are dropped'
+                      : spec.ships.length === 0
+                        ? 'Buy a ship first — the allowance is a share of its BPV (S3.2)'
+                        : "Commander's Options for this fleet (S8.12)"}
+                    onClick={() => (openOptions ? setCoiView(null) : openCoi())}>
+              {openOptions ? 'Shipyard' : 'Options'}
+            </button>
+            <button className="fb-btn fb-btn-primary" disabled={busy} onClick={save}>Save</button>
+            <button className="fb-btn" onClick={() => { setView('list'); refreshFleets(); }}>Back</button>
+          </div>
+        </div>
+
+        {error && <p className="error">{error}</p>}
+        {/* Conditions. Terrain and map size are agreed per battle (S8.15, S8.135),
+            so they are not here — a fleet outlives the map it was built for. */}
+        <div className="fb-conditions">
+          <label className="fb-field">
+            <span>Fleet name</span>
+            <input value={spec.name} placeholder="Border patrol"
+                   onChange={e => setSpec(s => ({ ...s, name: e.target.value }))} />
+          </label>
+          <label className="fb-field fb-field-narrow">
+            <span>Year</span>
+            <input type="number" value={spec.year}
+                   onChange={e => setSpec(s => ({ ...s, year: Number(e.target.value) || 0 }))} />
+          </label>
+          <label className="fb-field fb-field-narrow">
+            <span>Budget</span>
+            <input type="number" value={spec.budget}
+                   onChange={e => setSpec(s => ({ ...s, budget: Number(e.target.value) || 0 }))} />
+          </label>
+          {/* The cartel the force flies for (G15.44, R8.1). On the FLEET, not the ship, because
+              the quota is on the force: "The limits below apply to the entire Orion battle
+              force." Offered only to a force that includes Orions. */}
+          {spec.factions.includes('Orion') && (
+            <label className="fb-field">
+              <span>Cartel <span className="fb-hint">(G15.44 — sets what its mounts may carry)</span></span>
+              <select value={spec.cartel ?? ''}
+                      onChange={e => chooseCartel(e.target.value)}>
+                <option value="">(none declared)</option>
+                {cartels.map(c => (
+                  <option key={c.name} value={c.name}>{describeCartel(c)}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+
+        <div className="fb-field">
+          <span>Empires <span className="fb-hint">(more than one for an allied force — S8.6)</span></span>
+          <div className="fb-faction-chips">
+            {allFactions.map(f => (
+              <button key={f}
+                      className={spec.factions.includes(f) ? 'fb-chip fb-chip-on' : 'fb-chip'}
+                      onClick={() => toggleFaction(f)}>
+                {f}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {error && <p className="error">{error}</p>}
-
-      {/* The same dialog the pre-battle lobby uses, seeded with what the fleet already carries so
+      {/* The same form the pre-battle lobby uses, seeded with what the fleet already carries so
           that reopening it shows the purchases rather than offering to replace them with nothing.
-          There is no player token here: a fleet is being built, not submitted to a game. */}
+          There is no player token here: a fleet is being built, not submitted to a game.
+
+          <p>It takes the SHIPYARD'S PLACE rather than floating over it or pushing it down. It is
+          a page-sized thing — a panel per ship, with drone racks and option mounts inside each —
+          so a floating version would have needed its own scroll container, a focus trap and a
+          z-index argument with the SSD viewer, and would still have covered the roster. Swapping
+          the pane keeps the pinned header, which is where the budget it spends against is read.
+
+          <p>There is no 'options' member in View. `openOptions` is already the single truth
+          about whether a payload is up, and it invalidates itself against the fleet
+          (activeCoiView), so a flag beside it could only disagree with it — and a view saying
+          "options" with no payload behind it is a blank page. */}
       {openOptions && (
-        <CoiDialog
-          sides={openOptions.sides}
-          playerToken=""
-          initial={coiInitialFor(spec.ships, openOptions.names)}
-          busy={busy}
-          onSubmit={applyCoi}
-          onSkip={() => setCoiView(null)}
-        />
+        <div className="fb-options">
+          <CoiDialog
+            sides={openOptions.sides}
+            playerToken=""
+            initial={coiInitialFor(spec.ships, openOptions.names)}
+            busy={busy}
+            onSubmit={applyCoi}
+            onSkip={() => setCoiView(null)}
+            skipLabel="Back to the shipyard"
+          />
+        </div>
       )}
 
-      {/* Conditions. Terrain and map size are agreed per battle (S8.15, S8.135),
-          so they are not here — a fleet outlives the map it was built for. */}
-      <div className="fb-conditions">
-        <label className="fb-field">
-          <span>Fleet name</span>
-          <input value={spec.name} placeholder="Border patrol"
-                 onChange={e => setSpec(s => ({ ...s, name: e.target.value }))} />
-        </label>
-        <label className="fb-field fb-field-narrow">
-          <span>Year</span>
-          <input type="number" value={spec.year}
-                 onChange={e => setSpec(s => ({ ...s, year: Number(e.target.value) || 0 }))} />
-        </label>
-        <label className="fb-field fb-field-narrow">
-          <span>Budget</span>
-          <input type="number" value={spec.budget}
-                 onChange={e => setSpec(s => ({ ...s, budget: Number(e.target.value) || 0 }))} />
-        </label>
-        {/* The cartel the force flies for (G15.44, R8.1). On the FLEET, not the ship, because
-            the quota is on the force: "The limits below apply to the entire Orion battle
-            force." Offered only to a force that includes Orions. */}
-        {spec.factions.includes('Orion') && (
-          <label className="fb-field">
-            <span>Cartel <span className="fb-hint">(G15.44 — sets what its mounts may carry)</span></span>
-            <select value={spec.cartel ?? ''}
-                    onChange={e => chooseCartel(e.target.value)}>
-              <option value="">(none declared)</option>
-              {cartels.map(c => (
-                <option key={c.name} value={c.name}>{describeCartel(c)}</option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
-
-      <div className="fb-field">
-        <span>Empires <span className="fb-hint">(more than one for an allied force — S8.6)</span></span>
-        <div className="fb-faction-chips">
-          {allFactions.map(f => (
-            <button key={f}
-                    className={spec.factions.includes(f) ? 'fb-chip fb-chip-on' : 'fb-chip'}
-                    onClick={() => toggleFaction(f)}>
-              {f}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="fb-shipyard">
+      {/* Put away rather than unmounted while the options form has the pane. Every piece of
+          state the shelf and the roster read — the search, the role filter, which mount row is
+          open — lives up in FleetBuilder, so there is nothing to preserve or lose either way. */}
+      <div className={openOptions ? 'fb-shipyard fb-hidden' : 'fb-shipyard'}>
         {/* --- the shelf --- */}
         <div className="fb-panel">
           <div className="fb-panel-title">
