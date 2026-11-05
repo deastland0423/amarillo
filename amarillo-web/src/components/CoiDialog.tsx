@@ -1,6 +1,7 @@
 import { Fragment, useState, useEffect } from 'react';
 import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiDroneRack,
-  CoiDroneModule, CoiDroneAddition, CoiRackPreset, Cartel } from '../api/gameApi';
+  CoiDroneModule, CoiDroneAddition, CoiRackPreset, Cartel, DroneAvailability }
+  from '../api/gameApi';
 import { gameApi } from '../api/gameApi';
 import { Stepper } from './Stepper';
 import { tierFor, quotaOf, describeCartel } from './cartelQuota';
@@ -11,6 +12,7 @@ import { budgetBasisLabel, defaultAmmoLabel, droneChipLabel, presetLabel }
   from './coiLabels';
 import { withRackLoad, withoutRack, withPreset } from './coiRackLoad';
 import { coiCost } from './coiTotal';
+import { capRows, shipsOverCaps } from './droneAvailability';
 import {
   isModified, parseDroneName, formatDroneName, payloadUsed, rackSpacesOf,
   describeDrone, moduleRefusal, additionRefusal,
@@ -58,6 +60,24 @@ interface Props {
    * to replace it with nothing.
    */
   initial?:    CoiSubmission;
+  /**
+   * The drone caps as the server sees the CURRENT draft (FD10.622/FD10.632), by ship name.
+   *
+   * Optional, and absent in the pre-battle lobby: the figures are a fleet-builder feature,
+   * because that is the caller that refuses a loadout over them. Where nothing asks, nothing is
+   * shown and the dialog behaves exactly as it did.
+   */
+  availability?: Record<string, DroneAvailability>;
+  /**
+   * Called with the draft on every edit, so a caller that wants figures can go and get them.
+   *
+   * The dialog does not know how to price its own draft against the caps and should not learn:
+   * FD10.641's per-space tier bill, FD10.66's half-space sharing, FD10.643's type-G exception and
+   * FD10.622's Klingon clause are four rules deep, and a browser copy of them would be a second
+   * engine with no test able to tell it had drifted. So the view reports what the player chose
+   * and renders the verdict it is handed.
+   */
+  onDraft?: (draft: CoiSubmission) => void;
   /**
    * What the button that leaves without submitting is called.
    *
@@ -139,10 +159,13 @@ function ShipCoiPanel({
   ship,
   coi,
   onChange,
+  availability,
 }: {
   ship:     CoiShipData;
   coi:      ShipCoi;
   onChange: (next: ShipCoi) => void;
+  /** This ship's standing against the drone caps, when a caller is asking the server for it. */
+  availability?: DroneAvailability;
 }) {
   const cost     = coiCost(coi, ship);
   const overBudget = cost > ship.coiBudget;
@@ -401,6 +424,7 @@ function ShipCoiPanel({
       {ship.droneRacks.length > 0 && ship.availableDroneTypes.length > 0 && (
         <div className="coi-section">
           <div className="coi-section-title">Drone Rack Loadouts</div>
+          {availability && <DroneAvailabilityGauge figures={availability} />}
           {ship.droneRacks.map(rack => {
             // The rack you are BUILDING, which starts empty. Touch nothing and the ship
             // keeps the loadout it arrived with; add anything and what you built is what
@@ -887,6 +911,43 @@ function ShipCoiPanel({
  * question out of string prefixes — and would get it wrong at once, since "TypeIV" starts with
  * "TypeI".
  */
+/**
+ * How much of this ship's drone load may be hard to come by, and how much of that is spent
+ * (FD10.622, FD10.632).
+ *
+ * <h2>Why a gauge and not just a refusal</h2>
+ * The fleet builder refuses a force over these caps. A limit that only speaks when it is already
+ * breached is the shape of the cartel-quota bug: the player meets a wall with nothing to read on
+ * the way to it, and on a four-space rack the Limited allowance is ZERO, so the first special
+ * drone is the one that fails. Saying "0 of 0" before they click is the whole job.
+ *
+ * Both tiers show because FD10.64 nests them: a Limited drone spends Restricted allowance too, so
+ * one drone can move both numbers and only showing the pair explains why.
+ *
+ * Every figure here came from the server, which has already applied the draft loadout to the real
+ * ship. Nothing on this side computes a tier.
+ */
+function DroneAvailabilityGauge({ figures }: { figures: DroneAvailability }) {
+  // An empty rack is not a breach of anything, and "0/0 of 0 spaces" is noise on a ship nobody
+  // has touched yet.
+  if (figures.countedSpaces <= 0) return null;
+  const spaces = spacesUsedLabel(figures.countedSpaces);
+  return (
+    <div className="coi-note coi-availability">
+      {capRows(figures).map(r => (
+        <span key={r.rule} className={r.over ? 'coi-availability-over' : undefined}
+              title={`${r.rule}: ${r.percent}% of the ${spaces} warhead spaces aboard`
+                     + ` (FD10.641)`
+                     + (figures.relaxed
+                          ? ` — this hull is on FD10.622's exception list` : ``)}>
+          {r.label} {spacesUsedLabel(r.used)}/{r.allowed}
+        </span>
+      ))}
+      <span>of {spaces} spaces</span>
+    </div>
+  );
+}
+
 function DronePicker({ types, onAdd }: {
   types: CoiDroneType[];
   onAdd: (name: string) => void;
@@ -1153,7 +1214,8 @@ function DronePayloadEditor({
   );
 }
 
-export default function CoiDialog({ sides, onSubmit, onSkip, busy, initial, skipLabel }: Props) {
+export default function CoiDialog({ sides, onSubmit, onSkip, busy, initial, skipLabel,
+                                    availability, onDraft }: Props) {
   const [coiMap, setCoiMap] = useState<Record<string, ShipCoi>>(() => {
     const init: Record<string, ShipCoi> = {};
     for (const side of sides) {
@@ -1244,6 +1306,16 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy, initial, skip
     return sub;
   }
 
+  // Tell the caller what is on screen, so it can ask the server what the caps make of it.
+  //
+  // Keyed on the state the submission is built FROM rather than on the submission itself: a
+  // fresh object every render would make this fire forever. The caller debounces the request;
+  // this only has to be honest about when the draft changed.
+  useEffect(() => {
+    if (onDraft) onDraft(buildSubmission());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coiMap, cartelChoice]);
+
   const anyOverBudget = sides.some(side =>
     side.ships.some(ship =>
       coiCost(coiMap[ship.shipName] ?? defaultShipCoi(), ship) > ship.coiBudget)
@@ -1252,6 +1324,10 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy, initial, skip
     const q = sideQuota(side);
     return q.hasMounts && cartelChoice[side.faction] && !q.within;
   });
+  // FD10.622/FD10.632, on the same footing as the budget and the cartel quota: a loadout the
+  // fleet validator will refuse cannot be saved from here either. Only when a caller supplied
+  // the figures -- the lobby does not, where ScenarioLoader notes the breach and plays on.
+  const overAvailability = shipsOverCaps(availability);
 
   return (
     <div className="card coi-dialog" style={{ width: '100%', maxWidth: 560 }}>
@@ -1304,6 +1380,7 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy, initial, skip
                 key={ship.shipName}
                 ship={ship}
                 coi={coiMap[ship.shipName] ?? defaultShipCoi()}
+                availability={availability?.[ship.shipName]}
                 onChange={next => setCoiMap(prev => ({ ...prev, [ship.shipName]: next }))}
               />
             ))}
@@ -1313,7 +1390,7 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy, initial, skip
 
       <div className="button-row" style={{ marginTop: '1rem' }}>
         <button
-          disabled={busy || anyOverBudget || anyOverQuota}
+          disabled={busy || anyOverBudget || anyOverQuota || overAvailability.length > 0}
           onClick={() => onSubmit(buildSubmission())}
         >
           {busy ? 'Saving…' : 'Save & Continue'}
@@ -1330,6 +1407,14 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy, initial, skip
       {anyOverQuota && (
         <p style={{ color: '#f85149', marginTop: '0.5rem' }}>
           A fleet exceeds its cartel's weapon-access quota (G15.44).
+        </p>
+      )}
+      {overAvailability.length > 0 && (
+        <p style={{ color: '#f85149', marginTop: '0.5rem' }}>
+          {/* Named, because the gauge sits inside a ship's own panel and a fleet of six has
+              six of them further up the page than this message is. */}
+          Over the drone availability caps (FD10.622/FD10.632):{' '}
+          {overAvailability.join(', ')}.
         </p>
       )}
     </div>

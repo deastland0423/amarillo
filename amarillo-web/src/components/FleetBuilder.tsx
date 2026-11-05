@@ -7,7 +7,7 @@ import { familiesOf, matchesSearch, resolveFamily, toggleRefit, variantOf } from
 import { isGeneratedName, nameForNewShip } from './fleetNaming';
 import type {
   CatalogShip, Cartel, FleetSpec, FleetSummary, FleetValidation, FleetViolation,
-  HullOptionMounts, CoiSubmission,
+  HullOptionMounts, CoiSubmission, DroneAvailability,
 } from '../api/gameApi';
 import { tierFor, quotaOf, describeQuota, describeCartel } from './cartelQuota';
 import { seatAll } from './optionMountSeating';
@@ -472,6 +472,47 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
    */
   const openOptions = activeCoiView(coiView, spec);
 
+  // ---- the drone caps, while the options form is open ---------------------
+  // FD10.622/FD10.632 refuse a fleet, so the form that buys the drones has to be able to show
+  // how close the next one takes it. The figures are the server's: the sum behind them is four
+  // rules deep (FD10.641's per-space bill, FD10.66's half-space sharing, FD10.643's type-G
+  // exception, FD10.622's Klingon clause) and a browser copy would be a second rules engine
+  // nothing could prove had drifted.
+  //
+  // So the draft is sent to the same endpoint the roster already uses, on the HYPOTHETICAL
+  // fleet it would make -- `withCoiApplied` is the identical function `applyCoi` commits with,
+  // so what is measured is what saving would produce.
+  const [coiDraft, setCoiDraft] = useState<CoiSubmission | null>(null);
+  const [draftAvailability, setDraftAvailability] =
+    useState<Record<string, DroneAvailability>>({});
+  const draftTimer = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (!openOptions || !coiDraft) return;
+    const names = openOptions.names;
+    const hypothetical: FleetSpec = {
+      ...spec, ships: withCoiApplied(spec.ships, names, coiDraft) };
+
+    window.clearTimeout(draftTimer.current);
+    draftTimer.current = window.setTimeout(() => {
+      gameApi.validateFleet(hypothetical)
+        .then(v => setDraftAvailability(Object.fromEntries(
+          (v.droneAvailability ?? []).map(a => [a.shipName, a]))))
+        // Silent: this is a gauge beside a purchase, and a failed reading must not put an
+        // error banner over a form the player is in the middle of. The caps still refuse the
+        // fleet on the roster, and the Save button only locks on figures that ARRIVED.
+        .catch(() => {});
+    }, 300);
+    return () => window.clearTimeout(draftTimer.current);
+    // `spec` by identity: the roster cannot change while the form has the pane.
+  }, [coiDraft, openOptions, spec]);
+
+  // Nothing to say about a fleet whose form is shut, and a stale reading would otherwise lock
+  // the Save button the next time it opens.
+  useEffect(() => {
+    if (!openOptions) { setCoiDraft(null); setDraftAvailability({}); }
+  }, [openOptions]);
+
   // ---- editing ----------------------------------------------------------
 
   function startNew() {
@@ -821,6 +862,8 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
             sides={openOptions.sides}
             playerToken=""
             initial={coiInitialFor(spec.ships, openOptions.names)}
+            availability={draftAvailability}
+            onDraft={setCoiDraft}
             busy={busy}
             onSubmit={applyCoi}
             onSkip={() => setCoiView(null)}

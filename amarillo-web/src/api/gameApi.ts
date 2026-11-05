@@ -305,6 +305,29 @@ export interface FleetViolation {
   shipName: string;
 }
 
+/**
+ * One ship's standing against FD10.622 and FD10.632, as the server computes it.
+ *
+ * Both tiers carry their own ceiling because FD10.64 NESTS the caps: a Limited drone spends
+ * Restricted allowance as well as its own, so the same two drones can be "2 of 2 restricted" and
+ * "2 of 0 limited" at once and one figure could not say which cap bit.
+ *
+ * Every field is sent for every ship, breach or not — the gauge is the point, not the alarm.
+ */
+export interface DroneAvailability {
+  shipName:          string;
+  /** FD10.641's denominator: warhead spaces aboard, less the type-VIs FD10.643 leaves out. */
+  countedSpaces:     number;
+  restrictedUsed:    number;
+  restrictedAllowed: number;
+  restrictedPercent: number;
+  limitedUsed:       number;
+  limitedAllowed:    number;
+  limitedPercent:    number;
+  /** Whether this hull is on FD10.622's exception list — Kzinti, a big carrier, or "D%". */
+  relaxed:           boolean;
+}
+
 export interface FleetValidation {
   legal:         boolean;
   cost?:         number;   // hulls and fighters
@@ -313,6 +336,14 @@ export interface FleetValidation {
   shipCount?:    number;
   violations:    FleetViolation[];
   unknownShips?: string[];
+  /**
+   * The drone caps as a gauge rather than a verdict (FD10.622/FD10.632).
+   *
+   * Absent when the fleet could not be resolved at all, and from an older server. The violations
+   * list carries the refusal; this is what the Commander's Options form shows while the player is
+   * still choosing, so the cap speaks before it is breached.
+   */
+  droneAvailability?: DroneAvailability[];
 }
 
 /** A row in the saved-fleet list, revalidated as it was listed. */

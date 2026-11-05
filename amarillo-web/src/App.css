@@ -1917,6 +1917,28 @@ h3 {
   font-style: italic;
 }
 
+/* The drone availability gauge (FD10.622/FD10.632), under a ship's rack heading.
+
+   A .coi-note first, because that is what it is until something is wrong: a quiet line saying
+   how much of this ship's load may be hard to come by. It earns a row of its own rather than
+   sitting beside the heading so that the figures line up down a fleet of six ships, which is
+   how you spot the one carrier with room to spare.
+
+   Over a cap, the one tier at fault turns red and loses the italic. The fleet builder refuses
+   the force at that point and the Save button is already locked, so this is the explanation for
+   a control that has stopped working -- the one place in this form where shouting is correct. */
+.coi-availability {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
+  margin-bottom: 0.4rem;
+}
+.coi-availability-over {
+  color: #f85149;
+  font-style: normal;
+  font-weight: 600;
+}
+
 /* ---------------------------------------------------------------------------
    Fleet builder (S8.0)
    --------------------------------------------------------------------------- */

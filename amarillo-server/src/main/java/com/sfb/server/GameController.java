@@ -637,7 +637,56 @@ public class GameController {
         body.put("budget", spec.budget);
         body.put("shipCount", resolved.ships().size());
         body.put("violations", rows);
+
+        // FD10.622/FD10.632 as a GAUGE, beside the same caps as a refusal.
+        //
+        // The violations above say no. These say how close to no, which the Commander's Options
+        // form needs while the player is still choosing: a cap that only speaks when it is
+        // breached is the cartel quota's bug again -- a wall with nothing to read on the way to
+        // it. Sent for every ship, breach or not, because "1.0 of 1 allowed" is the figure worth
+        // seeing and there is no violation to carry it.
+        //
+        // Computed here rather than mirrored in TypeScript on purpose. The sum is FD10.641's
+        // per-space tier bill, FD10.66's half-space sharing, FD10.643's type-G exception and
+        // FD10.622's Klingon clause, and a browser-side copy of all four would be a second
+        // rules engine with no test that could tell it had drifted. FleetLoader.resolve has
+        // already applied each ship's options, so these figures are of the ship as bought.
+        List<Map<String, Object>> availability = new ArrayList<>();
+        for (Ship ship : resolved.ships())
+            availability.add(droneAvailabilityRow(ship, spec.year));
+        body.put("droneAvailability", availability);
         return body;
+    }
+
+    /**
+     * One ship's standing against the drone availability caps, in this year.
+     *
+     * <p>Both tiers are reported with their own ceiling because FD10.64 nests them: a Limited
+     * drone spends Restricted allowance as well as its own, so "2 of 2 restricted" and "2 of 0
+     * limited" can be the same two drones and a single figure could not say which cap bit.
+     */
+    private Map<String, Object> droneAvailabilityRow(Ship ship, int year) {
+        Map<String, Object> row = new java.util.LinkedHashMap<>();
+        row.put("shipName", ship.getName());
+        // FD10.641's denominator: warhead spaces aboard, less what FD10.643 leaves out.
+        row.put("countedSpaces", com.sfb.scenario.DroneAvailabilityLimit.countedSpaces(ship));
+        for (com.sfb.objects.Availability tier : new com.sfb.objects.Availability[] {
+                com.sfb.objects.Availability.RESTRICTED,
+                com.sfb.objects.Availability.LIMITED }) {
+            boolean limited = tier == com.sfb.objects.Availability.LIMITED;
+            String key = limited ? "limited" : "restricted";
+            row.put(key + "Used",
+                    com.sfb.scenario.DroneAvailabilityLimit.spacesAtLeast(ship, tier, year));
+            row.put(key + "Allowed",
+                    com.sfb.scenario.DroneAvailabilityLimit.allowance(ship, tier));
+            row.put(key + "Percent", limited
+                    ? com.sfb.scenario.DroneAvailabilityLimit.limitedPercentFor(ship)
+                    : com.sfb.scenario.DroneAvailabilityLimit.restrictedPercentFor(ship));
+        }
+        // Whether this hull is on FD10.622's exception list at all, so the form can say why its
+        // ceiling is twice the usual one instead of leaving a Kzinti player to guess.
+        row.put("relaxed", com.sfb.scenario.DroneAvailabilityLimit.hasRelaxedCaps(ship));
+        return row;
     }
 
     // -------------------------------------------------------------------------
