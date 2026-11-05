@@ -860,8 +860,8 @@ public class Shuttles implements Systems {
             return (int) Math.round(torpedoes * FighterArming.HALF_ACTIONS_PER_ACTION);
         }
         double spaces = 0;
-        for (com.sfb.objects.DroneType want : box.getReadyRack().slotsMissing())
-            spaces += want.rack;
+        for (com.sfb.objects.Drone want : box.getReadyRack().slotsMissing())
+            spaces += want.getRackSize();
         spaces = Math.min(spaces, store.spacesHeld());
         return (int) Math.round(spaces * FighterArming.HALF_ACTIONS_PER_ACTION);
     }

@@ -2,6 +2,7 @@ package com.sfb.scenario;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
@@ -230,46 +231,113 @@ public class ReloadCompositionTest {
     }
 
     /**
-     * And the quartermaster issues it. A rack that is short asks for a drone TYPE, and a
-     * type-I-ECM and a plain type-I are the same type — so the hold handed over whichever
-     * came first and the special drones stayed at the bottom of it.
+     * The hold answers the slot that asked, and does not over-issue the special one.
      *
-     * <p>FD2.452 makes dearest-first a free choice rather than a rule: "The reload drones are
-     * presumed to be of the same cost (or lower) as the drones in the rack." Lower is always
-     * legal, so nothing here can be wrong — but a player who bought the capability should be
-     * issued it, and FD2.4421 gives them the choice of which one comes out.
+     * <p>This is the owner's rule as a contract on one method. Asking by TYPE could not
+     * express it — a type-I-ECM and a plain type-I are both a {@code TypeIF} — so a rack
+     * short of one ECM drone and three plain ones was handed FOUR ECM drones, which is the one
+     * thing FD2.45 forbids outright: storage cannot be "of a more expensive type than the
+     * drones in the loading paid for".
+     *
+     * <p>The ECM slot asks FIRST, which is the order that tells an exact match from a type
+     * match: a hold choosing the plainest of the right type would hand it the plain drone and
+     * leave the one that was bought sitting in storage.
      */
     @Test
-    public void theHoldIssuesTheSpecialDroneRatherThanLeavingItAtTheBottom() {
-        Ship ship = bought("Kzinti", "CVS", 180);
-        com.sfb.systemgroups.DroneStore hold = ship.getShuttles().getDroneStore();
-        org.junit.Assume.assumeTrue(hold != null);
+    public void theHoldAnswersTheSlotThatAskedAndDoesNotOverIssue() {
+        com.sfb.systemgroups.DroneStore hold = new com.sfb.systemgroups.DroneStore(10);
+        hold.put(DroneLoad.parse("TypeIF").build());
+        hold.put(DroneLoad.parse("TypeIF+ECM").build());
 
-        // A hold holding both, the plain one FIRST so that taking the head of the list is
-        // exactly the behaviour under test.
-        hold.contents().forEach(d -> { });
-        Drone plain = DroneLoad.parse("TypeIF").build();
-        Drone ecm = DroneLoad.parse("TypeIF+ECM").build();
-        com.sfb.systemgroups.DroneStore fresh = new com.sfb.systemgroups.DroneStore(10);
-        fresh.put(plain);
-        fresh.put(ecm);
+        Drone forEcmSlot = hold.take(DroneLoad.parse("TypeIF+ECM").build());
+        assertTrue("the ECM slot gets what was bought for it", hasEcm(forEcmSlot));
 
-        Drone issued = fresh.take(com.sfb.objects.DroneType.TypeIF);
-        assertTrue("the ECM drone is the one that was paid for", hasEcm(issued));
-        assertFalse("and it is gone from the hold", ecmCount(fresh.contents()) > 0);
-
-        Drone next = fresh.take(com.sfb.objects.DroneType.TypeIF);
-        assertEquals("the plain one is still there for the next slot", plain, next);
+        Drone forPlainSlot = hold.take(DroneLoad.parse("TypeIF").build());
+        assertFalse("and the plain slot gets a plain drone", hasEcm(forPlainSlot));
+        assertTrue("the hold is empty now", hold.isEmpty());
     }
 
     /**
-     * Why the issue order is availability and not price, as an executable fact.
+     * With nothing exact left, FD2.452's lower-cost stand-in fills the slot rather than none
+     * — and it is the PLAINEST that goes, so the scarce drones stay in the hold for the
+     * slots that actually want them.
+     */
+    @Test
+    public void aSlotWithNoExactReloadTakesThePlainestLawfulSubstitute() {
+        com.sfb.systemgroups.DroneStore hold = new com.sfb.systemgroups.DroneStore(10);
+        // The ECM drone goes in FIRST, so a hold that merely kept whichever it scanned first
+        // would spend it here. The two cost the same (see the test below), so insertion order
+        // is the only thing left for a cost comparison to be decided by.
+        hold.put(DroneLoad.parse("TypeIF+ECM").build());
+        hold.put(DroneLoad.parse("TypeIF").build());
+
+        // A probe drone: nothing in the hold matches it, so a substitute is owed.
+        Drone issued = hold.take(DroneLoad.parse("TypeIF+PROBE").build());
+        assertFalse("the plain drone stands in, not the ECM one another slot needs",
+                hasEcm(issued));
+        assertEquals(com.sfb.objects.DroneType.TypeIF, issued.getDroneType());
+        assertEquals("and the ECM drone is still in the hold", 1, ecmCount(hold.contents()));
+
+        assertNull("nothing at all when the type is not there either",
+                hold.take(DroneLoad.parse("TypeIVF").build()));
+    }
+
+    /**
+     * A part-empty rack asks for what it is actually short of, not for the first slot whose
+     * TYPE happens to match.
      *
-     * <p>Ordering by point cost was the obvious fix and is a coin flip: FD10.5 prices an ECM
-     * module at 0.50, exactly what the explosive warhead it replaces costs, so the two drones
-     * are worth the same. What separates them is scarcity — FD10.62 makes the ECM module
-     * Restricted where a warhead is General — which is also what FD2.45's proportional rule
-     * counts in: "the LAST special drone in each PERCENTAGE CATEGORY".
+     * <p>{@code slotsMissing} is a multiset difference, and a plain drone sitting in a rack
+     * designed for one ECM drone and five plain ones must strike a PLAIN slot. Striking the
+     * ECM slot because the types agree leaves the rack asking for a plain drone it already
+     * has, and the ECM drone it is missing never comes back.
+     */
+    @Test
+    public void aPartEmptyRackAsksForWhatItIsShortOfAndNotMerelyForItsType() {
+        Ship ship = bought("Kzinti", "CVS", 180);
+        CoiLoadout loadout = new CoiLoadout();
+        for (ShuttleSpace box : boxesOf(ship)) {
+            if (!(box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter f))
+                continue;
+            if (ReadyRack.stockedRails(f).isEmpty())
+                continue;
+            loadout.fighterLoadouts.put(f.getName(), List.of(DroneLoad.parse("TypeIF+ECM")));
+        }
+        ScenarioLoader.applyCoi(ship, loadout, year(180));
+
+        ShuttleSpace box = boxesOf(ship).stream()
+                .filter(b -> b.getReadyRack() != null
+                        && ecmCount(b.getReadyRack().contents()) == 1)
+                .findFirst().orElseThrow(() -> new AssertionError("fixture: nobody got one"));
+        ReadyRack rack = box.getReadyRack();
+        assertEquals("fixture: the DESIGN names the ECM slot too", 1, ecmCount(rack.design()));
+
+        // Take the ECM drone out and nothing else: the rack is short of exactly that.
+        int before = rack.count();
+        rack.refit(held -> hasEcm(held) ? null : held);
+        List<Drone> kept = new ArrayList<>();
+        while (rack.count() > 0) {
+            Drone one = rack.take();
+            if (!hasEcm(one))
+                kept.add(one);
+        }
+        for (Drone one : kept)
+            rack.put(one);
+        assertEquals("fixture: exactly one drone came out", before - 1, rack.count());
+
+        List<Drone> missing = rack.slotsMissing();
+        assertEquals("one slot open", 1, missing.size());
+        assertTrue("and it is the ECM slot, not a plain one of the same type",
+                hasEcm(missing.get(0)));
+    }
+
+    /**
+     * Why a slot has to ask by COMPOSITION and not by type or by price, as an executable fact.
+     *
+     * <p>Two near-misses are recorded here. Asking by TYPE cannot tell these drones apart at
+     * all: both are a {@code TypeIF}. And ordering by point cost — the obvious way to prefer
+     * the special one — is a coin flip, because FD10.5 prices an ECM module at 0.50, exactly
+     * what the explosive warhead it replaces costs. Only the composition separates them, which
+     * is why {@code ReadyRack.design} holds drones rather than types.
      */
     @Test
     public void anEcmDroneCostsNoMoreThanThePlainOneItReplaces() {
@@ -281,6 +349,60 @@ public class ReloadCompositionTest {
         assertEquals("but it is Restricted, and that is what makes it special (FD10.62)",
                 com.sfb.objects.Availability.RESTRICTED,
                 ecm.getSpec().allModules().get(0).availability);
+    }
+
+    /**
+     * The owner's rule, end to end: a Type-I-ECM in the ready rack means Type-I-ECM
+     * replacements in the reloads.
+     *
+     * <blockquote>Owner's ruling, 2026-11-05: "I believe that if you have a Type-IM ECM drone
+     * in the ready rack, there are replacement Type-IM ECM drones in reloads."</blockquote>
+     *
+     * <p>Which is FD2.45's own worked example read the simple way, and it settles the
+     * ambiguity FD2.452 leaves open — the rules PERMIT storage to differ from the rack ("a MW
+     * drone might be in the rack while an ECM drone was in the reload storage"), and this game
+     * does not model that. Reloads match. No declaration surface, and no per-position
+     * composition record; see the class javadoc for what that would have cost.
+     *
+     * <p>Pinned end to end because no single piece of it is the answer: the hold is stocked
+     * from the loading, the fighter is armed from its rack, the rack asks the hold for what it
+     * is short of, and the hold issues the scarcest match. Any one of those four could be
+     * changed in isolation and still look right.
+     */
+    @Test
+    public void aFighterThatFliesAnEcmDroneIsReloadedWithAnEcmDrone() {
+        Ship ship = bought("Kzinti", "CVS", 180);
+        org.junit.Assume.assumeTrue(ship.getShuttles().getDroneStore() != null);
+
+        CoiLoadout loadout = new CoiLoadout();
+        for (ShuttleSpace box : boxesOf(ship)) {
+            if (!(box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter f))
+                continue;
+            if (ReadyRack.stockedRails(f).isEmpty())
+                continue;
+            loadout.fighterLoadouts.put(f.getName(), List.of(DroneLoad.parse("TypeIF+ECM")));
+        }
+        ScenarioLoader.applyCoi(ship, loadout, year(180));
+
+        ShuttleSpace box = boxesOf(ship).stream()
+                .filter(b -> b.getReadyRack() != null && ecmCount(b.getReadyRack().loading(
+                        b.getShuttle())) > 0)
+                .findFirst().orElseThrow(() -> new AssertionError("fixture: nobody got one"));
+        ReadyRack rack = box.getReadyRack();
+
+        // The fighter flies it off: arm, then launch everything it carries.
+        box.armOccupantFully();
+        for (com.sfb.weapons.DroneRail rail : ReadyRack.stockedRails(box.getShuttle()))
+            rail.getAmmo().clear();
+        assertEquals("fixture: the rack is empty and the drones are gone",
+                0, rack.count());
+
+        // And the deck crews refill it from the hold (J4.821).
+        com.sfb.systemgroups.FighterArming.refill(box, ship.getShuttles().getDroneStore(), 99);
+
+        assertTrue("fixture: the rack was refilled at all", rack.count() > 0);
+        assertEquals("an ECM drone went back where an ECM drone came from",
+                1, ecmCount(rack.contents()));
     }
 
     // ------------------------------------------------------------------ the shared reading

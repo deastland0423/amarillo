@@ -117,9 +117,11 @@ public class FighterLoadoutCoiTest {
         return String.join(" | ", ship.getSetupNotes());
     }
 
+    /** The design's catalogue types. A slot is a DRONE now, carrying its composition too. */
     private static List<DroneType> designOf(ShuttleSpace box) {
         assertNotNull("fixture: the box should have a ready rack", box.getReadyRack());
-        return box.getReadyRack().design();
+        return box.getReadyRack().design().stream()
+                .map(com.sfb.objects.Drone::getDroneType).toList();
     }
 
     // ------------------------------------------------------------------ it arrives

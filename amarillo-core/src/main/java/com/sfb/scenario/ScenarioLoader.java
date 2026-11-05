@@ -389,12 +389,11 @@ public class ScenarioLoader {
     private static void refitFighterDrones(Ship ship, int year, Integer maxDroneSpeed) {
         java.util.function.UnaryOperator<Drone> refit =
                 d -> upgradeOne(d, year, maxDroneSpeed);
-        // The DESIGN half of the same refit, handed to the rack and to the rails alike. A rack
-        // holding type-I-FASTs against a design of type-Is is a multiset difference between two
-        // vocabularies, and slotsMissing reports every slot of a full rack missing -- see
-        // ReadyRack.refitDesign for what believed it.
-        java.util.function.UnaryOperator<DroneType> redesign =
-                t -> upgradeDesign(t, year, maxDroneSpeed);
+        // The DESIGN half of the same refit. Now that a design slot IS a drone, it is the very
+        // same operator the contents go through -- a rack holding type-I-FASTs against a design
+        // of type-Is is a multiset difference between two vocabularies, and slotsMissing
+        // reports every slot of a full rack missing. See ReadyRack.refitDesign.
+        java.util.function.UnaryOperator<Drone> redesign = refit;
         for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
             for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces()) {
                 if (box.getReadyRack() != null) {
@@ -411,7 +410,8 @@ public class ScenarioLoader {
                         upgradeLoad(rail.getAmmo(), year, maxDroneSpeed);
                         // A podded rail is refitted too: J4.962 takes it out of the RACK, not
                         // out of the year, so losing the pod leaves a rail the year can arm.
-                        DroneType now = redesign.apply(rail.getDesignDrone());
+                        DroneType now = upgradeDesign(rail.getDesignDrone(), year,
+                                maxDroneSpeed);
                         if (now != null)
                             rail.setDesignDrone(now);
                     }
@@ -630,7 +630,7 @@ public class ScenarioLoader {
             for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces()) {
                 if (box.isDestroyed() || box.getReadyRack() == null)
                     continue;
-                for (DroneType slot : box.getReadyRack().design())
+                for (Drone slot : box.getReadyRack().design())
                     owed += slotSpeedCost(slot, year, maxDroneSpeed);
             }
         return owed;
@@ -647,12 +647,15 @@ public class ScenarioLoader {
      * slow") -- but NOT for a type-III, whose "slow" is speed 12 by FD2.227 and therefore
      * already an upgrade over the type-I the BPV covers.
      */
-    private static double slotSpeedCost(DroneType slot, int year, Integer maxDroneSpeed) {
+    private static double slotSpeedCost(Drone slot, int year, Integer maxDroneSpeed) {
         if (slot == null)
             return 0;
-        Drone baseline = new Drone(slot);
-        Drone fitted = upgradeOne(baseline, year, maxDroneSpeed);
-        Drone priced = fitted != null ? fitted : baseline;
+        // The slot as it stands, which after a refit is already the year's drone -- upgradeOne
+        // answers null and the design is priced where it is. It used to build a baseline drone
+        // from the slot's TYPE and upgrade that, which came to the same number only because
+        // the design was never refitted.
+        Drone fitted = upgradeOne(slot, year, maxDroneSpeed);
+        Drone priced = fitted != null ? fitted : slot;
         return priced.getSpec() == null ? 0 : priced.getSpec().speedCostIn(year);
     }
 
@@ -1942,6 +1945,14 @@ public class ScenarioLoader {
                     int i = slot[0]++;
                     com.sfb.objects.DroneLoad load = i < wanted.size() ? wanted.get(i) : null;
                     return load == null ? held : load.build();
+                });
+                // And the DESIGN, or the rack holds an ECM drone in a slot that says plain --
+                // which is what it asks the hold to replace it with when it runs dry.
+                int[] designSlot = { 0 };
+                rack.refitDesign(was -> {
+                    int i = designSlot[0]++;
+                    com.sfb.objects.DroneLoad load = i < wanted.size() ? wanted.get(i) : null;
+                    return load == null ? was : load.build();
                 });
             }
         return spent;

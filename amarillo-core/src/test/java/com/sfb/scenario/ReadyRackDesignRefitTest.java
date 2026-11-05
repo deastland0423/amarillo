@@ -114,7 +114,7 @@ public class ReadyRackDesignRefitTest {
             List<Drone> held = rack.contents();
             for (int i = 0; i < held.size(); i++) {
                 assertEquals("slot " + i + " of " + box.getShuttle().getName(),
-                        rack.design().get(i), held.get(i).getDroneType());
+                        rack.design().get(i).getDroneType(), held.get(i).getDroneType());
                 checked++;
             }
         }
@@ -166,7 +166,7 @@ public class ReadyRackDesignRefitTest {
         Drone taken = rack.take();
         assertEquals("one slot open", 1, rack.slotsMissing().size());
         assertEquals("and it asks for what came out of it",
-                taken.getDroneType(), rack.slotsMissing().get(0));
+                taken.getDroneType(), rack.slotsMissing().get(0).getDroneType());
     }
 
     /**
@@ -195,9 +195,10 @@ public class ReadyRackDesignRefitTest {
             assertTrue("fixture: the escort's rack is full", rack.isFull());
             assertEquals("a full rack is short of nothing, escort or carrier",
                     List.of(), rack.slotsMissing());
-            for (DroneType slot : rack.design())
-                assertTrue("Y183 flies fast drones, even in an escort's hold: " + slot,
-                        slot.spec.propulsion().speed >= 32 || slot.rack < 1.0);
+            for (Drone slot : rack.design())
+                assertTrue("Y183 flies fast drones, even in an escort's hold: "
+                                + slot.getDroneType(),
+                        slot.getSpec().propulsion().speed >= 32 || slot.getRackSize() < 1.0);
             checked++;
         }
         assertTrue("fixture: the DWE has ready racks", checked > 0);

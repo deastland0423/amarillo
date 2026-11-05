@@ -613,7 +613,11 @@ public final class FighterArming {
         // The rack's shape is the shape of the fighter it serves, so ask for the slots it is
         // short of, largest first — the awkward ones are the ones a part-filled hold runs out
         // of, and a type-I fetched for a light rail would be a wasted trip.
-        for (com.sfb.objects.DroneType want : rack.slotsMissing()) {
+        for (com.sfb.objects.Drone want : rack.slotsMissing()) {
+            // By COMPOSITION, not by type: owner's ruling that a Type-I-ECM in the rack means
+            // Type-I-ECM replacements in the reloads. Asking for the type alone let the hold
+            // answer with any drone of that type, which over-issued the special ones -- a rack
+            // short of one ECM drone and three plain ones was handed four ECM drones.
             com.sfb.objects.Drone drone = store.take(want);
             if (drone == null)
                 drone = store.take();       // stores hold something else; it still beats empty

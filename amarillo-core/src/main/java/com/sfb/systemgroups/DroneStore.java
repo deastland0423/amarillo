@@ -261,48 +261,56 @@ public class DroneStore implements PlasmaDSupply {
     }
 
     /**
-     * Take one drone of this type, the SPECIAL ones first, or null if the hold has none.
+     * Take the drone a slot is short of: the one it asks for, or the best lawful stand-in.
      *
-     * <h2>Why "special" is availability and not cost</h2>
-     * The hold holds what the loading holds (FD2.45), so a squadron that bought ECM drones has
-     * ECM drones in storage — and a type-I-ECM and a plain type-I are both a {@code TypeIF} to
-     * this method. Taking the first match left the special drones at the bottom of the hold
-     * while plain ones went back onto the rails, so a player paid for a capability the
-     * quartermaster would not issue.
+     * <blockquote>Owner's ruling, 2026-11-05: "if you have a Type-IM ECM drone in the ready
+     * rack, there are replacement Type-IM ECM drones in reloads."</blockquote>
      *
-     * <p>Ordering by POINT COST was the obvious fix and does not work: FD10.5 prices an ECM
-     * module at 0.50, which is exactly what the explosive warhead it replaces costs, so an ECM
-     * drone and a plain one are worth the same and the sort is a coin flip. What separates
-     * them is scarcity — FD10.62 makes the ECM module Restricted while a warhead is General —
-     * and scarcity is what FD2.45's proportional rule is about: "Special drones must observe
-     * the proportional reload requirement... except for the LAST special drone in each
-     * PERCENTAGE CATEGORY." So the key is the tier, with cost only as a tiebreak.
+     * <p>So an exact match first — same catalogue type, same composition. That is the whole
+     * rule, and it is only askable because a design slot is a DRONE: asking by TYPE let the
+     * hold answer with any drone of that type, and a rack short of one ECM drone and three
+     * plain ones was handed four ECM drones. Over-issuing is the one thing FD2.45 forbids
+     * outright, storage being unable to be "of a more expensive type than the drones in the
+     * loading paid for".
      *
-     * <p>FD2.452 is what makes this a free choice rather than a rule to obey: "The reload
-     * drones are presumed to be of the same cost (or lower) as the drones in the rack (on a
-     * drone by drone basis), but might be of a different type." Lower is always legal, so no
-     * order here can be wrong; this is simply the one a player would ask for, and FD2.4421
-     * gives them the choice explicitly ("A player can consult his records of the drones in
-     * cargo storage to determine exactly which one he wants moved"). Until there is a surface
-     * for that choice, this is the default it would start from.
+     * <p>Failing that, a drone of the same TYPE, the plainest first. FD2.452 allows the
+     * substitute — "the same cost (or lower)... but might be of a different type" — and taking
+     * the plainest keeps the scarce ones in the hold for the slots that actually want them.
      */
-    public Drone take(DroneType type) {
-        Drone best = null;
+    public Drone take(Drone want) {
+        if (want == null)
+            return take();
         for (Drone d : reserve)
-            if (d.getDroneType() == type && (best == null || issueBefore(d, best)))
-                best = d;
-        if (best != null)
-            reserve.remove(best);
-        return best;
+            if (com.sfb.systemgroups.ReadyRack.sameLoad(d, want)) {
+                reserve.remove(d);
+                return d;
+            }
+        Drone plainest = null;
+        for (Drone d : reserve)
+            if (d.getDroneType() == want.getDroneType()
+                    && (plainest == null || plainerThan(d, plainest)))
+                plainest = d;
+        if (plainest != null)
+            reserve.remove(plainest);
+        return plainest;
     }
 
-    /** The scarcer drone first, and the dearer of two equally scarce ones. */
-    private static boolean issueBefore(Drone candidate, Drone best) {
+    /**
+     * Which of two same-type drones to spend on a slot that asked for neither.
+     *
+     * <p>The LEAST SCARCE, so an ECM drone stays in the hold for the slot that wants one.
+     * By availability and not by price: FD10.5 charges 0.50 for an ECM module, exactly what
+     * the explosive warhead it replaces costs, so the two drones are worth the same and a
+     * cost comparison is a coin flip. FD10.62 makes the module Restricted where a warhead is
+     * General, and scarcity is what FD2.45's proportional rule counts in — "the LAST special
+     * drone in each PERCENTAGE CATEGORY". Cost breaks a tie between two equally scarce ones.
+     */
+    private static boolean plainerThan(Drone candidate, Drone best) {
         com.sfb.objects.Availability mine = scarcity(candidate);
         com.sfb.objects.Availability theirs = scarcity(best);
         if (mine != theirs)
-            return mine.atLeastAsRestrictedAs(theirs);
-        return worth(candidate) > worth(best);
+            return theirs.atLeastAsRestrictedAs(mine);
+        return worth(candidate) < worth(best);
     }
 
     /**
@@ -320,6 +328,16 @@ public class DroneStore implements PlasmaDSupply {
             if (m.availability.atLeastAsRestrictedAs(worst))
                 worst = m.availability;
         return worst;
+    }
+
+    /** Take one drone of this type, whichever comes first, or null if the hold has none. */
+    public Drone take(DroneType type) {
+        for (Drone d : reserve)
+            if (d.getDroneType() == type) {
+                reserve.remove(d);
+                return d;
+            }
+        return null;
     }
 
     /** What a drone cost to put aboard (FD10.5), or zero for one with no composition. */

@@ -41,8 +41,17 @@ public class ReadyRack {
      * Kept because a part-empty rack has to be able to say WHAT it is short of, not just how
      * many: a TAAS rack missing a light slot and a standard one wants a type-VI and a type-I,
      * and a refill that fetched two type-Is would bring one the fighter cannot load.
+     *
+     * <h2>Drones, not types, and the composition is the point</h2>
+     * Owner's ruling, 2026-11-05: "if you have a Type-IM ECM drone in the ready rack, there
+     * are replacement Type-IM ECM drones in reloads." A slot that can only name a TYPE cannot
+     * ask for that — a type-I-ECM and a plain type-I are both a {@code TypeIF} — so a rack
+     * emptied of one ECM drone and five plain ones asked for four {@code TypeIF}s and the hold,
+     * issuing its scarcest first, handed back FOUR ECM drones where one had been bought. Over
+     * -issuing is the one thing FD2.45 forbids outright: storage "cannot be of a more expensive
+     * type than the drones in the loading paid for".
      */
-    private final List<DroneType> design = new ArrayList<>();
+    private final List<Drone> design = new ArrayList<>();
 
     private final List<Drone> drones = new ArrayList<>();
 
@@ -107,9 +116,10 @@ public class ReadyRack {
     private ReadyRack(String servesFighterType, List<DroneType> stock) {
         this.servesFighterType = servesFighterType;
         this.capacity = stock.size();
-        this.design.addAll(stock);
-        for (DroneType type : stock)
+        for (DroneType type : stock) {
+            this.design.add(new Drone(type));
             drones.add(new Drone(type));   // J4.8223/J4.886: racks start full
+        }
     }
 
     /**
@@ -266,7 +276,7 @@ public class ReadyRack {
     }
 
     /** One entry per slot, of what a full rack of this shape holds (J4.8222). */
-    public List<DroneType> design() {
+    public List<Drone> design() {
         return java.util.Collections.unmodifiableList(design);
     }
 
@@ -298,11 +308,11 @@ public class ReadyRack {
      * <p>A null from {@code swap} leaves that slot alone, as it does in {@link #refit}: most
      * slots in most years have nothing to change.
      */
-    public void refitDesign(java.util.function.UnaryOperator<DroneType> swap) {
+    public void refitDesign(java.util.function.UnaryOperator<Drone> swap) {
         if (swap == null || carriesPlasma())
             return;         // FP9.18: a type-D has no variants, so no design to refit
         for (int i = 0; i < design.size(); i++) {
-            DroneType now = swap.apply(design.get(i));
+            Drone now = swap.apply(design.get(i));
             if (now != null)
                 design.set(i, now);
         }
@@ -340,12 +350,13 @@ public class ReadyRack {
             Drone held = i < rails.size() ? rails.get(i).getDrone() : null;
             if (held == null)
                 for (int k = 0; k < drones.size(); k++)
-                    if (!spoken[k] && drones.get(k).getDroneType() == design.get(i)) {
+                    if (!spoken[k] && drones.get(k).getDroneType()
+                            == design.get(i).getDroneType()) {
                         held = drones.get(k);
                         spoken[k] = true;
                         break;
                     }
-            out.add(held != null ? held : new Drone(design.get(i)));
+            out.add(held != null ? held : copyOf(design.get(i)));
         }
         return out;
     }
@@ -357,12 +368,52 @@ public class ReadyRack {
      * type-I belongs is short of the type-I, however full it looks. Largest first because
      * those are the ones a part-stocked hold runs out of.
      */
-    public List<DroneType> slotsMissing() {
-        List<DroneType> missing = new ArrayList<>(design);
+    public List<Drone> slotsMissing() {
+        List<Drone> missing = new ArrayList<>(design);
         for (Drone held : drones)
-            missing.remove(held.getDroneType());   // removes one matching slot, not all
-        missing.sort((a, b) -> Double.compare(b.rack, a.rack));
+            removeOneLike(missing, held);
+        missing.sort((a, b) -> Double.compare(b.getRackSize(), a.getRackSize()));
         return missing;
+    }
+
+    /**
+     * Strike one slot this drone accounts for, preferring the slot it actually matches.
+     *
+     * <p>Composition first: a rack designed for one ECM drone and five plain ones, holding a
+     * plain drone, is short of the ECM — and striking the ECM slot because the TYPES agree
+     * would have it ask for a plain drone and never replace what was bought. The type-only
+     * pass behind it is what keeps FD2.452's substitute honest: a plain drone standing in for
+     * an ECM one still fills a slot, and the rack is short of one fewer thing than it was.
+     */
+    private static void removeOneLike(List<Drone> missing, Drone held) {
+        if (held == null)
+            return;
+        for (int i = 0; i < missing.size(); i++)
+            if (sameLoad(missing.get(i), held)) {
+                missing.remove(i);
+                return;
+            }
+        for (int i = 0; i < missing.size(); i++)
+            if (missing.get(i).getDroneType() == held.getDroneType()) {
+                missing.remove(i);
+                return;
+            }
+    }
+
+    /** A fresh drone of the same kind — never the design's own object, which outlives loads. */
+    public static Drone copyOf(Drone pattern) {
+        if (pattern == null)
+            return null;
+        return pattern.getSpec() == null ? new Drone(pattern.getDroneType())
+                : new Drone(pattern.getDroneType(), pattern.getSpec());
+    }
+
+    /** The same drone to a quartermaster: same catalogue type, same composition (FD2.446). */
+    public static boolean sameLoad(Drone a, Drone b) {
+        if (a == null || b == null)
+            return a == b;
+        return a.getDroneType() == b.getDroneType()
+                && java.util.Objects.equals(a.getSpec(), b.getSpec());
     }
 
     /** Spaces the drones in here take up — what the fighter's load is measured in (FD7.211). */

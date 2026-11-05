@@ -382,9 +382,12 @@ public final class DroneAvailabilityLimit {
         if (rack == null || rack.carriesPlasma())
             return 0;
         double spaces = 0;
-        for (com.sfb.objects.DroneType slot : rack.design())
-            if (slot != null && slot.isTypeVI() == dogfight)
-                spaces += slot.rack;
+        for (com.sfb.objects.Drone slot : rack.design())
+            if (slot != null && slot.getDroneType() != null
+                    && slot.getDroneType().isTypeVI() == dogfight)
+                // getRackSize rather than the type's own: FD12.13's external armor grows a
+                // drone past its frame, and a basis that read the type would under-count it.
+                spaces += slot.getRackSize();
         return spaces;
     }
 
