@@ -3,8 +3,9 @@ import type {
   CoiDroneModule, CoiDroneType, CoiFighterLoadout, CoiFighterRail,
 } from '../api/gameApi';
 import {
-  bandDefault, differsFromBand, differsFromIssue, hasTypeIiiFrame, isMultiWarhead, loadOf,
-  parseLoad, railRefusal, resetFighter, seedOverrides, setBandRail, setRail, toWire, typeBands,
+  bandDefault, differsFromBand, differsFromIssue, dronesForRail, hasTypeIiiFrame,
+  isMultiWarhead, loadOf, modulesForRail, parseLoad, railRefusal, resetFighter, seedOverrides,
+  setBandRail, setRail, toWire, typeBands,
 } from './fighterLoadout';
 
 /**
@@ -160,6 +161,59 @@ describe('railRefusal', () => {
 
   it('refuses a drone the scenario does not offer rather than guessing at it', () => {
     expect(railRefusal(rails[0], 'TypeIX', CATALOGUE)).toMatch(/not a drone/);
+  });
+});
+
+// ---------------------------------------------------------------- what a rail OFFERS
+
+describe('dronesForRail', () => {
+  const rails = tads('x').rails;
+
+  it('offers a standard rail everything that fits and nothing J4.23 refuses', () => {
+    const offered = dronesForRail(rails[0], CATALOGUE);
+    expect(offered).toContain('TypeIF');
+    expect(offered).not.toContain('TypeIIIF');   // FD9.35
+    expect(offered).not.toContain('TypeIVF');    // two spaces on a one-space rail
+  });
+
+  it('offers a special rail the type-III, which is what makes it special', () => {
+    expect(dronesForRail(rails[4], CATALOGUE)).toContain('TypeIIIF');
+  });
+
+  it('offers a light rail nothing but a dogfight drone', () => {
+    expect(dronesForRail(rails[2], CATALOGUE)).toEqual(['TypeVIF']);
+  });
+});
+
+describe('modulesForRail', () => {
+  const rails = tads('x').rails;
+
+  it('keeps the multi-warhead module off a standard rail (J4.23)', () => {
+    const offered = modulesForRail(rails[0], CATALOGUE.modules).map(m => m.name);
+    expect(offered).toContain('ECM');
+    expect(offered).toContain('PROBE');
+    expect(offered).not.toContain('MW_SMALL');
+    expect(offered).not.toContain('MW_LARGE');
+  });
+
+  it('offers it on a special rail', () => {
+    expect(modulesForRail(rails[4], CATALOGUE.modules).map(m => m.name))
+      .toContain('MW_SMALL');
+  });
+
+  /**
+   * And the ordinary modules are untouched on every rail. FD9.35's exception is the type-III
+   * FRAME and J4.23's is the MW drone; a standard rail carries special type-I drones happily,
+   * which is the half of J4.23 easiest to over-apply.
+   */
+  it('leaves the special type-I drones alone, which a standard rail carries (J4.23)', () => {
+    for (const rail of rails)
+      expect(modulesForRail(rail, CATALOGUE.modules).map(m => m.name)).toContain('ECM');
+  });
+
+  it('survives a server that sent no modules at all', () => {
+    expect(modulesForRail(rails[0], undefined as unknown as typeof CATALOGUE.modules))
+      .toEqual([]);
   });
 });
 

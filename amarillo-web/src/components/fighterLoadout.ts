@@ -91,6 +91,35 @@ export function railRefusal(
   return null;
 }
 
+/**
+ * The catalogue drones this rail will carry, by name.
+ *
+ * Filtered through {@link railRefusal} rather than by rail type, so there is one place that
+ * decides and it is the one that mirrors core.
+ */
+export function dronesForRail(rail: CoiFighterRail, catalogue: DroneCatalogue): string[] {
+  return catalogue.types
+    .filter(t => railRefusal(rail, t.name, catalogue) === null)
+    .map(t => t.name);
+}
+
+/**
+ * The payload modules this rail will carry (FD10.4, J4.23).
+ *
+ * Only one rule bites here, and it is the multi-warhead: J4.23 keeps an MW drone off a
+ * standard rail, and an MW is a module rather than a frame, so the editor would otherwise
+ * offer a "+" that builds a drone the rail cannot hold. Everything else is a question of
+ * SPACE, which the editor already answers from the room it is given.
+ *
+ * <p>Filtered rather than refused after the fact, for the same reason the drone picker is:
+ * offering a drone the server then drops is worse than never offering it.
+ */
+export function modulesForRail(
+  rail: CoiFighterRail, modules: CoiDroneModule[],
+): CoiDroneModule[] {
+  return (modules ?? []).filter(m => m.submunitions === 0 || rail.acceptsMultiWarhead);
+}
+
 // ---------------------------------------------------------------------------- the bands
 
 export interface FighterBand {

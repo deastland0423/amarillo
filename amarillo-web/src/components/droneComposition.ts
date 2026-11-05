@@ -221,3 +221,14 @@ export function additionRefusal(
   // one means.
   return null;
 }
+
+/**
+ * Rack space used, to one decimal only when it needs one.
+ * <p>
+ * It genuinely can be fractional — an ADD round and a type-VI drone each take half a space
+ * (FD3.70) — so the figure cannot simply be rounded. But "0.0 / 6" for an empty rack is noise,
+ * and most loadouts are whole numbers.
+ */
+export function spacesUsedLabel(used: number): string {
+  return Number.isInteger(used) ? String(used) : used.toFixed(1);
+}

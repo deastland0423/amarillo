@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import type { CoiFighterRail, CoiShipData } from '../api/gameApi';
 import {
-  bandDefault, differsFromBand, differsFromIssue, fighterLoadoutCost, loadOf, railRefusal,
-  resetFighter, setBandRail, setRail, typeBands,
+  bandDefault, differsFromBand, differsFromIssue, dronesForRail, fighterLoadoutCost, loadOf,
+  modulesForRail, railRefusal, resetFighter, setBandRail, setRail, typeBands,
 } from './fighterLoadout';
-import type { FighterBand, LoadoutOverrides } from './fighterLoadout';
+import type { DroneCatalogue, FighterBand, LoadoutOverrides } from './fighterLoadout';
+import { DronePayloadEditor } from './DronePayloadEditor';
+import { formatDroneName, isModified, parseDroneName } from './droneComposition';
 
 /**
  * Which drones each fighter flies (FD10.646, J4.23).
@@ -44,9 +46,8 @@ export function FighterLoadoutDialog({
 }) {
   const fighters = ship.fighterLoadouts ?? [];
   const bands = typeBands(fighters);
-  const [openFighter, setOpenFighter] = useState<string | null>(null);
 
-  const catalogue = {
+  const catalogue: DroneCatalogue = {
     types:     ship.availableDroneTypes ?? [],
     modules:   ship.availableDroneModules ?? [],
     additions: ship.availableDroneAdditions ?? [],
@@ -54,37 +55,6 @@ export function FighterLoadoutDialog({
 
   const changed = fighters.filter(f => differsFromIssue(f, overrides)).length;
   const spend = fighterLoadoutCost(overrides, fighters, ship);
-
-  /** The drones this rail will take, with whatever it is carrying kept on the list. */
-  function optionsFor(rail: CoiFighterRail, current: string): string[] {
-    const legal = catalogue.types
-      .filter(t => railRefusal(rail, t.name, catalogue) === null)
-      .map(t => t.name);
-    // A composed drone ("TypeIF+ECM") is not a catalogue name, so it would vanish from its own
-    // picker and the select would show the wrong row. Kept at the head of the list.
-    return legal.includes(current) ? legal : [current, ...legal];
-  }
-
-  function RailPicker({ rail, value, onPick, title }: {
-    rail:   CoiFighterRail;
-    value:  string;
-    onPick: (drone: string) => void;
-    title?: string;
-  }) {
-    return (
-      <label className="fl-rail" title={title}>
-        <span className="fl-rail-head">
-          {rail.designator}
-          <span className="fl-rail-type">{rail.railType.toLowerCase()}</span>
-        </span>
-        <select value={value} onChange={e => onPick(e.target.value)}>
-          {optionsFor(rail, value).map(name => (
-            <option key={name} value={name}>{name.replace('Type', 'Type-')}</option>
-          ))}
-        </select>
-      </label>
-    );
-  }
 
   return (
     <div className="fl-backdrop" onClick={onClose}>
@@ -118,11 +88,10 @@ export function FighterLoadoutDialog({
           <Band
             key={band.type}
             band={band}
+            ship={ship}
+            catalogue={catalogue}
             overrides={overrides}
             onChange={onChange}
-            openFighter={openFighter}
-            setOpenFighter={setOpenFighter}
-            RailPicker={RailPicker}
           />
         ))}
       </div>
@@ -130,29 +99,60 @@ export function FighterLoadoutDialog({
   );
 }
 
+/** Where an open payload editor is pointed: the whole band's rail, or one fighter's. */
+type EditTarget = { scope: 'band' | 'fighter'; railIndex: number };
+
 function Band({
-  band, overrides, onChange, openFighter, setOpenFighter, RailPicker,
+  band, ship, catalogue, overrides, onChange,
 }: {
-  band:        FighterBand;
-  overrides:   LoadoutOverrides;
-  onChange:    (next: LoadoutOverrides) => void;
-  openFighter: string | null;
-  setOpenFighter: (name: string | null) => void;
-  RailPicker: (props: {
-    rail: CoiFighterRail; value: string; onPick: (d: string) => void; title?: string;
-  }) => React.ReactElement;
+  band:      FighterBand;
+  ship:      CoiShipData;
+  catalogue: DroneCatalogue;
+  overrides: LoadoutOverrides;
+  onChange:  (next: LoadoutOverrides) => void;
 }) {
+  const [openFighter, setOpenFighter] = useState<string | null>(null);
+  const [editing, setEditing] = useState<EditTarget | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
+
   const standard = bandDefault(band, overrides);
   const open = band.fighters.find(f => f.name === openFighter) ?? null;
 
   // "2 standard · 2 light · 2 special", which is the fighter's whole drone capability in a line.
   const shape = Object.entries(
     band.rails.reduce<Record<string, number>>((acc, r) => {
-      acc[r.railType.toLowerCase()] = (acc[r.railType.toLowerCase()] ?? 0) + 1;
+      const key = r.railType.toLowerCase();
+      acc[key] = (acc[key] ?? 0) + 1;
       return acc;
     }, {}))
     .map(([type, n]) => `${n} ${type}`)
     .join(' · ');
+
+  /** Close any open editor when the thing it is pointed at goes away. */
+  function selectFighter(name: string | null) {
+    setOpenFighter(name);
+    if (editing?.scope === 'fighter') setEditing(null);
+    setRefusal(null);
+  }
+
+  function put(target: EditTarget, drone: string) {
+    // The backstop. The pickers and the editor are both filtered to what this rail takes, so
+    // this should not fire — but it is the same question the server will ask, and a composed
+    // drone is assembled rather than picked, so the ways to build one a rail refuses are many.
+    const rail = band.rails[target.railIndex];
+    const why = railRefusal(rail, drone, catalogue);
+    if (why) { setRefusal(why); return; }
+    setRefusal(null);
+    onChange(target.scope === 'band'
+      ? setBandRail(overrides, band, target.railIndex, drone)
+      : setRail(overrides, open!, target.railIndex, drone));
+  }
+
+  function valueAt(target: EditTarget): string {
+    return target.scope === 'band'
+      ? standard[target.railIndex]
+      : loadOf(open!, overrides)[target.railIndex];
+  }
 
   return (
     <div className="fl-band">
@@ -165,15 +165,36 @@ function Band({
       <div className="fl-rails">
         {band.rails.map((rail, i) => (
           <RailPicker
-            key={`${rail.designator}-${i}`}
+            key={`band-${rail.designator}-${i}`}
             rail={rail}
+            catalogue={catalogue}
             value={standard[i]}
+            editing={editing?.scope === 'band' && editing.railIndex === i}
             title={`Sets rail ${rail.designator} on all ${band.fighters.length}`
               + ` ${band.designation} fighters`}
-            onPick={drone => onChange(setBandRail(overrides, band, i, drone))}
+            onPick={drone => put({ scope: 'band', railIndex: i }, drone)}
+            onEdit={() => {
+              setRefusal(null);
+              setEditing(editing?.scope === 'band' && editing.railIndex === i
+                ? null : { scope: 'band', railIndex: i });
+            }}
           />
         ))}
       </div>
+
+      {editing?.scope === 'band' && (
+        <PayloadFor
+          target={editing}
+          rail={band.rails[editing.railIndex]}
+          drone={valueAt(editing)}
+          ship={ship}
+          catalogue={catalogue}
+          refusal={refusal}
+          note={`Applies to all ${band.fighters.length} ${band.designation} fighters.`}
+          onChange={drone => put(editing, drone)}
+          onClose={() => { setEditing(null); setRefusal(null); }}
+        />
+      )}
 
       <div className="fl-grid">
         {band.fighters.map((f, n) => {
@@ -187,7 +208,7 @@ function Band({
               title={`${f.name}${f.squadron ? ` — ${f.squadron}` : ''}\n`
                 + loadOf(f, overrides)
                   .map((d, i) => `${band.rails[i]?.designator}: ${d}`).join('\n')}
-              onClick={() => setOpenFighter(openFighter === f.name ? null : f.name)}
+              onClick={() => selectFighter(openFighter === f.name ? null : f.name)}
             >
               <svg viewBox="0 0 24 20" className="fl-token-art" aria-hidden="true">
                 <polygon points="12,2 23,19 1,19" />
@@ -207,7 +228,7 @@ function Band({
             <button
               className="fl-reset"
               disabled={!differsFromIssue(open, overrides)}
-              onClick={() => onChange(resetFighter(overrides, open))}
+              onClick={() => { onChange(resetFighter(overrides, open)); setEditing(null); }}
             >
               As issued
             </button>
@@ -215,16 +236,134 @@ function Band({
           <div className="fl-rails">
             {open.rails.map((rail, i) => (
               <RailPicker
-                key={`${rail.designator}-${i}`}
+                key={`one-${rail.designator}-${i}`}
                 rail={rail}
+                catalogue={catalogue}
                 value={loadOf(open, overrides)[i]}
+                editing={editing?.scope === 'fighter' && editing.railIndex === i}
                 title={`Rail ${rail.designator} on ${open.name} alone`}
-                onPick={drone => onChange(setRail(overrides, open, i, drone))}
+                onPick={drone => put({ scope: 'fighter', railIndex: i }, drone)}
+                onEdit={() => {
+                  setRefusal(null);
+                  setEditing(editing?.scope === 'fighter' && editing.railIndex === i
+                    ? null : { scope: 'fighter', railIndex: i });
+                }}
               />
             ))}
           </div>
+
+          {editing?.scope === 'fighter' && (
+            <PayloadFor
+              target={editing}
+              rail={open.rails[editing.railIndex]}
+              drone={valueAt(editing)}
+              ship={ship}
+              catalogue={catalogue}
+              refusal={refusal}
+              note={`${open.name} alone.`}
+              onChange={drone => put(editing, drone)}
+              onClose={() => { setEditing(null); setRefusal(null); }}
+            />
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+function RailPicker({
+  rail, catalogue, value, editing, title, onPick, onEdit,
+}: {
+  rail:      CoiFighterRail;
+  catalogue: DroneCatalogue;
+  value:     string;
+  editing:   boolean;
+  title?:    string;
+  onPick:    (drone: string) => void;
+  onEdit:    () => void;
+}) {
+  const legal = dronesForRail(rail, catalogue);
+  // A composed drone ("TypeIF+ECM") is not a catalogue name, so it would vanish from its own
+  // picker and the select would show the wrong row. Kept at the head of the list.
+  const options = legal.includes(value) ? legal : [value, ...legal];
+  const composed = isModified(
+    parseDroneName(value, catalogue.modules ?? [], catalogue.additions ?? []));
+
+  return (
+    <div className={'fl-rail' + (editing ? ' fl-rail-editing' : '')} title={title}>
+      <span className="fl-rail-head">
+        {rail.designator}
+        <span className="fl-rail-type">{rail.railType.toLowerCase()}</span>
+      </span>
+      <div className="fl-rail-pick">
+        <select value={value} onChange={e => onPick(e.target.value)}>
+          {options.map(name => (
+            <option key={name} value={name}>{name.replace('Type', 'Type-')}</option>
+          ))}
+        </select>
+        {/* FD10.4's workshop, per rail. The same editor the drone racks use. */}
+        <button
+          className={'coi-drone-edit' + (composed ? ' fl-rail-composed' : '')}
+          title={composed ? `Payload: ${value}` : 'Choose a payload (FD10.4)'}
+          onClick={onEdit}
+        >
+          {composed ? '✦' : '⚙'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The payload workshop, pointed at one rail.
+ *
+ * <h2>What the rail changes about it</h2>
+ * Two things, and neither is a new rule — both are the editor being handed a narrower world:
+ * <ul>
+ *   <li>The modules offered are {@link modulesForRail}'s, which drops the multi-warhead where
+ *       J4.23 will not have it. A standard rail still gets every special type-I drone, which
+ *       is the half of J4.23 easiest to over-apply.</li>
+ *   <li>The room to grow into is the RAIL's capacity rather than a rack's free space, so
+ *       FD12.13's external armor is refused where it would overflow (FD10.24's extended range
+ *       the same way).</li>
+ * </ul>
+ */
+function PayloadFor({
+  target, rail, drone, ship, catalogue, refusal, note, onChange, onClose,
+}: {
+  target:    EditTarget;
+  rail:      CoiFighterRail;
+  drone:     string;
+  ship:      CoiShipData;
+  catalogue: DroneCatalogue;
+  refusal:   string | null;
+  note:      string;
+  onChange:  (drone: string) => void;
+  onClose:   () => void;
+}) {
+  const modules   = catalogue.modules ?? [];
+  const additions = catalogue.additions ?? [];
+  const comp = parseDroneName(drone, modules, additions);
+  const basis = catalogue.types.find(t => t.name === comp.basis);
+  if (!basis) return null;
+
+  return (
+    <div className="fl-payload">
+      <div className="coi-note">
+        Rail {rail.designator} ({rail.railType.toLowerCase()}) — {note}
+      </div>
+      {refusal && <div className="fl-refusal">{refusal}</div>}
+      <DronePayloadEditor
+        key={`${target.scope}-${target.railIndex}-${comp.basis}`}
+        drone={basis}
+        comp={comp}
+        modules={modulesForRail(rail, modules)}
+        additions={additions}
+        submunitionSpeeds={ship.availableSubmunitionSpeeds ?? []}
+        rackSpaceFree={rail.spaces}
+        onChange={next => onChange(formatDroneName(next))}
+        onClose={onClose}
+      />
     </div>
   );
 }

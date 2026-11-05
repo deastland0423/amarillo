@@ -2137,6 +2137,39 @@ h3 {
 .fl-reset:disabled { color: #484f58; cursor: default; }
 .fl-reset:not(:disabled):hover { border-color: #d5a03a; color: #f0c040; }
 
+/* FD10.4's workshop, opened against one rail. */
+.fl-rail-pick {
+  display: flex;
+  align-items: stretch;
+  gap: 0.2rem;
+}
+.fl-rail-editing .fl-rail-head { color: #f0c040; }
+.fl-rail-editing select { border-color: #d5a03a; }
+
+/* A rail carrying a composed drone rather than a catalogue one — the same mark the fighter
+   grid uses for an exception, because it means the same thing one level down. */
+.fl-rail-composed { color: #f0c040; border-color: #d5a03a; }
+
+.fl-payload {
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  background: #0b0f14;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.6rem;
+}
+
+/* The backstop refusal. Red rather than amber: everything else on this screen is a choice,
+   and this is the one thing that is a no. */
+.fl-refusal {
+  border: 1px solid #a1392f;
+  border-radius: 4px;
+  background: rgba(161, 57, 47, 0.12);
+  color: #f0a9a0;
+  font-size: 0.75rem;
+  margin: 0.3rem 0;
+  padding: 0.25rem 0.45rem;
+}
+
 /* ---------------------------------------------------------------------------
    Fleet builder (S8.0)
    --------------------------------------------------------------------------- */
