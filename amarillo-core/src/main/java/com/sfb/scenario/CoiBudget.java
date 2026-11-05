@@ -114,10 +114,14 @@ public final class CoiBudget {
      * other hull.
      * <p>
      * NOT ENFORCED YET, and deliberately exposed rather than quietly folded into the total: the
-     * ring-fence can only be checked once a loadout says which of its lines are drones, and the
-     * drone percentage caps it belongs with (FD10.622/FD10.632) are themselves unbuilt. A caller
+     * ring-fence can only be checked once a loadout says which of its lines are drones. A caller
      * that spends the whole 30% on boarding parties is currently over-spending by this much, and
-     * this method is where that check will read from when the caps arrive.
+     * this method is where that check will read from.
+     * <p>
+     * It used to say the caps this tenth exists to buy into were unbuilt as well. They are not:
+     * {@link DroneAvailabilityLimit} enforces FD10.622 and FD10.632, {@code FleetValidator}
+     * refuses a fleet over them, and {@code hasRelaxedCaps} reads the same {@code dPercent} flag
+     * this method does. Only the ring-fence on the SPEND is still missing.
      */
     public static double droneOnlyReserve(Ship ship) {
         return ship != null && ship.isDPercent()

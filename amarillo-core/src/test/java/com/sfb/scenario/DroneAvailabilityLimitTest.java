@@ -89,6 +89,28 @@ public class DroneAvailabilityLimitTest {
                 java.util.Set.of(FrameAddition.TYPE_III_GUIDANCE), PayloadModule.ECM);
     }
 
+    /**
+     * Swap the hull's drone racks for a single rack of this type.
+     *
+     * <p>Only two racks hold a dogfight drone at all (FD3.5, FD3.84) and one of them is the
+     * type-G, so a rack that shows FD10.643's general rule rather than its exception has to be
+     * built: no sample hull carries a type-H. {@code fetchAllWeapons} hands back the live list,
+     * which is what makes this possible from a test.
+     */
+    private static DroneRack refitTo(Ship ship, DroneRack.DroneRackType type) {
+        List<Weapon> weapons = ship.getWeapons().fetchAllWeapons();
+        weapons.removeIf(w -> w instanceof DroneRack);
+        DroneRack rack = new DroneRack(type);
+        rack.setDesignator("Drone Rack");
+        weapons.add(rack);
+        return rack;
+    }
+
+    /** One payload space of Restricted: an ECM module (FD10.621) on a General frame and engine. */
+    private static DroneSpec oneRestrictedSpace() {
+        return DroneSpec.of(DroneFrame.ONE_SPACE, Propulsion.SPEED_12, PayloadModule.ECM);
+    }
+
     /** As {@link #load}, but for drones built rather than taken from the catalogue. */
     private static void loadDrones(Ship ship, Drone... drones) {
         List<DroneRack> racks = racksOf(ship);
@@ -159,6 +181,11 @@ public class DroneAvailabilityLimitTest {
      * FD10.643: "Type-VI drones are not included in any of the calculations to determine how
      * many special drones a given ship may carry."
      *
+     * <p>In a rack that is not a type-G, which is the rule before its exception. A type-H is
+     * the fixture because it is the other rack that takes dogfight drones at all (FD3.84) and
+     * has no anti-drone targeting system, so it is the one place the plain rule can be seen.
+     * The FFG's own rack is a type-G and answers differently — see the test below.
+     *
      * <p><b>This documents the rule; it does not prove the branch.</b> The half-space frame
      * reports no payload spaces, so a type-VI contributes nothing to the sum even with the
      * explicit check deleted — confirmed by mutation, which failed nothing. The check is kept
@@ -169,9 +196,94 @@ public class DroneAvailabilityLimitTest {
     @Test
     public void dogfightDronesAreLeftOutOfTheSumEntirely() {
         Ship ship = ordinaryShip();
-        load(ship, DroneType.TypeI, DroneType.TypeVI, DroneType.TypeVI);
+        DroneRack h = refitTo(ship, DroneRack.DroneRackType.TYPE_H);
+        h.setAmmo(new ArrayList<>(List.of(new Drone(DroneType.TypeI),
+                new Drone(DroneType.TypeVI), new Drone(DroneType.TypeVI))));
+
         assertEquals("the two type-VIs count for nothing",
                 1.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+    }
+
+    // ------------------------------------------------ FD10.643's type-G exception
+
+    /**
+     * FD10.643's exception, worked exactly as the rule writes it.
+     *
+     * <blockquote>"For purposes of type-G drone racks, type-VI and ADDs loaded in the rack count
+     * as 'General Availability' drone spaces, e.g., a type-G rack on a non-Kzinti or
+     * non-carrier ship might have one restricted availability drone space and three spaces of
+     * type-VI or ADDs or a combination of the two."</blockquote>
+     *
+     * <p>The FFG is that example's subject down to the hull: one four-space type-G, not Kzinti,
+     * not a carrier, not D%. One ECM drone (Restricted, FD10.621) and six type-VIs at half a
+     * rack space each is four counted spaces, and 25% of four is one.
+     *
+     * <p><b>Without the exception this legal loadout is a violation</b>, which is why the
+     * exception had to be built before anything refused a fleet over these caps: the type-VIs
+     * would supply none of the denominator, leaving one counted space, an allowance of
+     * {@code Math.round(1 * 0.25) == 0}, and the ECM drone over it.
+     */
+    @Test
+    public void aTypeGCountsItsTypeVisAsGeneralSpaces() {
+        Ship ship = ordinaryShip();
+        List<Drone> load = new ArrayList<>();
+        load.add(new Drone(DroneType.TypeI, oneRestrictedSpace()));
+        for (int i = 0; i < 6; i++)
+            load.add(new Drone(DroneType.TypeVI));
+        loadDrones(ship, load.toArray(new Drone[0]));
+
+        assertEquals("one space of ECM drone plus three spaces of type-VI",
+                4.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("and the type-VIs are General, so none of them is Restricted-or-worse",
+                1.0, DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 180),
+                0.0001);
+        assertEquals("25% of four spaces is one", 1,
+                DroneAvailabilityLimit.allowance(ship, Availability.RESTRICTED));
+        assertTrue("the rulebook's own example must be legal: "
+                + DroneAvailabilityLimit.violations(ship, 180),
+                DroneAvailabilityLimit.violations(ship, 180).isEmpty());
+    }
+
+    /** "...or ADDs or a combination of the two", at FD3.70's half space each. */
+    @Test
+    public void anAddRoundIsHalfAGeneralSpaceInATypeG() {
+        Ship ship = ordinaryShip();
+        loadDrones(ship, new Drone(DroneType.TypeI, oneRestrictedSpace()));
+        racksOf(ship).get(0).setAddAmmo(6);
+
+        assertEquals("one drone space plus three spaces of anti-drone rounds",
+                4.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("ADDs are General and count against nothing above it", 1.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 180), 0.0001);
+        assertTrue(DroneAvailabilityLimit.violations(ship, 180).toString(),
+                DroneAvailabilityLimit.violations(ship, 180).isEmpty());
+    }
+
+    /**
+     * The exception's second sentence, which is the half of it that can refuse a loadout:
+     * "type-VI spaces that receive speed upgrades in some years (FD10.65) count against the
+     * G-rack's Restricted and Limited Availability drone spaces."
+     *
+     * <p>Four type-VIMs are two counted spaces, and in Y166 medium speed is Restricted, so both
+     * of them are — against an allowance of one. The same four in Y167 are General and the ship
+     * is clean, which is the year doing the work rather than the drone.
+     */
+    @Test
+    public void aSpeedUpgradedTypeViInATypeGCountsAgainstTheRestrictedCap() {
+        Ship ship = ordinaryShip();
+        load(ship, DroneType.TypeVIM, DroneType.TypeVIM, DroneType.TypeVIM, DroneType.TypeVIM);
+
+        assertEquals("four half spaces", 2.0,
+                DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("all of them Restricted in Y166", 2.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 166), 0.0001);
+        assertFalse("two Restricted spaces against an allowance of one breaches FD10.622",
+                DroneAvailabilityLimit.violations(ship, 166).isEmpty());
+
+        assertEquals("and General in Y167", 0.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 167), 0.0001);
+        assertTrue(DroneAvailabilityLimit.violations(ship, 167).toString(),
+                DroneAvailabilityLimit.violations(ship, 167).isEmpty());
     }
 
     /**

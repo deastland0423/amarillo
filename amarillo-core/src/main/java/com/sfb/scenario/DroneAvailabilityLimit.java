@@ -71,14 +71,41 @@ import com.sfb.weapons.Weapon;
  * <p>And FD10.643: "Type-VI drones are not included in any of the calculations to determine how
  * many special drones a given ship may carry."
  *
- * <p><b>That exclusion is currently redundant, and is kept anyway.</b> The half-space frame
- * reports no payload spaces, so a type-VI contributes nothing to the sum whether or not anyone
- * checks — a mutation removing the check fails no test, and no test here can distinguish the
- * two. It stays because the two facts are unrelated: FD10.643 leaves type-VIs out of the
+ * <h2>Except in a type-G rack, where FD10.643 counts them — and without that, the rule's own
+ * example is a violation</h2>
+ * <blockquote>"Exceptions: For purposes of type-G drone racks, type-VI and ADDs loaded in the
+ * rack count as 'General Availability' drone spaces, e.g., a type-G rack on a non-Kzinti or
+ * non-carrier ship might have one restricted availability drone space and three spaces of
+ * type-VI or ADDs or a combination of the two. Type-VI spaces that receive speed upgrades in
+ * some years (FD10.65) count against the G-rack's Restricted and Limited Availability drone
+ * spaces."</blockquote>
+ *
+ * <p>Work that example on a Federation FFG, which is precisely its subject — one four-space
+ * type-G, not Kzinti, not a carrier, not D%. One Restricted space beside three spaces of
+ * type-VIs is four counted spaces of which one is Restricted, and 25% of four is one: legal, as
+ * the rule says. Leave the type-VIs out and the same ship has ONE counted space, an allowance
+ * of {@code Math.round(1 * 0.25) == 0}, and the loadout the rulebook prints as legal is a
+ * breach of FD10.622. That cost nothing while the caps only left a setup note. It would have
+ * cost a player their fleet now that {@link FleetValidator} refuses one over them.
+ *
+ * <p>So the exception needs the RACK and not only the drone, which is why the type-VI test sits
+ * inside the rack loop rather than at the top of it. FD3.70 makes the type-G the only rack with
+ * the anti-drone targeting system, so {@code acceptsAntiDrones()} is the question to ask. An
+ * ADD round is half a space of General (FD3.70 gives it the same half space as a dogfight
+ * drone), and a type-VI is half a space at its ENGINE's tier — the second sentence of the
+ * exception — so a type-VI is General from Y120, Restricted Y100-Y119, and a type-VIM in Y166
+ * is a Restricted half space.
+ *
+ * <p>Outside a type-G the exclusion still has no arithmetic to do: the half-space frame reports
+ * no payload spaces, so a type-VI there contributes nothing whether or not anyone checks. The
+ * check is kept for the reason it always was — FD10.643 leaves type-VIs out of the
  * CALCULATION, while the zero is an artefact of modelling a fixed warhead as no configurable
- * payload. The day the half-space frame is given half a payload space to hold its warhead in —
- * which FD10.41 would support — the rule would start mattering and nothing would have noticed
- * its absence.
+ * payload — but it is no longer the whole of the rule, and it never was.
+ *
+ * <p><b>FD10.643's last sentence is not built.</b> "Type-G drone racks and ADD racks replacing
+ * some of their ADDs with type-VI drones compute the availability of speed upgrades (FD10.65)
+ * based on the numbers of type-VI drones, not ADDs" — a basis of its own for the speed-upgrade
+ * percentage, which wants the ADD rack of FD3.7 that is itself unbuilt.
  *
  * <h2>Two things this does NOT yet reach</h2>
  * <b>Fighters.</b> FD10.641 includes "fighter ready racks or launch rails" in the percentage,
@@ -172,12 +199,30 @@ public final class DroneAvailabilityLimit {
         for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (!(w instanceof DroneRack rack))
                 continue;
+            // FD10.643's exception is about the RACK: in a type-G, type-VIs and ADDs are
+            // counted rather than ignored. FD3.70 makes the type-G the only rack with the
+            // anti-drone targeting system, so that is the test for one.
+            boolean typeG = rack.acceptsAntiDrones();
+            // "ADDs loaded in the rack count as 'General Availability' drone spaces", at
+            // FD3.70's half space each. General, so they fall out of every tier above it.
+            if (typeG && Availability.GENERAL.atLeastAsRestrictedAs(tier))
+                spaces += rack.getAddAmmo() * DroneRack.ANTI_DRONE_SPACE;
             for (Drone d : rack.getAmmo()) {
-                if (d.getDroneType() != null && d.getDroneType().isTypeVI())
-                    continue;           // FD10.643
                 var spec = d.getSpec();
                 if (spec == null)
                     continue;
+                if (d.getDroneType() != null && d.getDroneType().isTypeVI()) {
+                    if (!typeG)
+                        continue;           // FD10.643's general rule
+                    // The exception: half a rack space each, General by default, but "type-VI
+                    // spaces that receive speed upgrades in some years (FD10.65) count against
+                    // the G-rack's Restricted and Limited Availability drone spaces" -- which
+                    // is the engine's own tier and nothing more, since a dogfight warhead is
+                    // fixed and FD10.21 forbids modifying the frame.
+                    if (spec.propulsion().availabilityIn(year).atLeastAsRestrictedAs(tier))
+                        spaces += spec.rackSpaces();
+                    continue;
+                }
                 if (year == Integer.MAX_VALUE) {
                     // The caller asking for "everything". The year cannot matter — every tier
                     // is at least as restricted as GENERAL — but the ACCOUNTING must still be
@@ -232,14 +277,25 @@ public final class DroneAvailabilityLimit {
     }
 
     /**
-     * What is wrong with this ship's drone load in this year, or an empty list.
+     * One cap a ship's drone load breaches, and the rule that sets it.
+     *
+     * <p>The rule number travels beside the sentence rather than only inside it because the two
+     * readers want different things. A setup note wants the sentence; {@code FleetValidator}
+     * wants to file the breach under "FD10.622" the way it files every other violation under
+     * its clause, and parsing that back out of prose it had just been handed would be the kind
+     * of round trip that breaks the first time the wording changes.
+     */
+    public record Breach(String rule, String message) { }
+
+    /**
+     * Which caps this ship's drone load breaches in this year, or an empty list.
      *
      * <p>Both caps are reported rather than only the first, because they are independent
      * ceilings on overlapping sets and a loadout can breach either, or both for different
      * reasons.
      */
-    public static List<String> violations(Ship ship, int year) {
-        List<String> out = new ArrayList<>();
+    public static List<Breach> breaches(Ship ship, int year) {
+        List<Breach> out = new ArrayList<>();
         if (ship == null)
             return out;
         double total = countedSpaces(ship);
@@ -250,16 +306,25 @@ public final class DroneAvailabilityLimit {
                 Availability.RESTRICTED, Availability.LIMITED }) {
             double used = spacesAtLeast(ship, tier, year);
             long allowed = allowance(ship, tier);
-            if (used > allowed)
-                out.add(String.format(
-                        "%s: %.1f of %.1f warhead spaces are %s availability or worse,"
-                        + " over the %d%% allowed (%d spaces) — %s",
-                        ship.getName(), used, total, tier.name().toLowerCase(),
-                        tier == Availability.LIMITED
-                                ? limitedPercentFor(ship) : restrictedPercentFor(ship),
-                        allowed,
-                        tier == Availability.LIMITED ? "FD10.632" : "FD10.622"));
+            if (used <= allowed)
+                continue;
+            String rule = tier == Availability.LIMITED ? "FD10.632" : "FD10.622";
+            out.add(new Breach(rule, String.format(
+                    "%s: %.1f of %.1f warhead spaces are %s availability or worse,"
+                    + " over the %d%% allowed (%d spaces) — %s",
+                    ship.getName(), used, total, tier.name().toLowerCase(),
+                    tier == Availability.LIMITED
+                            ? limitedPercentFor(ship) : restrictedPercentFor(ship),
+                    allowed, rule)));
         }
+        return out;
+    }
+
+    /** {@link #breaches} as sentences, for a caller that only means to say them. */
+    public static List<String> violations(Ship ship, int year) {
+        List<String> out = new ArrayList<>();
+        for (Breach b : breaches(ship, year))
+            out.add(b.message());
         return out;
     }
 }

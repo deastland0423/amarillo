@@ -141,6 +141,7 @@ public final class FleetValidator {
         checkFlagshipNationality(fleet, out);
         checkBudget(fleet, out);
         checkCommanderOptions(fleet, out);
+        checkDroneAvailability(fleet, out);
         checkHeavyShips(fleet, out);
         checkHeavyShipCompany(fleet, out);
         checkBattlecruisers(fleet, out);
@@ -373,6 +374,44 @@ public final class FleetValidator {
                                 + " allowed by its " + ship.getBpv() + "-point value",
                         ship.getName()));
         }
+    }
+
+    /**
+     * FD10.622/FD10.632: no ship may carry more than its share of drones that are hard to come
+     * by. An ERROR here, which is a deliberate change of mind about where that line falls.
+     *
+     * <h2>Noted at scenario load, refused here</h2>
+     * {@code ScenarioLoader.applyCoi} leaves a setup note and plays on, for the reason given
+     * there: a scenario or saved fleet written under one year's rules may be played under
+     * another, and losing a battle over one over-specialised drone load helps nobody. A fleet
+     * under construction is the opposite case. The player is standing at the shipyard with the
+     * year in front of them, every other S8.0 limit already refuses, and FD10.642 says plainly
+     * that "player-designed scenarios must obey the restrictions unless both sides agree not
+     * to" — a pick-up fleet is the player-designed scenario that rule is about.
+     *
+     * <h2>What makes it reachable</h2>
+     * {@code FleetLoader.resolve} applies each ship's saved Commander's Options before anything
+     * validates it, so the racks hold what the fleet actually bought, in the fleet's own year.
+     * Without that this would judge the hull's default load on every fleet and never fire. The
+     * same was true of G15.44's cartel quota until the mounts were bought with the ship.
+     *
+     * <h2>FD10.647 needs nothing here</h2>
+     * "Extra drones purchased as Commander's Options do not include reloads and must adhere to
+     * the drone percentages, e.g., if a Kzinti purchased two extra drones, one could be a
+     * restricted type, a Klingon or Federation non-carrier non-DB ship would have to purchase
+     * four drones for one to be a restricted type." That gives the purchased EXTRAS a pool of
+     * their own, which they need because FD10.641 measures "drones in drone racks, and fighter
+     * ready racks or launch rails" and a crate of spares in the cargo hold is in none of those.
+     * Our Commander's Options buy no such crate: a drone purchase is a rack LOADOUT, so it is
+     * already inside FD10.641's basis and already counted. The day extra drones in cargo exist,
+     * FD10.647 becomes a second check over that set and not a change to this one.
+     */
+    private static void checkDroneAvailability(Fleet fleet, List<Violation> out) {
+        for (Ship ship : fleet.ships)
+            for (DroneAvailabilityLimit.Breach breach
+                    : DroneAvailabilityLimit.breaches(ship, fleet.year))
+                out.add(new Violation(breach.rule(), Severity.ERROR,
+                        breach.message(), ship.getName()));
     }
 
     /**
