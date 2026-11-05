@@ -42,6 +42,22 @@ import com.sfb.weapons.Weapon;
  *       drone-heavy.</li>
  * </ul>
  *
+ * <p><b>D% and DB are not the same marking</b>, though they share this list. Annex #3 points D%
+ * at S3.223 and DB at S3.222, and S3.222 is conditional: a drone bombardment ship on an
+ * independent bombardment mission "might be loaded entirely with type-III-XX drones", paying
+ * 25% of the cost of the drones in its cargo boxes. Off that mission it "is treated as a D%
+ * ship (S3.223)" — which is the only state a game of ours can be in, since nothing assigns a
+ * mission. So one flag is right for everything reachable today, and the day scenarios can
+ * assign one, DB needs its own.
+ *
+ * <h2>FD10.622's fourth exception is about a DRONE, not a hull</h2>
+ * <blockquote>"Type-III-ECM drones on Klingon ships are Restricted Availability."</blockquote>
+ *
+ * <p>The only place in FD10.6 where who is carrying a drone changes how hard it is to obtain,
+ * which is why it is applied in {@link #tierOf} here rather than in {@code DroneSpec}: the
+ * drone does not know whose rack it is in. It demotes rather than exempts, so the drone still
+ * spends Restricted allowance — the larger pool, which is the point.
+ *
  * <p>Until now {@code dPercent} did only half of its own job: {@code CoiBudget} gave it
  * S3.223's extra tenth of budget, and the caps that extra tenth exists to buy into did not
  * exist. {@code CoiBudget.droneOnlyReserve} says so in its javadoc and names this as the thing
@@ -64,7 +80,7 @@ import com.sfb.weapons.Weapon;
  * which FD10.41 would support — the rule would start mattering and nothing would have noticed
  * its absence.
  *
- * <h2>Two things this does NOT yet count</h2>
+ * <h2>Two things this does NOT yet reach</h2>
  * <b>Fighters.</b> FD10.641 includes "fighter ready racks or launch rails" in the percentage,
  * and this walks the ship's own drone racks only. That understates the load on exactly the
  * ships the relaxed cap is written for, so a carrier is currently judged on its hull racks
@@ -72,13 +88,11 @@ import com.sfb.weapons.Weapon;
  * type-VI rails counted separately, type-VI drones on ordinary rails counted as General — and
  * that is a slice of its own.
  *
- * <p><b>FD10.641's type-III-XX carve-out.</b> The per-space split IS implemented, through
- * {@code DroneSpec.spacesByAvailability} — a drone contributes each of its spaces at its own
- * tier, so "a space of restricted and a space of limited" comes out as two entries rather than
- * two Limited spaces. What is not implemented is the exception the same rule ends with: a
- * type-III frame (Limited) plus extended range (General) "becomes a two-space Restricted
- * Availability drone", which is less restrictive than either input and therefore not derivable
- * from anything. It needs FD10.24's frame change, which is unbuilt.
+ * <p><b>Drones bought as Commander's Options (FD10.647).</b> "Extra drones purchased as
+ * Commander's Options do not include reloads and must adhere to the drone percentages" — with
+ * a worked example: a Klingon or Federation non-carrier non-DB ship "would have to purchase
+ * four drones for one to be a restricted type". Nothing gates the purchase on that today; the
+ * caps are measured over the finished ship after the fact.
  */
 public final class DroneAvailabilityLimit {
 
@@ -177,11 +191,34 @@ public final class DroneAvailabilityLimit {
                 // Restricted and whose second module is Limited is "one space of Restricted and
                 // one space of Limited" — so each space is tested on its own.
                 for (var entry : spec.spacesByAvailability(year).entrySet())
-                    if (entry.getKey().atLeastAsRestrictedAs(tier))
+                    if (tierOf(entry.getKey(), ship, spec).atLeastAsRestrictedAs(tier))
                         spaces += entry.getValue();
             }
         }
         return spaces;
+    }
+
+    /**
+     * What a space of this tier actually counts as aboard this ship (FD10.622's last clause).
+     *
+     * <blockquote>"Type-III-ECM drones on Klingon ships are Restricted Availability."</blockquote>
+     *
+     * <p>The one place in FD10.6 where WHO IS CARRYING the drone changes how hard it is to
+     * obtain, which is why it cannot live on {@code DroneSpec} beside the rest of the tier
+     * arithmetic: a drone does not know whose rack it is in. {@code DroneSpec.isTypeIiiEcm}
+     * recognises the drone and this applies the empire.
+     *
+     * <p>It demotes rather than exempts. The drone still spends Restricted allowance, and under
+     * FD10.64's nesting that allowance is the larger pool — which is the point of the clause.
+     * Klingon doctrine leans on the type-III-ECM, and at 10% a D7 could carry one of them in
+     * ten warhead spaces.
+     */
+    private static Availability tierOf(Availability space, Ship ship, com.sfb.objects.DroneSpec spec) {
+        if (space == Availability.LIMITED
+                && ship.getFaction() == Faction.Klingon
+                && spec.isTypeIiiEcm())
+            return Availability.RESTRICTED;
+        return space;
     }
 
     /**

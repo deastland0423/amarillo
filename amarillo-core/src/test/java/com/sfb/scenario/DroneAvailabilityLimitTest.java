@@ -15,7 +15,9 @@ import com.sfb.objects.DroneType;
 import com.sfb.objects.PayloadModule;
 import com.sfb.objects.Propulsion;
 import com.sfb.objects.Ship;
+import com.sfb.objects.FrameAddition;
 import com.sfb.samples.FederationShips;
+import com.sfb.samples.KlingonShips;
 import com.sfb.samples.KzintiShips;
 import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.Weapon;
@@ -72,6 +74,28 @@ public class DroneAvailabilityLimitTest {
         for (DroneType t : types)
             drones.add(new Drone(t));
         racks.get(0).setAmmo(drones);
+    }
+
+    /** A Klingon D7: not Kzinti, not a carrier, not D% — an ordinary hull of the empire. */
+    private static Ship klingonShip() {
+        Ship ship = new Ship();
+        ship.init(KlingonShips.getD7());
+        return ship;
+    }
+
+    /** FD10.622's "Type-III-ECM": the type-III's guidance surcharge, and ECM in its one space. */
+    private static DroneSpec typeIiiEcm() {
+        return DroneSpec.of(DroneFrame.ONE_SPACE, Propulsion.SPEED_12,
+                java.util.Set.of(FrameAddition.TYPE_III_GUIDANCE), PayloadModule.ECM);
+    }
+
+    /** As {@link #load}, but for drones built rather than taken from the catalogue. */
+    private static void loadDrones(Ship ship, Drone... drones) {
+        List<DroneRack> racks = racksOf(ship);
+        assertFalse("fixture: the hull must have a drone rack", racks.isEmpty());
+        for (DroneRack r : racks)
+            r.setAmmo(new ArrayList<>());
+        racks.get(0).setAmmo(new ArrayList<>(List.of(drones)));
     }
 
     // ---------------------------------------------------------------- the caps themselves
@@ -369,5 +393,93 @@ public class DroneAvailabilityLimitTest {
         racksOf(ship).get(0).setAmmo(new ArrayList<>());
         assertEquals(0.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
         assertTrue(DroneAvailabilityLimit.violations(ship, 180).isEmpty());
+    }
+
+    // ------------------------------------------------- FD10.622's Klingon type-III-ECM clause
+
+    /**
+     * <blockquote>FD10.622: "Type-III-ECM drones on Klingon ships are Restricted
+     * Availability."</blockquote>
+     *
+     * The type-III frame is Limited (FD10.631) and ECM is Restricted (FD10.621), so this drone
+     * is Limited in anyone else's rack — as hard to get as its hardest part. On a Klingon ship
+     * it is not, and that is a change of POOL rather than a free pass: under FD10.64's nesting
+     * it still spends Restricted allowance, which is simply the larger one.
+     */
+    @Test
+    public void aKlingonTypeIiiEcmIsRestrictedRatherThanLimited() {
+        Ship ship = klingonShip();
+        loadDrones(ship, new Drone(DroneType.TypeIII, typeIiiEcm()),
+                new Drone(DroneType.TypeI), new Drone(DroneType.TypeI),
+                new Drone(DroneType.TypeI));
+
+        assertEquals("nothing aboard is Limited any more", 0.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.LIMITED, 180), 0.0001);
+        assertEquals("it is a Restricted space instead", 1.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 180), 0.0001);
+    }
+
+    /**
+     * And the demotion is what makes the load legal. One space in four is 25%, which the
+     * Restricted cap allows exactly; at the Limited cap's 10% the allowance rounds to nothing,
+     * so the same drone in the same rack is a violation for anyone but a Klingon.
+     */
+    @Test
+    public void theSameDroneIsIllegalOnAFederationShipAndLegalOnAKlingonOne() {
+        Ship klingon = klingonShip();
+        loadDrones(klingon, new Drone(DroneType.TypeIII, typeIiiEcm()),
+                new Drone(DroneType.TypeI), new Drone(DroneType.TypeI),
+                new Drone(DroneType.TypeI));
+        assertTrue("a Klingon D7 may carry it: " + DroneAvailabilityLimit.violations(klingon, 180),
+                DroneAvailabilityLimit.violations(klingon, 180).isEmpty());
+
+        Ship federation = ordinaryShip();
+        loadDrones(federation, new Drone(DroneType.TypeIII, typeIiiEcm()),
+                new Drone(DroneType.TypeI), new Drone(DroneType.TypeI),
+                new Drone(DroneType.TypeI));
+        assertEquals("on a Federation hull it is still Limited", 1.0,
+                DroneAvailabilityLimit.spacesAtLeast(federation, Availability.LIMITED, 180),
+                0.0001);
+        assertFalse("and one Limited space in four breaches FD10.632's 10%",
+                DroneAvailabilityLimit.violations(federation, 180).isEmpty());
+    }
+
+    /**
+     * And the one drone that could have tested the other half of {@code isTypeIiiEcm} — a
+     * type-III-ECM carrying a second Limited item — <b>cannot be built</b>, which is worth
+     * pinning rather than leaving to be rediscovered.
+     *
+     * <p>FD10.443 bars ECM from sharing a drone with armor of either kind, and external armor
+     * is the only Limited item that takes no payload space. Everything else Limited — a
+     * multi-warhead or a swordfish module — needs the payload space the ECM module is sitting
+     * in, and a type-III has exactly one. So the "nothing else Limited" clause in
+     * {@code DroneSpec.isTypeIiiEcm} has nothing to bite on today. It is kept for the same
+     * reason FD10.643's type-VI exclusion is kept: it says what the RULE means, and the thing
+     * making it unnecessary is a different rule that could move.
+     */
+    @Test
+    public void aTypeIiiEcmCannotCarryASecondLimitedItemAtAll() {
+        try {
+            DroneSpec.of(DroneFrame.ONE_SPACE, Propulsion.SPEED_12,
+                    java.util.Set.of(FrameAddition.TYPE_III_GUIDANCE,
+                                     FrameAddition.EXTERNAL_ARMOR_HALF),
+                    PayloadModule.ECM);
+            fail("FD10.443 should have refused ECM alongside armor");
+        } catch (IllegalArgumentException expected) {
+            assertTrue("and it should say which rule: " + expected.getMessage(),
+                    expected.getMessage().contains("FD10.443"));
+        }
+    }
+
+    /** And a type-III with no ECM in it is an ordinary Limited drone, Klingon or not. */
+    @Test
+    public void aKlingonTypeIiiWithoutEcmIsStillLimited() {
+        Ship ship = klingonShip();
+        loadDrones(ship, new Drone(DroneType.TypeIII),
+                new Drone(DroneType.TypeI), new Drone(DroneType.TypeI),
+                new Drone(DroneType.TypeI));
+
+        assertEquals("the type-III frame alone is Limited (FD10.631)", 1.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.LIMITED, 180), 0.0001);
     }
 }

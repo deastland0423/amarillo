@@ -341,6 +341,39 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
     }
 
     /**
+     * The drone FD10.622's last exception names: a type-III frame carrying an ECM module.
+     *
+     * <blockquote>FD10.622: "Type-III-ECM drones on Klingon ships are Restricted
+     * Availability."</blockquote>
+     *
+     * <p>A type-III is Limited (FD10.631) and an ECM module is Restricted (FD10.621), so the
+     * pair would ordinarily be Limited like any other drone — as hard to get as its hardest
+     * part. On a Klingon ship it is not, and that is the whole of the rule. Whether the SHIP
+     * qualifies is not asked here, because a drone does not know what is carrying it; see
+     * {@code DroneAvailabilityLimit}, which counts.
+     *
+     * <h2>Why "and nothing else Limited"</h2>
+     * The rule names one drone, not a tier change for the type-III frame. A type-III with an
+     * ECM module and external armor bolted on (FD12.13, Limited in its own right) is not the
+     * drone FD10.622 describes, and demoting it would hand the exception a second item it never
+     * mentioned. The type-III's own guidance is excluded from that test because it is the very
+     * thing the exception is forgiving. Type-III-XX is covered too: FD10.24 has already made it
+     * Restricted, so the demotion finds nothing to do and changes no answer.
+     */
+    public boolean isTypeIiiEcm() {
+        if (!additions.contains(FrameAddition.TYPE_III_GUIDANCE))
+            return false;
+        if (allModules().stream().noneMatch(m -> m == PayloadModule.ECM))
+            return false;
+        for (FrameAddition a : additions)
+            if (a != FrameAddition.TYPE_III_GUIDANCE
+                    && a.availability == Availability.LIMITED)
+                return false;
+        return allModules().stream().noneMatch(
+                m -> m.availability == Availability.LIMITED);
+    }
+
+    /**
      * FD2.222: "Extended range costs 1/2 point per drone and <b>doubles the endurance</b>."
      *
      * <p>Endurance is the one number a drone's composition did NOT derive when this model was
@@ -498,9 +531,12 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
      * Availability) to which the extended range frame modification (General Availability) is
      * added becomes a two-space <b>Restricted</b> Availability drone (FD10.24)". Limited plus
      * General making Restricted is less restrictive than either input, so it is a named
-     * exception rather than anything derivable. It needs the type-III-XX frame change FD10.24
-     * describes, which is unbuilt, so the combination cannot be constructed and the exception
-     * is recorded rather than implemented.
+     * exception rather than anything derivable. It IS implemented: {@link DroneFrame#TYPE_III_XX}
+     * carries Restricted as its own tier and {@link #effectiveFrame()} turns a type-III given
+     * extended range into one, so the floor comes out Restricted without either addition being
+     * folded back in. {@code TypeIiiXxFrameTest} pins both the drone's tier and this bill. (This
+     * paragraph said the opposite for a while, after the frame change landed and the comment
+     * did not.)
      */
     public Map<Availability, Double> spacesByAvailability(int year) {
         Availability floor = effectiveFrame().availability;
