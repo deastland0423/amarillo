@@ -149,6 +149,36 @@ public class ReadyRack {
     }
 
     /**
+     * The rails a rack is stocked for, in the order its slots are built in (J4.8222).
+     * <p>
+     * One list, because two things have to agree about it and silently disagreeing is how a
+     * type-VI ends up on a standard rail. {@link #forFighter} builds a slot per entry, and a
+     * Commander's Option loadout names its drones in the same order — so the order IS the
+     * address, and it has to come from one place.
+     * <p>
+     * Two kinds of rail are left out, each for its own rule:
+     * <ul>
+     *   <li>A rail with no design drone, which is a PLASMA rail: J4.825 bars drones from such a
+     *       fighter outright, and {@link #forFighter} stocks it by a different route.</li>
+     *   <li>A rail carrying an EW pod. J4.962: "An EWP replaces one drone carried by the
+     *       fighter" — so that rail has no drone to reload, and a rack that stocked one anyway
+     *       would show a HAAS-E holding two type-Is it can never load and charge its carrier
+     *       two spaces of stores for them.</li>
+     * </ul>
+     *
+     * @return the rails, possibly empty; never null
+     */
+    public static List<DroneRail> stockedRails(Shuttle occupant) {
+        List<DroneRail> rails = new ArrayList<>();
+        if (occupant == null || occupant.getWeapons() == null)
+            return rails;
+        for (Weapon w : occupant.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRail rail && rail.getDesignDrone() != null && !rail.hasEwPod())
+                rails.add(rail);
+        return rails;
+    }
+
+    /**
      * The rack a box would have been built with for this occupant, or null if the fighter
      * carries no drones (J4.822 only presumes a rack where one was needed).
      */
@@ -160,17 +190,11 @@ public class ReadyRack {
         // per fighter because a Kzinti TAAS has two standard rails and two light ones, and a
         // Type-I will not go in a light rail at all — a rack stocked from one answer would
         // hold two drones its own fighter cannot take.
-        //
-        // A rail carrying an EW pod is skipped. J4.962: "An EWP replaces one drone carried by
-        // the fighter" — so that rail has no drone to reload, and a rack that stocked one
-        // anyway would show a HAAS-E holding two Type-Is it can never load and charge its
-        // carrier two spaces of stores for them. A fighter whose every rail is podded needs
-        // no rack at all, which falls out of the empty check below.
+        // A fighter whose every rail is podded needs no rack at all, which falls out of the
+        // empty check below.
         List<DroneType> stock = new ArrayList<>();
-        for (Weapon w : fighter.getWeapons().fetchAllWeapons())
-            if (w instanceof DroneRail rail && rail.getDesignDrone() != null
-                    && !rail.hasEwPod())
-                stock.add(rail.getDesignDrone());
+        for (DroneRail rail : stockedRails(fighter))
+            stock.add(rail.getDesignDrone());
 
         // J4.825 puts type-D plasma torpedoes under the drone storage rules, so a plasma-D
         // fighter's box gets a ready rack exactly as a drone fighter's does - one torpedo per

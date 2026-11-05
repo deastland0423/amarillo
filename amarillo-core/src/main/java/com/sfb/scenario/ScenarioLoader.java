@@ -889,6 +889,17 @@ public class ScenarioLoader {
             note(ship, "COI: skipping " + conversions + " BP→commando conversions — over budget");
         }
 
+        // --- What each fighter's rails carry (FD10.646, J4.23) ---
+        // Before readiness, because arming a fighter takes the drones out of its ready rack
+        // (J4.8224): choose first, then arm, or the chosen fighter is armed from the rack it
+        // had before the player changed it.
+        {
+            Integer figSpeedCap = spec.commanderOptions != null
+                    ? spec.commanderOptions.maxDroneSpeed : null;
+            spent += applyFighterLoadouts(ship, loadout.fighterLoadouts, spec.year,
+                    figSpeedCap, budget - spent);
+        }
+
         // --- Which fighters are ready (S4.10-S4.12) ---
         // Before the crews are hired, because it costs nothing and cannot fail: it only
         // re-arranges what the weapon status already granted.
@@ -1745,6 +1756,133 @@ public class ScenarioLoader {
 
     /** S4.10/S4.11: two fighters may be armed and ready at the lowest weapon statuses. */
     private static final int WS01_ARMED_FIGHTERS = 2;
+
+    /**
+     * Put the player's chosen drones on each named fighter's rails (FD10.646, FD2.45).
+     *
+     * <h2>Why this exists at all</h2>
+     * FD10.646 settles what a fighter is ISSUED with — an ordinary drone, even on a special
+     * rail, because special rails "do not form an exception allowing additional limited
+     * availability drones to be purchased". The type-III, the ECM drone and the MW drone are
+     * therefore purchases, and this is where they are bought. For a Klingon carrier it is the
+     * only place: the conversion strips every drone rack off the hull, so the squadron is the
+     * whole of that ship's drone capacity.
+     *
+     * <h2>The rails and the rack are one loading, not two</h2>
+     * The rails get the DESIGN and the ready rack is rebuilt around it (J4.8222: a rack holds
+     * "the same drones that the fighter it is designed to service carries"), after which the
+     * rack is stocked with what the player actually asked for rather than the frame's
+     * baseline. The rack starts full and the fighter starts empty (J4.8223, J4.886), which is
+     * why nothing is loaded onto the rails here: {@code ShuttleSpace.armOccupantFully} arms a
+     * fighter by taking drones OUT of its rack (J4.8224), and readiness runs next.
+     *
+     * <p>Billed once per fighter for the same reason — see
+     * {@link CoiLoadout#fighterUpgradeCost}. Charged rather than given away because {@code
+     * spent} becomes {@code ship.setCoiSpend}, which S2.20 step B hands to the ENEMY as
+     * victory points: a free loadout would score the carrier as though its squadron flew
+     * type-I-slows.
+     *
+     * <h2>All or nothing, per fighter</h2>
+     * As the rack block does per rack. A fighter whose list names one drone the rules refuse
+     * keeps every rail it had, because a half-applied squadron is the state hardest for a
+     * player to see: they would be told the ECM drone was dropped and have no way to know
+     * which of their twelve fighters ended up carrying what.
+     *
+     * <p>Boxed fighters only. A balcony fighter (J1.53) has no box and therefore no ready
+     * rack, and a loading with nowhere to come from is not one this step can give it.
+     *
+     * @param budgetLeft what remains of the Commander's Option allowance
+     * @return what this spent of it
+     */
+    private static double applyFighterLoadouts(Ship ship,
+            java.util.Map<String, java.util.List<com.sfb.objects.DroneLoad>> loadouts,
+            int year, Integer maxSpeed, double budgetLeft) {
+        if (loadouts == null || loadouts.isEmpty() || ship.getShuttles() == null)
+            return 0;
+        double spent = 0;
+        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
+            for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces()) {
+                com.sfb.objects.shuttles.Shuttle occupant = box.getShuttle();
+                if (occupant == null || box.isDestroyed())
+                    continue;
+                java.util.List<com.sfb.objects.DroneLoad> wanted =
+                        loadouts.get(occupant.getName());
+                if (wanted == null)
+                    continue;       // a fighter nobody named flies what it was issued
+
+                java.util.List<com.sfb.weapons.DroneRail> rails =
+                        com.sfb.systemgroups.ReadyRack.stockedRails(occupant);
+                if (wanted.size() > rails.size()) {
+                    note(ship, "COI: " + occupant.getName() + " has " + rails.size()
+                            + " drone rails and the loadout names " + wanted.size()
+                            + " — skipped");
+                    continue;
+                }
+
+                // Validated before anything is changed, so a refusal leaves the fighter as it
+                // was rather than part-way between two loadouts.
+                java.util.List<com.sfb.objects.DroneLoad> billed = new ArrayList<>();
+                boolean valid = true;
+                for (int i = 0; i < wanted.size() && valid; i++) {
+                    com.sfb.objects.DroneLoad load = wanted.get(i);
+                    if (load == null)
+                        continue;   // a rail left as issued, and already paid for (FD2.31)
+                    com.sfb.weapons.DroneRail rail = rails.get(i);
+                    if (!load.availableIn(year)) {
+                        note(ship, "COI: " + load + " is not available in year " + year
+                                + " — " + occupant.getName() + " skipped");
+                        valid = false;
+                    } else if (maxSpeed != null && load.speed() > maxSpeed) {
+                        note(ship, "COI: " + load + " speed " + load.speed()
+                                + " exceeds cap " + maxSpeed + " — "
+                                + occupant.getName() + " skipped");
+                        valid = false;
+                    } else if (!rail.accepts(load.build())) {
+                        // J4.23 and FD9.35, asked of the built drone rather than its basis:
+                        // "TypeI+MW_SMALL" is a type-I until you look at what it is carrying.
+                        note(ship, "COI: a " + rail.getRailType() + " rail will not carry "
+                                + load + " (J4.23) — " + occupant.getName() + " skipped");
+                        valid = false;
+                    } else {
+                        billed.add(load);
+                    }
+                }
+                if (!valid || billed.isEmpty())
+                    continue;
+
+                double cost = CoiLoadout.rackUpgradeCost(null, billed, year);
+                if (spent + cost > budgetLeft) {
+                    note(ship, "COI: skipping the loadout for " + occupant.getName()
+                            + " — it costs " + cost + " and only "
+                            + (budgetLeft - spent) + " of the budget is left");
+                    continue;
+                }
+                spent += cost;
+
+                for (int i = 0; i < wanted.size(); i++)
+                    if (wanted.get(i) != null)
+                        rails.get(i).setDesignDrone(wanted.get(i).basis());
+
+                // The rack is rebuilt rather than re-stocked, because a slot's SHAPE can
+                // change: a special rail going from a type-I to a type-III changes what that
+                // slot is short of when the rack runs dry (ReadyRack.slotsMissing), and
+                // design() is final for exactly that reason. reequipFor is the sanctioned
+                // setup-time door — the same one FighterComplement.reseat uses.
+                box.reequipFor(occupant);
+                com.sfb.systemgroups.ReadyRack rack = box.getReadyRack();
+                if (rack == null)
+                    continue;
+                // The rack is fresh and full, so its drones stand in the rails' order one for
+                // one; this swaps the frame's baseline for what was actually bought.
+                int[] slot = { 0 };
+                rack.refit(held -> {
+                    int i = slot[0]++;
+                    com.sfb.objects.DroneLoad load = i < wanted.size() ? wanted.get(i) : null;
+                    return load == null ? held : load.build();
+                });
+            }
+        return spent;
+    }
 
     /**
      * Re-do the fighter readiness around the player's choice (Commander's Options).

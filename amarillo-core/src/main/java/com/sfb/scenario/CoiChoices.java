@@ -51,6 +51,20 @@ public class CoiChoices {
     public Map<String, List<String>> droneRackLoadouts = new LinkedHashMap<>();
 
     /**
+     * Fighter name → the drone on each of its rails, in rail order.
+     *
+     * <p>Same textual form as {@link #droneRackLoadouts}, and the same meaning for an absent
+     * key: the fighter flies what the hull issued it. The order is
+     * {@code ReadyRack.stockedRails}, which is the order the fighter's own ready rack is built
+     * in — podded and plasma rails are not in it, because neither stocks a drone.
+     *
+     * <p>A null or blank entry leaves that rail alone, so the client can name one rail of six
+     * without restating the rest. Keyed by the fighter's NAME because that is the address
+     * everything else resolves a fighter by, {@link #armedFighters} included.
+     */
+    public Map<String, List<String>> fighterLoadouts = new LinkedHashMap<>();
+
+    /**
      * Rack index (as string key) → anti-drone rounds to load, type-G only (FD3.70).
      *
      * Separate from droneRackLoadouts because an anti-drone is not a DroneType; they share
@@ -132,6 +146,30 @@ public class CoiChoices {
                 types.add(com.sfb.objects.DroneLoad.parse(name));
             }
             out.setDroneRackLoads(rackIndex, types);
+        }
+
+        if (fighterLoadouts != null) {
+            for (Map.Entry<String, List<String>> entry : fighterLoadouts.entrySet()) {
+                if (entry.getKey() == null || entry.getValue() == null)
+                    continue;
+                List<com.sfb.objects.DroneLoad> rails = new ArrayList<>();
+                for (String name : entry.getValue()) {
+                    // A blank rail is one the player did not touch, not one they got wrong —
+                    // it carries through as a null so the applier leaves that rail as issued.
+                    if (name == null || name.isBlank()) {
+                        rails.add(null);
+                        continue;
+                    }
+                    String refusal = com.sfb.objects.DroneLoad.refusalFor(name);
+                    if (refusal != null) {
+                        droneRefusals.add(entry.getKey() + " " + name + ": " + refusal);
+                        rails.add(null);
+                        continue;
+                    }
+                    rails.add(com.sfb.objects.DroneLoad.parse(name));
+                }
+                out.fighterLoadouts.put(entry.getKey(), rails);
+            }
         }
 
         if (antiDroneLoadouts != null) {

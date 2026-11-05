@@ -93,6 +93,25 @@ public class CoiLoadout {
     public Map<Integer, List<DroneLoad>> droneRackLoadouts = new LinkedHashMap<>();
 
     /**
+     * What each fighter's rails carry, keyed by the FIGHTER's name (J4.23, FD10.646).
+     *
+     * <p>The value is one entry per rail that a ready rack is stocked for, in
+     * {@link com.sfb.systemgroups.ReadyRack#stockedRails} order, which is the order the rack's
+     * own slots are built in. A null entry leaves that rail as issued, so a loadout can name
+     * the third rail alone without restating the other two.
+     *
+     * <h2>Why per fighter and not per type</h2>
+     * The availability caps are a budget over the whole ship (FD10.641), so spending one is a
+     * decision about WHICH fighters get the expensive drones. A Klingon carrier makes that
+     * sharper than any: its conversion strips every drone rack off the hull, so the fighters
+     * are the only place a special drone can go at all.
+     *
+     * <p>Absent means the fighter flies what the hull issued it (FD2.31), which after
+     * FD10.646 is an ordinary drone even on a special rail.
+     */
+    public Map<String, List<DroneLoad>> fighterLoadouts = new LinkedHashMap<>();
+
+    /**
      * Rack index to anti-drone rounds loaded, type-G only (FD3.70).
      *
      * Its own map because an anti-drone is not a DroneType — it flies nothing and seeks
@@ -202,7 +221,8 @@ public class CoiLoadout {
              + extraCommandoSquads  * COST_EXTRA_COMMANDO
              + extraTBombs          * COST_TBOMB
              + extraDeckCrews       * COST_EXTRA_DECK_CREW
-             + droneUpgradeCost(ship, year);
+             + droneUpgradeCost(ship, year)
+             + fighterUpgradeCost(year);
     }
 
     /**
@@ -289,6 +309,42 @@ public class CoiLoadout {
             int index = entry.getKey();
             DroneRack rack = index >= 0 && index < racks.size() ? racks.get(index) : null;
             total += rackUpgradeCost(rack, entry.getValue(), year);
+        }
+        return total;
+    }
+
+    /**
+     * FD2.45's surcharge for the fighters, which is charged once per fighter however many
+     * reloads sit behind it.
+     *
+     * <blockquote>FD2.45: "The cost of improved drones (FD2.22) is paid only for a single
+     * loading of each launch rack <b>and/or fighter</b>; the reloads (and drones stored on a
+     * carrier for use by its fighters) are presumed to be of the same type without additional
+     * cost."</blockquote>
+     *
+     * <p>So a fighter's rails are the single loading, and its ready rack — which J4.8222 makes
+     * one reload of the same drones — is free. That is not a simplification: {@code
+     * ShuttleSpace.armOccupantFully} arms a fighter by taking the drones OUT of its rack
+     * (J4.8224), so the rails and the rack are two states of one loading, never two loadings.
+     * Charging both would double every carrier's bill, and the same reasoning is why
+     * {@link DroneAvailabilityLimit} counts them together against one basis.
+     *
+     * <p>Priced with a null rack, because FD2.45's two exceptions are the type-D and type-H
+     * magazine launchers and no fighter has one: a rail holds what it holds.
+     *
+     * @param year the scenario's year, which decides how much of the bill the SHIP pays
+     *             instead (S3.221) — see {@link #droneUpgradeCost(int)}
+     */
+    public double fighterUpgradeCost(int year) {
+        double total = 0;
+        for (List<DroneLoad> rails : fighterLoadouts.values()) {
+            if (rails == null)
+                continue;
+            List<DroneLoad> named = new ArrayList<>();
+            for (DroneLoad load : rails)
+                if (load != null)
+                    named.add(load);   // a null entry is a rail left as issued, already paid for
+            total += rackUpgradeCost(null, named, year);
         }
         return total;
     }
