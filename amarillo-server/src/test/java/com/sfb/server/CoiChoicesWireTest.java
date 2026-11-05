@@ -44,6 +44,9 @@ class CoiChoicesWireTest {
                 "2": ["TypeIV+ARMOR_HALF+ARMOR_HALF+ARMOR_HALF+EXPLOSIVE_HALF"]
               },
               "antiDroneLoadouts": { "1": 4 },
+              "fighterLoadouts": {
+                "KHS CVS-TADS-1": [null, null, null, null, "TypeIII", "TypeI+ECM"]
+              },
               "weaponArmingModes": { "A": "OVERLOAD", "C": "STANDARD" },
               "photonOverload": { "A": 4.0, "B": 2.5 },
               "specialShuttlePrep": [
@@ -79,6 +82,28 @@ class CoiChoicesWireTest {
         assertEquals(4.0, loadout.photonOverload.get("A"), 0.001);
         assertEquals(2.5, loadout.photonOverload.get("B"), 0.001,
                 "half points are legal and must not be rounded away (E4.414)");
+    }
+
+    /**
+     * FD10.646's purchase has to survive the wire too, nulls and all.
+     *
+     * <p>A null entry is a rail the player did not touch, and it has to arrive as a null
+     * rather than being compacted away: the list is addressed by POSITION, in
+     * {@code ReadyRack.stockedRails} order, so dropping the nulls would slide the type-III
+     * down onto a standard rail that J4.23 refuses it on.
+     */
+    @Test
+    void aFightersRailsSurviveTheWireWithTheirGapsIntact() throws Exception {
+        CoiLoadout loadout = parseStrictly(PAYLOAD).toLoadout();
+
+        List<DroneLoad> rails = loadout.fighterLoadouts.get("KHS CVS-TADS-1");
+        assertNotNull(rails, "the fighter the dialog named must reach the loadout");
+        assertEquals(6, rails.size(), "one entry per rail, nulls included");
+        assertNull(rails.get(0), "a rail left as issued arrives as a gap, not as a drone");
+        assertEquals(DroneLoad.of(DroneType.TypeIII), rails.get(4),
+                "and the fifth entry is still the fifth rail");
+        assertEquals(DroneLoad.parse("TypeI+ECM"), rails.get(5),
+                "FD10.4's modules travel here exactly as they do on a rack");
     }
 
     @Test

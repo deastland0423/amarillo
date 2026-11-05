@@ -1868,6 +1868,104 @@ public class GameController {
                         }
                 s.put("fighters", fighters);
                 s.put("maxArmedFighters", ws >= 3 ? fighters.size() : ws == 2 ? -1 : 2);
+                // FD10.646/J4.23: what each fighter's rails carry, which is the surface a
+                // player buys special drones on. For a Klingon carrier it is the only one
+                // -- the conversion strips every drone rack off the hull, so the squadron
+                // is the whole of that ship's drone capacity.
+                //
+                // A SECOND list rather than more fields on `fighters` above, because the
+                // two answer different questions. That one is "what can a deck crew arm",
+                // filtered by FighterArming.needsArming; this one is "what has rails a
+                // drone goes on", which a fighter can have while needing no arming and the
+                // other way about. One list serving both would tie a readiness rule to a
+                // loadout rule, and the next change to either would move the other.
+                //
+                // Order is ReadyRack.stockedRails, which is the order a loadout addresses
+                // and the order the box's own rack is built in. Podded rails are not in it
+                // (J4.962) and neither are plasma rails (J4.825), so a TADS-E sends four
+                // entries where a TADS sends six.
+                java.util.Map<String, String> squadronOf = new java.util.HashMap<>();
+                for (com.sfb.objects.Squadron sq : ship.getShuttles().getSquadrons())
+                    for (com.sfb.objects.shuttles.Fighter f : sq.getFighters())
+                        squadronOf.put(f.getName(), sq.getName());
+                // Asked OF THE RAIL rather than restated here: J4.23 and FD9.35 live in
+                // DroneRail.accepts, and a client that re-derived them would be a second
+                // copy of the rule free to drift from the one that refuses the submission.
+                com.sfb.objects.Drone mwProbe =
+                        com.sfb.objects.DroneLoad.parse("TypeI+MW_SMALL").build();
+                List<Map<String, Object>> figLoads = new ArrayList<>();
+                for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
+                    for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces()) {
+                        if (!(box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter))
+                            continue;
+                        com.sfb.objects.shuttles.Shuttle craft = box.getShuttle();
+                        List<com.sfb.weapons.DroneRail> rails =
+                                com.sfb.systemgroups.ReadyRack.stockedRails(craft);
+                        if (rails.isEmpty())
+                            continue;       // a plasma fighter, or one whose every rail is podded
+                        com.sfb.systemgroups.ReadyRack rack = box.getReadyRack();
+
+                        Map<String, Object> f = new java.util.LinkedHashMap<>();
+                        f.put("name", craft.getName());
+                        String catalogType = craft.getCatalogType();
+                        f.put("type", catalogType);
+                        com.sfb.objects.ShuttleCatalog.Entry ce =
+                                com.sfb.objects.ShuttleCatalog.get(catalogType);
+                        f.put("designation", ce != null ? ce.designation : catalogType);
+                        // J4.46's organisation, for the badge. Shown rather than navigated
+                        // by: squadrons are cut at twelve slots in EW-first order
+                        // (J4.461), so the boundary falls across fighter TYPE rather than
+                        // along it -- a Kzinti CVA's assault fighters are all in its second
+                        // squadron and its superiority fighters straddle both.
+                        f.put("squadron", squadronOf.get(craft.getName()));
+
+                        // What a rail is carrying is NOT simply the rack's nth drone. A
+                        // fighter armed by its weapon status (S4.10-S4.12) took its drones
+                        // OUT of the rack (J4.8224), so a Kzinti TADS at WS-2 has five on
+                        // its rails and one left in the box -- and reading the rack alone
+                        // reported five of its six rails carrying nothing at all. So: the
+                        // rail first, then the rack slot that matches what the rail is
+                        // designed for, then the design itself.
+                        //
+                        // Matched as a multiset, as ReadyRack.slotsMissing does, because a
+                        // part-emptied rack holds its drones in no particular order.
+                        List<com.sfb.objects.Drone> stock =
+                                rack == null || rack.carriesPlasma()
+                                        ? List.of() : rack.contents();
+                        boolean[] spoken = new boolean[stock.size()];
+
+                        List<Map<String, Object>> railRows = new ArrayList<>();
+                        for (int railIdx = 0; railIdx < rails.size(); railIdx++) {
+                            com.sfb.weapons.DroneRail rail = rails.get(railIdx);
+                            Map<String, Object> r = new java.util.LinkedHashMap<>();
+                            r.put("railType", rail.getRailType().name());
+                            r.put("designator", rail.getDesignator());
+                            r.put("spaces", rail.getRailType().capacity);
+                            // FD9.35 and J4.23, each asked once and sent as an answer.
+                            r.put("acceptsTypeIii",
+                                    rail.accepts(com.sfb.objects.DroneType.TypeIII));
+                            r.put("acceptsMultiWarhead", rail.accepts(mwProbe));
+                            com.sfb.objects.Drone held = rail.getDrone();
+                            if (held == null)
+                                for (int k = 0; k < stock.size(); k++)
+                                    if (!spoken[k] && stock.get(k).getDroneType()
+                                            == rail.getDesignDrone()) {
+                                        held = stock.get(k);
+                                        spoken[k] = true;
+                                        break;
+                                    }
+                            r.put("drone", held != null
+                                    ? new com.sfb.objects.DroneLoad(
+                                            held.getDroneType(), held.getSpec()).format()
+                                    : com.sfb.objects.DroneLoad
+                                            .of(rail.getDesignDrone()).format());
+                            railRows.add(r);
+                        }
+                        f.put("rails", railRows);
+                        figLoads.add(f);
+                    }
+                s.put("fighterLoadouts", figLoads);
+
                 s.put("maxDroneSpeed", spec.commanderOptions != null
                         ? spec.commanderOptions.maxDroneSpeed
                         : null);
