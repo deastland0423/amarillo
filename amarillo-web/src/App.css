@@ -1769,19 +1769,30 @@ h3 {
   gap: 0.3rem;
 }
 
-/* The pencil on a loaded drone, which opens its payload (FD10.4). Deliberately quieter than the
-   remove button beside it: editing is the rarer thing to want, and a chip with two equally loud
-   glyphs reads as a choice between them. */
+/* The pencil on a loaded drone, which opens its payload (FD10.4).
+
+   This was deliberately quieter than the remove button beside it, on the reasoning that editing
+   is the rarer thing to want and two equally loud glyphs read as a choice between them. The
+   first half held up -- a player loading a rack is usually adding standard drones, not building
+   one -- but the conclusion did not: at 10px in #6e7681 beside a ✕ of the same weight, the whole
+   cluster read as one control and the payload editor went unfound by the person who commissioned
+   it. Quieter than REMOVE is still the right target. Invisible was not.
+
+   So it keeps its size advantage over nothing and gains a border: the thing that makes a glyph
+   read as a button is having an edge, not being bright. The amber is the same one the open chip
+   and the rack header use, so the pencil, the chip it opens and the panel below all agree. */
 .coi-drone-edit {
-  background: none;
-  border: none;
-  color: #6e7681;
+  background: #30363d;
+  border: 1px solid #484f58;
+  border-radius: 4px;
+  color: #d5a03a;
   cursor: pointer;
-  padding: 0;
-  font-size: 0.7rem;
-  line-height: 1;
+  padding: 0 0.25rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
 }
-.coi-drone-edit:hover { color: #d5a03a; }
+.coi-drone-edit:hover { background: #3d444d; border-color: #d5a03a; color: #f0c040; }
+.coi-drone-edit:focus-visible { outline: 2px solid #58a6ff; outline-offset: 1px; }
 
 /* The chip whose payload is open, marked in the same amber the rack header uses rather than in
    green or red: the panel below belongs to THIS drone, which is a statement about attention and
