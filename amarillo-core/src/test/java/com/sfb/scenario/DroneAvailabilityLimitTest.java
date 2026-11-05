@@ -55,25 +55,39 @@ public class DroneAvailabilityLimitTest {
     }
 
     /**
-     * Put exactly these drones on the ship and nothing else: every rack emptied, then the first
-     * filled.
+     * Leave the hull with ONE empty rack, and hand it back.
      *
-     * <p>Emptying the others is the whole point. A cap is a PROPORTION, so the denominator is
-     * every drone aboard — and loading one rack of a four-rack hull leaves twelve default
-     * type-Is in the others. An earlier version of this helper did exactly that, and the Kzinti
-     * test failed with an allowance of three where one was expected, because the ship had
-     * sixteen spaces rather than four. The code was right; the fixture was measuring a
-     * different ship from the one the test described.
+     * <p>A cap is a proportion, and FD10.641's denominator is the rack capacity aboard, so a
+     * fixture that wants to talk about four spaces has to leave the ship with four spaces —
+     * emptying the other three racks of a Kzinti BC no longer narrows anything.
+     *
+     * <p>It used to be the other way about, and both versions of this helper have been wrong
+     * in the same way: measuring a different ship from the one the test describes. The first
+     * left twelve default type-Is in the racks it was ignoring; the second emptied them, which
+     * read as four spaces only while the denominator was the loadout. {@code fetchAllWeapons}
+     * hands back the live list, which is what lets a test change the hull at all.
      */
+    private static DroneRack keepOneRack(Ship ship) {
+        List<Weapon> weapons = ship.getWeapons().fetchAllWeapons();
+        DroneRack keep = null;
+        for (Weapon w : weapons)
+            if (w instanceof DroneRack r) {
+                keep = r;
+                break;
+            }
+        assertNotNull("fixture: the hull must have a drone rack", keep);
+        final DroneRack kept = keep;
+        weapons.removeIf(w -> w instanceof DroneRack && w != kept);
+        kept.setAmmo(new ArrayList<>());
+        return kept;
+    }
+
+    /** Put exactly these drones in the hull's one remaining rack, and nothing else anywhere. */
     private static void load(Ship ship, DroneType... types) {
-        List<DroneRack> racks = racksOf(ship);
-        assertFalse("fixture: the hull must have a drone rack", racks.isEmpty());
-        for (DroneRack r : racks)
-            r.setAmmo(new ArrayList<>());
         List<Drone> drones = new ArrayList<>();
         for (DroneType t : types)
             drones.add(new Drone(t));
-        racks.get(0).setAmmo(drones);
+        keepOneRack(ship).setAmmo(drones);
     }
 
     /** A Klingon D7: not Kzinti, not a carrier, not D% — an ordinary hull of the empire. */
@@ -113,11 +127,16 @@ public class DroneAvailabilityLimitTest {
 
     /** As {@link #load}, but for drones built rather than taken from the catalogue. */
     private static void loadDrones(Ship ship, Drone... drones) {
-        List<DroneRack> racks = racksOf(ship);
-        assertFalse("fixture: the hull must have a drone rack", racks.isEmpty());
-        for (DroneRack r : racks)
-            r.setAmmo(new ArrayList<>());
-        racks.get(0).setAmmo(new ArrayList<>(List.of(drones)));
+        keepOneRack(ship).setAmmo(new ArrayList<>(List.of(drones)));
+    }
+
+    /** Add a rack of this type to the hull, keeping what it already mounts. */
+    private static DroneRack addRack(Ship ship, DroneRack.DroneRackType type) {
+        DroneRack rack = new DroneRack(type);
+        rack.setDesignator(type.name());
+        rack.setAmmo(new ArrayList<>());
+        ship.getWeapons().fetchAllWeapons().add(rack);
+        return rack;
     }
 
     // ---------------------------------------------------------------- the caps themselves
@@ -167,14 +186,79 @@ public class DroneAvailabilityLimitTest {
     // ---------------------------------------------------------------- counting
 
     /**
-     * FD10.641 counts "warhead spaces", so a type-IV is two and a type-I is one.
+     * FD10.641 counts "warhead spaces", so a type-IV is two and a type-I is one — in the
+     * NUMERATOR, which is the drones actually aboard.
      */
     @Test
-    public void theDenominatorIsWarheadSpacesNotDrones() {
+    public void theNumeratorIsWarheadSpacesNotDrones() {
         Ship ship = ordinaryShip();
-        load(ship, DroneType.TypeIV, DroneType.TypeI);
-        assertEquals("one two-space drone and one one-space drone",
-                3.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        loadDrones(ship, new Drone(DroneType.TypeIV, DroneSpec.of(DroneFrame.TWO_SPACE,
+                        Propulsion.SPEED_12, PayloadModule.ARMOR_HALF, PayloadModule.ARMOR_HALF,
+                        PayloadModule.ARMOR_HALF, PayloadModule.ARMOR_HALF)),
+                new Drone(DroneType.TypeI));
+
+        assertEquals("the heavy drone is two Restricted spaces, not one Restricted drone",
+                2.0, DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 180),
+                0.0001);
+    }
+
+    /**
+     * And the DENOMINATOR is the rack capacity, loaded or not.
+     *
+     * <p>This is the playtest bug, in the smallest shape that shows it. A Kzinti BC mounts four
+     * type-A racks: sixteen spaces whatever is in them. Counting the loadout instead made the
+     * basis shrink as the player emptied racks, so eight medium drones in twelve loaded spaces
+     * breached a cap that the same eight in sixteen spaces did not.
+     */
+    @Test
+    public void theDenominatorIsTheRackCapacityNotTheLoad() {
+        Ship full = kzintiShip();
+        assertEquals("four type-A racks of four spaces", 16.0,
+                DroneAvailabilityLimit.countedSpaces(full), 0.0001);
+
+        Ship light = kzintiShip();
+        for (DroneRack r : racksOf(light))
+            r.setAmmo(new ArrayList<>());
+        assertEquals("and the empty ship is the same ship", 16.0,
+                DroneAvailabilityLimit.countedSpaces(light), 0.0001);
+    }
+
+    /**
+     * The property the capacity basis exists for: loading a GENERAL drone can never make an
+     * illegal ship legal.
+     *
+     * <p>Eight medium drones in a Kzinti BC's sixteen spaces is 50% exactly, which FD10.622
+     * allows a Kzinti hull — and it stays exactly 50% however many of the other eight spaces
+     * are filled. Under the old basis the same eight drones were a breach until four more
+     * drones were bought to widen the denominator, which is the reported bug.
+     */
+    @Test
+    public void addingGeneralDronesCannotCureOrCauseABreach() {
+        for (int slowDrones : new int[] { 0, 4, 8 }) {
+            Ship ship = kzintiShip();
+            List<DroneRack> racks = racksOf(ship);
+            for (DroneRack r : racks)
+                r.setAmmo(new ArrayList<>());
+            List<Drone> medium = new ArrayList<>();
+            for (int i = 0; i < 8; i++)
+                medium.add(new Drone(DroneType.TypeIM));
+            racks.get(0).setAmmo(new ArrayList<>(medium.subList(0, 4)));
+            racks.get(1).setAmmo(new ArrayList<>(medium.subList(4, 8)));
+            List<Drone> slow = new ArrayList<>();
+            for (int i = 0; i < slowDrones; i++)
+                slow.add(new Drone(DroneType.TypeI));
+            for (int i = 0; i < slow.size(); i++)
+                racks.get(2 + i / 4).getAmmo().add(slow.get(i));
+
+            assertEquals("the basis is the hull, not the load", 16.0,
+                    DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+            assertEquals("50% of sixteen", 8,
+                    DroneAvailabilityLimit.allowance(ship, Availability.RESTRICTED));
+            assertTrue("eight medium drones is exactly the Kzinti 50%, with " + slowDrones
+                    + " slow drones beside them: "
+                    + DroneAvailabilityLimit.violations(ship, 166),
+                    DroneAvailabilityLimit.violations(ship, 166).isEmpty());
+        }
     }
 
     /**
@@ -198,10 +282,14 @@ public class DroneAvailabilityLimitTest {
         Ship ship = ordinaryShip();
         DroneRack h = refitTo(ship, DroneRack.DroneRackType.TYPE_H);
         h.setAmmo(new ArrayList<>(List.of(new Drone(DroneType.TypeI),
-                new Drone(DroneType.TypeVI), new Drone(DroneType.TypeVI))));
+                new Drone(DroneType.TypeVIM), new Drone(DroneType.TypeVIM))));
 
-        assertEquals("the two type-VIs count for nothing",
-                1.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("FD3.8: a starbase launcher of five four-space magazines",
+                20.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("and in Y166 the two medium type-VIs count against nothing at all", 0.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 166), 0.0001);
+        assertEquals("not even in the dogfight pool: a type-H is not a dogfight-only rack", 0.0,
+                DroneAvailabilityLimit.dogfightSpaces(ship), 0.0001);
     }
 
     // ------------------------------------------------ FD10.643's type-G exception
@@ -273,10 +361,12 @@ public class DroneAvailabilityLimitTest {
         Ship ship = ordinaryShip();
         load(ship, DroneType.TypeVIM, DroneType.TypeVIM, DroneType.TypeVIM, DroneType.TypeVIM);
 
-        assertEquals("four half spaces", 2.0,
+        assertEquals("the type-G's own four spaces", 4.0,
                 DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
         assertEquals("all of them Restricted in Y166", 2.0,
                 DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 166), 0.0001);
+        assertEquals("25% of the rack's four spaces is one", 1,
+                DroneAvailabilityLimit.allowance(ship, Availability.RESTRICTED));
         assertFalse("two Restricted spaces against an allowance of one breaches FD10.622",
                 DroneAvailabilityLimit.violations(ship, 166).isEmpty());
 
@@ -498,13 +588,161 @@ public class DroneAvailabilityLimitTest {
                 DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 167), 0.0001);
     }
 
-    /** An empty rack is not a breach of anything. */
+    /**
+     * An empty rack is not a breach of anything — now by way of an empty numerator rather
+     * than an empty basis, since the spaces are there whether or not a drone is in them.
+     */
     @Test
     public void aShipWithNoDronesIsNotJudged() {
         Ship ship = ordinaryShip();
-        racksOf(ship).get(0).setAmmo(new ArrayList<>());
-        assertEquals(0.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        keepOneRack(ship);
+        assertEquals("the rack is still four spaces of capacity", 4.0,
+                DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("with nothing restricted in them", 0.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 180), 0.0001);
         assertTrue(DroneAvailabilityLimit.violations(ship, 180).isEmpty());
+    }
+
+    /** And a hull with no drone rack at all has no basis and is never judged. */
+    @Test
+    public void aShipWithNoRacksHasNoBasis() {
+        Ship ship = ordinaryShip();
+        ship.getWeapons().fetchAllWeapons().removeIf(w -> w instanceof DroneRack);
+        assertEquals(0.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals(0.0, DroneAvailabilityLimit.dogfightSpaces(ship), 0.0001);
+        assertTrue(DroneAvailabilityLimit.violations(ship, 180).isEmpty());
+    }
+
+    // ------------------------------------------- FD10.644: dogfight drones count separately
+
+    /**
+     * FD10.644, applied to a ship's own type-E rack.
+     *
+     * <blockquote>"Fighter squadrons count type-VI drones loaded on type-VI rails separately
+     * from all other drones."</blockquote>
+     *
+     * <p>FD3.5's type-E holds eight dogfight drones in four spaces and "can carry no other
+     * types", so those four spaces are a basis of their own. A Klingon hull gets FD10.622's
+     * ordinary 25%, which is one space — two type-VIMs. Eight of them is four spaces of
+     * Restricted in Y166 and a breach; the same eight in Y167 are General and fine.
+     */
+    @Test
+    public void aTypeERackIsItsOwnBasis() {
+        Ship ship = klingonShip();
+        DroneRack e = refitTo(ship, DroneRack.DroneRackType.TYPE_E);
+        List<Drone> load = new ArrayList<>();
+        for (int i = 0; i < 8; i++)
+            load.add(new Drone(DroneType.TypeVIM));
+        e.setAmmo(load);
+
+        assertEquals("the ordinary basis is empty: a type-E holds nothing that belongs in it",
+                0.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("eight dogfight drones at half a space each", 4.0,
+                DroneAvailabilityLimit.dogfightSpaces(ship), 0.0001);
+        assertEquals("all four spaces are medium, and medium is Restricted in Y166", 4.0,
+                DroneAvailabilityLimit.dogfightSpacesAtLeast(ship, Availability.RESTRICTED, 166),
+                0.0001);
+        assertEquals("25% of four spaces is one", 1,
+                DroneAvailabilityLimit.dogfightAllowance(ship, Availability.RESTRICTED));
+
+        List<String> breaches = DroneAvailabilityLimit.violations(ship, 166);
+        assertFalse("upgrading every dogfight drone in Y166 breaches FD10.622", breaches.isEmpty());
+        assertTrue("and the sentence must say which count it is about: " + breaches,
+                breaches.get(0).contains("dogfight"));
+
+        assertTrue("in Y167 medium speed is General: "
+                + DroneAvailabilityLimit.violations(ship, 167),
+                DroneAvailabilityLimit.violations(ship, 167).isEmpty());
+    }
+
+    /** Two of the eight is the quarter FD10.622 allows, and the loadout is legal in Y166. */
+    @Test
+    public void aQuarterOfTheDogfightDronesMayBeUpgraded() {
+        Ship ship = klingonShip();
+        DroneRack e = refitTo(ship, DroneRack.DroneRackType.TYPE_E);
+        List<Drone> load = new ArrayList<>(List.of(
+                new Drone(DroneType.TypeVIM), new Drone(DroneType.TypeVIM)));
+        for (int i = 0; i < 6; i++)
+            load.add(new Drone(DroneType.TypeVI));
+        e.setAmmo(load);
+
+        assertEquals("two half spaces of medium", 1.0,
+                DroneAvailabilityLimit.dogfightSpacesAtLeast(ship, Availability.RESTRICTED, 166),
+                0.0001);
+        assertTrue(DroneAvailabilityLimit.violations(ship, 166).toString(),
+                DroneAvailabilityLimit.violations(ship, 166).isEmpty());
+    }
+
+    /**
+     * "Separately from all other drones" in both directions: neither pool spends the other's
+     * allowance.
+     *
+     * <p>The D6C's shape — two type-A racks and two type-E (the one hull in the data that
+     * mounts a type-E at all). Its eight ordinary spaces allow two Restricted at 25%, and its
+     * four dogfight spaces allow one, and filling one pool to its ceiling leaves the other's
+     * ceiling exactly where it was. Under a single pooled basis the twelve spaces would allow
+     * three between them, and either side could eat the other's share.
+     */
+    @Test
+    public void theTwoPoolsDoNotSpendEachOthersAllowance() {
+        Ship ship = klingonShip();          // two type-F racks, four spaces each
+        DroneRack e = addRack(ship, DroneRack.DroneRackType.TYPE_E);
+
+        assertEquals("eight ordinary spaces", 8.0,
+                DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("and four dogfight spaces beside them, in nobody else's total", 4.0,
+                DroneAvailabilityLimit.dogfightSpaces(ship), 0.0001);
+        assertEquals(2, DroneAvailabilityLimit.allowance(ship, Availability.RESTRICTED));
+        assertEquals(1, DroneAvailabilityLimit.dogfightAllowance(ship, Availability.RESTRICTED));
+
+        // The ordinary racks filled to their own ceiling: two medium drones of eight spaces.
+        List<DroneRack> ordinary = new ArrayList<>();
+        for (DroneRack r : racksOf(ship))
+            if (r != e)
+                ordinary.add(r);
+        ordinary.get(0).setAmmo(new ArrayList<>(List.of(
+                new Drone(DroneType.TypeIM), new Drone(DroneType.TypeIM),
+                new Drone(DroneType.TypeI), new Drone(DroneType.TypeI))));
+        ordinary.get(1).setAmmo(new ArrayList<>(List.of(
+                new Drone(DroneType.TypeI), new Drone(DroneType.TypeI),
+                new Drone(DroneType.TypeI), new Drone(DroneType.TypeI))));
+        // And the dogfight rack to its own: two of its eight drones medium.
+        List<Drone> dogfight = new ArrayList<>(List.of(
+                new Drone(DroneType.TypeVIM), new Drone(DroneType.TypeVIM)));
+        for (int i = 0; i < 6; i++)
+            dogfight.add(new Drone(DroneType.TypeVI));
+        e.setAmmo(dogfight);
+
+        assertEquals("the dogfight drones are no part of the ordinary count", 2.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 166), 0.0001);
+        assertEquals("nor the ordinary drones of theirs", 1.0,
+                DroneAvailabilityLimit.dogfightSpacesAtLeast(ship, Availability.RESTRICTED, 166),
+                0.0001);
+        assertTrue("both pools are at their ceiling and neither is over it: "
+                + DroneAvailabilityLimit.violations(ship, 166),
+                DroneAvailabilityLimit.violations(ship, 166).isEmpty());
+    }
+
+    /** A Kzinti hull's doubled cap applies to the dogfight pool as well: half of eight. */
+    @Test
+    public void theRelaxedCapDoublesTheDogfightPoolToo() {
+        Ship ship = kzintiShip();
+        DroneRack e = refitTo(ship, DroneRack.DroneRackType.TYPE_E);
+        List<Drone> load = new ArrayList<>();
+        for (int i = 0; i < 4; i++)
+            load.add(new Drone(DroneType.TypeVIM));
+        for (int i = 0; i < 4; i++)
+            load.add(new Drone(DroneType.TypeVI));
+        e.setAmmo(load);
+
+        assertEquals("50% of four spaces", 2,
+                DroneAvailabilityLimit.dogfightAllowance(ship, Availability.RESTRICTED));
+        assertEquals("four medium dogfight drones are two spaces", 2.0,
+                DroneAvailabilityLimit.dogfightSpacesAtLeast(ship, Availability.RESTRICTED, 166),
+                0.0001);
+        assertTrue("half the dogfight drones upgraded is exactly the Kzinti ceiling: "
+                + DroneAvailabilityLimit.violations(ship, 166),
+                DroneAvailabilityLimit.violations(ship, 166).isEmpty());
     }
 
     // ------------------------------------------------- FD10.622's Klingon type-III-ECM clause

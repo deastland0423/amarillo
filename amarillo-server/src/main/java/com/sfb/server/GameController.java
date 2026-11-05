@@ -647,8 +647,9 @@ public class GameController {
         // seeing and there is no violation to carry it.
         //
         // Computed here rather than mirrored in TypeScript on purpose. The sum is FD10.641's
-        // per-space tier bill, FD10.66's half-space sharing, FD10.643's type-G exception and
-        // FD10.622's Klingon clause, and a browser-side copy of all four would be a second
+        // per-space tier bill over the rack CAPACITY aboard, FD10.66's half-space sharing,
+        // FD10.643's type-G exception, FD10.644's separate pool for dogfight drones and
+        // FD10.622's Klingon clause, and a browser-side copy of all five would be a second
         // rules engine with no test that could tell it had drifted. FleetLoader.resolve has
         // already applied each ship's options, so these figures are of the ship as bought.
         List<Map<String, Object>> availability = new ArrayList<>();
@@ -664,12 +665,19 @@ public class GameController {
      * <p>Both tiers are reported with their own ceiling because FD10.64 nests them: a Limited
      * drone spends Restricted allowance as well as its own, so "2 of 2 restricted" and "2 of 0
      * limited" can be the same two drones and a single figure could not say which cap bit.
+     *
+     * <p>And FD10.644's dogfight pool is reported beside them, under its own keys, for the same
+     * reason: it is a separate basis with its own ceiling, so adding it into either figure would
+     * report a ship as having room it does not have. The keys are absent-as-zero rather than
+     * omitted, since {@code dogfightSpaces} is zero on all but one hull in the data and a
+     * {@code 0} the client skips is easier to read than a key it must test for.
      */
     private Map<String, Object> droneAvailabilityRow(Ship ship, int year) {
         Map<String, Object> row = new java.util.LinkedHashMap<>();
         row.put("shipName", ship.getName());
-        // FD10.641's denominator: warhead spaces aboard, less what FD10.643 leaves out.
+        // FD10.641's denominator: the warhead spaces the racks HOLD, less FD10.644's pool.
         row.put("countedSpaces", com.sfb.scenario.DroneAvailabilityLimit.countedSpaces(ship));
+        row.put("dogfightSpaces", com.sfb.scenario.DroneAvailabilityLimit.dogfightSpaces(ship));
         for (com.sfb.objects.Availability tier : new com.sfb.objects.Availability[] {
                 com.sfb.objects.Availability.RESTRICTED,
                 com.sfb.objects.Availability.LIMITED }) {
@@ -682,6 +690,11 @@ public class GameController {
             row.put(key + "Percent", limited
                     ? com.sfb.scenario.DroneAvailabilityLimit.limitedPercentFor(ship)
                     : com.sfb.scenario.DroneAvailabilityLimit.restrictedPercentFor(ship));
+            row.put("dogfight" + (limited ? "Limited" : "Restricted") + "Used",
+                    com.sfb.scenario.DroneAvailabilityLimit
+                            .dogfightSpacesAtLeast(ship, tier, year));
+            row.put("dogfight" + (limited ? "Limited" : "Restricted") + "Allowed",
+                    com.sfb.scenario.DroneAvailabilityLimit.dogfightAllowance(ship, tier));
         }
         // Whether this hull is on FD10.622's exception list at all, so the form can say why its
         // ceiling is twice the usual one instead of leaving a Kzinti player to guess.

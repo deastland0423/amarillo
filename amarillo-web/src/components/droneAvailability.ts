@@ -26,7 +26,7 @@ export interface CapRow {
 }
 
 /**
- * The two caps, Restricted first.
+ * The two caps on the ORDINARY drone load, Restricted first.
  *
  * Both are always returned, breach or not. FD10.64 nests them — "the allowed percentage of
  * Restricted Availability drones includes the limit on Limited Availability drones" — so one
@@ -54,9 +54,49 @@ export function capRows(figures: DroneAvailability): CapRow[] {
   ];
 }
 
-/** Whether this ship is over either cap, which is what the fleet validator will refuse. */
+/**
+ * FD10.644's pool as its own rows, or none at all on a hull with no dogfight rack.
+ *
+ * "Fighter squadrons count type-VI drones loaded on type-VI rails separately from all other
+ * drones" — a separate basis with its own ceilings at the same percentages, which is why these
+ * are rows beside the first two rather than numbers added into them. A ship at its dogfight
+ * ceiling has spent none of its ordinary allowance, and a gauge that pooled them would show room
+ * that the fleet validator does not agree exists.
+ */
+export function dogfightCapRows(figures: DroneAvailability): CapRow[] {
+  // `?? 0` on every one of these, because a server from before FD10.644 was counted sends no
+  // such keys and `undefined > undefined` is false -- which would read as "within the cap"
+  // rather than as "no reading", the same way round as the `!= null` trap on a nullable DTO
+  // field. A hull with no dogfight rack reports zero spaces and gets no rows by the same test.
+  if ((figures.dogfightSpaces ?? 0) <= 0)
+    return [];
+  const restrictedUsed = figures.dogfightRestrictedUsed ?? 0;
+  const restrictedAllowed = figures.dogfightRestrictedAllowed ?? 0;
+  const limitedUsed = figures.dogfightLimitedUsed ?? 0;
+  const limitedAllowed = figures.dogfightLimitedAllowed ?? 0;
+  return [
+    {
+      label:   'Restricted',
+      rule:    'FD10.622',
+      used:    restrictedUsed,
+      allowed: restrictedAllowed,
+      percent: figures.restrictedPercent,
+      over:    restrictedUsed > restrictedAllowed,
+    },
+    {
+      label:   'Limited',
+      rule:    'FD10.632',
+      used:    limitedUsed,
+      allowed: limitedAllowed,
+      percent: figures.limitedPercent,
+      over:    limitedUsed > limitedAllowed,
+    },
+  ];
+}
+
+/** Whether this ship is over any cap, which is what the fleet validator will refuse. */
 export function overCaps(figures: DroneAvailability): boolean {
-  return capRows(figures).some(r => r.over);
+  return capRows(figures).some(r => r.over) || dogfightCapRows(figures).some(r => r.over);
 }
 
 /**

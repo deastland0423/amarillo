@@ -15,9 +15,10 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * <h2>Why the figures are sent at all</h2>
  * The Commander's Options form has to show how close the next drone takes a ship, and the sum
- * behind that is four rules deep — FD10.641's per-space tier bill, FD10.66's half-space sharing,
- * FD10.643's type-G exception, FD10.622's Klingon clause. A browser-side copy would be a second
- * rules engine with no test able to prove it had drifted, so core computes and the view renders.
+ * behind that is five rules deep — FD10.641's per-space tier bill over the rack CAPACITY
+ * aboard, FD10.66's half-space sharing, FD10.643's type-G exception, FD10.644's separate pool
+ * for dogfight drones, FD10.622's Klingon clause. A browser-side copy would be a second rules
+ * engine with no test able to prove it had drifted, so core computes and the view renders.
  *
  * <p>Which makes these fields the contract between them. The caps themselves are pinned in core
  * by {@code DroneAvailabilityLimitTest} and {@code FleetDroneAvailabilityTest}; this is the wire
@@ -156,5 +157,92 @@ class FleetDroneAvailabilityEndpointTest {
         assertEquals(true, row.get("relaxed"));
         assertEquals(50, ((Number) row.get("restrictedPercent")).intValue());
         assertEquals(20, ((Number) row.get("limitedPercent")).intValue());
+    }
+
+    /**
+     * A Klingon D6C: two type-A racks and two type-E, the one hull in the data that mounts a
+     * dogfight rack at all. Rack index 2 is the first type-E.
+     */
+    private FleetSpec d6cFleet(int year, String... rackTwo) {
+        FleetSpec spec = new FleetSpec();
+        spec.factions = new java.util.ArrayList<>(List.of("Klingon"));
+        spec.year = year;
+        spec.budget = 2000;
+        spec.flagship = "D6C";
+
+        FleetSpec.ShipEntry e = new FleetSpec.ShipEntry();
+        e.type = "D6C";
+        e.name = "D6C";
+        if (rackTwo.length > 0) {
+            e.coi = new CoiChoices();
+            e.coi.droneRackLoadouts.put("2", List.of(rackTwo));
+        }
+        spec.ships.add(e);
+        return spec;
+    }
+
+    /**
+     * FD10.644's pool on the wire, by name, for the same reason as the rest: a key the form
+     * cannot find reads as "no cap".
+     *
+     * <p>A ship with no dogfight rack reports zeroes rather than omitting the keys, so the form
+     * has one shape to render whatever the hull mounts.
+     */
+    @Test
+    void aShipWithNoDogfightRackReportsAnEmptyPool() {
+        Map<String, Object> row = rowFor(ffgFleet(180, "TypeI", "TypeI", "TypeI", "TypeI"));
+
+        assertEquals(0.0, ((Number) row.get("dogfightSpaces")).doubleValue(), 1e-9);
+        assertEquals(0.0, ((Number) row.get("dogfightRestrictedUsed")).doubleValue(), 1e-9);
+        assertEquals(0L, ((Number) row.get("dogfightRestrictedAllowed")).longValue());
+        assertEquals(0.0, ((Number) row.get("dogfightLimitedUsed")).doubleValue(), 1e-9);
+        assertEquals(0L, ((Number) row.get("dogfightLimitedAllowed")).longValue());
+    }
+
+    /**
+     * And a D6C's type-E rack is a basis of its own: four spaces, a quarter of them upgradable,
+     * and none of it mixed into the eight ordinary spaces of its type-A racks.
+     */
+    @Test
+    void aDogfightRackIsGaugedSeparatelyFromTheOrdinaryRacks() {
+        Map<String, Object> row = rowFor(d6cFleet(166, "TypeVIM", "TypeVIM", "TypeVIM",
+                "TypeVIM", "TypeVIM", "TypeVIM", "TypeVIM", "TypeVIM"));
+
+        assertEquals(8.0, ((Number) row.get("countedSpaces")).doubleValue(), 1e-9,
+                "two type-A racks, and the type-Es are no part of this total");
+        assertEquals(8.0, ((Number) row.get("dogfightSpaces")).doubleValue(), 1e-9,
+                "both type-E racks, four spaces each, loaded or not");
+        assertEquals(4.0, ((Number) row.get("dogfightRestrictedUsed")).doubleValue(), 1e-9,
+                "eight type-VIMs are four spaces, and medium speed is Restricted in Y166");
+        assertEquals(2L, ((Number) row.get("dogfightRestrictedAllowed")).longValue(),
+                "25% of the dogfight pool's eight spaces");
+        assertEquals(0.0, ((Number) row.get("restrictedUsed")).doubleValue(), 1e-9,
+                "and the ordinary pool has spent nothing");
+    }
+
+    /** The same loadout is refused, and the sentence says which count it was over. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void aDogfightBreachIsRefusedAndSaysSo() {
+        Map<String, Object> body = (Map<String, Object>) new GameController(null, null)
+                .validateFleet(d6cFleet(166, "TypeVIM", "TypeVIM", "TypeVIM", "TypeVIM",
+                        "TypeVIM", "TypeVIM", "TypeVIM", "TypeVIM")).getBody();
+        assertNotNull(body);
+
+        assertEquals(false, body.get("legal"));
+        List<Map<String, Object>> violations =
+                (List<Map<String, Object>>) body.get("violations");
+        assertTrue(violations.stream().anyMatch(v -> "FD10.622".equals(v.get("rule"))
+                        && String.valueOf(v.get("message")).contains("dogfight")),
+                "the refusal must name the dogfight count: " + violations);
+    }
+
+    /** And in Y167 medium speed is General, so the same eight upgrades are free of any cap. */
+    @Test
+    void theSameDogfightLoadoutIsFineTheYearMediumGoesGeneral() {
+        Map<String, Object> row = rowFor(d6cFleet(167, "TypeVIM", "TypeVIM", "TypeVIM",
+                "TypeVIM", "TypeVIM", "TypeVIM", "TypeVIM", "TypeVIM"));
+
+        assertEquals(0.0, ((Number) row.get("dogfightRestrictedUsed")).doubleValue(), 1e-9);
     }
 }

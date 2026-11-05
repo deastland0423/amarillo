@@ -316,7 +316,7 @@ export interface FleetViolation {
  */
 export interface DroneAvailability {
   shipName:          string;
-  /** FD10.641's denominator: warhead spaces aboard, less the type-VIs FD10.643 leaves out. */
+  /** FD10.641's denominator: the warhead spaces the hull's racks HOLD, loaded or not. */
   countedSpaces:     number;
   restrictedUsed:    number;
   restrictedAllowed: number;
@@ -324,6 +324,19 @@ export interface DroneAvailability {
   limitedUsed:       number;
   limitedAllowed:    number;
   limitedPercent:    number;
+  /**
+   * FD10.644's second basis: the spaces of racks that hold nothing but dogfight drones, which
+   * are "counted separately from all other drones" and have ceilings of their own at the same
+   * percentages. Zero on every hull but the Klingon D6C today.
+   *
+   * Optional because a server from before FD10.644 was counted does not send these keys, and
+   * the figures above are still true without them. Read them with `?? 0`, never as a number.
+   */
+  dogfightSpaces?:             number;
+  dogfightRestrictedUsed?:     number;
+  dogfightRestrictedAllowed?:  number;
+  dogfightLimitedUsed?:        number;
+  dogfightLimitedAllowed?:     number;
   /** Whether this hull is on FD10.622's exception list — Kzinti, a big carrier, or "D%". */
   relaxed:           boolean;
 }

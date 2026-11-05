@@ -12,7 +12,8 @@ import { budgetBasisLabel, defaultAmmoLabel, droneChipLabel, presetLabel }
   from './coiLabels';
 import { withRackLoad, withoutRack, withPreset } from './coiRackLoad';
 import { coiCost } from './coiTotal';
-import { capRows, shipsOverCaps } from './droneAvailability';
+import { capRows, dogfightCapRows, shipsOverCaps } from './droneAvailability';
+import type { CapRow } from './droneAvailability';
 import {
   isModified, parseDroneName, formatDroneName, payloadUsed, rackSpacesOf,
   describeDrone, moduleRefusal, additionRefusal,
@@ -928,17 +929,52 @@ function ShipCoiPanel({
  * ship. Nothing on this side computes a tier.
  */
 function DroneAvailabilityGauge({ figures }: { figures: DroneAvailability }) {
-  // An empty rack is not a breach of anything, and "0/0 of 0 spaces" is noise on a ship nobody
-  // has touched yet.
-  if (figures.countedSpaces <= 0) return null;
-  const spaces = spacesUsedLabel(figures.countedSpaces);
+  // FD10.644: dogfight drones are "counted separately from all other drones", so they get a
+  // line of their own rather than numbers folded into the first one. Empty on every hull but
+  // the D6C, which is why the line is conditional instead of always drawn at 0/0.
+  const dogfight = dogfightCapRows(figures);
+  // A hull with no drone rack has nothing to gauge. "0/0 of 0 spaces" is noise.
+  if (figures.countedSpaces <= 0 && dogfight.length === 0) return null;
+  return (
+    <>
+      {figures.countedSpaces > 0 && (
+        <CapGauge rows={capRows(figures)} total={figures.countedSpaces}
+                  relaxed={figures.relaxed} />
+      )}
+      {dogfight.length > 0 && (
+        <CapGauge rows={dogfight} total={figures.dogfightSpaces ?? 0}
+                  relaxed={figures.relaxed} pool="Dogfight" basisRule="FD10.644" />
+      )}
+    </>
+  );
+}
+
+/**
+ * One pool's two ceilings, as a row of chips.
+ *
+ * The spaces are the hull's rack CAPACITY, not the drones loaded in it (FD10.641 as read in
+ * {@code DroneAvailabilityLimit}) — which is why the denominator does not move as a player
+ * adds and removes drones, and the "of N spaces" is worth printing beside the caps rather than
+ * left to be inferred from them.
+ */
+function CapGauge({ rows, total, relaxed, pool, basisRule }: {
+  rows:       CapRow[];
+  total:      number;
+  relaxed:    boolean;
+  pool?:      string;
+  basisRule?: string;
+}) {
+  const spaces = spacesUsedLabel(total);
+  const basis = pool ? `${pool.toLowerCase()} warhead spaces` : 'warhead spaces';
   return (
     <div className="coi-note coi-availability">
-      {capRows(figures).map(r => (
-        <span key={r.rule} className={r.over ? 'coi-availability-over' : undefined}
-              title={`${r.rule}: ${r.percent}% of the ${spaces} warhead spaces aboard`
-                     + ` (FD10.641)`
-                     + (figures.relaxed
+      {pool && <span className="coi-availability-pool">{pool}</span>}
+      {rows.map(r => (
+        <span key={`${pool ?? ''}${r.rule}`}
+              className={r.over ? 'coi-availability-over' : undefined}
+              title={`${r.rule}: ${r.percent}% of the ${spaces} ${basis} aboard`
+                     + ` (${basisRule ?? 'FD10.641'})`
+                     + (relaxed
                           ? ` — this hull is on FD10.622's exception list` : ``)}>
           {r.label} {spacesUsedLabel(r.used)}/{r.allowed}
         </span>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { capRows, overCaps, shipsOverCaps } from './droneAvailability';
+import { capRows, dogfightCapRows, overCaps, shipsOverCaps } from './droneAvailability';
 import type { DroneAvailability } from '../api/gameApi';
 
 /**
@@ -67,6 +67,69 @@ describe('overCaps', () => {
 
   it('is true when only the Restricted cap is breached', () => {
     expect(overCaps(figures({ restrictedUsed: 2 }))).toBe(true);
+  });
+});
+
+describe('dogfightCapRows', () => {
+  /** A Klingon D6C's shape: eight ordinary spaces in its type-A racks, eight dogfight. */
+  function withDogfight(over: Partial<DroneAvailability> = {}): DroneAvailability {
+    return figures({
+      countedSpaces: 8, restrictedAllowed: 2, limitedAllowed: 1,
+      dogfightSpaces: 8, dogfightRestrictedUsed: 0, dogfightRestrictedAllowed: 2,
+      dogfightLimitedUsed: 0, dogfightLimitedAllowed: 1,
+      ...over,
+    });
+  }
+
+  it('draws nothing on a hull with no dogfight rack', () => {
+    expect(dogfightCapRows(figures())).toEqual([]);
+  });
+
+  it('draws both ceilings for a hull that has one', () => {
+    const rows = dogfightCapRows(withDogfight());
+    expect(rows.map(r => r.rule)).toEqual(['FD10.622', 'FD10.632']);
+    expect(rows.map(r => r.allowed)).toEqual([2, 1]);
+  });
+
+  /**
+   * A server from before FD10.644 was counted sends none of these keys, and `undefined > n` is
+   * false — which would read as "inside the cap" rather than as "no reading". The guard is on
+   * the BASIS, so a reply without it draws no row at all instead of a row of zeroes that looks
+   * like a verdict.
+   */
+  it('draws nothing when the server sent no dogfight figures at all', () => {
+    const stale = figures({ dogfightSpaces: undefined });
+    expect(dogfightCapRows(stale)).toEqual([]);
+    expect(overCaps(stale)).toBe(false);
+  });
+});
+
+describe('overCaps and the two pools', () => {
+  /**
+   * FD10.644: the pools are counted separately, so a breach in either one is a breach — and
+   * neither can be hidden by the other having room. This is the comparison that locks Save, and
+   * before the dogfight rows fed into it the dialog would have offered to save a fleet the
+   * server then refused.
+   */
+  it('is true when only the dogfight pool is breached', () => {
+    expect(overCaps(figures({
+      restrictedUsed: 1, dogfightSpaces: 8, dogfightRestrictedUsed: 4,
+      dogfightRestrictedAllowed: 2,
+    }))).toBe(true);
+  });
+
+  it('is false when a full dogfight pool is exactly at its own ceiling', () => {
+    expect(overCaps(figures({
+      restrictedUsed: 1, dogfightSpaces: 8, dogfightRestrictedUsed: 2,
+      dogfightRestrictedAllowed: 2, dogfightLimitedUsed: 0, dogfightLimitedAllowed: 1,
+    }))).toBe(false);
+  });
+
+  it('does not let a roomy dogfight pool excuse the ordinary one', () => {
+    expect(overCaps(figures({
+      restrictedUsed: 2, dogfightSpaces: 8, dogfightRestrictedUsed: 0,
+      dogfightRestrictedAllowed: 2,
+    }))).toBe(true);
   });
 });
 

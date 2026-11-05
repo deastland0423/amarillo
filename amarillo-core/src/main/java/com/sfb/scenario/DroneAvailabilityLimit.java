@@ -63,10 +63,30 @@ import com.sfb.weapons.Weapon;
  * exist. {@code CoiBudget.droneOnlyReserve} says so in its javadoc and names this as the thing
  * that was missing.
  *
- * <h2>What is counted: warhead spaces, and not every drone</h2>
+ * <h2>What is counted: the warhead spaces the racks HOLD</h2>
  * <blockquote>FD10.641: "All percentages are based on 'warhead spaces' of drones in drone racks,
  * and fighter ready racks or launch rails (FD2.45). Round fractions of 0.49- down and 0.50+
  * up."</blockquote>
+ *
+ * <p>The basis is the hull's rack CAPACITY, not the drones a player happens to have loaded in
+ * it. Read alone that sentence says the opposite, and this counted loaded drones until a
+ * playtest showed what that does. A Kzinti BC with four type-A racks, eight medium drones and
+ * one rack left empty was refused: twelve loaded spaces allow six Restricted, while the same
+ * eight drones aboard a full sixteen-space ship allow eight. Two consequences follow that no
+ * rule in FD10.6 contemplates — adding four GENERAL drones cures the breach, and a ship can
+ * be refused for carrying LESS — and both of them are gone once the denominator is the ship
+ * instead of the loadout.
+ *
+ * <p>The rest of FD10.6 describes the basis that way throughout. FD10.66: "A ship HAS ten drone
+ * spaces and is allowed to have one of them (10%) of the Limited Availability type." FD10.671:
+ * "six type-B drone racks WOULD HOLD 36 spaces of drones but only eighteen payload spaces for
+ * warhead calculation purposes." Both are what the hull can hold. The two readings agree on
+ * every fully-loaded ship — which is every ship in a printed scenario, and presumably why the
+ * rulebook never has to say which one it means.
+ *
+ * <p>The NUMERATOR is still the drones actually aboard, because that is the thing a player
+ * chooses. So a cap can only ever be breached by loading something hard to obtain, never by
+ * leaving a space empty.
  *
  * <p>And FD10.643: "Type-VI drones are not included in any of the calculations to determine how
  * many special drones a given ship may carry."
@@ -96,11 +116,47 @@ import com.sfb.weapons.Weapon;
  * exception — so a type-VI is General from Y120, Restricted Y100-Y119, and a type-VIM in Y166
  * is a Restricted half space.
  *
- * <p>Outside a type-G the exclusion still has no arithmetic to do: the half-space frame reports
- * no payload spaces, so a type-VI there contributes nothing whether or not anyone checks. The
- * check is kept for the reason it always was — FD10.643 leaves type-VIs out of the
- * CALCULATION, while the zero is an artefact of modelling a fixed warhead as no configurable
- * payload — but it is no longer the whole of the rule, and it never was.
+ * <h2>Dogfight drones are not unlimited — they have a pool of their own (FD10.644)</h2>
+ * FD10.643 takes type-VIs out of "the calculations to determine how many special drones a given
+ * ship may carry", and FD10.644 says what is done with them instead:
+ *
+ * <blockquote>"Fighter squadrons count type-VI drones loaded on type-VI rails separately from
+ * all other drones."<br>
+ * EXAMPLE: a squadron of twelve fighters with 24 type-VI and 24 type-I rails "computes the
+ * number of limited and restricted availability speed upgrades of its type-VI drones under
+ * (FD10.65) allowing it in Y166 to have twelve type-VIM drones, the remainder being type-VIS.
+ * In that year half of the type-Is could also be Medium speed."</blockquote>
+ *
+ * <p>Twelve of 24 is half of one basket and twelve of 24 is half of the other, each at the
+ * squadron's own percentage, and neither spends the other's allowance. So a type-VI's speed
+ * upgrade is limited after all: the exclusion is from the ORDINARY basis, not from availability
+ * altogether. A rack that will take nothing but dogfight drones — FD3.5's type-E, and the
+ * LIGHT fighter rail when fighters arrive — contributes its spaces to a second pool with its
+ * own denominator and its own allowance, at the same percentages. {@code accepts} is what
+ * decides, rather than a list of rack types, because the question is the rule's own: a rack that
+ * cannot hold an ordinary drone has no part in the ordinary basis.
+ *
+ * <p>One hull in the data mounts one today — the Klingon D6C, with two type-E racks — so a
+ * D6C in Y166 may upgrade a quarter of its sixteen dogfight drones to type-VIM and no more.
+ *
+ * <p><b>This is a reading, not a quotation.</b> FD10.644 is written for fighter squadrons, and a
+ * ship's own type-E rack is not one; nothing in FD10.6 addresses that rack directly. The
+ * alternative reading is that FD10.643 exempts it outright, which would let a D6C upgrade all
+ * sixteen while a fighter wing may upgrade four — a distinction no rule draws, for a rack
+ * FD3.5 describes as holding the same drones.
+ *
+ * <p>Outside both pools the exclusion still has no arithmetic to do: the half-space frame
+ * reports no payload spaces, so a type-VI in an ordinary rack contributes nothing whether or not
+ * anyone checks. The check is kept for the reason it always was — FD10.643 leaves type-VIs
+ * out of the CALCULATION, while the zero is an artefact of modelling a fixed warhead as no
+ * configurable payload.
+ *
+ * <p><b>The type-H's dogfight magazine is still not modelled</b>, and it is the one place the
+ * two pools are known to disagree with the rulebook. FD3.81 gives a type-H a fifth magazine of
+ * eight type-VIs that "can fire as a type-E drone rack (FD3.5)"; the rack as a whole is not
+ * dogfight-only, so all twenty of its spaces land in the ordinary pool and type-VIs loaded into
+ * it count in neither. Harmless while no hull in the data declares a type-H — it is
+ * starbase-only — and the fix is FD3.81's magazines, not a special case here.
  *
  * <p><b>FD10.643's last sentence is not built.</b> "Type-G drone racks and ADD racks replacing
  * some of their ADDs with type-VI drones compute the availability of speed upgrades (FD10.65)
@@ -111,9 +167,11 @@ import com.sfb.weapons.Weapon;
  * <b>Fighters.</b> FD10.641 includes "fighter ready racks or launch rails" in the percentage,
  * and this walks the ship's own drone racks only. That understates the load on exactly the
  * ships the relaxed cap is written for, so a carrier is currently judged on its hull racks
- * alone. FD10.644 and FD10.645 give the fighter accounting its own rules — type-VI drones on
- * type-VI rails counted separately, type-VI drones on ordinary rails counted as General — and
- * that is a slice of its own.
+ * alone. FD10.644's separate basis for dogfight drones is built, and a LIGHT rail will fall
+ * into it unchanged the day a squadron's rails are counted, but the counting itself is a slice
+ * of its own — as is FD10.645, where a type-VI on an ORDINARY rail is "a space of General
+ * Availability for each such drone": a full space, in the ordinary pool, rather than the half
+ * space it occupies in a rack.
  *
  * <p><b>Drones bought as Commander's Options (FD10.647).</b> "Extra drones purchased as
  * Commander's Options do not include reloads and must adhere to the drone percentages" — with
@@ -179,11 +237,52 @@ public final class DroneAvailabilityLimit {
     }
 
     /**
-     * FD10.641's "warhead spaces" aboard: every drone in every rack, less the type-VIs FD10.643
-     * leaves out of the calculation.
+     * FD10.641's "warhead spaces" aboard: the spaces the hull's racks HOLD, loaded or not.
+     *
+     * <p>Rack capacity rather than the drones in it — see the class javadoc for why, and for
+     * the playtest that found it. The dogfight-only racks are not here; they are their own
+     * basis, in {@link #dogfightSpaces}.
+     *
+     * <p>A magazine launcher counts all of its magazines, which is FD10.671's arithmetic
+     * ("six type-B drone racks would hold 36 spaces of drones") applied to a rack that keeps
+     * its reloads inside itself. Reload STORAGE is a separate quantity and no part of this.
      */
     public static double countedSpaces(Ship ship) {
-        return spacesAtLeast(ship, Availability.GENERAL, Integer.MAX_VALUE);
+        if (ship == null || ship.getWeapons() == null)
+            return 0;
+        double spaces = 0;
+        for (Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRack rack && !isDogfightOnly(rack))
+                spaces += rack.getSpaces();
+        return spaces;
+    }
+
+    /**
+     * FD10.644's separate basis: the spaces of racks that will hold nothing but dogfight drones.
+     *
+     * <p>Zero for all but one hull in the data, and the whole of that pool's denominator.
+     */
+    public static double dogfightSpaces(Ship ship) {
+        if (ship == null || ship.getWeapons() == null)
+            return 0;
+        double spaces = 0;
+        for (Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRack rack && isDogfightOnly(rack))
+                spaces += rack.getSpaces();
+        return spaces;
+    }
+
+    /**
+     * Whether this rack belongs to FD10.644's pool rather than FD10.641's.
+     *
+     * <p>Asked of the rack rather than matched against a list of types: FD3.5's type-E "can
+     * carry no other types", and {@code accepts} is where that already lives. A LIGHT fighter
+     * rail (type-VI only, FD2.52) answers yes through the same question without being named
+     * here, which is what will make FD10.644's own subject — the squadron — cost nothing
+     * but the walk to its rails.
+     */
+    private static boolean isDogfightOnly(DroneRack rack) {
+        return !rack.accepts(com.sfb.objects.DroneType.TypeI);
     }
 
     /**
@@ -199,6 +298,8 @@ public final class DroneAvailabilityLimit {
         for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (!(w instanceof DroneRack rack))
                 continue;
+            if (isDogfightOnly(rack))
+                continue;               // FD10.644's pool, counted by dogfightSpacesAtLeast
             // FD10.643's exception is about the RACK: in a type-G, type-VIs and ADDs are
             // counted rather than ignored. FD3.70 makes the type-G the only rack with the
             // anti-drone targeting system, so that is the test for one.
@@ -223,21 +324,39 @@ public final class DroneAvailabilityLimit {
                         spaces += spec.rackSpaces();
                     continue;
                 }
-                if (year == Integer.MAX_VALUE) {
-                    // The caller asking for "everything". The year cannot matter — every tier
-                    // is at least as restricted as GENERAL — but the ACCOUNTING must still be
-                    // FD10.66's, or the denominator would count half-spaces the numerator has
-                    // already rounded into whole ones. Any year gives the same total.
-                    for (var v : spec.spacesByAvailability(0).values())
-                        spaces += v;
-                    continue;
-                }
                 // FD10.641: a drone is a BILL of tiers, not one tier. A type-IV whose speed is
                 // Restricted and whose second module is Limited is "one space of Restricted and
                 // one space of Limited" — so each space is tested on its own.
                 for (var entry : spec.spacesByAvailability(year).entrySet())
                     if (tierOf(entry.getKey(), ship, spec).atLeastAsRestrictedAs(tier))
                         spaces += entry.getValue();
+            }
+        }
+        return spaces;
+    }
+
+    /**
+     * FD10.644's numerator: dogfight spaces holding an upgrade at least as hard to obtain as
+     * {@code tier}, in that year.
+     *
+     * <p>Only the ENGINE is asked about. A dogfight warhead is fixed and FD10.21 forbids
+     * modifying the frame, so a speed upgrade is the only thing a type-VI can carry that any
+     * year makes hard to get — which is exactly what FD10.644's example counts ("the number of
+     * limited and restricted availability speed upgrades of its type-VI drones under FD10.65").
+     */
+    public static double dogfightSpacesAtLeast(Ship ship, Availability tier, int year) {
+        if (ship == null || ship.getWeapons() == null)
+            return 0;
+        double spaces = 0;
+        for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof DroneRack rack) || !isDogfightOnly(rack))
+                continue;
+            for (Drone d : rack.getAmmo()) {
+                var spec = d.getSpec();
+                if (spec == null)
+                    continue;
+                if (spec.propulsion().availabilityIn(year).atLeastAsRestrictedAs(tier))
+                    spaces += spec.rackSpaces();
             }
         }
         return spaces;
@@ -271,9 +390,17 @@ public final class DroneAvailabilityLimit {
      * fractions of 0.49- down and 0.50+ up."
      */
     public static long allowance(Ship ship, Availability tier) {
-        int percent = tier == Availability.LIMITED
+        return Math.round(countedSpaces(ship) * percentFor(ship, tier) / 100.0);
+    }
+
+    /** The same allowance over FD10.644's separate basis of dogfight spaces. */
+    public static long dogfightAllowance(Ship ship, Availability tier) {
+        return Math.round(dogfightSpaces(ship) * percentFor(ship, tier) / 100.0);
+    }
+
+    private static int percentFor(Ship ship, Availability tier) {
+        return tier == Availability.LIMITED
                 ? limitedPercentFor(ship) : restrictedPercentFor(ship);
-        return Math.round(countedSpaces(ship) * percent / 100.0);
     }
 
     /**
@@ -298,26 +425,32 @@ public final class DroneAvailabilityLimit {
         List<Breach> out = new ArrayList<>();
         if (ship == null)
             return out;
-        double total = countedSpaces(ship);
-        if (total <= 0)
-            return out;
+        // The two pools in order, so a ship that breaches both is told about its ordinary
+        // drones first -- that is the one the player was almost certainly looking at.
+        addBreaches(out, ship, year, false);
+        addBreaches(out, ship, year, true);
+        return out;
+    }
 
+    private static void addBreaches(List<Breach> out, Ship ship, int year, boolean dogfight) {
+        double total = dogfight ? dogfightSpaces(ship) : countedSpaces(ship);
+        if (total <= 0)
+            return;
         for (Availability tier : new Availability[] {
                 Availability.RESTRICTED, Availability.LIMITED }) {
-            double used = spacesAtLeast(ship, tier, year);
-            long allowed = allowance(ship, tier);
+            double used = dogfight ? dogfightSpacesAtLeast(ship, tier, year)
+                                   : spacesAtLeast(ship, tier, year);
+            long allowed = Math.round(total * percentFor(ship, tier) / 100.0);
             if (used <= allowed)
                 continue;
             String rule = tier == Availability.LIMITED ? "FD10.632" : "FD10.622";
             out.add(new Breach(rule, String.format(
-                    "%s: %.1f of %.1f warhead spaces are %s availability or worse,"
+                    "%s: %.1f of %.1f %swarhead spaces are %s availability or worse,"
                     + " over the %d%% allowed (%d spaces) — %s",
-                    ship.getName(), used, total, tier.name().toLowerCase(),
-                    tier == Availability.LIMITED
-                            ? limitedPercentFor(ship) : restrictedPercentFor(ship),
-                    allowed, rule)));
+                    ship.getName(), used, total, dogfight ? "dogfight " : "",
+                    tier.name().toLowerCase(), percentFor(ship, tier), allowed,
+                    dogfight ? rule + " over FD10.644's separate count" : rule)));
         }
-        return out;
     }
 
     /** {@link #breaches} as sentences, for a caller that only means to say them. */
