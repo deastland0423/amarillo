@@ -678,6 +678,10 @@ public class GameController {
         // FD10.641's denominator: the warhead spaces the racks HOLD, less FD10.644's pool.
         row.put("countedSpaces", com.sfb.scenario.DroneAvailabilityLimit.countedSpaces(ship));
         row.put("dogfightSpaces", com.sfb.scenario.DroneAvailabilityLimit.dogfightSpaces(ship));
+        // FD10.641 counts "fighter ready racks or launch rails" beside the hull's own racks, so
+        // a carrier's basis is mostly its squadron. Sent as its own figure because the jump is
+        // otherwise unexplainable from the form: a CVS reads 44 spaces where its SSD shows 20.
+        row.put("fighterSpaces", com.sfb.scenario.DroneAvailabilityLimit.fighterSpaces(ship));
         for (com.sfb.objects.Availability tier : new com.sfb.objects.Availability[] {
                 com.sfb.objects.Availability.RESTRICTED,
                 com.sfb.objects.Availability.LIMITED }) {

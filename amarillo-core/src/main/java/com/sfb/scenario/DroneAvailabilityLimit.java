@@ -8,6 +8,7 @@ import com.sfb.objects.Drone;
 import com.sfb.objects.Ship;
 import com.sfb.properties.Faction;
 import com.sfb.weapons.DroneRack;
+import com.sfb.weapons.DroneRail;
 import com.sfb.weapons.Weapon;
 
 /**
@@ -163,15 +164,47 @@ import com.sfb.weapons.Weapon;
  * based on the numbers of type-VI drones, not ADDs" — a basis of its own for the speed-upgrade
  * percentage, which wants the ADD rack of FD3.7 that is itself unbuilt.
  *
- * <h2>Two things this does NOT yet reach</h2>
- * <b>Fighters.</b> FD10.641 includes "fighter ready racks or launch rails" in the percentage,
- * and this walks the ship's own drone racks only. That understates the load on exactly the
- * ships the relaxed cap is written for, so a carrier is currently judged on its hull racks
- * alone. FD10.644's separate basis for dogfight drones is built, and a LIGHT rail will fall
- * into it unchanged the day a squadron's rails are counted, but the counting itself is a slice
- * of its own — as is FD10.645, where a type-VI on an ORDINARY rail is "a space of General
- * Availability for each such drone": a full space, in the ordinary pool, rather than the half
- * space it occupies in a rack.
+ * <h2>Fighters: "ready racks OR launch rails", and the word is OR</h2>
+ * FD10.641's basis includes "fighter ready racks or launch rails (FD2.45)", and the citation is
+ * the point. FD2.45 pays "only for a single loading of each launch rack and/or fighter; the
+ * reloads (and drones stored on a carrier for use by its fighters) are presumed to be of the
+ * same type without additional cost" — and then: "Carrier Escorts with ready racks for
+ * drone-armed fighters compute the costs for drone upgrades for drones in their fighter ready
+ * racks ... as if they were carrying fighters (J4.621)."
+ *
+ * <p>So the two are alternatives, not a sum. A box with a fighter in it contributes that
+ * fighter's RAILS; a box with a ready rack and no fighter — an escort, which is a live case
+ * here because {@code ShuttleSpace.fitFacilitiesFor} fits one from the COI's facility choice —
+ * contributes the RACK. Counting both would double a carrier's basis, and since the basis is
+ * the denominator of a ceiling, doubling it is the permissive direction.
+ *
+ * <p><b>The numerator counts both, and that is not a contradiction.</b> J4.8223 rests a carrier
+ * with "racks full, fighters unloaded", and arming MOVES the drone across
+ * ({@code ReadyRack.takeFor}) rather than copying it. A drone is therefore in the rack or on a
+ * rail and never in both, so rails-plus-rack is exactly the one loading FD2.45 charges for,
+ * however much of the squadron the player armed. Reading the rails alone would score every
+ * carrier at zero Restricted on a basis inflated by all of its rails — a free pass.
+ *
+ * <p>Mid-game this invariant lapses: deck crews refill a rack while the strike is away
+ * (J4.8223), so a sortied carrier can hold more than one loading. That does not matter to a
+ * rule about what a ship may be BOUGHT with, which is the only question asked here.
+ *
+ * <p><b>FD10.645</b> sets the conversion for the odd case: "Fighter squadrons count type-VI
+ * drones loaded on non-type-VI rails as a space of General Availability for each such drone" —
+ * a FULL space, not the half it takes in a rack, because it displaced an ordinary drone. A
+ * speed-upgraded one still counts at its engine's tier, by the same clause FD10.643 spells out
+ * for the type-G; FD10.645 does not repeat that sentence, and the strict reading would let a
+ * player launder speed upgrades by parking dogfight drones on standard rails.
+ *
+ * <h2>What this still does NOT reach</h2>
+ * <b>A balcony fighter's rails ARE counted</b> (J1.53) and so are a bay's boxes, but a drone
+ * rack mounted in a shuttle box ({@code ShuttleSpace.getDroneRack}) is not: nothing in the data
+ * declares one, and bay drone racks are deferred as a whole.
+ *
+ * <p><b>Reload storage is no part of the basis</b>, which is FD10.641 read plainly — racks and
+ * rails, not stores. FD10.644's example confirms it from the other side: its reload storage is
+ * computed "proportional to the loading of the fighters", after the percentages rather than
+ * inside them. So neither a rack's reloads nor Annex #7G's carrier stores widen a ceiling.
  *
  * <p><b>Drones bought as Commander's Options (FD10.647).</b> "Extra drones purchased as
  * Commander's Options do not include reloads and must adhere to the drone percentages" — with
@@ -248,13 +281,7 @@ public final class DroneAvailabilityLimit {
      * its reloads inside itself. Reload STORAGE is a separate quantity and no part of this.
      */
     public static double countedSpaces(Ship ship) {
-        if (ship == null || ship.getWeapons() == null)
-            return 0;
-        double spaces = 0;
-        for (Weapon w : ship.getWeapons().fetchAllWeapons())
-            if (w instanceof DroneRack rack && !isDogfightOnly(rack))
-                spaces += rack.getSpaces();
-        return spaces;
+        return hullSpaces(ship, false) + fighterSpaces(ship, false);
     }
 
     /**
@@ -263,12 +290,87 @@ public final class DroneAvailabilityLimit {
      * <p>Zero for all but one hull in the data, and the whole of that pool's denominator.
      */
     public static double dogfightSpaces(Ship ship) {
+        return hullSpaces(ship, true) + fighterSpaces(ship, true);
+    }
+
+    /**
+     * How much of {@link #countedSpaces} came from the fighters rather than the hull.
+     *
+     * <p>Reported for the gauge alone. A Kzinti CVS has twenty spaces of hull racks and
+     * twenty-four of rails, and a player who has only ever seen the hull figure deserves to be
+     * told which half of "of 44 spaces" is which rather than left to wonder what moved.
+     */
+    public static double fighterSpaces(Ship ship) {
+        return fighterSpaces(ship, false) + fighterSpaces(ship, true);
+    }
+
+    /** The hull's own racks, in one pool or the other. */
+    private static double hullSpaces(Ship ship, boolean dogfight) {
         if (ship == null || ship.getWeapons() == null)
             return 0;
         double spaces = 0;
         for (Weapon w : ship.getWeapons().fetchAllWeapons())
-            if (w instanceof DroneRack rack && isDogfightOnly(rack))
+            if (w instanceof DroneRack rack && isDogfightOnly(rack) == dogfight)
                 spaces += rack.getSpaces();
+        return spaces;
+    }
+
+    /**
+     * FD10.641's other half: each fighter's rails, or an empty box's ready rack, never both.
+     *
+     * <p>A destroyed box contributes nothing, which is right for either reading of a cap
+     * measured mid-game and irrelevant at the only moment it binds.
+     */
+    private static double fighterSpaces(Ship ship, boolean dogfight) {
+        if (ship == null || ship.getShuttles() == null)
+            return 0;
+        double spaces = 0;
+        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+            for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces()) {
+                if (box.isDestroyed())
+                    continue;
+                if (box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter f)
+                    spaces += railSpaces(f, dogfight);
+                else if (box.getReadyRack() != null)
+                    // FD2.45/J4.621: an escort's rack stands in for the fighter it has not got.
+                    spaces += rackDesignSpaces(box.getReadyRack(), dogfight);
+            }
+            // J1.53: a balcony fighter is a fighter, and its rails are rails.
+            for (com.sfb.objects.shuttles.Shuttle s : bay.getBalcony())
+                if (s instanceof com.sfb.objects.shuttles.Fighter f)
+                    spaces += railSpaces(f, dogfight);
+        }
+        return spaces;
+    }
+
+    /** One fighter's rail capacity in a pool — FD2.52's rail sizes, which are warhead spaces. */
+    private static double railSpaces(com.sfb.objects.shuttles.Fighter fighter, boolean dogfight) {
+        if (fighter == null || fighter.getWeapons() == null)
+            return 0;
+        double spaces = 0;
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof DroneRail rail) || rail.carriesPlasma())
+                continue;       // J4.28: a plasma rail holds no drone and is in neither pool
+            if (isDogfightOnly(rail) == dogfight)
+                spaces += rail.getRailType().capacity;
+        }
+        return spaces;
+    }
+
+    /**
+     * An escort ready rack's capacity, split by what each slot was built to hold.
+     *
+     * <p>J4.8222 makes a rack's slots type-specific — "the same drones that the fighter it is
+     * designed to service carries" — so its design is the rail layout of the fighter it
+     * serves, and splits between the pools the same way those rails would.
+     */
+    private static double rackDesignSpaces(com.sfb.systemgroups.ReadyRack rack, boolean dogfight) {
+        if (rack == null || rack.carriesPlasma())
+            return 0;
+        double spaces = 0;
+        for (com.sfb.objects.DroneType slot : rack.design())
+            if (slot != null && slot.isTypeVI() == dogfight)
+                spaces += slot.rack;
         return spaces;
     }
 
@@ -292,6 +394,11 @@ public final class DroneAvailabilityLimit {
      * Restricted allowance as well as its own.
      */
     public static double spacesAtLeast(Ship ship, Availability tier, int year) {
+        return hullSpacesAtLeast(ship, tier, year)
+                + fighterSpacesAtLeast(ship, tier, year, false);
+    }
+
+    private static double hullSpacesAtLeast(Ship ship, Availability tier, int year) {
         if (ship == null || ship.getWeapons() == null)
             return 0;
         double spaces = 0;
@@ -320,18 +427,28 @@ public final class DroneAvailabilityLimit {
                     // the G-rack's Restricted and Limited Availability drone spaces" -- which
                     // is the engine's own tier and nothing more, since a dogfight warhead is
                     // fixed and FD10.21 forbids modifying the frame.
-                    if (spec.propulsion().availabilityIn(year).atLeastAsRestrictedAs(tier))
-                        spaces += spec.rackSpaces();
+                    spaces += dogfightDroneSpaces(d, tier, year, true);
                     continue;
                 }
-                // FD10.641: a drone is a BILL of tiers, not one tier. A type-IV whose speed is
-                // Restricted and whose second module is Limited is "one space of Restricted and
-                // one space of Limited" — so each space is tested on its own.
-                for (var entry : spec.spacesByAvailability(year).entrySet())
-                    if (tierOf(entry.getKey(), ship, spec).atLeastAsRestrictedAs(tier))
-                        spaces += entry.getValue();
+                spaces += billAtLeast(spec, ship, tier, year);
             }
         }
+        return spaces;
+    }
+
+    /**
+     * One ordinary drone's spaces at or below {@code tier}.
+     *
+     * <p>FD10.641: a drone is a BILL of tiers, not one tier. A type-IV whose speed is Restricted
+     * and whose second module is Limited is "one space of Restricted and one space of Limited"
+     * — so each space is tested on its own.
+     */
+    private static double billAtLeast(com.sfb.objects.DroneSpec spec, Ship ship,
+            Availability tier, int year) {
+        double spaces = 0;
+        for (var entry : spec.spacesByAvailability(year).entrySet())
+            if (tierOf(entry.getKey(), ship, spec).atLeastAsRestrictedAs(tier))
+                spaces += entry.getValue();
         return spaces;
     }
 
@@ -351,13 +468,106 @@ public final class DroneAvailabilityLimit {
         for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (!(w instanceof DroneRack rack) || !isDogfightOnly(rack))
                 continue;
-            for (Drone d : rack.getAmmo()) {
-                var spec = d.getSpec();
-                if (spec == null)
+            for (Drone d : rack.getAmmo())
+                spaces += dogfightDroneSpaces(d, tier, year, true);
+        }
+        return spaces + fighterSpacesAtLeast(ship, tier, year, true);
+    }
+
+    /**
+     * A dogfight drone's contribution: its engine's tier, and nothing else.
+     *
+     * <p>A dogfight warhead is fixed and FD10.21 forbids modifying the frame, so a speed upgrade
+     * is the only thing about a type-VI that a year can make hard to get — which is what both
+     * FD10.643's type-G clause and FD10.644's example count.
+     *
+     * @param ownSize true for a mount built for dogfight drones, where a type-VI takes the half
+     *                space it occupies; false on an ordinary rail, where FD10.645 makes it "a
+     *                space of General Availability for each such drone" — a whole one.
+     */
+    private static double dogfightDroneSpaces(Drone d, Availability tier, int year,
+            boolean ownSize) {
+        var spec = d == null ? null : d.getSpec();
+        if (spec == null)
+            return 0;
+        if (!spec.propulsion().availabilityIn(year).atLeastAsRestrictedAs(tier))
+            return 0;
+        return ownSize ? spec.rackSpaces() : 1.0;
+    }
+
+    /**
+     * The fighters' half of a numerator: what is on the rails plus what is still in the racks.
+     *
+     * <p>Both, because arming MOVES a drone from rack to rail rather than copying it (J4.8223,
+     * {@code ReadyRack.takeFor}), so the two together are the single loading FD2.45 charges for
+     * whatever the player's readiness choices were. See the class javadoc.
+     */
+    private static double fighterSpacesAtLeast(Ship ship, Availability tier, int year,
+            boolean dogfight) {
+        if (ship == null || ship.getShuttles() == null)
+            return 0;
+        double spaces = 0;
+        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+            for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces()) {
+                if (box.isDestroyed())
                     continue;
-                if (spec.propulsion().availabilityIn(year).atLeastAsRestrictedAs(tier))
-                    spaces += spec.rackSpaces();
+                if (box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter f)
+                    spaces += railDroneSpaces(f, ship, tier, year, dogfight);
+                if (box.getReadyRack() != null)
+                    spaces += rackDroneSpaces(box.getReadyRack(), ship, tier, year, dogfight);
             }
+            for (com.sfb.objects.shuttles.Shuttle s : bay.getBalcony())
+                if (s instanceof com.sfb.objects.shuttles.Fighter f)
+                    spaces += railDroneSpaces(f, ship, tier, year, dogfight);
+        }
+        return spaces;
+    }
+
+    /** The drones a fighter is actually carrying, each billed by the rail it rides on. */
+    private static double railDroneSpaces(com.sfb.objects.shuttles.Fighter fighter, Ship ship,
+            Availability tier, int year, boolean dogfight) {
+        if (fighter == null || fighter.getWeapons() == null)
+            return 0;
+        double spaces = 0;
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof DroneRail rail) || rail.carriesPlasma())
+                continue;
+            Drone d = rail.getDrone();
+            if (d == null || d.getSpec() == null)
+                continue;
+            boolean dogfightRail = isDogfightOnly(rail);
+            if (d.getDroneType() != null && d.getDroneType().isTypeVI()) {
+                // On a dogfight rail it is its own pool at half a space; on an ordinary rail
+                // FD10.645 counts it in the ORDINARY pool as a whole General space.
+                if (dogfightRail == dogfight)
+                    spaces += dogfightDroneSpaces(d, tier, year, dogfightRail);
+                continue;
+            }
+            // An ordinary drone on a dogfight rail cannot happen -- DroneRail.accepts refuses
+            // it -- so there is no pool to put one in and nothing to decide.
+            if (!dogfight && !dogfightRail)
+                spaces += billAtLeast(d.getSpec(), ship, tier, year);
+        }
+        return spaces;
+    }
+
+    /** And the ones still in the box, billed by what they are rather than by a slot. */
+    private static double rackDroneSpaces(com.sfb.systemgroups.ReadyRack rack, Ship ship,
+            Availability tier, int year, boolean dogfight) {
+        if (rack == null || rack.carriesPlasma())
+            return 0;
+        double spaces = 0;
+        for (Drone d : rack.contents()) {
+            if (d == null || d.getSpec() == null)
+                continue;
+            boolean typeVi = d.getDroneType() != null && d.getDroneType().isTypeVI();
+            if (typeVi != dogfight)
+                continue;
+            // By the DRONE, because a rack is stocked to its design (J4.8222) and a type-VI in
+            // it is bound for a light rail. A type-VI stored in a standard slot would be an
+            // FD10.645 case, and nothing can put one there: ReadyRack.takeFor loads by slot.
+            spaces += typeVi ? dogfightDroneSpaces(d, tier, year, true)
+                             : billAtLeast(d.getSpec(), ship, tier, year);
         }
         return spaces;
     }

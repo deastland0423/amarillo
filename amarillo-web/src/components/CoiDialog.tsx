@@ -939,7 +939,8 @@ function DroneAvailabilityGauge({ figures }: { figures: DroneAvailability }) {
     <>
       {figures.countedSpaces > 0 && (
         <CapGauge rows={capRows(figures)} total={figures.countedSpaces}
-                  relaxed={figures.relaxed} />
+                  relaxed={figures.relaxed}
+                  fromFighters={figures.fighterSpaces ?? 0} />
       )}
       {dogfight.length > 0 && (
         <CapGauge rows={dogfight} total={figures.dogfightSpaces ?? 0}
@@ -957,15 +958,23 @@ function DroneAvailabilityGauge({ figures }: { figures: DroneAvailability }) {
  * adds and removes drones, and the "of N spaces" is worth printing beside the caps rather than
  * left to be inferred from them.
  */
-function CapGauge({ rows, total, relaxed, pool, basisRule }: {
-  rows:       CapRow[];
-  total:      number;
-  relaxed:    boolean;
-  pool?:      string;
-  basisRule?: string;
+function CapGauge({ rows, total, relaxed, pool, basisRule, fromFighters = 0 }: {
+  rows:          CapRow[];
+  total:         number;
+  relaxed:       boolean;
+  pool?:         string;
+  basisRule?:    string;
+  /** Of `total`, how much is the squadron's rails (FD10.641). Zero on a ship with no fighters. */
+  fromFighters?: number;
 }) {
   const spaces = spacesUsedLabel(total);
   const basis = pool ? `${pool.toLowerCase()} warhead spaces` : 'warhead spaces';
+  // Where the spaces came from, for the ship whose basis is mostly its squadron. `> 0` rather
+  // than truthiness so a server that sends no such figure says nothing instead of "0 of them".
+  const split = fromFighters > 0
+    ? ` — ${spacesUsedLabel(total - fromFighters)} in the hull's racks and`
+      + ` ${spacesUsedLabel(fromFighters)} on fighter rails`
+    : ``;
   return (
     <div className="coi-note coi-availability">
       {pool && <span className="coi-availability-pool">{pool}</span>}
@@ -974,6 +983,7 @@ function CapGauge({ rows, total, relaxed, pool, basisRule }: {
               className={r.over ? 'coi-availability-over' : undefined}
               title={`${r.rule}: ${r.percent}% of the ${spaces} ${basis} aboard`
                      + ` (${basisRule ?? 'FD10.641'})`
+                     + split
                      + (relaxed
                           ? ` — this hull is on FD10.622's exception list` : ``)}>
           {r.label} {spacesUsedLabel(r.used)}/{r.allowed}

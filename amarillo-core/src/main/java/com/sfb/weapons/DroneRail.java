@@ -127,6 +127,29 @@ public class DroneRail extends DroneRack {
     }
 
     /**
+     * The same question of a drone TYPE, which a rail has to answer for itself.
+     *
+     * <p>{@link DroneRack#accepts(com.sfb.objects.DroneType)} switches on the RACK type, and a
+     * rail has none — this class reaches {@code DroneRack} through a constructor that never
+     * runs the type table. So the inherited method fell through to {@code return true} and a
+     * LIGHT rail, which FD2.52 makes type-VI only, claimed it would take a type-I.
+     *
+     * <p>That was invisible while nothing asked. {@code DroneAvailabilityLimit} asks: it sorts a
+     * mount into FD10.641's pool or FD10.644's by whether an ordinary drone could ride there,
+     * and the inherited answer put every dogfight rail in the wrong one. The overload above
+     * takes a {@code Drone} rather than a {@code DroneType}, so it never shadowed it either.
+     *
+     * <p>Capacity is the whole test, as it is for the drone overload: FD2.52's rail sizes are
+     * exactly how much warhead space each will hold.
+     */
+    @Override
+    public boolean accepts(com.sfb.objects.DroneType droneType) {
+        if (carriesPlasma())
+            return false;
+        return droneType != null && droneType.rack <= railType.capacity;
+    }
+
+    /**
      * True if this rail carries plasma torpedoes rather than drones — a type-D rail (FP9.2) or a
      * type-K rail (FP13.31). J4.28: plasma "use a unique type of launch rail which cannot carry
      * drones", so this is the question nearly every caller means.

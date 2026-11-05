@@ -245,4 +245,56 @@ class FleetDroneAvailabilityEndpointTest {
 
         assertEquals(0.0, ((Number) row.get("dogfightRestrictedUsed")).doubleValue(), 1e-9);
     }
+
+    /** A Kzinti CVS in Y175: twelve fighters in the bays, and a doubled cap by faction. */
+    private FleetSpec cvsFleet(int year) {
+        FleetSpec spec = new FleetSpec();
+        spec.factions = new java.util.ArrayList<>(List.of("Kzinti"));
+        spec.year = year;
+        spec.budget = 2000;
+        spec.flagship = "CVS";
+
+        FleetSpec.ShipEntry e = new FleetSpec.ShipEntry();
+        e.type = "CVS";
+        e.name = "CVS";
+        spec.ships.add(e);
+        return spec;
+    }
+
+    /**
+     * FD10.641's fighter half, on the wire: "warhead spaces of drones in drone racks, AND
+     * fighter ready racks or launch rails".
+     *
+     * <p>A carrier used to be judged on its hull racks alone, which understated the load on
+     * exactly the ships FD10.622's doubled cap is written for. Its squadron's rails are more of
+     * its basis than its hull is, so the figure the form shows has to break down or a player
+     * reading "of 44 spaces" against an SSD showing twenty has no way to tell what happened.
+     */
+    @Test
+    void aCarriersBasisIncludesItsSquadronsRails() {
+        Map<String, Object> row = rowFor(cvsFleet(175));
+
+        double counted = ((Number) row.get("countedSpaces")).doubleValue();
+        double fromFighters = ((Number) row.get("fighterSpaces")).doubleValue();
+        assertTrue(fromFighters > 0,
+                "a twelve-fighter carrier must contribute rail spaces: " + row);
+        assertTrue(counted > fromFighters,
+                "and the hull's own racks are still in there: " + row);
+        assertEquals(counted - fromFighters, 20.0, 1e-9,
+                "the CVS's four hull racks after its Y175 refit");
+        assertEquals(24.0, fromFighters, 1e-9,
+                "twelve fighters of two STANDARD rails each");
+        assertEquals(true, row.get("relaxed"), "Kzinti, so 50/20");
+        assertEquals(22L, ((Number) row.get("restrictedAllowed")).longValue(),
+                "50% of the whole basis, not of the hull racks alone");
+    }
+
+    /** And a ship with no fighters reports none of them, rather than omitting the figure. */
+    @Test
+    void aShipWithNoFightersReportsNoFighterSpaces() {
+        Map<String, Object> row = rowFor(ffgFleet(180, "TypeI", "TypeI", "TypeI", "TypeI"));
+
+        assertEquals(0.0, ((Number) row.get("fighterSpaces")).doubleValue(), 1e-9);
+        assertEquals(4.0, ((Number) row.get("countedSpaces")).doubleValue(), 1e-9);
+    }
 }

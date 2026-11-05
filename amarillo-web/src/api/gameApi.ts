@@ -333,6 +333,11 @@ export interface DroneAvailability {
    * the figures above are still true without them. Read them with `?? 0`, never as a number.
    */
   dogfightSpaces?:             number;
+  /**
+   * How much of `countedSpaces` is the squadron's rails rather than the hull's racks
+   * (FD10.641 counts "fighter ready racks or launch rails"). For the gauge's tooltip only.
+   */
+  fighterSpaces?:              number;
   dogfightRestrictedUsed?:     number;
   dogfightRestrictedAllowed?:  number;
   dogfightLimitedUsed?:        number;

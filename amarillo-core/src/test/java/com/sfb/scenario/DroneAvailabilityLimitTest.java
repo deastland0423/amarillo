@@ -832,4 +832,208 @@ public class DroneAvailabilityLimitTest {
         assertEquals("the type-III frame alone is Limited (FD10.631)", 1.0,
                 DroneAvailabilityLimit.spacesAtLeast(ship, Availability.LIMITED, 180), 0.0001);
     }
+
+    // ------------------------------- FD10.641: "fighter ready racks or launch rails (FD2.45)"
+
+    /** The hull's one remaining rack, plus a fighter of this catalogue type seated in box 0. */
+    private static com.sfb.systemgroups.ShuttleSpace seatFighter(Ship ship, String type) {
+        keepOneRack(ship);
+        com.sfb.systemgroups.ShuttleSpace box =
+                ship.getShuttles().getBays().get(0).getSpaces().get(0);
+        box.reequipFor(com.sfb.objects.shuttles.CataloguedFighter.of(type));
+        return box;
+    }
+
+    /**
+     * A fighter's rails are part of the ship's basis, at FD2.52's rail sizes.
+     *
+     * <p>A Kzinti HAAS carries two STANDARD rails, so a hull with one four-space rack and one
+     * HAAS aboard has six warhead spaces rather than four. Before this, a carrier was judged on
+     * its hull racks alone — understating the load on exactly the ships FD10.622's doubled cap
+     * is written for.
+     */
+    @Test
+    public void aFightersRailsJoinTheOrdinaryBasis() {
+        Ship ship = kzintiShip();
+        seatFighter(ship, "haas");
+
+        assertEquals("four rack spaces plus two STANDARD rails", 6.0,
+                DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("and no dogfight rail on a HAAS", 0.0,
+                DroneAvailabilityLimit.dogfightSpaces(ship), 0.0001);
+    }
+
+    /**
+     * And a LIGHT rail goes to the other pool — FD2.52 makes it type-VI only, so FD10.644
+     * counts it "separately from all other drones".
+     *
+     * <p>A TAAS carries two STANDARD and two LIGHT: two ordinary spaces and one dogfight space,
+     * since a type-VI rail is half a space.
+     */
+    @Test
+    public void aLightRailIsCountedInTheDogfightPool() {
+        Ship ship = kzintiShip();
+        seatFighter(ship, "taas");
+
+        assertEquals("the rack and the two STANDARD rails", 6.0,
+                DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("two LIGHT rails at half a space each", 1.0,
+                DroneAvailabilityLimit.dogfightSpaces(ship), 0.0001);
+    }
+
+    /**
+     * FD10.641's "or" — the basis takes the rails OR the ready rack, never both.
+     *
+     * <p>Seating a fighter also fits its box's ready rack (J4.822), which holds one reload of
+     * the same drones. Counting the pair would double the carrier's denominator, and since the
+     * denominator is under a ceiling, doubling it is the permissive direction: a CVS would get
+     * twice the Restricted allowance FD10.622 means it to have.
+     */
+    @Test
+    public void aFightersReadyRackIsNotCountedBesideItsRails() {
+        Ship ship = kzintiShip();
+        com.sfb.systemgroups.ShuttleSpace box = seatFighter(ship, "haas");
+
+        assertNotNull("fixture: seating a drone fighter must fit a ready rack (J4.822)",
+                box.getReadyRack());
+        assertEquals("the rack is a reload, not a second loading", 6.0,
+                DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+    }
+
+    /**
+     * And the case FD10.641 names the ready racks for: an escort that has them and no fighters.
+     *
+     * <blockquote>FD2.45: "Carrier Escorts with ready racks for drone-armed fighters compute the
+     * costs for drone upgrades for drones in their fighter ready racks and storage for those
+     * racks as if they were carrying fighters (J4.621)."</blockquote>
+     *
+     * <p>{@code fitFacilitiesFor} is how one gets a rack with an empty box — the COI's fighter
+     * facility choice — and a rack built to service a HAAS has that fighter's two standard
+     * slots.
+     */
+    @Test
+    public void anEscortsReadyRackStandsInForTheFighterItHasNot() {
+        Ship ship = kzintiShip();
+        keepOneRack(ship);
+        com.sfb.systemgroups.ShuttleSpace box =
+                ship.getShuttles().getBays().get(0).getSpaces().get(0);
+        box.setShuttle(null);
+        assertTrue("fixture: the facility choice must fit a rack", box.fitFacilitiesFor("haas"));
+
+        assertEquals("four rack spaces plus the escort rack's two slots", 6.0,
+                DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+    }
+
+    /**
+     * The numerator counts the rails AND the rack, because a drone is only ever in one of them.
+     *
+     * <p>J4.8223 rests a carrier with "racks full, fighters unloaded", and arming MOVES the
+     * drone across ({@code ReadyRack.takeFor}). So the sum is the single loading FD2.45 charges
+     * for, whatever the player's readiness choices were — and it must not change when the
+     * fighter is armed. Reading the rails alone would score a resting carrier at zero against a
+     * basis that counted all of its rails.
+     */
+    @Test
+    public void aFightersDronesCountWhereverTheyHappenToSit() {
+        Ship ship = kzintiShip();
+        com.sfb.systemgroups.ShuttleSpace box = seatFighter(ship, "haas");
+        // The year's refit door (FD2.45): the box is stocked with medium-speed drones, which
+        // FD10.65 makes Restricted in Y166.
+        box.getReadyRack().refit(d -> new Drone(DroneType.TypeIM));
+
+        assertEquals("at rest the loading is in the rack", 2.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 166), 0.0001);
+
+        box.armOccupantFully();
+        assertEquals("and arming moves it to the rails without changing the total", 2.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 166), 0.0001);
+        assertEquals("the basis did not move either", 6.0,
+                DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+    }
+
+    /**
+     * FD10.645: a type-VI on an ordinary rail is "a space of General Availability for EACH such
+     * drone" — a whole space, not the half it takes in a rack, because it displaced an
+     * ordinary drone.
+     *
+     * <p>General by default. A speed-upgraded one still counts at its engine's tier, by the
+     * clause FD10.643 spells out for the type-G; FD10.645 does not repeat it, and the strict
+     * reading would let a player launder speed upgrades by parking dogfight drones on standard
+     * rails. Recorded as a reading in {@code DroneAvailabilityLimit}.
+     */
+    @Test
+    public void aTypeViOnAnOrdinaryRailIsAWholeSpaceNotAHalf() {
+        Ship ship = kzintiShip();
+        com.sfb.systemgroups.ShuttleSpace box = seatFighter(ship, "haas");
+        // Armed first so the rack is empty and the rails are the only thing holding drones,
+        // then the loading swapped for dogfight drones -- FD2.52's fighter exchange.
+        box.armOccupantFully();
+        for (com.sfb.weapons.Weapon w
+                : ((com.sfb.objects.shuttles.Fighter) box.getShuttle())
+                        .getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.DroneRail rail) {
+                rail.getAmmo().clear();
+                rail.loadDrone(new Drone(DroneType.TypeVIM));
+            }
+
+        assertEquals("two type-VIMs on STANDARD rails are two WHOLE spaces of Restricted in"
+                + " Y166, not one", 2.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 166), 0.0001);
+        assertEquals("and they are in the ordinary pool, not the dogfight one", 0.0,
+                DroneAvailabilityLimit.dogfightSpacesAtLeast(
+                        ship, Availability.RESTRICTED, 166), 0.0001);
+        assertEquals("General in Y167, when medium speed is", 0.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 167), 0.0001);
+    }
+
+    /**
+     * A dogfight fighter's whole loadout lands in the dogfight pool — a Kzinti DAS flies two
+     * LIGHT rails and nothing else, so it is one space, and a quarter of one space is none.
+     */
+    @Test
+    public void aDogfightFightersDronesAreJudgedInTheirOwnPool() {
+        Ship ship = klingonShip();                  // 25%, not the Kzinti 50%
+        ship.getWeapons().fetchAllWeapons().removeIf(w -> w instanceof DroneRack);
+        com.sfb.systemgroups.ShuttleSpace box =
+                ship.getShuttles().getBays().get(0).getSpaces().get(0);
+        box.reequipFor(com.sfb.objects.shuttles.CataloguedFighter.of("das"));
+        box.getReadyRack().refit(d -> new Drone(DroneType.TypeVIM));
+
+        assertEquals("no hull rack and no ordinary rail", 0.0,
+                DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("two LIGHT rails", 1.0,
+                DroneAvailabilityLimit.dogfightSpaces(ship), 0.0001);
+        assertEquals("both upgraded, at half a space each", 1.0,
+                DroneAvailabilityLimit.dogfightSpacesAtLeast(
+                        ship, Availability.RESTRICTED, 166), 0.0001);
+        assertEquals("25% of one space rounds to none", 0,
+                DroneAvailabilityLimit.dogfightAllowance(ship, Availability.RESTRICTED));
+
+        List<String> breaches = DroneAvailabilityLimit.violations(ship, 166);
+        assertFalse("a DAS loaded entirely with medium dogfight drones is over FD10.622",
+                breaches.isEmpty());
+        assertTrue("and it is the dogfight count: " + breaches,
+                breaches.get(0).contains("dogfight"));
+    }
+
+    /**
+     * A plasma rail is in neither pool. J4.28: plasma "use a unique type of launch rail which
+     * cannot carry drones", so its spaces are not warhead spaces of drones at all.
+     *
+     * <p>Worth a test because the test for a dogfight mount is "it will not take an ordinary
+     * drone", and a plasma rail will not take any drone — so it answers yes to a question it
+     * was never asked, and would have landed in FD10.644's pool as free headroom.
+     */
+    @Test
+    public void aPlasmaRailIsInNeitherPool() {
+        Ship ship = kzintiShip();
+        // A Gorn G-18 in a Kzinti box is not a fleet anyone would field; what is under test is
+        // the MOUNT, and the G-18's two PLASMA_D rails are the only kind in the data.
+        seatFighter(ship, "g18");
+
+        assertEquals("the hull rack alone", 4.0,
+                DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("and nothing in the dogfight pool", 0.0,
+                DroneAvailabilityLimit.dogfightSpaces(ship), 0.0001);
+    }
 }
