@@ -845,15 +845,15 @@ public class DroneAvailabilityLimitTest {
     }
 
     /**
-     * A fighter's rails are part of the ship's basis, at FD2.52's rail sizes.
+     * A fighter's drone spaces are part of the ship's basis.
      *
-     * <p>A Kzinti HAAS carries two STANDARD rails, so a hull with one four-space rack and one
-     * HAAS aboard has six warhead spaces rather than four. Before this, a carrier was judged on
-     * its hull racks alone — understating the load on exactly the ships FD10.622's doubled cap
-     * is written for.
+     * <p>A Kzinti HAAS carries two STANDARD rails and its box's ready rack holds the two drones
+     * that go on them (J4.8222), so a hull with one four-space rack and one HAAS aboard has six
+     * warhead spaces rather than four. Before this, a carrier was judged on its hull racks
+     * alone — understating the load on exactly the ships FD10.622's doubled cap is written for.
      */
     @Test
-    public void aFightersRailsJoinTheOrdinaryBasis() {
+    public void aFightersDroneSpacesJoinTheOrdinaryBasis() {
         Ship ship = kzintiShip();
         seatFighter(ship, "haas");
 
@@ -882,7 +882,7 @@ public class DroneAvailabilityLimitTest {
     }
 
     /**
-     * FD10.641's "or" — the basis takes the rails OR the ready rack, never both.
+     * FD10.641's "or" — a fighter box is counted ONCE, not as rails plus rack.
      *
      * <p>Seating a fighter also fits its box's ready rack (J4.822), which holds one reload of
      * the same drones. Counting the pair would double the carrier's denominator, and since the
@@ -890,7 +890,7 @@ public class DroneAvailabilityLimitTest {
      * twice the Restricted allowance FD10.622 means it to have.
      */
     @Test
-    public void aFightersReadyRackIsNotCountedBesideItsRails() {
+    public void aFighterBoxIsCountedOnceAndNotTwice() {
         Ship ship = kzintiShip();
         com.sfb.systemgroups.ShuttleSpace box = seatFighter(ship, "haas");
 
@@ -1035,5 +1035,89 @@ public class DroneAvailabilityLimitTest {
                 DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
         assertEquals("and nothing in the dogfight pool", 0.0,
                 DroneAvailabilityLimit.dogfightSpaces(ship), 0.0001);
+    }
+
+    /**
+     * J4.962: "An EWP replaces one drone carried by the fighter" — so a podded rail is not a
+     * warhead space of a drone, and is no part of FD10.641's basis.
+     *
+     * <p>A Kzinti HAAS-E has an EW pod on BOTH of its standard rails and therefore carries no
+     * drones at all: {@code ReadyRack.forFighter} gives its box no rack, and the ship's basis is
+     * its hull racks and nothing else. Counting the rails instead charged this carrier two
+     * spaces for drones its fighter cannot take — and across the ship library 54 hull-years in
+     * seven factions fly a podded fighter, so the over-count was close to universal among
+     * carriers and in the permissive direction.
+     */
+    @Test
+    public void aPoddedRailIsNotAWarheadSpace() {
+        Ship ship = kzintiShip();
+        com.sfb.systemgroups.ShuttleSpace box = seatFighter(ship, "haas_e");
+
+        assertNull("fixture: a HAAS-E carries no drones, so J4.822 presumes no rack",
+                box.getReadyRack());
+        assertEquals("the hull's four rack spaces and nothing from the fighter", 4.0,
+                DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals(0.0, DroneAvailabilityLimit.dogfightSpaces(ship), 0.0001);
+    }
+
+    /**
+     * And a partly podded fighter contributes what it can still carry.
+     *
+     * <p>A TAAS-E is the case that separates the two readings cleanly: two podded STANDARD rails
+     * and two LIGHT ones, so it carries dogfight drones and no ordinary ones. Its rails would
+     * say two ordinary spaces and one dogfight; its rack says one dogfight space, which is what
+     * it can actually hold.
+     */
+    @Test
+    public void aPartlyPoddedFighterCountsOnlyWhatItCanCarry() {
+        Ship ship = kzintiShip();
+        seatFighter(ship, "taas_e");
+
+        assertEquals("the hull racks alone: both of the TAAS-E's standard rails are podded",
+                4.0, DroneAvailabilityLimit.countedSpaces(ship), 0.0001);
+        assertEquals("two LIGHT rails at half a space each", 1.0,
+                DroneAvailabilityLimit.dogfightSpaces(ship), 0.0001);
+    }
+
+    /**
+     * The invariant that makes a ready rack a safe stand-in for the rails: on a real carrier,
+     * every box holding a fighter with an unpodded drone rail HAS a rack, and that rack has one
+     * slot per such rail.
+     *
+     * <p>Pinned on data rather than on a hand-built fixture, because the thing that could rot is
+     * the agreement between {@code ReadyRack.forFighter} and the catalogue. If a drone fighter
+     * ever appears whose box gets no rack, this basis would silently stop counting it — the
+     * permissive direction, and invisible.
+     */
+    @Test
+    public void everyDroneFightersBoxHasARackMatchingItsUnpoddedRails() {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("../data/factions");
+        for (String hull : new String[] { "CVS", "CV", "MCV" }) {
+            com.sfb.objects.ShipSpec spec = com.sfb.objects.ShipLibrary.get("Kzinti", hull);
+            assertNotNull("fixture: the library must know Kzinti " + hull, spec);
+            Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
+            ScenarioLoader.outfitForYear(ship, "Kzinti", 180, spec);
+
+            int boxesChecked = 0;
+            for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
+                for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces()) {
+                    if (!(box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter f))
+                        continue;
+                    int carryingRails = 0;
+                    for (com.sfb.weapons.Weapon w : f.getWeapons().fetchAllWeapons())
+                        if (w instanceof com.sfb.weapons.DroneRail rail
+                                && !rail.carriesPlasma() && !rail.hasEwPod()
+                                && rail.getDesignDrone() != null)
+                            carryingRails++;
+                    if (carryingRails == 0)
+                        continue;
+                    boxesChecked++;
+                    assertNotNull(hull + ": a fighter with " + carryingRails
+                            + " drone rails must have a ready rack", box.getReadyRack());
+                    assertEquals(hull + ": one rack slot per drone-carrying rail (J4.8222)",
+                            carryingRails, box.getReadyRack().design().size());
+                }
+            assertTrue("fixture: Kzinti " + hull + " must fly drone fighters", boxesChecked > 0);
+        }
     }
 }

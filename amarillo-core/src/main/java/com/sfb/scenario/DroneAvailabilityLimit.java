@@ -172,11 +172,27 @@ import com.sfb.weapons.Weapon;
  * drone-armed fighters compute the costs for drone upgrades for drones in their fighter ready
  * racks ... as if they were carrying fighters (J4.621)."
  *
- * <p>So the two are alternatives, not a sum. A box with a fighter in it contributes that
- * fighter's RAILS; a box with a ready rack and no fighter — an escort, which is a live case
- * here because {@code ShuttleSpace.fitFacilitiesFor} fits one from the COI's facility choice —
- * contributes the RACK. Counting both would double a carrier's basis, and since the basis is
- * the denominator of a ceiling, doubling it is the permissive direction.
+ * <p>So the two are alternatives, not a sum — counting both would double a carrier's basis,
+ * and since the basis is the denominator of a ceiling, doubling it is the permissive direction.
+ *
+ * <p><b>The READY RACK is the measurement, for every box.</b> It is one object rather than two
+ * code paths, it is the escort case already, and J4.8222 makes it the same quantity as the
+ * rails by construction: {@code ReadyRack.forFighter} builds a rack from the fighter it serves,
+ * "one drone per rail, of what THAT rail is designed to carry".
+ *
+ * <p>Where the two part company the rack is the one FD10.641 wants, because it skips a rail
+ * carrying an EW pod — J4.962: "An EWP replaces one drone carried by the fighter". A podded
+ * rail holds no drone, so it is not a warhead space OF A DRONE, and counting the rails charged
+ * a carrier for drones its fighters cannot carry. Measured over the ship library: 54 hull-years
+ * across seven factions have podded rails, a Kzinti CV's basis falls from 40 spaces to 38, and
+ * a Kzinti HAAS-E — both of its rails podded, {@code forFighter} giving it no rack at all —
+ * drops from two spaces to none. The correction is in the restrictive direction, so a carrier
+ * is slightly stricter than it was an hour ago, and right.
+ *
+ * <p>A rack belongs to a BOX, so a fighter parked on a balcony (J1.53) has rails and no rack.
+ * Nothing in the data puts a fighter there at setup — checked across the whole library at Y170
+ * and Y180, zero hulls — and setup is the only moment a purchase cap binds. The NUMERATOR
+ * still reads a balcony fighter's rails, because a drone it is holding is a drone it has.
  *
  * <p><b>The numerator counts both, and that is not a contradiction.</b> J4.8223 rests a carrier
  * with "racks full, fighters unloaded", and arming MOVES the drone across
@@ -316,53 +332,31 @@ public final class DroneAvailabilityLimit {
     }
 
     /**
-     * FD10.641's other half: each fighter's rails, or an empty box's ready rack, never both.
+     * FD10.641's other half: one ready rack per fighter box, carrier or escort alike.
      *
      * <p>A destroyed box contributes nothing, which is right for either reading of a cap
-     * measured mid-game and irrelevant at the only moment it binds.
+     * measured mid-game and irrelevant at the only moment it binds. A box with a fighter whose
+     * every rail is podded has no rack and contributes nothing, which is J4.962 — that fighter
+     * carries no drones.
      */
     private static double fighterSpaces(Ship ship, boolean dogfight) {
         if (ship == null || ship.getShuttles() == null)
             return 0;
         double spaces = 0;
-        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
-            for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces()) {
-                if (box.isDestroyed())
-                    continue;
-                if (box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter f)
-                    spaces += railSpaces(f, dogfight);
-                else if (box.getReadyRack() != null)
-                    // FD2.45/J4.621: an escort's rack stands in for the fighter it has not got.
+        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
+            for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces())
+                if (!box.isDestroyed() && box.getReadyRack() != null)
                     spaces += rackDesignSpaces(box.getReadyRack(), dogfight);
-            }
-            // J1.53: a balcony fighter is a fighter, and its rails are rails.
-            for (com.sfb.objects.shuttles.Shuttle s : bay.getBalcony())
-                if (s instanceof com.sfb.objects.shuttles.Fighter f)
-                    spaces += railSpaces(f, dogfight);
-        }
-        return spaces;
-    }
-
-    /** One fighter's rail capacity in a pool — FD2.52's rail sizes, which are warhead spaces. */
-    private static double railSpaces(com.sfb.objects.shuttles.Fighter fighter, boolean dogfight) {
-        if (fighter == null || fighter.getWeapons() == null)
-            return 0;
-        double spaces = 0;
-        for (Weapon w : fighter.getWeapons().fetchAllWeapons()) {
-            if (!(w instanceof DroneRail rail) || rail.carriesPlasma())
-                continue;       // J4.28: a plasma rail holds no drone and is in neither pool
-            if (isDogfightOnly(rail) == dogfight)
-                spaces += rail.getRailType().capacity;
-        }
         return spaces;
     }
 
     /**
-     * An escort ready rack's capacity, split by what each slot was built to hold.
+     * A ready rack's capacity, split by what each slot was built to hold.
      *
      * <p>J4.8222 makes a rack's slots type-specific — "the same drones that the fighter it is
-     * designed to service carries" — so its design is the rail layout of the fighter it
-     * serves, and splits between the pools the same way those rails would.
+     * designed to service carries" — so its design is the drone-carrying rail layout of the
+     * fighter it serves, and splits between the pools the same way those rails do. A plasma
+     * rack is in neither (J4.28: a plasma rail "cannot carry drones").
      */
     private static double rackDesignSpaces(com.sfb.systemgroups.ReadyRack rack, boolean dogfight) {
         if (rack == null || rack.carriesPlasma())

@@ -266,9 +266,9 @@ class FleetDroneAvailabilityEndpointTest {
      * fighter ready racks or launch rails".
      *
      * <p>A carrier used to be judged on its hull racks alone, which understated the load on
-     * exactly the ships FD10.622's doubled cap is written for. Its squadron's rails are more of
-     * its basis than its hull is, so the figure the form shows has to break down or a player
-     * reading "of 44 spaces" against an SSD showing twenty has no way to tell what happened.
+     * exactly the ships FD10.622's doubled cap is written for. Its squadron is more of its basis
+     * than its hull is, so the figure the form shows has to break down or a player reading "of
+     * 42 spaces" against an SSD showing twenty has no way to tell what happened.
      */
     @Test
     void aCarriersBasisIncludesItsSquadronsRails() {
@@ -282,11 +282,15 @@ class FleetDroneAvailabilityEndpointTest {
                 "and the hull's own racks are still in there: " + row);
         assertEquals(counted - fromFighters, 20.0, 1e-9,
                 "the CVS's four hull racks after its Y175 refit");
-        assertEquals(24.0, fromFighters, 1e-9,
-                "twelve fighters of two STANDARD rails each");
+        // Eleven superiority fighters of two STANDARD rails each. The twelfth is the EW
+        // fighter, and J4.962 pods BOTH of its rails -- it carries no drones, so it brings no
+        // warhead spaces. Counting rails rather than ready racks scored it 24 and charged the
+        // carrier for two drones it cannot load.
+        assertEquals(22.0, fromFighters, 1e-9,
+                "eleven drone fighters at two rails each, and nothing for the EWF");
         assertEquals(true, row.get("relaxed"), "Kzinti, so 50/20");
-        assertEquals(22L, ((Number) row.get("restrictedAllowed")).longValue(),
-                "50% of the whole basis, not of the hull racks alone");
+        assertEquals(21L, ((Number) row.get("restrictedAllowed")).longValue(),
+                "50% of all 42 spaces, not of the hull racks alone");
     }
 
     /** And a ship with no fighters reports none of them, rather than omitting the figure. */
