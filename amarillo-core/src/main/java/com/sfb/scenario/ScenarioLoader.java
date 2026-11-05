@@ -389,16 +389,32 @@ public class ScenarioLoader {
     private static void refitFighterDrones(Ship ship, int year, Integer maxDroneSpeed) {
         java.util.function.UnaryOperator<Drone> refit =
                 d -> upgradeOne(d, year, maxDroneSpeed);
+        // The DESIGN half of the same refit, handed to the rack and to the rails alike. A rack
+        // holding type-I-FASTs against a design of type-Is is a multiset difference between two
+        // vocabularies, and slotsMissing reports every slot of a full rack missing -- see
+        // ReadyRack.refitDesign for what believed it.
+        java.util.function.UnaryOperator<DroneType> redesign =
+                t -> upgradeDesign(t, year, maxDroneSpeed);
         for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
             for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces()) {
-                if (box.getReadyRack() != null)
+                if (box.getReadyRack() != null) {
                     box.getReadyRack().refit(refit);
+                    // Unconditionally, occupant or none: J4.62's casual carrier has ready racks
+                    // and no fighters, and its racks go stale exactly as a carrier's would.
+                    box.getReadyRack().refitDesign(redesign);
+                }
                 com.sfb.objects.shuttles.Shuttle occupant = box.getShuttle();
                 if (occupant == null)
                     continue;
                 for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons())
-                    if (w instanceof com.sfb.weapons.DroneRail rail)
+                    if (w instanceof com.sfb.weapons.DroneRail rail) {
                         upgradeLoad(rail.getAmmo(), year, maxDroneSpeed);
+                        // A podded rail is refitted too: J4.962 takes it out of the RACK, not
+                        // out of the year, so losing the pod leaves a rail the year can arm.
+                        DroneType now = redesign.apply(rail.getDesignDrone());
+                        if (now != null)
+                            rail.setDesignDrone(now);
+                    }
             }
         if (ship.getShuttles().getDroneStore() != null)
             ship.getShuttles().getDroneStore().refit(refit);
@@ -422,25 +438,58 @@ public class ScenarioLoader {
      * through their owners' own {@code refit} doors with the same arithmetic. One copy, so a
      * carrier's fighters cannot fly a different drone from the ship that launched them.
      */
+    /**
+     * The engine this drone should be flying in this scenario (S2.11), cap and all.
+     *
+     * <p>Its own method because two things ask it: the DRONE in a rack or on a rail, and the
+     * rail's DESIGN. They have to give the same answer or the rack's design and its contents
+     * part company — see {@link com.sfb.systemgroups.ReadyRack#redesignFrom}.
+     *
+     * <p>The scenario's cap is not a rule of the game but a restriction on what flies, so it
+     * narrows the fitting rather than changing what the year makes standard. Capping DOWN only:
+     * a cap below the frame's own slowest engine cannot invent a drone the chart has no row
+     * for, and FD2.227's type-VI has no speed-8 version to fall to.
+     */
+    private static com.sfb.objects.Propulsion wantedPropulsion(
+            com.sfb.objects.DroneSpec spec, int year, Integer maxDroneSpeed) {
+        com.sfb.objects.Propulsion want =
+                com.sfb.objects.Propulsion.generalIn(year, spec.effectiveFrame());
+        if (maxDroneSpeed == null || want.speed <= maxDroneSpeed)
+            return want;
+        com.sfb.objects.Propulsion capped =
+                com.sfb.objects.Propulsion.baselineFor(spec.effectiveFrame());
+        for (com.sfb.objects.Propulsion p : com.sfb.objects.Propulsion.values())
+            if (p.fits(spec.effectiveFrame()) && p.speed <= maxDroneSpeed
+                    && p.speed > capped.speed && p.speed <= want.speed
+                    && p.isImprovement())
+                capped = p;
+        return capped;
+    }
+
+    /**
+     * The same upgrade applied to a rail's DESIGN rather than to a drone (S2.11).
+     *
+     * <p>A design is a {@link DroneType} and carries no spec of its own to refit, so it is
+     * resolved through {@code DroneType.atSpeed} exactly as {@link #upgradeOne} resolves the
+     * drone — a medium-speed standard drone is a type-IM with three turns of fuel, not a
+     * type-II with two.
+     *
+     * @return the type this rail should now be designed around, or null if nothing changed
+     */
+    private static DroneType upgradeDesign(DroneType was, int year, Integer maxDroneSpeed) {
+        if (was == null || was.spec == null)
+            return null;
+        com.sfb.objects.Propulsion want = wantedPropulsion(was.spec, year, maxDroneSpeed);
+        if (want.speed <= was.spec.propulsion().speed)
+            return null;
+        DroneType sibling = was.atSpeed(want);
+        return sibling == was ? null : sibling;
+    }
+
     private static Drone upgradeOne(Drone was, int year, Integer maxDroneSpeed) {
         if (was == null || was.getDroneType() == null || was.getSpec() == null) return null;
         com.sfb.objects.DroneSpec spec = was.getSpec();
-        com.sfb.objects.Propulsion want =
-                com.sfb.objects.Propulsion.generalIn(year, spec.effectiveFrame());
-        // The scenario's cap is not a rule of the game but a restriction on what flies, so
-        // it narrows the fitting rather than changing what the year makes standard. Capping
-        // DOWN only: a cap below the frame's own slowest engine cannot invent a drone the
-        // chart has no row for, and FD2.227's type-VI has no speed-8 version to fall to.
-        if (maxDroneSpeed != null && want.speed > maxDroneSpeed) {
-            com.sfb.objects.Propulsion capped =
-                    com.sfb.objects.Propulsion.baselineFor(spec.effectiveFrame());
-            for (com.sfb.objects.Propulsion p : com.sfb.objects.Propulsion.values())
-                if (p.fits(spec.effectiveFrame()) && p.speed <= maxDroneSpeed
-                        && p.speed > capped.speed && p.speed <= want.speed
-                        && p.isImprovement())
-                    capped = p;
-            want = capped;
-        }
+        com.sfb.objects.Propulsion want = wantedPropulsion(spec, year, maxDroneSpeed);
         if (want.speed <= spec.propulsion().speed) return null;
         // Through the catalogue where there is an entry, because the sibling carries the
         // endurance with it (DroneType.atSpeed): a medium-speed standard drone is a type-IM

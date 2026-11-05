@@ -13,6 +13,7 @@ import org.junit.Test;
 import com.sfb.objects.Drone;
 import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
+import com.sfb.objects.ShipSpec;
 import com.sfb.objects.ShuttleCatalog;
 import com.sfb.systemgroups.ReadyRack;
 import com.sfb.systemgroups.ShuttleBay;
@@ -327,26 +328,55 @@ public class FighterDroneSpeedCostTest {
     }
 
     /**
-     * A scenario's drone cap has to reach the ready racks too, and pricing a rack from its
-     * DESIGN is what makes that a live question: the speed is worked out at the moment of
-     * charging rather than read off a drone that was fitted under the cap already.
+     * A scenario's drone cap has to reach the ready racks too.
      *
      * <p>nivram_assault is the scenario that found this shape the first time — Y180 with a cap
      * of 20, its racks filled with speed-32 drones the picker had no row for. A carrier billed
      * for fast drones in a medium-speed scenario is the same mistake with the sign flipped.
+     *
+     * <p>Built in ONE pass with the cap, which is the only way a scenario ever builds a ship:
+     * {@code ScenarioLoader.buildShip} calls {@code outfitForYear} once, with the scenario's
+     * cap, and a fleet bought into a battle is rebuilt from the library the same way.
      */
     @Test
     public void theScenariosDroneCapReachesAReadyRacksBill() {
-        Ship capped = bought("Kzinti", "CVS", 183);
-        ScenarioLoader.applyDroneSpeed(capped, 183, 20);
+        ShipSpec spec = ShipLibrary.get("Kzinti", "CVS");
+        org.junit.Assume.assumeTrue("the library must know the CVS", spec != null);
+        Ship capped = ShipLibrary.createShip(spec);
+        capped.setName("Capped");
+        ScenarioLoader.outfitForYear(capped, "Kzinti", 183, spec, 20);
 
-        assertTrue("a capped scenario bills less than an uncapped one: " + capped
-                .getDroneSpeedBpv(), capped.getDroneSpeedBpv() < 90);
-        // 20 for the hull's racks, which were fitted fast before the cap and are left alone
-        // (upgradeOne only ever raises a speed), plus 46 type-I slots at a half and 24 type-III
-        // slots at a half: 10 + 23 + 12 = 55.
-        assertEquals("medium speed for the squadron, FD2.223 at a half a point",
-                55, capped.getDroneSpeedBpv());
+        assertEquals("fixture: uncapped, the same hull bills 90",
+                90, bought("Kzinti", "CVS", 183).getDroneSpeedBpv());
+        assertTrue("a capped scenario bills less than an uncapped one: "
+                + capped.getDroneSpeedBpv(), capped.getDroneSpeedBpv() < 90);
+        assertEquals("medium speed throughout, FD2.223 at half a point a space",
+                45, capped.getDroneSpeedBpv());
+    }
+
+    /**
+     * And a cap applied to a ship that is ALREADY fitted cannot lower it, which is a property
+     * of the refit rather than of the charge: {@code upgradeOne} only ever raises a speed.
+     *
+     * <h2>This used to be true of the hull's racks and false of the squadron</h2>
+     * The old version of the test above did exactly this — built uncapped, then charged with a
+     * cap — and got 55: the hull's racks priced what they were actually carrying (fast, 20)
+     * while the ready racks re-priced from a DESIGN still naming the frame's type-I-slow, so
+     * the cap appeared to bite on the squadron alone. The design now follows the refit
+     * ({@link ReadyRack#redesignFrom}), so both halves of the ship answer the same way.
+     *
+     * <p>Nothing in production does this: a scenario builds a ship once. It is pinned because
+     * the inconsistency is what the divergence looked like from the outside, and a future
+     * change that reintroduced it would show up here first.
+     */
+    @Test
+    public void aCapAppliedAfterwardsCannotLowerAShipAlreadyFitted() {
+        Ship fitted = bought("Kzinti", "CVS", 183);
+        int uncapped = fitted.getDroneSpeedBpv();
+        ScenarioLoader.applyDroneSpeed(fitted, 183, 20);
+
+        assertEquals("the drones are already aboard; a cap does not take them off",
+                uncapped, fitted.getDroneSpeedBpv());
     }
 
     // ------------------------------------------------------------------ J4.621

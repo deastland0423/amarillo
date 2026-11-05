@@ -42,7 +42,7 @@ public class ReadyRack {
      * many: a TAAS rack missing a light slot and a standard one wants a type-VI and a type-I,
      * and a refill that fetched two type-Is would bring one the fighter cannot load.
      */
-    private final List<DroneType> design;
+    private final List<DroneType> design = new ArrayList<>();
 
     private final List<Drone> drones = new ArrayList<>();
 
@@ -56,7 +56,6 @@ public class ReadyRack {
     private ReadyRack(String servesFighterType, int plasmaCapacity,
             com.sfb.properties.PlasmaType plasmaType) {
         this.servesFighterType = servesFighterType;
-        this.design = List.of();
         this.capacity = plasmaCapacity;
         this.plasmaType = plasmaType;
         this.plasmaHeld = plasmaCapacity;
@@ -108,7 +107,7 @@ public class ReadyRack {
     private ReadyRack(String servesFighterType, List<DroneType> stock) {
         this.servesFighterType = servesFighterType;
         this.capacity = stock.size();
-        this.design = List.copyOf(stock);
+        this.design.addAll(stock);
         for (DroneType type : stock)
             drones.add(new Drone(type));   // J4.8223/J4.886: racks start full
     }
@@ -268,7 +267,45 @@ public class ReadyRack {
 
     /** One entry per slot, of what a full rack of this shape holds (J4.8222). */
     public List<DroneType> design() {
-        return design;
+        return java.util.Collections.unmodifiableList(design);
+    }
+
+    /**
+     * Swap each SLOT for whatever {@code swap} returns for it — the design's half of a refit
+     * (S2.11).
+     *
+     * <h2>Why a design can change at all</h2>
+     * {@link #refit} swaps the drones a rack HOLDS and deliberately cannot touch its shape. A
+     * speed refit changes something else again: a type-I becomes a type-I-FAST, which is the
+     * same one space in the same slot but a different drone. Leaving the design behind made
+     * {@link #slotsMissing()} a multiset difference between two vocabularies — a {@code TypeIF}
+     * does not remove a {@code TypeI} slot — so <b>a full rack reported every slot missing</b>,
+     * on every carrier in every year that upgrades a drone. Two callers believed it:
+     * {@code Shuttles.refillHalfActionsWanted} sized deck crew jobs from it, and
+     * {@code FighterArming.refillFromStores} asked the hold for a drone the year had retired
+     * and fell through to "take anything" — which is how a one-space type-I gets fetched for a
+     * half-space light rail.
+     *
+     * <h2>In place, rather than re-read from the rails</h2>
+     * The rails ARE where a design comes from ({@link #forFighter} builds a slot per rail), and
+     * re-deriving from them was the first attempt. It cannot serve J4.62's casual carrier: a
+     * Kzinti DWE has two ready racks and no fighters, its boxes holding administrative
+     * shuttles, so there are no rails to read and the rack would have been wiped to nothing.
+     * Refitting each slot where it stands needs no occupant and treats the design exactly as
+     * {@link #refit} treats the contents — which is also what keeps the two agreeing, since a
+     * caller hands both the same upgrade.
+     *
+     * <p>A null from {@code swap} leaves that slot alone, as it does in {@link #refit}: most
+     * slots in most years have nothing to change.
+     */
+    public void refitDesign(java.util.function.UnaryOperator<DroneType> swap) {
+        if (swap == null || carriesPlasma())
+            return;         // FP9.18: a type-D has no variants, so no design to refit
+        for (int i = 0; i < design.size(); i++) {
+            DroneType now = swap.apply(design.get(i));
+            if (now != null)
+                design.set(i, now);
+        }
     }
 
     /**

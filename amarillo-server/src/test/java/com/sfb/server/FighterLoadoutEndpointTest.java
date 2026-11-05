@@ -151,6 +151,40 @@ class FighterLoadoutEndpointTest {
                         + rails.get(4).get("drone"));
     }
 
+    /**
+     * Every fighter of a type is issued the same drones, which is what a player sees first.
+     *
+     * <h2>The bug this pins</h2>
+     * Reported from the panel: "the last few fighters do not have the mandatory speed upgrade
+     * and so are different". They were the ones the weapon status had not armed. An armed
+     * fighter answers from its RAIL, which carries the year's drone; an unarmed one answers
+     * from its ready rack, matched against the rail's DESIGN — and the design was still naming
+     * the frame's type-I-slow because nothing refitted it (S2.11). The match failed, the
+     * payload fell back to the design, and half the squadron reported a drone it was not
+     * carrying.
+     *
+     * <p>Asserted across the whole band rather than on one fighter, because that is exactly
+     * what the first version of this suite got wrong: it checked the FIRST TADS, which is
+     * armed, and passed while six of its squadron-mates were wrong.
+     */
+    @Test
+    void everyFighterOfATypeIsIssuedTheSameDrones() {
+        List<Map<String, Object>> rows = loadoutsOf(shipRow(fleetAt(180, "Kzinti", "CVS"), "Ship CVS"));
+
+        Map<String, List<String>> byType = new java.util.LinkedHashMap<>();
+        for (Map<String, Object> f : rows) {
+            List<String> load = railsOf(f).stream().map(r -> (String) r.get("drone")).toList();
+            String type = (String) f.get("type");
+            List<String> first = byType.putIfAbsent(type, load);
+            if (first != null)
+                assertEquals(first, load,
+                        f.get("name") + " is issued something its squadron-mates are not");
+        }
+        assertEquals(List.of("TypeIF", "TypeIF", "TypeVIF", "TypeVIF", "TypeIF", "TypeIF"),
+                byType.get("tads"),
+                "S2.11: a Y180 TADS flies fast drones on every rail, armed or not");
+    }
+
     // ---------------------------------------------------------------- and what each rail allows
 
     /**

@@ -42,7 +42,12 @@ import com.sfb.weapons.DroneRail;
  * the hull (C8 seven racks to C8VK none, D7 three to D7V none), so the squadron is the whole of
  * that ship's drone capacity and the fighters are the only place a special drone can go at all.
  *
- * <h2>The fixture</h2>
+ * <h2>The fixture, and why its "unchanged" rails read as fast drones</h2>
+ * S2.11 fits the year's drones before a player chooses anything, and the rail's DESIGN follows
+ * them ({@code ReadyRack.redesignFrom}) — so in Y180 an untouched rail is designed around a
+ * type-I-FAST, not the type-I-slow its frame was drawn with. An assertion here that expects
+ * the baseline is asserting that the refit did not happen.
+ *
  * A Kzinti carrier in Y180 flies the TADS, which has one of every rail that matters: two
  * standard, two light and two special. Its EW variant carries two pods, and J4.962 takes those
  * rails out of the rack — which is the misalignment this addressing has to survive.
@@ -145,12 +150,13 @@ public class FighterLoadoutCoiTest {
         assertEquals("the special rails now fly a type-III (J4.233)",
                 DroneType.TypeIII, rails.get(4).getDesignDrone());
         assertEquals(DroneType.TypeIII, rails.get(5).getDesignDrone());
-        assertEquals("and the standard rails are untouched",
-                DroneType.TypeI, rails.get(0).getDesignDrone());
+        assertEquals("and the standard rails are untouched, still the year's drone (S2.11)",
+                DroneType.TypeIF, rails.get(0).getDesignDrone());
 
-        assertEquals("the rack is reshaped around them (J4.8222)",
-                Arrays.asList(DroneType.TypeI, DroneType.TypeI, DroneType.TypeVI,
-                        DroneType.TypeVI, DroneType.TypeIII, DroneType.TypeIII),
+        assertEquals("the rack is reshaped around them (J4.8222), the rest still flying"
+                        + " the year's drones (S2.11)",
+                Arrays.asList(DroneType.TypeIF, DroneType.TypeIF, DroneType.TypeVIF,
+                        DroneType.TypeVIF, DroneType.TypeIII, DroneType.TypeIII),
                 designOf(box));
         List<Drone> held = box.getReadyRack().contents();
         assertEquals("and it is stocked full (J4.886)", 6, held.size());
@@ -178,8 +184,9 @@ public class FighterLoadoutCoiTest {
                 first.getSpec().allModules().contains(com.sfb.objects.PayloadModule.ECM));
         assertEquals("still a type-I for anything asking what KIND it is",
                 DroneType.TypeI, first.getDroneType());
-        assertEquals("the rails the loadout did not name keep their stock drone",
-                DroneType.TypeI, box.getReadyRack().contents().get(1).getDroneType());
+        assertEquals("the rails the loadout did not name keep their stock drone,"
+                        + " which in Y180 is the fast one (S2.11)",
+                DroneType.TypeIF, box.getReadyRack().contents().get(1).getDroneType());
     }
 
     /** A rail the loadout leaves blank is one the player did not touch, not one they got wrong. */
@@ -194,9 +201,10 @@ public class FighterLoadoutCoiTest {
                 year(180));
 
         assertEquals("the named rail changed", DroneType.TypeIII, rails.get(4).getDesignDrone());
-        assertEquals("the one beside it did not", DroneType.TypeI, rails.get(5).getDesignDrone());
+        assertEquals("the one beside it did not",
+                DroneType.TypeIF, rails.get(5).getDesignDrone());
         assertEquals("nor did the light rails (FD10.643's dogfight drones)",
-                DroneType.TypeVI, rails.get(2).getDesignDrone());
+                DroneType.TypeVIF, rails.get(2).getDesignDrone());
     }
 
     /** A fighter nobody named flies what the hull issued it (FD2.31). */
@@ -244,7 +252,7 @@ public class FighterLoadoutCoiTest {
                 year(180));
 
         assertEquals("FD9.35: the standard rail would not take the type-III frame",
-                DroneType.TypeI, rails.get(1).getDesignDrone());
+                DroneType.TypeIF, rails.get(1).getDesignDrone());
         assertFalse("and the legal drone beside it is refused with it, not fitted",
                 box.getReadyRack().contents().get(0).getSpec().allModules()
                         .contains(com.sfb.objects.PayloadModule.ECM));
@@ -287,7 +295,7 @@ public class FighterLoadoutCoiTest {
                 year(168));
 
         assertEquals("a fast drone in Y168 is not a purchase, it is an anachronism",
-                DroneType.TypeI, rails.get(4).getDesignDrone());
+                DroneType.TypeIF, rails.get(4).getDesignDrone());
         assertTrue(notesOf(ship), notesOf(ship).contains("not available in year 168"));
     }
 
@@ -361,7 +369,7 @@ public class FighterLoadoutCoiTest {
         ScenarioLoader.applyCoi(ship,
                 railLoad(box.getShuttle().getName(), null, null, null, null, "TypeIII"), spec);
 
-        assertEquals("nothing was bought", DroneType.TypeI, rails.get(4).getDesignDrone());
+        assertEquals("nothing was bought", DroneType.TypeIF, rails.get(4).getDesignDrone());
         assertTrue(notesOf(ship), notesOf(ship).contains("of the budget is left"));
     }
 
