@@ -27,6 +27,9 @@ import type { Tier, Quota } from './cartelQuota';
 type SideQuota = Quota;
 
 /** Fleet cartel quota (G15.44): % of ALL option mounts, round to nearest, independent pools. */
+import { FighterLoadoutDialog } from './FighterLoadoutDialog';
+import { toWire } from './fighterLoadout';
+
 function computeSideQuota(
   side:    CoiSideData,
   cartel:  Cartel | undefined,
@@ -187,6 +190,9 @@ function ShipCoiPanel({
   // the presets and the price stay visible while it is shut; only building drone-by-drone needs
   // the room, and FD2.41's mix-as-you-elect is the minority case.
   const [openRacks, setOpenRacks] = useState<number[]>([]);
+  // FD10.646: the fighter loadout surface, which is a dialog of its own — see where it is
+  // rendered below for why it is not a section here.
+  const [fighterDialogOpen, setFighterDialogOpen] = useState(false);
   function toggleRack(index: number) {
     setOpenRacks(prev => prev.includes(index)
       ? prev.filter(i => i !== index)
@@ -420,6 +426,33 @@ function ShipCoiPanel({
           </div>
         );
       })()}
+
+      {/* FD10.646/J4.23: what each fighter carries on its rails.
+          Its own dialog rather than a section here, because a Federation CVA's twenty-four
+          fighters in four types would be the longest thing on a screen that is already long —
+          and because the decision is made once, where the rack loadouts beside it are revisited
+          while a budget is juggled. */}
+      {(ship.fighterLoadouts?.length ?? 0) > 0 && ship.availableDroneTypes.length > 0 && (
+        <div className="coi-section">
+          <div className="coi-section-title">Fighter Loadouts</div>
+          <div className="coi-note">
+            Which drones the squadron flies. A special rail can carry a type-III frame or a
+            multi-warhead drone (J4.23) and is issued an ordinary one (FD10.646), so anything
+            better is bought here.
+          </div>
+          <button className="coi-drone-edit" onClick={() => setFighterDialogOpen(true)}>
+            Configure {ship.fighterLoadouts!.length} fighters…
+          </button>
+          {fighterDialogOpen && (
+            <FighterLoadoutDialog
+              ship={ship}
+              overrides={coi.fighterLoadouts}
+              onChange={next => onChange({ ...coi, fighterLoadouts: next })}
+              onClose={() => setFighterDialogOpen(false)}
+            />
+          )}
+        </div>
+      )}
 
       {/* Drone rack loadouts */}
       {ship.droneRacks.length > 0 && ship.availableDroneTypes.length > 0 && (
@@ -1305,6 +1338,11 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy, initial, skip
         ? { ...coi.droneRackLoadouts }
         : undefined;
 
+      // The ship this entry belongs to, for the fighter list its loadout is addressed against.
+      const shipData = sides.flatMap(side => side.ships)
+        .find(sh => sh.shipName === shipName);
+      const fighterWire = toWire(coi.fighterLoadouts, shipData?.fighterLoadouts ?? []);
+
       // Anti-drones travel on their own map (FD3.70): they are not a drone type here or
       // in core, and a rack may carry them with no drones at all.
       const antiDrones = Object.entries(coi.antiDroneLoadouts ?? {})
@@ -1336,6 +1374,13 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy, initial, skip
               ? { fighterFacilityType: coi.fighterFacilityType } : {}),
         armedFighters:        coi.armedFighters,
         droneRackLoadouts:    rackLoadouts,
+        // FD10.646: through toWire, not raw. The editor holds every choice the player made,
+        // including a rail they set back to the drone it was issued with -- and sending that
+        // would BILL it: the server charges every entry it is given (FD2.45), against a
+        // type-I-slow baseline, so naming an unchanged rail buys a drone the ship already had.
+        // toWire keeps only what differs, with the gaps intact because the list is read by
+        // POSITION.
+        ...(fighterWire ? { fighterLoadouts: fighterWire } : {}),
         antiDroneLoadouts,
         weaponArmingModes:    Object.keys(coi.weaponArmingModes).length > 0
                               ? coi.weaponArmingModes : undefined,

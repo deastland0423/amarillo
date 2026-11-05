@@ -484,6 +484,57 @@ export interface CoiDroneRack {
   presets?:           CoiRackPreset[];  // absent on a server that predates them
 }
 
+/**
+ * One rail on one fighter (J4.23), in the order a loadout addresses them.
+ *
+ * <p>Order is the address and it is NOT the designator: a Federation F-14B carries four special
+ * rails designated E, F, E, F. Podded rails are not in the list at all (J4.962) and neither are
+ * plasma rails (J4.825), so a TADS-E has four entries where a TADS has six.
+ */
+export interface CoiFighterRail {
+  /** "STANDARD" | "LIGHT" | "SPECIAL" | "HEAVY". Shown; never used to derive what fits. */
+  railType:   string;
+  designator: string;
+  /** What will fit on it (FD7.211). A light rail is half a space and takes only a type-VI. */
+  spaces:     number;
+  /**
+   * FD9.35 and J4.23, asked of the rail in core and sent as answers.
+   *
+   * The client must not re-derive these from `railType`. They are the same rules that refuse
+   * the submission, and a second copy here would be free to drift from the one that matters —
+   * a dialog offering a drone the server then drops is worse than one that never offered it.
+   */
+  acceptsTypeIii:      boolean;
+  acceptsMultiWarhead: boolean;
+  /** What it is carrying as issued (FD2.31), in `DroneLoad` text — "TypeIF", "TypeI+ECM". */
+  drone:      string;
+}
+
+/**
+ * One fighter's rails, for the loadout surface (FD10.646).
+ *
+ * A separate list from {@link CoiShipData.fighters}, which answers "what can a deck crew arm"
+ * (S4.10-S4.12). A fighter can have rails without needing arming and the other way about.
+ */
+export interface CoiFighterLoadout {
+  /** The address a loadout is keyed by — the same one `armedFighters` uses. */
+  name:        string;
+  /** The CATALOGUE KEY, which is what a band groups by. */
+  type:        string;
+  /** What a band header SHOWS: "TADS-E", not "tads_e". */
+  designation: string;
+  /**
+   * J4.46's organisation, for the badge.
+   *
+   * Shown rather than navigated by: J4.461 cuts squadrons at twelve slots in EW-first order, so
+   * the boundary falls ACROSS fighter type rather than along it — a Kzinti CVA's assault
+   * fighters are all in its second squadron while its superiority fighters straddle both. The
+   * decision a player is making here is per type, so type is what the bands are.
+   */
+  squadron:    string | null;
+  rails:       CoiFighterRail[];
+}
+
 export interface CoiDroneType {
   name:   string;
   speed:  number;
@@ -706,6 +757,12 @@ export interface CoiShipData {
    */
   fighters?:           { name: string; type: string; designation?: string }[];
   maxArmedFighters?:   number;
+  /**
+   * FD10.646/J4.23: every fighter aboard that has rails a drone goes on, and what each rail
+   * will carry. Empty on a ship with no drone-armed fighters; optional so a stale server
+   * simply offers no loadout surface rather than rendering an empty one.
+   */
+  fighterLoadouts?:    CoiFighterLoadout[];
   maxDroneSpeed:       number | null;
   heavyWeapons:        CoiHeavyWeapon[];
   droneRacks:          CoiDroneRack[];
@@ -776,6 +833,14 @@ export interface CoiShipChoices {
   fighterFacilityType?:  string;
   armedFighters?:        string[];
   droneRackLoadouts?:    Record<string, string[]>;
+  /**
+   * FD10.646: fighter name -> the drone on each of its rails, in `CoiFighterRail` order.
+   *
+   * A null entry is a rail left as issued, and the nulls are load-bearing: the list is
+   * addressed by POSITION, so compacting them would slide a type-III down onto a standard rail
+   * that J4.23 refuses it on. A fighter that was not changed is left out altogether.
+   */
+  fighterLoadouts?:      Record<string, (string | null)[]>;
   antiDroneLoadouts?:    Record<string, number>;   // rackIndex -> anti-drone rounds (FD3.70)
   weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING'>;
   photonOverload?:       Record<string, number>;  // free WS-III overload energy per tube (S4.32)

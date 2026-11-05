@@ -23,6 +23,8 @@ import type { CoiShipChoices } from '../api/gameApi';
  */
 export type ArmMode = 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING';
 
+import { seedOverrides } from './fighterLoadout';
+
 export interface ShuttlePrep {
   type:          string;       // 'suicide' | 'scatterpack' | 'wildweasel'
   energyPerTurn: number;       // suicide only
@@ -39,6 +41,14 @@ export interface ShipCoi {
   weaponArmingModes:    Record<string, ArmMode>;
   photonOverload:       Record<string, number>;   // free WS-III overload energy per tube (S4.32)
   droneRackLoadouts:    Record<number, string[]>;   // rackIndex → drone type names
+  /**
+   * FD10.646: fighter name → the drone on each of its rails, in `CoiFighterRail` order.
+   *
+   * A null entry is a rail left as issued, and the nulls are load-bearing: the list is read by
+   * POSITION, so compacting them would slide a type-III down onto a standard rail that J4.23
+   * refuses it on. A fighter nobody changed is absent, which is what FD2.31 already paid for.
+   */
+  fighterLoadouts:      Record<string, (string | null)[]>;
   antiDroneLoadouts:    Record<number, number>;     // rackIndex → anti-drone rounds (FD3.70)
   shuttlePrep:          Record<string, ShuttlePrep | null>; // shuttleName → prep or null (not selected)
   optionMounts:         Record<string, string>;     // mount designator → option name (G15.4)
@@ -100,6 +110,7 @@ export function seedShipCoi(saved?: CoiShipChoices): ShipCoi {
     photonOverload:       { ...(saved.photonOverload ?? {}) },
     droneRackLoadouts:    racks,
     antiDroneLoadouts:    addRounds,
+    fighterLoadouts:      seedOverrides(saved.fighterLoadouts),
     shuttlePrep,
     optionMounts:         { ...(saved.optionMounts ?? {}) },
     optionMountArcs:      { ...(saved.optionMountArcs ?? {}) },
@@ -118,6 +129,7 @@ export function defaultShipCoi(): ShipCoi {
     photonOverload:       {},
     droneRackLoadouts:    {},
     antiDroneLoadouts:    {},
+    fighterLoadouts:      {},
     shuttlePrep:          {},
     optionMounts:         {},
     optionMountArcs:      {},

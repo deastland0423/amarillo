@@ -1,8 +1,10 @@
+import { fighterLoadoutCost } from './fighterLoadout';
 import { describe, it, expect } from 'vitest';
 import { droneSurcharge, rackSurcharge, droneLoadoutCost } from './coiDroneCost';
 import { plainDrone, parseDroneName } from './droneComposition';
 import type {
-  CoiDroneAddition, CoiDroneModule, CoiDroneRack, CoiDroneType, CoiShipData, CoiSubmunitionSpeed,
+  CoiDroneAddition, CoiDroneModule, CoiDroneRack, CoiDroneType, CoiFighterLoadout, CoiShipData,
+  CoiSubmunitionSpeed,
 } from '../api/gameApi';
 
 /**
@@ -227,5 +229,104 @@ describe('droneLoadoutCost', () => {
    */
   it('charges nothing for racks nobody has built', () => {
     expect(droneLoadoutCost({}, SHIP)).toBe(0);
+  });
+});
+
+/**
+ * FD2.45's other half, mirrored: a drone-armed FIGHTER is a launch rack and somebody pays for
+ * its load.
+ *
+ * <blockquote>"The cost of improved drones (FD2.22) is paid only for a single loading of each
+ * launch rack <b>and/or fighter</b>; the reloads (and drones stored on a carrier for use by its
+ * fighters) are presumed to be of the same type without additional cost."</blockquote>
+ *
+ * Asserted against the same `cost()` helper the rack tests use, because the two must agree: on
+ * the server, one method prices both and the fighter simply passes no rack.
+ */
+describe('fighterLoadoutCost', () => {
+  function tads(name: string): CoiFighterLoadout {
+    const rail = (railType: string, designator: string, spaces: number, special: boolean) => ({
+      railType, designator, spaces, drone: 'TypeI',
+      acceptsTypeIii: special, acceptsMultiWarhead: special,
+    });
+    return {
+      name, type: 'tads', designation: 'TADS', squadron: 'Squadron 1',
+      rails: [
+        rail('STANDARD', 'A', 1, false),
+        rail('STANDARD', 'B', 1, false),
+        rail('SPECIAL', 'E', 1, true),
+        rail('SPECIAL', 'F', 1, true),
+      ],
+    };
+  }
+
+  const SQUADRON = [tads('T-1'), tads('T-2')];
+  const CARRIER = { ...SHIP, fighterLoadouts: SQUADRON } as CoiShipData;
+
+  it('costs nothing while the squadron flies what it was issued (FD2.31)', () => {
+    expect(fighterLoadoutCost({}, SQUADRON, CARRIER)).toBe(0);
+  });
+
+  it('bills the one rail that was changed', () => {
+    const overrides = { 'T-1': [null, null, 'TypeIII', null] };
+    expect(fighterLoadoutCost(overrides, SQUADRON, CARRIER)).toBeCloseTo(cost('TypeIII'), 5);
+  });
+
+  it('bills each fighter separately, because each is its own loading', () => {
+    const overrides = {
+      'T-1': [null, null, 'TypeIII', null],
+      'T-2': [null, null, 'TypeIII', null],
+    };
+    expect(fighterLoadoutCost(overrides, SQUADRON, CARRIER))
+      .toBeCloseTo(2 * cost('TypeIII'), 5);
+  });
+
+  /**
+   * And the ready rack is free. J4.8222 makes it one reload of the same drones, and
+   * `ShuttleSpace.armOccupantFully` arms a fighter by taking them OUT of the rack (J4.8224) —
+   * so the rails and the rack are two states of ONE loading. Billing both would double every
+   * carrier's bill, which is the shape this test exists to pin: four rails changed is four
+   * drones, not eight.
+   */
+  it('charges a loading rather than a loading and its reload', () => {
+    const overrides = { 'T-1': ['TypeIII', 'TypeIII', 'TypeIII', 'TypeIII'] };
+    expect(fighterLoadoutCost(overrides, SQUADRON, CARRIER))
+      .toBeCloseTo(4 * cost('TypeIII'), 5);
+  });
+
+  it('bills nothing for a rail set back to the drone it was issued with', () => {
+    const overrides = { 'T-1': ['TypeI', null, null, null] };
+    expect(fighterLoadoutCost(overrides, SQUADRON, CARRIER)).toBe(0);
+  });
+
+  /**
+   * A fighter named in the overrides that is not aboard is not billed. The editor is seeded
+   * from a saved fleet (S8.12) and a hull can be re-seated for the year between one battle and
+   * the next, so an entry can outlive the fighter it was written for.
+   */
+  /**
+   * And a drone that was ALREADY aboard is not billed again.
+   *
+   * The payload reports what each rail is CARRYING, so a fighter whose special rail was
+   * stocked with a type-III by an earlier pass arrives holding one. Pricing the whole load
+   * rather than the change would charge for it a second time -- and the first version of
+   * these tests could not tell the two apart, because every rail in the fixture was carrying
+   * the type-I-slow baseline, whose surcharge is zero either way.
+   */
+  it('bills the change and not what the fighter was already carrying', () => {
+    const stocked = tads('T-3');
+    stocked.rails[2] = { ...stocked.rails[2], drone: 'TypeIII' };
+    const squadron = [stocked];
+    const carrier = { ...SHIP, fighterLoadouts: squadron } as CoiShipData;
+
+    expect(fighterLoadoutCost({}, squadron, carrier))
+      .toBe(0);
+    expect(fighterLoadoutCost({ 'T-3': ['TypeIII', null, null, null] }, squadron, carrier))
+      .toBeCloseTo(cost('TypeIII'), 5);
+  });
+
+  it('ignores an override naming a fighter that is not aboard', () => {
+    const overrides = { 'Ghost-1': [null, null, 'TypeIII', null] };
+    expect(fighterLoadoutCost(overrides, SQUADRON, CARRIER)).toBe(0);
   });
 });

@@ -1950,6 +1950,194 @@ h3 {
 }
 
 /* ---------------------------------------------------------------------------
+   Fighter loadouts (FD10.646, J4.23)
+
+   One band per fighter TYPE, because that is the unit the decision is made in:
+   a carrier has one to four types and at most two squadrons, and J4.461 cuts
+   squadrons across type rather than along it. The band header sets a rail for
+   the whole type; the grid below it marks and edits the exceptions.
+   --------------------------------------------------------------------------- */
+
+.fl-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(1, 4, 9, 0.72);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+  overflow-y: auto;
+}
+
+.fl-dialog {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+  width: min(880px, 100%);
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+.fl-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid #21262d;
+  padding-bottom: 0.6rem;
+}
+.fl-header h3 { margin: 0 0 0.2rem; color: #f0c040; font-size: 1rem; }
+
+.fl-close {
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: #c9d1d9;
+  cursor: pointer;
+  padding: 0.3rem 0.7rem;
+  white-space: nowrap;
+}
+.fl-close:hover { border-color: #8b949e; }
+
+.fl-summary {
+  color: #8b949e;
+  font-size: 0.8rem;
+  padding: 0.5rem 0 0.2rem;
+}
+.fl-spend { color: #d5a03a; }
+
+.fl-band {
+  border: 1px solid #21262d;
+  border-radius: 6px;
+  margin-top: 0.8rem;
+  padding: 0.6rem 0.75rem 0.75rem;
+}
+
+.fl-band-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.fl-band-name { color: #f0c040; font-weight: 600; letter-spacing: 0.02em; }
+.fl-band-count { color: #c9d1d9; }
+
+.fl-rails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.fl-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+}
+.fl-rail select {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: #c9d1d9;
+  padding: 0.2rem 0.3rem;
+  font-size: 0.78rem;
+}
+.fl-rail-head { color: #c9d1d9; font-weight: 600; }
+/* The rail TYPE is what decides whether a type-III can ride there, so it is always on
+   screen rather than hidden in the tooltip. */
+.fl-rail-type {
+  color: #8b949e;
+  font-weight: 400;
+  margin-left: 0.3rem;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+}
+
+/* The squadron drawn as its fighters, which is the one view that answers "which of them is
+   carrying the expensive drone" at a glance. */
+.fl-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.7rem;
+}
+
+.fl-token {
+  position: relative;
+  width: 42px;
+  height: 40px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.fl-token:hover { border-color: #30363d; background: #161b22; }
+.fl-token-art { width: 24px; height: 20px; }
+.fl-token-art polygon {
+  fill: none;
+  stroke: #8b949e;
+  stroke-width: 1.5;
+}
+.fl-token-n { color: #8b949e; font-size: 0.65rem; line-height: 1; }
+
+/* An exception to the band's standard load, which is the whole point of the grid. */
+.fl-token-exception .fl-token-art polygon { stroke: #d5a03a; fill: rgba(213, 160, 58, 0.12); }
+.fl-token-exception .fl-token-n { color: #d5a03a; }
+.fl-token-mark {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  color: #d5a03a;
+  font-size: 0.6rem;
+  line-height: 1;
+}
+
+.fl-token-open { border-color: #58a6ff; background: #161b22; }
+.fl-token:focus-visible { outline: 2px solid #58a6ff; outline-offset: 1px; }
+
+.fl-fighter {
+  border-top: 1px dashed #21262d;
+  margin-top: 0.7rem;
+  padding-top: 0.6rem;
+}
+.fl-fighter-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.45rem;
+}
+.fl-fighter-name { color: #c9d1d9; font-weight: 600; }
+
+/* J4.46's organisation, shown rather than navigated by: J4.221 and J4.93 resolve by it. */
+.fl-badge {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  color: #8b949e;
+  font-size: 0.68rem;
+  padding: 0.05rem 0.45rem;
+}
+
+.fl-reset {
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: #c9d1d9;
+  cursor: pointer;
+  font-size: 0.72rem;
+  margin-left: auto;
+  padding: 0.15rem 0.5rem;
+}
+.fl-reset:disabled { color: #484f58; cursor: default; }
+.fl-reset:not(:disabled):hover { border-color: #d5a03a; color: #f0c040; }
+
+/* ---------------------------------------------------------------------------
    Fleet builder (S8.0)
    --------------------------------------------------------------------------- */
 

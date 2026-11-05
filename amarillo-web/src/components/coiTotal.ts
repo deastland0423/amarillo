@@ -1,5 +1,6 @@
 import type { CoiShipData } from '../api/gameApi';
 import { droneLoadoutCost } from './coiDroneCost';
+import { fighterLoadoutCost } from './fighterLoadout';
 
 /**
  * What a ship's Commander's Option loadout costs against its budget (S3.2).
@@ -32,6 +33,13 @@ export interface CoiCostInputs {
   extraTBombs:          number;
   extraDeckCrews:       number;
   droneRackLoadouts:    Record<number, string[]>;
+  /**
+   * FD10.646: fighter name -> the drone on each rail, nulls for the ones left as issued.
+   *
+   * Optional, because every caller that predates the fighter loadout surface satisfies this
+   * interface without it and a squadron nobody touched costs nothing.
+   */
+  fighterLoadouts?:     Record<string, (string | null)[]>;
 }
 
 export const COST_EXTRA_BP            = 0.5;
@@ -46,5 +54,10 @@ export function coiCost(c: CoiCostInputs, ship: CoiShipData): number {
        + c.extraCommandoSquads  * COST_EXTRA_COMMANDO
        + c.extraTBombs          * COST_TBOMB
        + c.extraDeckCrews       * COST_EXTRA_DECK_CREW
-       + droneLoadoutCost(c.droneRackLoadouts, ship);
+       + droneLoadoutCost(c.droneRackLoadouts, ship)
+       // FD2.45's other half: a drone-armed fighter is a launch rack, and somebody pays for
+       // its load. Priced from the ship's own fighter list so a stale entry naming a fighter
+       // that is not aboard cannot be billed for.
+       + fighterLoadoutCost(
+           c.fighterLoadouts ?? {}, ship.fighterLoadouts ?? [], ship);
 }
