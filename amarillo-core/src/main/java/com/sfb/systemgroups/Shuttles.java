@@ -222,6 +222,32 @@ public class Shuttles implements Systems {
     }
 
     /**
+     * Sort the squadrons again, because the fighters aboard have changed (J4.46).
+     *
+     * <p>Squadrons are organised when the ship's systems are built, which is BEFORE the
+     * scenario's year decides what the bays actually hold. {@code FighterComplement.reseat}
+     * then builds new craft and seats them, and until this existed nothing told the squadrons
+     * — so they went on holding the twelve fighters the hull was constructed with.
+     *
+     * <p>On a Kzinti CVS in Y180 that meant a squadron of twelve AAS craft, the Y164 fighter,
+     * beside twelve TADS in the boxes: not one member of the squadron was a fighter in the
+     * game. Every rule that resolves membership was reading ghosts — J4.221's seeker handoff
+     * ("only from fighters in its own squadron"), J4.463's EW fighter count, and J4.93's
+     * carrier EW lending, which is offered in the energy allocation dialog and was being
+     * lent to nobody.
+     *
+     * <p>Called from {@code reseat} beside {@code restockDroneStore}, which is there for the
+     * same reason: re-seating changes a property of the whole ship, and the things derived
+     * from the complement have to be derived again.
+     *
+     * <p>J4.46 lets a player reorganise before the scenario and J4.465 during it. This runs at
+     * setup, before either is possible, so it cannot discard a choice anybody has made.
+     */
+    public void reorganiseSquadrons() {
+        organiseSquadrons();
+    }
+
+    /**
      * Sort this carrier's fighters into squadrons (J4.461: "The carrier must organize its
      * fighters into the minimum number of squadrons").
      * <p>

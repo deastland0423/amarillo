@@ -342,6 +342,13 @@ public final class FighterComplement {
         // of the whole ship, so computing it while half the bays still hold the old era's
         // fighters would bank the wrong total.
         ship.getShuttles().restockDroneStore();
+        // And the squadrons, for the same reason: J4.461 organises "the minimum number of
+        // squadrons" out of the fighters a carrier HAS, and re-seating just changed which
+        // those are. Without this a Y180 Kzinti CVS kept a squadron of twelve AAS craft from
+        // the hull's own era while twelve TADS sat in its boxes, and every rule that resolves
+        // squadron membership -- J4.221's seeker handoff, J4.463's EW count, J4.93's carrier
+        // lending -- was reading fighters that were not in the game.
+        ship.getShuttles().reorganiseSquadrons();
         return notes;
     }
 
