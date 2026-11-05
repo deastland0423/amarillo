@@ -437,8 +437,16 @@ public final class FleetValidator {
     private static void checkFlagshipAndCommandLimit(Fleet fleet, List<Violation> out) {
         Ship flag = fleet.flagship();
         if (flag == null) {
-            out.add(new Violation("S8.21", Severity.ERROR,
-                    "No flagship chosen — every battle force needs one", null));
+            // Two different faults wore one sentence. "No flagship chosen" told a player what
+            // was missing and nothing about what to do, and it said the same thing whether they
+            // had simply not picked one or had bought a force of escorts with no bridge among
+            // them -- which is not a choice they can make, and no amount of picking will fix.
+            boolean anyCouldLead = fleet.ships.stream().anyMatch(s -> s.getCommandRating() > 0);
+            out.add(new Violation("S8.21", Severity.ERROR, anyCouldLead
+                    ? "No flagship chosen — mark the ship that leads this force"
+                    : "Nothing here can lead a battle force — every one of these hulls has a"
+                      + " command rating of zero, so one of them must be a ship that commands",
+                    null));
             return;
         }
         if (flag.getCommandRating() <= 0) {

@@ -114,6 +114,42 @@ public class FleetValidatorTest {
         assertTrue(rulesBroken(FleetValidator.validate(fleet)).contains("S8.21"));
     }
 
+    /**
+     * An unmade choice and an impossible one are different faults, and used to share a sentence.
+     *
+     * <p>"No flagship chosen — every battle force needs one" named the fault and not the remedy,
+     * and said the same thing to a player who had merely not picked yet as to one who had bought
+     * a force with no bridge in it. Reported from live play: nobody understood that the post was
+     * theirs to assign, so the message is the one place that has to say so.
+     */
+    @Test
+    public void aForceThatCouldLeadItselfIsToldToPickSomeone() {
+        Fleet fleet = new Fleet(List.of(ship("A", 80, 4, 5), ship("B", 80, 4, 0)),
+                "Nobody", 500, 175);
+
+        List<Violation> vs = FleetValidator.validate(fleet);
+        assertTrue(vs.toString(), vs.stream()
+                .anyMatch(v -> v.message.contains("mark the ship that leads")));
+    }
+
+    /**
+     * And a force of hulls that cannot command is told what is actually wrong with it — there is
+     * nobody to pick, so "choose a flagship" would send the player looking for a control that
+     * every row has disabled.
+     */
+    @Test
+    public void aForceOfShipsThatCannotCommandSaysSo() {
+        Fleet fleet = new Fleet(List.of(ship("A", 80, 4, 0), ship("B", 80, 4, 0)),
+                "Nobody", 500, 175);
+
+        List<Violation> vs = FleetValidator.validate(fleet);
+        assertTrue(rulesBroken(vs).contains("S8.21"));
+        assertTrue(vs.toString(), vs.stream()
+                .anyMatch(v -> v.message.contains("command rating of zero")));
+        assertFalse("and must NOT ask them to pick one: " + vs, vs.stream()
+                .anyMatch(v -> v.message.contains("mark the ship that leads")));
+    }
+
     // ---- S8.11 budget, and the scout exception ----
 
     @Test

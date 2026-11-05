@@ -2378,12 +2378,39 @@ h3 {
 .fb-ship-fault-error { color: #f85149; }
 /* Holds the column open on a clean row so the costs and × stay in line down the roster. */
 .fb-ship-fault-slot { display: inline-block; }
+/* The flagship star on a roster row (S8.21).
+
+   It was a bare glyph: no border, no background, #30363d on #0d1117, which is very nearly the
+   background itself. The lit one read fine and the twelve UNLIT ones read as decoration, so
+   players did not know the post was theirs to assign -- the same failure as the payload pencil,
+   and the same answer. What makes a glyph read as a button is having an edge.
+
+   The unset star is the one that needs the edge, since the lit one announces itself. Both get
+   one anyway: a row of outlined boxes with one filled is a control group, where an outline
+   beside a bare glyph is two different things.
+
+   A hull with no command rating cannot hold the flag (S8.21) and its star is flat and dim, with
+   the refusal in its title. Not hidden: a missing control raises the question of where it went,
+   where a disabled one answers it. */
 .fb-flag {
-  background: none; border: none; cursor: pointer;
-  color: #30363d; font-size: 1rem; padding: 0;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #6e7681;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  padding: 0 0.2rem;
 }
-.fb-flag:disabled { cursor: default; opacity: 0.4; }
-.fb-flag-on { color: #f0c040; }
+.fb-flag:hover:not(:disabled) { border-color: #f0c040; color: #f0c040; }
+.fb-flag:focus-visible { outline: 2px solid #58a6ff; outline-offset: 1px; }
+.fb-flag:disabled {
+  cursor: default;
+  background: none;
+  border-color: transparent;
+  opacity: 0.35;
+}
+.fb-flag-on { color: #f0c040; border-color: #f0c040; background: #2b2410; }
 .fb-ship-name {
   background: none;
   border: 1px solid transparent;

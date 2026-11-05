@@ -5,6 +5,7 @@ import { activeCoiView, coiInitialFor, fleetCoiKey, withCoiApplied } from './fle
 import type { CoiView } from './fleetCoiMapping';
 import { familiesOf, matchesSearch, resolveFamily, toggleRefit, variantOf } from './shelfFamilies';
 import { isGeneratedName, nameForNewShip } from './fleetNaming';
+import { bestCommander } from './fleetFlagship';
 import type {
   CatalogShip, Cartel, FleetSpec, FleetSummary, FleetValidation, FleetViolation,
   HullOptionMounts, CoiSubmission, DroneAvailability,
@@ -458,6 +459,70 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
       catalog.find(s => s.type === type && s.faction === (faction || spec.factions[0])),
     [catalog, spec.factions]);
 
+  /**
+   * The hull a roster entry IS, refits included.
+   *
+   * An entry records a base type and the codes ticked, because an unnamed refit combination has
+   * no type of its own to be recorded as (S3.24) — so a CR bought with the Plus refit is stored
+   * as "CR" + ["+"] and has to be resolved through the ad-hoc table to get its real figures. The
+   * roster row did this inline; the flagship derivation below needs the same answer, and two
+   * copies of it would be two answers the first time one of them was changed.
+   */
+  const hullOf = useCallback((entry: FleetSpec['ships'][number]) => {
+    const refitted = entry.refits && entry.refits.length > 0
+      ? adhocRefits[refitKey(`${entry.faction}/${entry.type}`, entry.refits)]
+      : undefined;
+    return refitted ?? lookup(entry.faction, entry.type);
+  }, [adhocRefits, lookup, refitKey]);
+
+  // ---- who leads it (S8.21) ---------------------------------------------
+  /**
+   * Whether the player has said who the flagship is.
+   *
+   * Until they do, the post goes to the best commander on the roster and MOVES as the roster
+   * changes. Reported from live play: nobody realised they had to click the star, so every fleet
+   * was illegal for a reason the message did not explain.
+   *
+   * <h2>Why the best commander and not the first ship bought</h2>
+   * A flagship's command rating is also the limit on how many ships may come with it, so the
+   * obvious default is a trap: buy an escort first and a cruiser second, and "first purchased"
+   * puts the flag on the escort and trades "no flagship chosen" for "FF Nimble has a command
+   * rating of 2 and can lead 2 other ships; this fleet has 5". A default that manufactures a
+   * different violation is not worth having. Taking the best commander keeps the fleet legal as
+   * it grows, which is also what S8.21 describes in practice.
+   *
+   * <h2>Why it stops moving the moment they choose</h2>
+   * Silent movement is only acceptable while nobody has expressed a preference. One click on any
+   * star pins the post for good; a saved fleet arrives pinned, because that fleet already chose.
+   * The flag is NOT a new field in the file — FleetSpec still stores a name, and this only
+   * decides whether the builder may overwrite it.
+   */
+  const [flagshipPinned, setFlagshipPinned] = useState(false);
+
+  useEffect(() => {
+    if (flagshipPinned) return;
+    // The choice itself is in `fleetFlagship`, where a test can reach it: it decides something,
+    // and the dialog-and-form layer has no tests of its own. Here is only the lookup from a
+    // roster entry to the hull whose command rating it turns on.
+    const best = bestCommander(spec.ships.map(entry => {
+      const hull = hullOf(entry);
+      return {
+        name:          entry.name,
+        commandRating: hull?.commandRating ?? 0,
+        bpv:           hull?.bpv ?? 0,
+      };
+    }));
+    // Returning the same object when nothing changed is what keeps this from looping: the effect
+    // watches the ships it is about to set a field beside.
+    setSpec(s => s.flagship === best ? s : { ...s, flagship: best });
+  }, [spec.ships, flagshipPinned, hullOf]);
+
+  /** The player choosing, which also stops the derivation above. */
+  function chooseFlagship(name: string | undefined) {
+    setFlagshipPinned(true);
+    setSpec(s => ({ ...s, flagship: name }));
+  }
+
   /** Ships still carrying the name the builder made up for them. */
   const generatedNames = spec.ships.filter(e => isGeneratedName(e.type, e.name)).length;
   const spent = check?.totalCost ?? 0;
@@ -517,6 +582,8 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
 
   function startNew() {
     setSpec({ ...BLANK, author: playerName, name: '' });
+    // A new fleet has made no choice yet, so the first ship bought takes the post.
+    setFlagshipPinned(false);
     setCheck(null);
     setSaved('');
     setView('edit');
@@ -527,6 +594,10 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
     try {
       const { fleet, validation } = await gameApi.getFleet(id);
       setSpec(fleet);
+      // A saved fleet that names a flagship has already chosen, and the builder must not move it
+      // -- the choice may well be the reason the force is the size it is. One that names none is
+      // a file from before the default existed, and may have the post filled for it.
+      setFlagshipPinned(!!fleet.flagship);
       setCheck(validation);
       setView('edit');
     } catch (e) {
@@ -600,11 +671,15 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
   }
 
   function removeShip(index: number) {
+    const gone = spec.ships[index];
+    // Selling the flagship releases the pin as well as the post. A choice cannot outlive the
+    // ship it was about, and leaving the pin set would hold the post vacant for good -- which is
+    // what it used to do, quietly making the fleet illegal. Unpinned, the derivation hands the
+    // flag to the next best commander.
+    if (spec.flagship === gone?.name) setFlagshipPinned(false);
     setSpec(s => {
       const ships = s.ships.filter((_, i) => i !== index);
-      const gone = s.ships[index];
-      // A removed flagship leaves the post vacant rather than silently moving it.
-      const flagship = s.flagship === gone.name ? undefined : s.flagship;
+      const flagship = s.flagship === s.ships[index]?.name ? undefined : s.flagship;
       return { ...s, ships, flagship };
     });
   }
@@ -1124,27 +1199,28 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
 
         {/* --- the force --- */}
         <div className="fb-panel">
-          <div className="fb-panel-title">Your fleet</div>
+          <div className="fb-panel-title">
+            Your fleet
+            {/* What the star is, said once above the stars rather than only in a tooltip nobody
+                hovers. The flagship is now assigned by default, so the line explains a mark the
+                player will SEE before they ever need to change it — which is the order the
+                explanation has to come in. */}
+            {spec.ships.length > 0 && (
+              <span className="fb-hint">
+                {' · ★ leads it'}
+                {flagshipPinned ? '' : ' (best commander; click to choose)'}
+              </span>
+            )}
+          </div>
 
           {spec.ships.length === 0 && (
             <p className="subtitle">Nothing bought yet. Click a ship to add it.</p>
           )}
 
           {spec.ships.map((entry, i) => {
-            /**
-             * The hull this row IS, refits included.
-             *
-             * An entry records the base type and the codes ticked, because an unnamed
-             * combination has no type of its own to record (S3.24). So a CR bought with the
-             * Plus refit is stored as "CR" + ["+"], and a row that printed `entry.type` showed
-             * "CR" — and priced it as a bare CR, understating the row against a total the
-             * server had computed WITH the refit. A named variant resolves straight from the
-             * catalogue as before; only the unnamed ones need the resolver.
-             */
-            const refitted = entry.refits && entry.refits.length > 0
-              ? adhocRefits[refitKey(`${entry.faction}/${entry.type}`, entry.refits)]
-              : undefined;
-            const ship = refitted ?? lookup(entry.faction, entry.type);
+            // The hull this row IS, refits included -- see `hullOf`, which the flagship
+            // derivation reads as well. This was inline here until it had a second caller.
+            const ship = hullOf(entry);
             const isFlagship = spec.flagship === entry.name;
             const canCommand = (ship?.commandRating ?? 0) > 0;
             // What the validator says about THIS ship. Worst severity wins the marker's colour:
@@ -1166,7 +1242,7 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                     ? 'Make this the flagship'
                     : 'This ship has no command rating and cannot lead a fleet (S8.21)'}
                   disabled={!canCommand}
-                  onClick={() => setSpec(s => ({ ...s, flagship: entry.name }))}>★</button>
+                  onClick={() => chooseFlagship(entry.name)}>★</button>
                 <span className="fb-shelf-type"
                       title={entry.refits && entry.refits.length > 0
                         ? `${entry.type} with the ${entry.refits.join(', ')} refit`
