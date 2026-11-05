@@ -327,11 +327,17 @@ public final class DroneAvailabilityLimit {
      * How much of {@link #countedSpaces} came from the fighters rather than the hull.
      *
      * <p>Reported for the gauge alone. A Kzinti CVS has twenty spaces of hull racks and
-     * twenty-four of rails, and a player who has only ever seen the hull figure deserves to be
-     * told which half of "of 44 spaces" is which rather than left to wonder what moved.
+     * twenty-two of ready racks, and a player who has only ever seen the hull figure deserves to
+     * be told which half of "of 42 spaces" is which rather than left to wonder what moved.
+     *
+     * <p>Of the ORDINARY pool only, so that it is a part of {@link #countedSpaces} and the
+     * subtraction the gauge does is meaningful. It summed both pools at first, which on a
+     * Klingon C8VK reported 88 spaces of fighters against a basis of 64 and left the hull's
+     * share of the tooltip at minus twenty-four. FD10.644's pool has its own line and its own
+     * total; it is not part of this one.
      */
     public static double fighterSpaces(Ship ship) {
-        return fighterSpaces(ship, false) + fighterSpaces(ship, true);
+        return fighterSpaces(ship, false);
     }
 
     /** The hull's own racks, in one pool or the other. */

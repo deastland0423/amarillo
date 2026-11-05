@@ -91,14 +91,36 @@ public class DroneRail extends DroneRack {
         setNumberOfReloads(0);
     }
 
-    /** The ordinary load for a rail of this size; a fighter may say otherwise. */
+    /**
+     * The ordinary load for a rail of this size; a fighter may say otherwise.
+     *
+     * <h2>A SPECIAL rail is not stocked with type-IIIs, however much it can carry one</h2>
+     * <blockquote>FD10.646: "Fighters with 'special rails' (J4.233) able to carry type-III frames
+     * and MW modules are still subject to the rules for determining initial drones and reloads.
+     * They do not form an exception allowing additional limited availability drones to be
+     * purchased, and many of the initial drones in the ready racks for these rails may be of
+     * general or restricted types."</blockquote>
+     *
+     * <p>This returned a type-III, which is Limited in every year (FD10.631), and the moment
+     * FD10.641's fighter half was counted it made EVERY drone carrier in the game illegal out of
+     * the box: a Klingon C8VK stocked 32 spaces of Limited against the 13 its 20% allows, and
+     * the Kzinti CVS, Federation CVS+, Lyran CV and Klingon D5VK all broke the same way. The
+     * rails can still carry a type-III — that is what makes them special, and {@code accepts}
+     * is unchanged — but a player has to buy it inside FD10.632, which is exactly what
+     * FD10.646 says.
+     *
+     * <p>So the stock load is a type-I, General and one space, as every standard rail's is. It
+     * is not an optimal fill: a C8VK could legally stock thirteen spaces of type-III and this
+     * gives it none. Choosing which is the job of a fighter loadout surface, and until there is
+     * one a special rail flies ordinary drones rather than an illegal fleet.
+     */
     private static com.sfb.objects.DroneType defaultDroneFor(DroneRailType type) {
         if (type == null)
             return null; // the no-arg constructor sets STANDARD before this runs
         return switch (type) {
             case LIGHT -> com.sfb.objects.DroneType.TypeVI; // half a space, dogfight
             case STANDARD -> com.sfb.objects.DroneType.TypeI;
-            case SPECIAL -> com.sfb.objects.DroneType.TypeIII;
+            case SPECIAL -> com.sfb.objects.DroneType.TypeI;   // FD10.646, see above
             case HEAVY -> com.sfb.objects.DroneType.TypeIV;
             // A plasma rail has no design DRONE: J4.825 bars drones from such a fighter
             // outright, so there is no ordinary drone load for a rack to reach for.
