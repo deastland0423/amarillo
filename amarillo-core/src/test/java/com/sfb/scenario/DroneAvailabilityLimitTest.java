@@ -1183,4 +1183,69 @@ public class DroneAvailabilityLimitTest {
         assertEquals("two empty spaces on a Restricted frame", 2.0,
                 DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 166), 0.0001);
     }
+
+    // ----------------------------------- FD10.622's second bullet: ten or more fighters
+
+    /** Every box of this hull emptied, then {@code fighters} of them seated with a drone fighter. */
+    private static Ship carrierWith(String faction, String hull, String fighterType,
+            int fighters) {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("../data/factions");
+        com.sfb.objects.ShipSpec spec = com.sfb.objects.ShipLibrary.get(faction, hull);
+        assertNotNull("fixture: the library must know " + faction + " " + hull, spec);
+        Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
+        ScenarioLoader.outfitForYear(ship, faction, 180, spec);
+
+        List<com.sfb.systemgroups.ShuttleSpace> boxes = new ArrayList<>();
+        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
+            boxes.addAll(bay.getSpaces());
+        assertTrue("fixture: " + hull + " needs at least " + fighters + " boxes",
+                boxes.size() >= fighters);
+        for (com.sfb.systemgroups.ShuttleSpace box : boxes)
+            box.setShuttle(null);
+        for (int i = 0; i < fighters; i++)
+            boxes.get(i).reequipFor(
+                    com.sfb.objects.shuttles.CataloguedFighter.of(fighterType));
+        return ship;
+    }
+
+    /**
+     * <blockquote>FD10.622: "Exceptions... Carriers with ten or more fighters, or five or more
+     * heavy fighters."</blockquote>
+     *
+     * <p>The clause was written and never asserted, and it is live on 38 hulls across six
+     * factions — a Federation CVS+ and NVS, four Klingon carriers, three Lyran, and a dozen
+     * Hydran, Romulan and ISC hulls whose fighters carry no drones at all. On a Klingon D5VK it
+     * doubles the Restricted allowance from eleven spaces to twenty-two, which is the whole of
+     * the difference between a carrier's drone load being legal and not.
+     *
+     * <p>A Klingon hull, deliberately: Kzinti ships get the same caps from the FACTION bullet, so
+     * a Kzinti fixture would pass with this clause deleted. {@code isDPercent} is asserted false
+     * for the same reason — it is the third way to the same answer.
+     */
+    @Test
+    public void aCarrierWithTenFightersGetsTheDoubledCapWhateverItsFaction() {
+        Ship ship = carrierWith("Klingon", "D5VK", "z1", 10);
+
+        assertFalse("fixture: the faction bullet must not be what answers here",
+                ship.getFaction() == com.sfb.properties.Faction.Kzinti);
+        assertFalse("fixture: nor the chart marking", ship.isDPercent());
+        assertTrue("ten fighters is FD10.622's exception",
+                DroneAvailabilityLimit.hasRelaxedCaps(ship));
+        assertEquals(50, DroneAvailabilityLimit.restrictedPercentFor(ship));
+        assertEquals(20, DroneAvailabilityLimit.limitedPercentFor(ship));
+    }
+
+    /**
+     * And nine is not ten. The boundary is what makes the constant mean anything — without it a
+     * test of "a carrier" passes just as well against {@code fighters >= 1}.
+     */
+    @Test
+    public void aCarrierWithNineFightersKeepsTheOrdinaryCap() {
+        Ship ship = carrierWith("Klingon", "D5VK", "z1", 9);
+
+        assertFalse("nine is under FD10.622's ten",
+                DroneAvailabilityLimit.hasRelaxedCaps(ship));
+        assertEquals(25, DroneAvailabilityLimit.restrictedPercentFor(ship));
+        assertEquals(10, DroneAvailabilityLimit.limitedPercentFor(ship));
+    }
 }

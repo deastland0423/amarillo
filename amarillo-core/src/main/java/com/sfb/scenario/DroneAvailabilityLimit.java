@@ -254,6 +254,20 @@ public final class DroneAvailabilityLimit {
      * Whether FD10.622's and FD10.632's exceptions apply to this hull.
      *
      * <p>All three clauses are the same list in both rules, so one method answers for both caps.
+     *
+     * <p>The ten-fighter clause does real work: 38 hulls in the data reach the doubled cap by
+     * their fighter count alone, with no help from the faction or chart-marking bullets — four
+     * Klingon carriers, three Lyran, a Federation CVS+ and NVS, and a dozen Hydran, Romulan and
+     * ISC hulls whose fighters happen to carry no drones at all. It had no test for its first
+     * month, which is how a Kzinti fixture passes a clause that is never consulted.
+     *
+     * <p><b>It counts BOXED fighters.</b> {@code Shuttles.getAllShuttles} is the sum of the
+     * bays' inventories, and a bay's inventory is what sits in its boxes — a fighter parked on
+     * a balcony (J1.53) is not in it. FD10.622 says "ten or more fighters" without saying where
+     * they are standing, so this is narrower than the rule. Unreachable today: nothing in the
+     * data parks a fighter on a balcony at setup (the whole library, checked at Y170 and Y180),
+     * and setup is the only moment a purchase cap binds. A hull whose complement outgrew its
+     * boxes, or a count asked mid-game after a landing (J1.61), would need the balcony added.
      */
     public static boolean hasRelaxedCaps(Ship ship) {
         if (ship == null)
