@@ -134,7 +134,10 @@ public class DroneRail extends DroneRack {
     }
 
     public void setDesignDrone(com.sfb.objects.DroneType drone) {
-        if (drone != null && drone.rack <= railType.capacity)
+        // Through the same gate a LOAD goes through, so a rail cannot be designed around a
+        // drone it would then refuse: FD9.35's type-III frame and FD8.33's MW drone are as
+        // closed to the stock load as to anything a player puts on afterwards.
+        if (accepts(drone))
             this.designDrone = drone;
     }
 
@@ -145,7 +148,47 @@ public class DroneRail extends DroneRack {
     public boolean accepts(com.sfb.objects.Drone drone) {
         if (carriesPlasma())
             return false;   // J4.825 / J4.28: no drones on a plasma-armed fighter
-        return drone != null && drone.getRackSize() <= railType.capacity;
+        if (drone == null)
+            return false;
+        if (!carriesPayload(drone.getSpec()))
+            return false;
+        return drone.getRackSize() <= railType.capacity;
+    }
+
+    /**
+     * Whether this rail may carry what this drone is BUILT ON, as opposed to how big it is.
+     *
+     * <p>Size was the whole of the test until now, and size does not see either of these:
+     * <ul>
+     *   <li><b>FD9.35</b>: "Fighters can carry ECM drones but only fighters with 'special'
+     *       (J4.233) or 'heavy' (J4.234) drone rails can use type-III frames." A type-III is a
+     *       one-space drone, so a standard rail would take one on size alone — and the special
+     *       rail's whole distinction is that it can.</li>
+     *   <li><b>FD8.33</b>: "MW drones can be carried by ships, MRS shuttles, and fighters with
+     *       special rails (J4.23)." The citation is J4.23, the rail SECTION, and not J4.233's
+     *       special rail -- so "special rails" there means the specialised rails of J4.23
+     *       generally. J4.23 is the authority and gives the MW drone to the heavy rail as well
+     *       as the special one, which is also the only reading the drones allow: FD8.42's
+     *       type-IV-MW uses {@link com.sfb.objects.PayloadModule#MW_LARGE}, a TWO-space module,
+     *       and the heavy rail is the only fighter rail that holds a two-space drone. Special
+     *       only would make the type-IV-MW uncarriable by any fighter ever built.</li>
+     * </ul>
+     *
+     * <p>So what a STANDARD rail refuses is the whole of the exception: it carries special
+     * type-I drones -- an ECM, a probe, a swordfish -- and no MW drone and no type-III frame.
+     * A LIGHT rail refuses all of them on size alone, carrying nothing but a type-VI.
+     *
+     * <p>A null spec is nothing to judge, which is the plasma rails and anything built before a
+     * composition was given one.
+     */
+    private boolean carriesPayload(com.sfb.objects.DroneSpec spec) {
+        if (spec == null)
+            return true;
+        // One rail set answers both rules, and they are still two rules: FD9.35 names the
+        // special and heavy rails for the frame, J4.23 gives both of them the MW drone.
+        if (railType == DroneRailType.SPECIAL || railType == DroneRailType.HEAVY)
+            return true;
+        return !spec.hasTypeIiiFrame() && !spec.isMultiWarhead();
     }
 
     /**
@@ -168,7 +211,11 @@ public class DroneRail extends DroneRack {
     public boolean accepts(com.sfb.objects.DroneType droneType) {
         if (carriesPlasma())
             return false;
-        return droneType != null && droneType.rack <= railType.capacity;
+        if (droneType == null)
+            return false;
+        if (!carriesPayload(droneType.spec))
+            return false;
+        return droneType.rack <= railType.capacity;
     }
 
     /**

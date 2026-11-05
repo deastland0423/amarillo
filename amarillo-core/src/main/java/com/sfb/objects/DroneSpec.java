@@ -341,6 +341,32 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
     }
 
     /**
+     * Whether this drone is built on a type-III frame (FD10.22's guidance surcharge).
+     *
+     * <p>True for a type-III-XX as well, which FD10.24 makes a type-III that was given extended
+     * range rather than a frame of its own. Asked by {@link com.sfb.weapons.DroneRail}, because
+     * FD9.35 lets only a special or heavy rail carry one.
+     */
+    public boolean hasTypeIiiFrame() {
+        return additions.contains(FrameAddition.TYPE_III_GUIDANCE);
+    }
+
+    /**
+     * Whether this is a multi-warhead drone — a bus carrying type-VI submunitions (FD8.0).
+     *
+     * <p>Asked of the MODULE rather than of {@code submunitionPropulsion}, which is the engine
+     * those submunitions fly on and defaults itself when one is not named: the module with
+     * submunitions in it is what makes the drone an MW. FD8.33 lets only a SPECIAL rail carry
+     * one — not a heavy one, unlike the type-III frame.
+     *
+     * <p>FD15.251 puts the Starfish here too ("they are like MW drones"), and FD15's module is
+     * not built yet; when it is, this is where it belongs.
+     */
+    public boolean isMultiWarhead() {
+        return allModules().stream().anyMatch(m -> m.submunitions > 0);
+    }
+
+    /**
      * The drone FD10.622's last exception names: a type-III frame carrying an ECM module.
      *
      * <blockquote>FD10.622: "Type-III-ECM drones on Klingon ships are Restricted
