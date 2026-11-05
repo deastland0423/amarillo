@@ -539,6 +539,7 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
      * did not.)
      */
     public Map<Availability, Double> spacesByAvailability(int year) {
+        // Every space the FRAME has, not every module fitted -- see the FD10.48 note below.
         Availability floor = effectiveFrame().availability;
         floor = Availability.moreRestrictive(floor, propulsion.availabilityIn(year));
         // FD10.641 counts "speed upgrades" among the frame modifications that set the floor for
@@ -570,6 +571,31 @@ public record DroneSpec(DroneFrame frame, Propulsion propulsion,
         // A half with no partner still occupies a space; nothing shares it, so it is its own.
         if (pendingHalf != null)
             out.merge(pendingHalf, 1.0, Double::sum);
+
+        // FD10.48: an EMPTY payload space is still a payload space. "A player could, for
+        // whatever reason, simply remove and discard the explosive warhead and launch the drone
+        // with no payload at all... Null modules look like explosive modules even if identified
+        // under (G4.231)" -- so what is in a space does not decide whether the space is there,
+        // and FD10.641 counts the frame's: "A type-IV drone with Medium Speed in Y166 counts as
+        // two spaces of Restricted Availability even if both of its payload spaces are General
+        // Availability items."
+        //
+        // Reported from the COI dialog, and the way round that matters: a type-IVM billed two
+        // Restricted spaces until an ECM module was fitted, and then billed ONE, because this
+        // summed the modules ABOARD and the second space had gone empty to make room for a
+        // module that fit in the first. Adding a Restricted module to a Restricted drone made it
+        // smaller. A player could have under-filled their way past FD10.622 while buying the
+        // dearest drones in the game.
+        //
+        // The top-up goes in at the FLOOR, which is the frame and its modifications -- the same
+        // tier an explosive module would have taken there, since a null module is one to anybody
+        // looking. {@link #payloadCost} already floors the PRICE on the same rule.
+        double accounted = 0;
+        for (double v : out.values())
+            accounted += v;
+        double frameSpaces = effectiveFrame().payloadSpaces;
+        if (frameSpaces - accounted > 1e-9)
+            out.merge(floor, frameSpaces - accounted, Double::sum);
         return out;
     }
 

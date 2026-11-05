@@ -1120,4 +1120,67 @@ public class DroneAvailabilityLimitTest {
             assertTrue("fixture: Kzinti " + hull + " must fly drone fighters", boxesChecked > 0);
         }
     }
+
+    /**
+     * Reported from the COI dialog: a type-IVM counted two Restricted spaces, and then counted
+     * ONE as soon as an ECM module was fitted to it.
+     *
+     * <blockquote>FD10.641: "A type-IV drone with Medium Speed in Y166 counts as two spaces of
+     * Restricted Availability even if both of its payload spaces are General Availability
+     * items."</blockquote>
+     *
+     * <p>Adding a Restricted module to a Restricted drone cannot make it smaller. The drone has
+     * two payload spaces whatever is in them — FD10.48 lets a player launch one with "no
+     * payload at all", and "null modules look like explosive modules even if identified under
+     * (G4.231)", so an empty space is a warhead space holding nothing rather than no space.
+     *
+     * <p>The bill was summed over the modules FITTED, so leaving the second space empty dropped
+     * it out of the count. Permissive, and it would have let a player under-fill their way past
+     * FD10.622 while buying the dearest drones in the game.
+     */
+    @Test
+    public void anUnderFilledPayloadStillCountsItsFrameSpaces() {
+        Ship ship = kzintiShip();
+        DroneSpec ecmHeavy = DroneSpec.of(DroneFrame.TWO_SPACE, Propulsion.SPEED_20,
+                PayloadModule.ECM);
+        loadDrones(ship, new Drone(DroneType.TypeIVM, ecmHeavy));
+
+        assertEquals("one ECM module and one empty space, and the frame has two", 2.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 166), 0.0001);
+    }
+
+    /**
+     * And the two spaces are not both Restricted for the same reason, which is what keeps the
+     * fix honest rather than a flat "count the frame".
+     *
+     * <p>In Y167 medium speed is General (FD10.65), so the floor drops: the ECM module's own
+     * space is still Restricted (FD10.621) and the empty one is General, exactly as FD10.641's
+     * worked example splits a drone across tiers.
+     */
+    @Test
+    public void theEmptySpaceTakesTheFramesTierAndNotTheModulesOne() {
+        Ship ship = kzintiShip();
+        DroneSpec ecmHeavy = DroneSpec.of(DroneFrame.TWO_SPACE, Propulsion.SPEED_20,
+                PayloadModule.ECM);
+        loadDrones(ship, new Drone(DroneType.TypeIVM, ecmHeavy));
+
+        assertEquals("the ECM space alone in Y167", 1.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 167), 0.0001);
+        assertEquals("and nothing Limited either year", 0.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.LIMITED, 166), 0.0001);
+    }
+
+    /**
+     * FD10.48 at its limit: a drone with its warhead removed altogether still occupies its
+     * frame's spaces, and a medium-speed frame in Y166 makes both of them Restricted.
+     */
+    @Test
+    public void aNullDroneStillSpendsItsFramesSpaces() {
+        Ship ship = kzintiShip();
+        DroneSpec gutted = DroneSpec.of(DroneFrame.TWO_SPACE, Propulsion.SPEED_20);
+        loadDrones(ship, new Drone(DroneType.TypeIVM, gutted));
+
+        assertEquals("two empty spaces on a Restricted frame", 2.0,
+                DroneAvailabilityLimit.spacesAtLeast(ship, Availability.RESTRICTED, 166), 0.0001);
+    }
 }
