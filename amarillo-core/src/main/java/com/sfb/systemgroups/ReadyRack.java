@@ -309,6 +309,48 @@ public class ReadyRack {
     }
 
     /**
+     * One drone per design slot: what this box's fighter IS carrying, wherever it happens to
+     * be (FD2.446).
+     *
+     * <h2>Why the rail comes before the rack</h2>
+     * At rest a rack is full and a fighter is empty (J4.8223, J4.886), but arming a fighter
+     * takes the drones OUT of the rack (J4.8224) — so a Kzinti TADS at WS-2 holds five of its
+     * six on its rails and one in the box. Neither place alone is the loading; the rail is
+     * asked first because that is where a drone goes when it leaves.
+     *
+     * <p>Matched out of the rack as a multiset, as {@link #slotsMissing()} does, because a
+     * part-emptied rack holds what is left in no particular order. A slot that neither place
+     * can account for falls back to a plain drone of its design type — the only answer left,
+     * and the right one for a rack nobody has touched.
+     *
+     * <h2>What asks</h2>
+     * FD2.446 requires "detailed records of what types of drone are in each position", and two
+     * callers need them: the Commander's Options panel, which shows a player what each rail
+     * carries, and {@code Shuttles.droneLoadoutPattern}, which stocks the hold proportionally
+     * to the loading (FD2.45). They used to walk the box separately, which is two answers to
+     * one question waiting to disagree.
+     */
+    public List<Drone> loading(Shuttle occupant) {
+        if (carriesPlasma())
+            return List.of();   // FP9.18: a type-D has no variants, so no composition to record
+        List<DroneRail> rails = stockedRails(occupant);
+        boolean[] spoken = new boolean[drones.size()];
+        List<Drone> out = new ArrayList<>();
+        for (int i = 0; i < design.size(); i++) {
+            Drone held = i < rails.size() ? rails.get(i).getDrone() : null;
+            if (held == null)
+                for (int k = 0; k < drones.size(); k++)
+                    if (!spoken[k] && drones.get(k).getDroneType() == design.get(i)) {
+                        held = drones.get(k);
+                        spoken[k] = true;
+                        break;
+                    }
+            out.add(held != null ? held : new Drone(design.get(i)));
+        }
+        return out;
+    }
+
+    /**
      * The slots this rack is short of, largest first — what a refill should go and fetch.
      * <p>
      * A multiset difference rather than a count: a rack holding a spare type-VI where a

@@ -1111,6 +1111,20 @@ public class ScenarioLoader {
             }
         }
 
+        // --- The hold follows the loading (FD2.45) ---
+        // Stocked once already, during outfitForYear, from the drones the hull was ISSUED --
+        // which is before a player has bought anything. FD2.45 makes the stores "proportional
+        // to those on the racks/fighters", so a squadron that now flies ECM drones is owed ECM
+        // drones in its hold, free; without this the purchase reached the rails and the first
+        // reload put a plain drone back in its place.
+        //
+        // After readiness rather than before: arming takes drones OUT of the rack (J4.8224),
+        // and ReadyRack.loading reads the rail as readily as the rack, so the pattern is the
+        // same either way -- but the spaces already committed forward are only right once the
+        // fighters have stopped moving.
+        if (ship.getShuttles() != null)
+            ship.getShuttles().restockDroneStore();
+
         // --- Special shuttle conversions (WS-2: max 1, WS-3: max 2) ---
         // Admin shuttles are converted in-bay to the requested special type.
         if (!loadout.specialShuttlePrep.isEmpty()) {

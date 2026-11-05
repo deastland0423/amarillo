@@ -362,7 +362,7 @@ public class Shuttles implements Systems {
             return;
         droneStore = new DroneStore(n.doubleValue());
         double room = droneStore.capacitySpaces() - spacesCommittedForward();
-        List<com.sfb.objects.DroneType> pattern = droneLoadoutPattern();
+        List<com.sfb.objects.Drone> pattern = droneLoadoutPattern();
         if (!pattern.isEmpty())
             droneStore.stock(pattern, room);
 
@@ -423,12 +423,12 @@ public class Shuttles implements Systems {
         return rails;
     }
 
-    private List<com.sfb.objects.DroneType> droneLoadoutPattern() {
-        List<com.sfb.objects.DroneType> pattern = new ArrayList<>();
+    private List<com.sfb.objects.Drone> droneLoadoutPattern() {
+        List<com.sfb.objects.Drone> pattern = new ArrayList<>();
         for (ShuttleBay bay : bays)
             for (ShuttleSpace box : bay.getSpaces())
                 if (box.getReadyRack() != null)
-                    pattern.addAll(box.getReadyRack().design());
+                    pattern.addAll(box.getReadyRack().loading(box.getShuttle()));
         return pattern;
     }
 

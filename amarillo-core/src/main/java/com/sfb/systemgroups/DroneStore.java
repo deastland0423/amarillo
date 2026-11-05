@@ -55,29 +55,42 @@ public class DroneStore implements PlasmaDSupply {
     }
 
     /**
-     * Stock the hold up to {@code spaces}, dealing round a pattern of drone types.
-     * <p>
-     * The pattern is the multiset of what the ship's drone rails are designed to carry, so a
-     * carrier of mixed-rail fighters gets a proportionate mix rather than a hold full of one
-     * type its light rails cannot use. FD2.45/J4.23/FD10.6 govern what a player may buy
-     * INSTEAD; until a loadout says otherwise, the quartermaster stocks what the fighters
-     * were built around.
+     * Stock the hold up to {@code spaces}, dealing round the LOADING the ship is carrying.
+     *
+     * <h2>The pattern is drones, not types, and that is the whole of FD2.45's entitlement</h2>
+     * <blockquote>FD2.45: "The drones in storage are proportional to those on the
+     * racks/fighters. They can be of a less expensive, but cannot be of a more expensive, type
+     * than the drones in the loading paid for. For example, if a Klingon D7B with two type-A
+     * drone racks had six type-I and two type-I-ECM drones in its racks, then the reloads
+     * (assuming a single set) could include up to two type-I-ECM and the rest
+     * type-I."</blockquote>
+     *
+     * <p>Dealing round the loading gives that by construction: an ECM drone appears in the
+     * hold in the same proportion it appears in the racks, so the entitlement is taken up
+     * without ever being computed, and never exceeded. This used to take a list of {@link
+     * DroneType} and build {@code new Drone(type)}, which threw the composition away — so a
+     * player who bought two ECM drones got none in storage and could never reload one, though
+     * FD2.45 gives them free.
+     *
+     * <p>Round-robin rather than pattern-at-a-time, so a hold that runs out part way through
+     * is still proportionate. A full lap with nothing fitting means the gap left is smaller
+     * than the smallest drone in the pattern, and the hold is as full as it gets.
+     *
+     * <p>Each entry is COPIED. The pattern is the drones actually aboard, and a hold sharing
+     * objects with a rack would reload a fighter with a drone it is already carrying.
      *
      * @return spaces actually stocked
      */
-    public double stock(List<DroneType> pattern, double spaces) {
+    public double stock(List<Drone> pattern, double spaces) {
         if (pattern == null || pattern.isEmpty() || spaces <= 0)
             return 0;
         double before = spacesHeld();
         double ceiling = Math.min(before + spaces, capacitySpaces);
-        // Round-robin rather than pattern-at-a-time, so a hold that runs out part way through
-        // is still proportionate. A full lap with nothing fitting means the gap left is
-        // smaller than the smallest drone in the pattern, and the hold is as full as it gets.
         int misses = 0;
         for (int i = 0; misses < pattern.size(); i++) {
-            DroneType type = pattern.get(i % pattern.size());
-            if (spacesHeld() + type.rack <= ceiling) {
-                reserve.add(new Drone(type));
+            Drone one = pattern.get(i % pattern.size());
+            if (one != null && spacesHeld() + one.getRackSize() <= ceiling) {
+                reserve.add(new Drone(one.getDroneType(), one.getSpec()));
                 misses = 0;
             } else {
                 misses++;

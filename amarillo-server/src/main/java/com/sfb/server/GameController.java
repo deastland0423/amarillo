@@ -1919,20 +1919,13 @@ public class GameController {
                         // squadron and its superiority fighters straddle both.
                         f.put("squadron", squadronOf.get(craft.getName()));
 
-                        // What a rail is carrying is NOT simply the rack's nth drone. A
-                        // fighter armed by its weapon status (S4.10-S4.12) took its drones
-                        // OUT of the rack (J4.8224), so a Kzinti TADS at WS-2 has five on
-                        // its rails and one left in the box -- and reading the rack alone
-                        // reported five of its six rails carrying nothing at all. So: the
-                        // rail first, then the rack slot that matches what the rail is
-                        // designed for, then the design itself.
-                        //
-                        // Matched as a multiset, as ReadyRack.slotsMissing does, because a
-                        // part-emptied rack holds its drones in no particular order.
-                        List<com.sfb.objects.Drone> stock =
-                                rack == null || rack.carriesPlasma()
-                                        ? List.of() : rack.contents();
-                        boolean[] spoken = new boolean[stock.size()];
+                        // What each rail is carrying, read from wherever the drone actually
+                        // is: ReadyRack.loading asks the rail before the rack, because arming
+                        // a fighter moves the drone from one to the other (J4.8224). This was
+                        // a second copy of that walk until the carrier's hold needed the same
+                        // answer -- two readings of one question, waiting to disagree.
+                        List<com.sfb.objects.Drone> carried = rack == null
+                                ? List.of() : rack.loading(craft);
 
                         List<Map<String, Object>> railRows = new ArrayList<>();
                         for (int railIdx = 0; railIdx < rails.size(); railIdx++) {
@@ -1945,15 +1938,8 @@ public class GameController {
                             r.put("acceptsTypeIii",
                                     rail.accepts(com.sfb.objects.DroneType.TypeIII));
                             r.put("acceptsMultiWarhead", rail.accepts(mwProbe));
-                            com.sfb.objects.Drone held = rail.getDrone();
-                            if (held == null)
-                                for (int k = 0; k < stock.size(); k++)
-                                    if (!spoken[k] && stock.get(k).getDroneType()
-                                            == rail.getDesignDrone()) {
-                                        held = stock.get(k);
-                                        spoken[k] = true;
-                                        break;
-                                    }
+                            com.sfb.objects.Drone held =
+                                    railIdx < carried.size() ? carried.get(railIdx) : null;
                             r.put("drone", held != null
                                     ? new com.sfb.objects.DroneLoad(
                                             held.getDroneType(), held.getSpec()).format()

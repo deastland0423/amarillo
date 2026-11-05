@@ -524,8 +524,18 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 		for (int i = 0; i < mirroredSets; i++) {
 			List<Drone> set = new ArrayList<>();
 			for (Drone d : ammoList) {
-				if (d.getDroneType() != null)
-					set.add(new Drone(d.getDroneType()));
+				if (d.getDroneType() == null)
+					continue;
+				// FD2.45: "The drones in storage are proportional to those on the
+				// racks/fighters... if a Klingon D7B with two type-A drone racks had six
+				// type-I and two type-I-ECM drones in its racks, then the reloads (assuming
+				// a single set) could include up to two type-I-ECM and the rest type-I."
+				// Mirroring the loading takes that entitlement up by construction, and can
+				// never exceed it. The SPEC is what carries it: this built the reload from
+				// the DroneType alone, so a rack loaded with ECM drones reloaded with plain
+				// ones and the free entitlement was lost on every rack in the game.
+				set.add(d.getSpec() == null ? new Drone(d.getDroneType())
+						: new Drone(d.getDroneType(), d.getSpec()));
 			}
 			if (!set.isEmpty())
 				this.reloads.add(set);
