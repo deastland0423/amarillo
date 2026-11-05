@@ -260,14 +260,71 @@ public class DroneStore implements PlasmaDSupply {
         return best;
     }
 
-    /** Take one drone of this exact type, or null if the hold has none. */
+    /**
+     * Take one drone of this type, the SPECIAL ones first, or null if the hold has none.
+     *
+     * <h2>Why "special" is availability and not cost</h2>
+     * The hold holds what the loading holds (FD2.45), so a squadron that bought ECM drones has
+     * ECM drones in storage — and a type-I-ECM and a plain type-I are both a {@code TypeIF} to
+     * this method. Taking the first match left the special drones at the bottom of the hold
+     * while plain ones went back onto the rails, so a player paid for a capability the
+     * quartermaster would not issue.
+     *
+     * <p>Ordering by POINT COST was the obvious fix and does not work: FD10.5 prices an ECM
+     * module at 0.50, which is exactly what the explosive warhead it replaces costs, so an ECM
+     * drone and a plain one are worth the same and the sort is a coin flip. What separates
+     * them is scarcity — FD10.62 makes the ECM module Restricted while a warhead is General —
+     * and scarcity is what FD2.45's proportional rule is about: "Special drones must observe
+     * the proportional reload requirement... except for the LAST special drone in each
+     * PERCENTAGE CATEGORY." So the key is the tier, with cost only as a tiebreak.
+     *
+     * <p>FD2.452 is what makes this a free choice rather than a rule to obey: "The reload
+     * drones are presumed to be of the same cost (or lower) as the drones in the rack (on a
+     * drone by drone basis), but might be of a different type." Lower is always legal, so no
+     * order here can be wrong; this is simply the one a player would ask for, and FD2.4421
+     * gives them the choice explicitly ("A player can consult his records of the drones in
+     * cargo storage to determine exactly which one he wants moved"). Until there is a surface
+     * for that choice, this is the default it would start from.
+     */
     public Drone take(DroneType type) {
+        Drone best = null;
         for (Drone d : reserve)
-            if (d.getDroneType() == type) {
-                reserve.remove(d);
-                return d;
-            }
-        return null;
+            if (d.getDroneType() == type && (best == null || issueBefore(d, best)))
+                best = d;
+        if (best != null)
+            reserve.remove(best);
+        return best;
+    }
+
+    /** The scarcer drone first, and the dearer of two equally scarce ones. */
+    private static boolean issueBefore(Drone candidate, Drone best) {
+        com.sfb.objects.Availability mine = scarcity(candidate);
+        com.sfb.objects.Availability theirs = scarcity(best);
+        if (mine != theirs)
+            return mine.atLeastAsRestrictedAs(theirs);
+        return worth(candidate) > worth(best);
+    }
+
+    /**
+     * The most restricted thing this drone carries (FD10.6), ignoring its engine.
+     *
+     * <p>Modules only: the propulsion's tier moves with the YEAR and this method has none, and
+     * a hold stocked from the loading holds one speed throughout anyway (S2.11) — so the engine
+     * cannot separate two drones here, while a payload module can.
+     */
+    private static com.sfb.objects.Availability scarcity(Drone d) {
+        com.sfb.objects.Availability worst = com.sfb.objects.Availability.GENERAL;
+        if (d == null || d.getSpec() == null)
+            return worst;
+        for (com.sfb.objects.PayloadModule m : d.getSpec().allModules())
+            if (m.availability.atLeastAsRestrictedAs(worst))
+                worst = m.availability;
+        return worst;
+    }
+
+    /** What a drone cost to put aboard (FD10.5), or zero for one with no composition. */
+    private static double worth(Drone d) {
+        return d == null || d.getSpec() == null ? 0 : d.getSpec().pointCost();
     }
 
     /** Take any drone at all, largest first, or null when the hold is empty. */

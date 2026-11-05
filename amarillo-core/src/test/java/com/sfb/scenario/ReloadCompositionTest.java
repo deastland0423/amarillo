@@ -229,6 +229,60 @@ public class ReloadCompositionTest {
         assertEquals(0, ecmCount(ship.getShuttles().getDroneStore().contents()));
     }
 
+    /**
+     * And the quartermaster issues it. A rack that is short asks for a drone TYPE, and a
+     * type-I-ECM and a plain type-I are the same type — so the hold handed over whichever
+     * came first and the special drones stayed at the bottom of it.
+     *
+     * <p>FD2.452 makes dearest-first a free choice rather than a rule: "The reload drones are
+     * presumed to be of the same cost (or lower) as the drones in the rack." Lower is always
+     * legal, so nothing here can be wrong — but a player who bought the capability should be
+     * issued it, and FD2.4421 gives them the choice of which one comes out.
+     */
+    @Test
+    public void theHoldIssuesTheSpecialDroneRatherThanLeavingItAtTheBottom() {
+        Ship ship = bought("Kzinti", "CVS", 180);
+        com.sfb.systemgroups.DroneStore hold = ship.getShuttles().getDroneStore();
+        org.junit.Assume.assumeTrue(hold != null);
+
+        // A hold holding both, the plain one FIRST so that taking the head of the list is
+        // exactly the behaviour under test.
+        hold.contents().forEach(d -> { });
+        Drone plain = DroneLoad.parse("TypeIF").build();
+        Drone ecm = DroneLoad.parse("TypeIF+ECM").build();
+        com.sfb.systemgroups.DroneStore fresh = new com.sfb.systemgroups.DroneStore(10);
+        fresh.put(plain);
+        fresh.put(ecm);
+
+        Drone issued = fresh.take(com.sfb.objects.DroneType.TypeIF);
+        assertTrue("the ECM drone is the one that was paid for", hasEcm(issued));
+        assertFalse("and it is gone from the hold", ecmCount(fresh.contents()) > 0);
+
+        Drone next = fresh.take(com.sfb.objects.DroneType.TypeIF);
+        assertEquals("the plain one is still there for the next slot", plain, next);
+    }
+
+    /**
+     * Why the issue order is availability and not price, as an executable fact.
+     *
+     * <p>Ordering by point cost was the obvious fix and is a coin flip: FD10.5 prices an ECM
+     * module at 0.50, exactly what the explosive warhead it replaces costs, so the two drones
+     * are worth the same. What separates them is scarcity — FD10.62 makes the ECM module
+     * Restricted where a warhead is General — which is also what FD2.45's proportional rule
+     * counts in: "the LAST special drone in each PERCENTAGE CATEGORY".
+     */
+    @Test
+    public void anEcmDroneCostsNoMoreThanThePlainOneItReplaces() {
+        Drone plain = DroneLoad.parse("TypeIF").build();
+        Drone ecm = DroneLoad.parse("TypeIF+ECM").build();
+
+        assertEquals("FD10.5: the module replaces the warhead at the same price",
+                plain.getSpec().pointCost(), ecm.getSpec().pointCost(), 0.0001);
+        assertEquals("but it is Restricted, and that is what makes it special (FD10.62)",
+                com.sfb.objects.Availability.RESTRICTED,
+                ecm.getSpec().allModules().get(0).availability);
+    }
+
     // ------------------------------------------------------------------ the shared reading
 
     /**
