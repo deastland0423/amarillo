@@ -3,6 +3,7 @@ package com.sfb.server;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -183,6 +184,29 @@ class FighterLoadoutEndpointTest {
         assertEquals(List.of("TypeIF", "TypeIF", "TypeVIF", "TypeVIF", "TypeIF", "TypeIF"),
                 byType.get("tads"),
                 "S2.11: a Y180 TADS flies fast drones on every rail, armed or not");
+    }
+
+    /**
+     * Each fighter names the counter the MAP draws for it, so the loadout grid and the board
+     * show the same object.
+     *
+     * <p>And names nothing where nothing has been drawn. 22 of the game's 78 fighters have no
+     * counter — the whole Federation line and the Hydran Stinger-3 — so the field has to be
+     * able to say so, and the grid falls back to a plain shape exactly as the map does. A
+     * primitive would have arrived as "" on every row and the client could not have told.
+     */
+    @Test
+    void eachFighterNamesTheCounterTheMapDrawsForIt() {
+        Map<String, Object> tads = firstOfType(
+                loadoutsOf(shipRow(fleetAt(180, "Kzinti", "CVS"), "Ship CVS")), "tads");
+        assertEquals("kzinti/tads.png", tads.get("tokenArt"),
+                "the same art HexGrid loads from /tokens/");
+
+        List<Map<String, Object>> fed =
+                loadoutsOf(shipRow(fleetAt(180, "Federation", "CVS"), "Ship CVS"));
+        assertFalse(fed.isEmpty(), "fixture: the Federation carrier has a squadron");
+        assertNull(fed.get(0).get("tokenArt"),
+                "the Federation fighters have no counter drawn yet, and must say so");
     }
 
     // ---------------------------------------------------------------- and what each rail allows

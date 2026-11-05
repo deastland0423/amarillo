@@ -524,6 +524,13 @@ export interface CoiFighterLoadout {
   /** What a band header SHOWS: "TADS-E", not "tads_e". */
   designation: string;
   /**
+   * The counter the MAP draws for this craft, relative to `/tokens/`.
+   *
+   * Null where the art has not been drawn — the Federation line and the Hydran Stinger-3,
+   * 22 of 78 fighters — and the grid falls back to a plain shape, exactly as the map does.
+   */
+  tokenArt?:   string | null;
+  /**
    * J4.46's organisation, for the badge.
    *
    * Shown rather than navigated by: J4.461 cuts squadrons at twelve slots in EW-first order, so

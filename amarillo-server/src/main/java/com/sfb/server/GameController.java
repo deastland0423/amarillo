@@ -1912,6 +1912,11 @@ public class GameController {
                         com.sfb.objects.ShuttleCatalog.Entry ce =
                                 com.sfb.objects.ShuttleCatalog.get(catalogType);
                         f.put("designation", ce != null ? ce.designation : catalogType);
+                        // The counter the MAP draws for this craft, so the loadout panel shows
+                        // the same object the player will push around the board. Null for the
+                        // Federation line and the Hydran Stinger-3, whose art is not drawn yet;
+                        // the client falls back to a plain shape exactly as the map does.
+                        f.put("tokenArt", ce == null ? null : ce.tokenArt);
                         // J4.46's organisation, for the badge. Shown rather than navigated
                         // by: squadrons are cut at twelve slots in EW-first order
                         // (J4.461), so the boundary falls across fighter TYPE rather than

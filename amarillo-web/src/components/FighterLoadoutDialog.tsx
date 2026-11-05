@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import type { CoiFighterRail, CoiShipData } from '../api/gameApi';
+import type { CoiFighterLoadout, CoiFighterRail, CoiShipData } from '../api/gameApi';
 import {
   bandDefault, differsFromBand, differsFromIssue, dronesForRail, fighterLoadoutCost, loadOf,
-  modulesForRail, railRefusal, resetFighter, setBandRail, setRail, typeBands,
+  modulesForRail, railRefusal, railsDifferingFromBand, resetFighter, setBandRail, setRail,
+  typeBands,
 } from './fighterLoadout';
 import type { DroneCatalogue, FighterBand, LoadoutOverrides } from './fighterLoadout';
 import { DronePayloadEditor } from './DronePayloadEditor';
@@ -197,27 +198,17 @@ function Band({
       )}
 
       <div className="fl-grid">
-        {band.fighters.map((f, n) => {
-          const exception = differsFromBand(f, band, overrides);
-          return (
-            <button
-              key={f.name}
-              className={'fl-token'
-                + (exception ? ' fl-token-exception' : '')
-                + (openFighter === f.name ? ' fl-token-open' : '')}
-              title={`${f.name}${f.squadron ? ` — ${f.squadron}` : ''}\n`
-                + loadOf(f, overrides)
-                  .map((d, i) => `${band.rails[i]?.designator}: ${d}`).join('\n')}
-              onClick={() => selectFighter(openFighter === f.name ? null : f.name)}
-            >
-              <svg viewBox="0 0 24 20" className="fl-token-art" aria-hidden="true">
-                <polygon points="12,2 23,19 1,19" />
-              </svg>
-              <span className="fl-token-n">{n + 1}</span>
-              {exception && <span className="fl-token-mark">✦</span>}
-            </button>
-          );
-        })}
+        {band.fighters.map((f, n) => (
+          <FighterToken
+            key={f.name}
+            fighter={f}
+            band={band}
+            overrides={overrides}
+            index={n + 1}
+            open={openFighter === f.name}
+            onClick={() => selectFighter(openFighter === f.name ? null : f.name)}
+          />
+        ))}
       </div>
 
       {open && (
@@ -268,6 +259,74 @@ function Band({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * One fighter in the grid: the counter the map draws, framed by its state, over a pip per rail.
+ *
+ * <h2>Why the art, and why it is not enough on its own</h2>
+ * It is the same counter {@code HexGrid} draws on the board, so the loadout screen and the
+ * battle show the same object. But every fighter in a band is the same TYPE, so within a band
+ * every counter is the same picture — the art is atmosphere and carries no information at all.
+ * Eleven identical counters say exactly what eleven identical triangles said.
+ *
+ * <p>The pips are what the row is for. One per rail, in the order the band's pickers sit above
+ * them, filled where that rail differs from the band — so a glance says WHICH rail was changed
+ * on which fighter, where the old single marker could only say that one of them was. Their
+ * shape follows the rail type, because a special rail is where a type-III or a multi-warhead
+ * can go and that is the rail worth finding.
+ *
+ * <p>State lives on the FRAME rather than in the fill. Over a red Kzinti counter an amber
+ * silhouette stops being legible, and the frame is the one part of the token the art does not
+ * occupy.
+ *
+ * <p>22 of the game's 78 fighters have no counter drawn — the Federation line and the Hydran
+ * Stinger-3 — and fall back to the plain shape, which is what the map does too.
+ */
+function FighterToken({
+  fighter, band, overrides, index, open, onClick,
+}: {
+  fighter:   CoiFighterLoadout;
+  band:      FighterBand;
+  overrides: LoadoutOverrides;
+  index:     number;
+  open:      boolean;
+  onClick:   () => void;
+}) {
+  const differing = railsDifferingFromBand(fighter, band, overrides);
+  const exception = differsFromBand(fighter, band, overrides);
+  const load = loadOf(fighter, overrides);
+
+  return (
+    <button
+      className={'fl-token'
+        + (exception ? ' fl-token-exception' : '')
+        + (open ? ' fl-token-open' : '')}
+      title={`${fighter.name}${fighter.squadron ? ` — ${fighter.squadron}` : ''}\n`
+        + load.map((d, i) => `${fighter.rails[i]?.designator}: ${d}`).join('\n')}
+      onClick={onClick}
+    >
+      <span className="fl-token-frame">
+        {fighter.tokenArt
+          ? <img className="fl-token-img" src={`/tokens/${fighter.tokenArt}`} alt="" />
+          : (
+            <svg viewBox="0 0 24 20" className="fl-token-shape" aria-hidden="true">
+              <polygon points="12,2 23,19 1,19" />
+            </svg>
+          )}
+      </span>
+      <span className="fl-token-pips">
+        {fighter.rails.map((rail, i) => (
+          <span
+            key={`${rail.designator}-${i}`}
+            className={'fl-pip fl-pip-' + rail.railType.toLowerCase()
+              + (differing[i] ? ' fl-pip-changed' : '')}
+          />
+        ))}
+      </span>
+      <span className="fl-token-n">{index}</span>
+    </button>
   );
 }
 

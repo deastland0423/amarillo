@@ -192,6 +192,21 @@ export function differsFromBand(
   return mine.some((load, i) => load !== theirs[i]);
 }
 
+/**
+ * Rail by rail, whether this fighter differs from its band — the grid's pip row.
+ *
+ * {@link differsFromBand} answers the same question with one bit for the whole fighter, which
+ * is all a single marker could carry. Six rails make six answers, and WHICH rail differs is
+ * the interesting half: a special rail is where the type-III and the multi-warhead go.
+ */
+export function railsDifferingFromBand(
+  fighter: CoiFighterLoadout, band: FighterBand, overrides: LoadoutOverrides,
+): boolean[] {
+  const mine = loadOf(fighter, overrides);
+  const theirs = bandDefault(band, overrides);
+  return mine.map((load, i) => load !== theirs[i]);
+}
+
 /** Whether anything at all has been changed from what the hull issued (FD2.31). */
 export function differsFromIssue(
   fighter: CoiFighterLoadout, overrides: LoadoutOverrides,

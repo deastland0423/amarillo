@@ -4,7 +4,8 @@ import type {
 } from '../api/gameApi';
 import {
   bandDefault, differsFromBand, differsFromIssue, dronesForRail, hasTypeIiiFrame,
-  isMultiWarhead, loadOf, modulesForRail, parseLoad, railRefusal, resetFighter, seedOverrides,
+  isMultiWarhead, loadOf, modulesForRail, parseLoad, railRefusal, railsDifferingFromBand,
+  resetFighter, seedOverrides,
   setBandRail, setRail, toWire, typeBands,
 } from './fighterLoadout';
 
@@ -268,6 +269,33 @@ describe('bandDefault', () => {
     let overrides = setRail({}, fighters[0], 4, 'TypeIIIF');
     overrides = setRail(overrides, fighters[1], 4, 'TypeIIIF');
     expect(bandDefault(band, overrides)[4]).toBe('TypeIIIF');
+  });
+});
+
+describe('railsDifferingFromBand', () => {
+  it('names the rail that differs, not merely that one does', () => {
+    const fighters = [tads('T-1'), tads('T-2'), tads('T-3')];
+    const band = typeBands(fighters)[0];
+    const overrides = setRail({}, fighters[0], 4, 'TypeIIIF');
+
+    expect(railsDifferingFromBand(fighters[0], band, overrides))
+      .toEqual([false, false, false, false, true, false]);
+  });
+
+  it('gives one answer per rail, so the row lines up with the pickers', () => {
+    const fighters = [tads('T-1'), tadsE('E-1')];
+    const bands = typeBands(fighters);
+    expect(railsDifferingFromBand(fighters[0], bands[0], {})).toHaveLength(6);
+    // J4.962 took two rails off the EW fighter, and its row is shorter to match.
+    expect(railsDifferingFromBand(fighters[1], bands[1], {})).toHaveLength(4);
+  });
+
+  it('marks nothing when the whole band moved together', () => {
+    const fighters = [tads('T-1'), tads('T-2')];
+    const band = typeBands(fighters)[0];
+    const overrides = setBandRail({}, band, 4, 'TypeIIIF');
+    for (const f of fighters)
+      expect(railsDifferingFromBand(f, band, overrides)).not.toContain(true);
   });
 });
 

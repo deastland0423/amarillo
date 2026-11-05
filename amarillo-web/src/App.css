@@ -2065,41 +2065,77 @@ h3 {
 
 .fl-token {
   position: relative;
-  width: 42px;
-  height: 40px;
+  width: 52px;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: 4px;
+  border: none;
   cursor: pointer;
   padding: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 0.15rem;
+}
+
+/* State lives on the FRAME, not in the fill: over a red Kzinti counter an amber silhouette
+   stops being legible, and the frame is the one part the art does not occupy. */
+.fl-token-frame {
+  display: flex;
+  align-items: center;
   justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  background: #161b22;
+  overflow: hidden;
 }
-.fl-token:hover { border-color: #30363d; background: #161b22; }
-.fl-token-art { width: 24px; height: 20px; }
-.fl-token-art polygon {
-  fill: none;
-  stroke: #8b949e;
-  stroke-width: 1.5;
+.fl-token:hover .fl-token-frame { border-color: #8b949e; }
+
+/* The same counter HexGrid draws on the board, so the two screens show one object. */
+.fl-token-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
+
+/* 22 of 78 fighters have no counter drawn (the Federation line, the Hydran Stinger-3). */
+.fl-token-shape { width: 24px; height: 20px; }
+.fl-token-shape polygon { fill: none; stroke: #8b949e; stroke-width: 1.5; }
+
 .fl-token-n { color: #8b949e; font-size: 0.65rem; line-height: 1; }
 
-/* An exception to the band's standard load, which is the whole point of the grid. */
-.fl-token-exception .fl-token-art polygon { stroke: #d5a03a; fill: rgba(213, 160, 58, 0.12); }
+.fl-token-exception .fl-token-frame { border-color: #d5a03a; box-shadow: 0 0 0 1px #d5a03a; }
 .fl-token-exception .fl-token-n { color: #d5a03a; }
-.fl-token-mark {
-  position: absolute;
-  top: 0;
-  right: 2px;
-  color: #d5a03a;
-  font-size: 0.6rem;
-  line-height: 1;
+
+.fl-token-open .fl-token-frame { border-color: #58a6ff; box-shadow: 0 0 0 1px #58a6ff; }
+.fl-token:focus-visible { outline: 2px solid #58a6ff; outline-offset: 1px; }
+
+/* One pip per rail, in the order the band's pickers sit above them. The art is the same
+   picture for every fighter in a band, so THIS is the row that carries information:
+   which rail was changed, on which fighter. */
+.fl-token-pips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 7px;
 }
 
-.fl-token-open { border-color: #58a6ff; background: #161b22; }
-.fl-token:focus-visible { outline: 2px solid #58a6ff; outline-offset: 1px; }
+.fl-pip {
+  display: block;
+  background: transparent;
+  border: 1px solid #484f58;
+}
+
+/* Shape by rail type, because a SPECIAL rail is where a type-III or a multi-warhead can go
+   and that is the rail worth picking out of a row of six. */
+.fl-pip-standard { width: 5px; height: 5px; }                       /* a square */
+.fl-pip-light    { width: 4px; height: 4px; border-radius: 50%; }   /* a dot */
+.fl-pip-special  { width: 5px; height: 5px; transform: rotate(45deg); }  /* a diamond */
+.fl-pip-heavy    { width: 7px; height: 5px; }                       /* a wide bar */
+
+.fl-pip-changed { background: #d5a03a; border-color: #f0c040; }
 
 .fl-fighter {
   border-top: 1px dashed #21262d;
