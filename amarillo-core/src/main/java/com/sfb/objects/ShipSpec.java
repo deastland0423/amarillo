@@ -518,6 +518,15 @@ public class ShipSpec {
         public Integer serviceYear;
         /** The default ship name for this variant, as the base hull has one. */
         public String name;
+        /**
+         * Counter art for this variant, where the refit changes the ship visibly enough to have
+         * been drawn its own.
+         *
+         * <p>ABSENT MEANS THE BASE HULL'S PICTURE, which is the common case and the right default:
+         * a refit is the same ship (S3.24), and almost every variant in the data is recognisably
+         * the hull it was refitted from. Only a variant somebody drew separately overrides.
+         */
+        public String tokenArt;
     }
 
     // -------------------------------------------------------------------------

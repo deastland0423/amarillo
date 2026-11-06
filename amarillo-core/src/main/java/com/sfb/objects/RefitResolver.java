@@ -189,6 +189,15 @@ public final class RefitResolver {
                 out.serviceYear = named.serviceYear;
             if (named.name != null)
                 out.name = named.name;
+            /*
+             * Absent leaves the deep copy's, which is the base hull's own counter. The Klingon
+             * F5W is the first hull to use this: its phaser-1 refit was drawn a separate counter
+             * and its UIM refit was not, and the one that was not must keep the F5W's picture
+             * rather than fall back to a plain circle — which is what a hull with no art does, so
+             * the two states would have been indistinguishable on the board.
+             */
+            if (named.tokenArt != null)
+                out.tokenArt = named.tokenArt;
         } else {
             out.type = canonicalCode(base.type, codes);
             out.typeName = base.typeName + " (" + describe(base, codes) + ")";

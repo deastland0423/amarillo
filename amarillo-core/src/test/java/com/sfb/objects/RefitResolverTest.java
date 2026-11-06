@@ -271,4 +271,43 @@ public class RefitResolverTest {
         assertTrue("the message should name the field: " + e.getMessage(),
                 e.getMessage().contains("power.APR"));
     }
+
+    /**
+     * A variant may name its own counter art, and one that does not keeps the base hull's.
+     *
+     * <p>Both halves are the same mechanism — the resolver copies the hull and then overrides
+     * only what the variant declares — and the second half is the one worth pinning. "No
+     * tokenArt" is not a gap to be filled later: it is the answer for almost every refit in the
+     * game, because a refit is the same ship (S3.24). Were it to come back null instead, every
+     * refitted hull in the data would render as a faction-coloured circle, which is also what a
+     * hull nobody has drawn yet renders as — so the regression would look like missing art
+     * rather than like a bug.
+     *
+     * <p>Built here rather than read off a hull so that it holds whatever the data does next.
+     */
+    @Test
+    public void aVariantMayNameItsOwnCounterAndOtherwiseKeepsTheHulls() {
+        ShipSpec base = RefitResolver.deepCopy(klingon("D6"));
+        base.tokenArt = "klingon/d6.png";
+
+        ShipSpec.VariantSpec drawn = new ShipSpec.VariantSpec();
+        drawn.refits = List.of("B");
+        drawn.type = "D6B";
+        drawn.tokenArt = "klingon/d6b.png";
+
+        ShipSpec.VariantSpec undrawn = new ShipSpec.VariantSpec();
+        undrawn.refits = List.of("u");
+        undrawn.type = "D6u";
+
+        base.variants = List.of(drawn, undrawn);
+
+        assertEquals("a variant that was drawn its own counter uses it",
+                "klingon/d6b.png", RefitResolver.apply(base, List.of("B")).tokenArt);
+        assertEquals("one that was not keeps the hull's",
+                "klingon/d6.png", RefitResolver.apply(base, List.of("u")).tokenArt);
+        assertEquals("and so does a combination nobody named",
+                "klingon/d6.png", RefitResolver.apply(base, List.of("B", "u")).tokenArt);
+        assertEquals("as does the hull with no refits at all",
+                "klingon/d6.png", RefitResolver.apply(base, List.of()).tokenArt);
+    }
 }
