@@ -2059,13 +2059,13 @@ h3 {
 .fl-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.5rem;
   margin-top: 0.7rem;
 }
 
 .fl-token {
   position: relative;
-  width: 52px;
+  width: 78px;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -2082,10 +2082,10 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 66px;
+  height: 66px;
   border: 1px solid #30363d;
-  border-radius: 4px;
+  border-radius: 6px;
   background: #161b22;
   overflow: hidden;
 }
@@ -2100,10 +2100,10 @@ h3 {
 }
 
 /* 22 of 78 fighters have no counter drawn (the Federation line, the Hydran Stinger-3). */
-.fl-token-shape { width: 24px; height: 20px; }
+.fl-token-shape { width: 36px; height: 30px; }
 .fl-token-shape polygon { fill: none; stroke: #8b949e; stroke-width: 1.5; }
 
-.fl-token-n { color: #8b949e; font-size: 0.65rem; line-height: 1; }
+.fl-token-n { color: #8b949e; font-size: 0.75rem; line-height: 1; }
 
 .fl-token-exception .fl-token-frame { border-color: #d5a03a; box-shadow: 0 0 0 1px #d5a03a; }
 .fl-token-exception .fl-token-n { color: #d5a03a; }
@@ -2118,8 +2118,8 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  height: 7px;
+  gap: 3px;
+  height: 12px;
 }
 
 .fl-pip {
@@ -2130,10 +2130,10 @@ h3 {
 
 /* Shape by rail type, because a SPECIAL rail is where a type-III or a multi-warhead can go
    and that is the rail worth picking out of a row of six. */
-.fl-pip-standard { width: 5px; height: 5px; }                       /* a square */
-.fl-pip-light    { width: 4px; height: 4px; border-radius: 50%; }   /* a dot */
-.fl-pip-special  { width: 5px; height: 5px; transform: rotate(45deg); }  /* a diamond */
-.fl-pip-heavy    { width: 7px; height: 5px; }                       /* a wide bar */
+.fl-pip-standard { width: 8px; height: 8px; }                       /* a square */
+.fl-pip-light    { width: 6px; height: 6px; border-radius: 50%; }   /* a dot */
+.fl-pip-special  { width: 8px; height: 8px; transform: rotate(45deg); }  /* a diamond */
+.fl-pip-heavy    { width: 11px; height: 8px; }                      /* a wide bar */
 
 .fl-pip-changed { background: #d5a03a; border-color: #f0c040; }
 
