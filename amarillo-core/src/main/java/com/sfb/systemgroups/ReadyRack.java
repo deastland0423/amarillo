@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.sfb.objects.Drone;
+import com.sfb.objects.DroneLoad;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.objects.DroneType;
 import com.sfb.weapons.DroneRail;
@@ -476,11 +477,26 @@ public class ReadyRack {
     // -------------------------------------------------------------------------
 
     /**
-     * What the ready rack is holding — drones, or plasma for a rack that serves plasma fighters.
+     * What the ready rack is holding — drones, or plasma for a rack that serves plasma fighters
+     * — and what each of its slots wants back.
      *
-     * Ammunition again (J4.83), so the same rule as a drone rack: the CAPACITY and the design
-     * stock are what the hull provides, while the contents are what the battle has drawn down.
-     * Drones go through {@link Drone#exportState()}, the same path a drone in flight takes.
+     * Ammunition again (J4.83), so the same rule as a drone rack: the CAPACITY is what the hull
+     * provides, while the contents are what the battle has drawn down. Drones go through
+     * {@link Drone#exportState()}, the same path a drone in flight takes.
+     *
+     * <h2>The design is NOT what the hull provides, and that is why it is here</h2>
+     * The sentence above used to say the design stock came from the hull too, and it was true
+     * when it was written. It stopped being true when a slot became a drone rather than a type:
+     * S2.11's year speeds refit it, and a Commander's Option purchase (FD10.646) can buy a
+     * special drone into one slot of six. Neither is replayed on load — {@code SavedGame}
+     * rebuilds from a {@code ScenarioSpec}, which has nowhere to record a COI — so a design
+     * left out of the save came back as the plain drones the frame was drawn with. The rack then
+     * reloaded its fighter with a drone nobody bought, and {@link #slotsMissing()} asked the
+     * hold for the wrong one.
+     *
+     * <p>Written as {@link DroneLoad#format} tokens rather than whole drone states, because a
+     * slot is a WISH and not a drone: it has no endurance to run down, no target and no
+     * position. {@code "TypeIF"} says the whole of what a slot is.
      */
     public java.util.Map<String, Object> exportState() {
         java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
@@ -489,6 +505,11 @@ public class ReadyRack {
             if (drone != null)
                 held.add(drone.exportState());
         state.put("drones", held);
+        java.util.List<Object> wanted = new java.util.ArrayList<>();
+        for (Drone slot : design)
+            wanted.add(slot == null ? null : new DroneLoad(slot.getDroneType(),
+                    slot.getSpec()).format());
+        state.put("design", wanted);
         state.put("plasmaType", plasmaType == null ? null : plasmaType.name());
         state.put("plasmaHeld", plasmaHeld);
         return state;
@@ -509,6 +530,7 @@ public class ReadyRack {
                     drones.add(drone);
             }
         }
+        applySavedDesign(state.get("design"));
         String type = StateIo.text(state, "plasmaType");
         if (type != null) {
             try {
@@ -519,5 +541,34 @@ public class ReadyRack {
             }
         }
         plasmaHeld = StateIo.integer(state, "plasmaHeld", plasmaHeld);
+    }
+
+    /**
+     * Overlay a saved design on the one the hull built, SLOT BY SLOT.
+     *
+     * <h2>In place, for the same reason {@link #refitDesign} is</h2>
+     * The number of slots is a fact about the hull — one per rail, from {@link #forFighter} —
+     * and the save's own javadoc names the hazard of a hull edited between sessions. Replacing
+     * the list wholesale would let a stale save change the rack's SHAPE: six slots on a rack
+     * the hull now gives four, which is more drones than {@link #spaces()} has room for. So the
+     * saved composition is written into the slots that exist and a longer save is ignored past
+     * them, which is also what makes a shorter one harmless.
+     *
+     * <p>A token this build cannot parse leaves that slot as the hull designed it, for the same
+     * reason {@code Drone.fromState} falls back on the type: less than was saved beats a rack
+     * with a hole in it.
+     */
+    private void applySavedDesign(Object saved) {
+        if (!(saved instanceof java.util.List<?> slots))
+            return;     // written before the key existed: the hull's design is the best answer
+        for (int i = 0; i < design.size() && i < slots.size(); i++) {
+            if (!(slots.get(i) instanceof String token) || token.isBlank())
+                continue;
+            try {
+                design.set(i, DroneLoad.parse(token).build());
+            } catch (IllegalArgumentException e) {
+                // A drone or a module this build does not have: keep the hull's slot.
+            }
+        }
     }
 }

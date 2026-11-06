@@ -405,13 +405,31 @@ public class DroneStore implements PlasmaDSupply {
     // -------------------------------------------------------------------------
 
     /**
-     * How much of the store is given over to plasma rather than drones.
+     * The magazine: what is still in the hold, and how much of it has gone to plasma.
      *
-     * {@code capacitySpaces} is final and comes from the hull; this is the part the battle moves.
-     * Not a Systems implementation — a helper spliced into its owner's state.
+     * {@code capacitySpaces} is final and comes from the hull; both of these are the part the
+     * battle moves. Not a Systems implementation — a helper spliced into its owner's state.
+     *
+     * <h2>Why the reserve has to be written</h2>
+     * It used to be left out, on the reasoning that {@code stockDroneStore} rebuilds the hold
+     * from the hull at build time. It does — FULL. So a reloaded carrier got its whole spent
+     * magazine back, which is free ammunition and the same fault {@code DroneRackSaveTest}
+     * closed for ship racks (FD2.45's reloads are the ammunition a carrier spends).
+     *
+     * <p>It is also the only place a special drone the fleet PAID for is recorded: FD2.45 stocks
+     * the hold proportionally to the loading, so one ECM reload among a hundred plain ones is a
+     * fact about a purchase and not about the hull, and nothing rebuilds it.
+     *
+     * <p>Each drone goes through {@link Drone#exportState()}, the same path a drone in a rack or
+     * in flight takes, which is what carries its composition (FD10.2).
      */
     public java.util.Map<String, Object> exportState() {
         java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        java.util.List<Object> held = new java.util.ArrayList<>();
+        for (Drone drone : reserve)
+            if (drone != null)
+                held.add(drone.exportState());
+        state.put("reserve", held);
         state.put("plasmaSpaces", plasmaSpaces);
         return state;
     }
@@ -419,6 +437,21 @@ public class DroneStore implements PlasmaDSupply {
     public void applyState(java.util.Map<String, Object> state) {
         if (state == null)
             return;
+        // Absent in a save written before the key existed, and that must leave the hull's full
+        // hold alone rather than empty it: a battle restored with no drones at all is a worse
+        // reading of an old file than a battle restored with too many.
+        if (state.get("reserve") instanceof java.util.List<?> saved) {
+            reserve.clear();
+            for (Object item : saved) {
+                if (!(item instanceof java.util.Map<?, ?> raw))
+                    continue;
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> droneState = (java.util.Map<String, Object>) raw;
+                Drone drone = Drone.fromState(droneState, null, null, null);
+                if (drone != null)
+                    reserve.add(drone);
+            }
+        }
         plasmaSpaces = StateIo.real(state, "plasmaSpaces", plasmaSpaces);
     }
 }
