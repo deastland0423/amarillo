@@ -77,6 +77,7 @@ public class PlasmaRackBoltFirePathTest {
             com.sfb.systemgroups.Energy e = new com.sfb.systemgroups.Energy();
             e.setLifeSupport(s.getLifeSupportCost());
             e.setFireControl(s.getFireControlCost());
+            e.setActivateShields(s.getActiveShieldCost());   // D3.32: shields are not free
             game.submitAllocation(s, e);
         }
         toDirectFire();

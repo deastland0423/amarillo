@@ -61,8 +61,18 @@ public class SelfDestructionTest {
         return s;
     }
 
+    /** (D5.1): a self-destructing ship makes no entries at all. */
     private Energy nothing() {
         return new Energy();
+    }
+
+    /** What an ordinary ship files, including (D3.32) for its shields. */
+    private Energy paying(Ship s) {
+        Energy e = new Energy();
+        e.setLifeSupport(s.getLifeSupportCost());
+        e.setFireControl(s.getFireControlCost());
+        e.setActivateShields(s.getActiveShieldCost());
+        return e;
     }
 
     // ------------------------------------------------------------------ the gate
@@ -159,7 +169,7 @@ public class SelfDestructionTest {
         game.startTurn();
         assertTrue(game.declareSelfDestruct(doomed).isSuccess());
         // Declaring files the empty form, so this is the last allocation outstanding.
-        game.submitAllocation(victim, nothing());
+        game.submitAllocation(victim, paying(victim));
 
         assertFalse("the ship is gone", game.getShips().contains(doomed));
         assertEquals("and its 18 points landed on the facing shield",

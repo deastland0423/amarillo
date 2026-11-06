@@ -459,6 +459,14 @@ export interface ShipObject extends MapObjectBase {
   fireControlCost:   number;
   activeShieldCost:  number;
   minimumShieldCost: number;
+  /**
+   * D3.242 operating level this turn: ACTIVE, MINIMUM or INACTIVE.
+   *
+   * Worth showing even though the shield boxes look fine without it. D3.33 leaves unpowered
+   * boxes UNDESTROYED, so a ship that paid nothing still reports a full set and every hit
+   * goes straight inside. Optional because an older server will not send it.
+   */
+  shieldStatus?:     string;
   batteryCharge:     number;
   cloakCost:         number;
   maxSpeedNextTurn:  number;   // C2.2 acceleration cap

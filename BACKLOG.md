@@ -1775,6 +1775,64 @@ resolver pattern already does, and extend the same habit to the other tiers:
   lines with no tests on any interactive path, and it is the screen the whole game is played
   through. Characterisation tests first, or don't start.
 
+## Shield operating levels (D3.3) — BUILT 2026-11-06, four clauses open
+
+Shields cost energy every turn (D3.32) and a ship that does not pay does not have them. Found
+in a live game by the owner: "During EA I had a ship spend 0 energy on shields. This should
+have meant that it had no shields during the next turn. But I'm seeing full shields."
+
+**The cause was a WRITE-ONLY FIELD, and it is worth remembering as a shape.**
+`Ship.shieldsStatus` was set correctly by `allocateEnergy` every turn and read by
+NOTHING — not the damage path, not the DTO, not the web, not one test. A field with no readers
+cannot be caught by a test of its readers, and it had sat there long enough to look deliberate.
+When something is set but never consumed, that is the bug, not a loose end.
+
+**Now built:** `Shields.operableBoxes` decides how many boxes of a facing can absorb
+anything — all of them at full, five at minimum (D3.33), none when off. `damageShield`
+spends only those, so unpowered boxes stay UNDESTROYED exactly as the rule says, and come back
+the moment somebody pays. (D3.331) is in there too: damage taken at full power eats the
+minimum five first, so the rulebook's own example — a 20-box shield that took two hits has
+THREE working boxes at minimum, not five — is a test.
+
+**The default is load-bearing.** `Shields.operatingLevel` defaults to Active, and
+`Ship.shieldsStatus` was changed from Inactive to Active to match. A great many units never
+file an allocation — bases, ground bases, anything built straight in a test — and defaulting
+the other way strips their shields, which is a far worse bug than the one being fixed.
+
+**It is on the wire and on screen.** `ShipDto.shieldStatus`, ruled PUBLIC because
+(D3.242) says the level "will be known" and (D3.332) lets enemy sensors read full-versus-minimum
+at fifty hexes. The SSD panel shows a badge for anything but ACTIVE, and it has to: the boxes
+cannot show this. An unpowered shield draws a FULL set of boxes, which is precisely why the
+bug was reported as "I'm seeing full shields" — the display was not wrong, it just could not
+say the only thing that mattered.
+
+**Two test fixtures were paying for nothing and relied on it**: `PlasmaRackLaunchTest`
+and `PlasmaRackBoltFirePathTest` allocated life support and fire control but no
+shields, and their ships started dying once damage stopped being absorbed for free. They now
+pay (D3.32) like a real ship. If a test suddenly has ships dying in it, check its allocation
+before suspecting the damage code.
+
+**STILL OPEN, all four about CHANGING the level rather than paying for it:**
+
+- **(D3.334) the eight-impulse lockout.** "Any change in the shields, from full to minimum,
+  or from minimum to full, can only be done once in any eight impulse period... A change
+  during Energy Allocation counts Impulse #1 as the first impulse." Nothing enforces this;
+  `BoxCycle` is the existing model for "unavailable for 8 impulses" and is the place to
+  start.
+- **(D3.322) allocated-but-not-activated.** "If energy was provided during allocation but the
+  shields were not activated, the power remains available and the shields may be activated
+  during the Operate Shields Step of any later impulse." We activate at once from the form,
+  so a player cannot hold the power back and raise shields mid-turn.
+- **Raising with reserve power** (H7.34): minimum can go to standard mid-turn on reserve
+  power, "but not in response to damage (H7.345)". Unbuilt, and the H7.345 half is the part
+  that needs care.
+- **(D3.333) small hulls.** "Some smaller ships have only five (or fewer) shield boxes. These
+  ships can pay the minimum shield cost and need not pay the full cost." Not modelled; such a
+  hull currently pays full price for shields it cannot exceed.
+
+(D3.331)'s other half is also unbuilt: the minimum five are "the last to be repaired", which
+damage control does not know.
+
 ## Smaller rules gaps
 
 - **P3.23 following, P3.4 large asteroids, P3.252.**

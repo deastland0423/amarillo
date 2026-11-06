@@ -315,7 +315,16 @@ public class Ship extends Unit implements DroneController {
 	 * weapon status levels.
 	 */
 	private boolean capacitorsCharged = true;
-	private ShieldStatus shieldsStatus = ShieldStatus.Inactive;
+	/**
+	 * (D3.242) off, minimum or standard, set from the Energy Allocation Form each turn.
+	 *
+	 * <p>Defaults to Active, not Inactive. It read Inactive until 2026-11-06, which was
+	 * invisible because NOTHING read this field -- it was written by allocateEnergy and
+	 * consumed nowhere, so a ship that paid nothing for shields still had full ones. Now that
+	 * Shields acts on it, the default decides what an unallocated unit gets, and that has to
+	 * be working shields.
+	 */
+	private ShieldStatus shieldsStatus = ShieldStatus.Active;
 	private Set<Unit> lockOns = new HashSet<>(); // Units this ship currently has sensor lock-on to. // Status of shields.
 																								// Active is normal shields. Minimal is
 																								// 5-point shields. Inactive is no shields at all.
@@ -561,13 +570,21 @@ public class Ship extends Unit implements DroneController {
 		// Specific reinforcement
 		shields.reinforceAllShields(energyAllocated.getSpecificReinforcement());
 		// Shield activation.
-		if (energyAllocated.getActivateShields() == activeShieldCost) {
+		// (D3.32) is paid per turn and buys a LEVEL, not a yes/no. Paying the total gets
+		// every box; paying the minimum gets five (D3.33); paying nothing gets none, and a
+		// ship with no shields is a ship taking internal damage from the first point.
+		//
+		// Anything between the two prices is treated as the lower thing it covers, rather
+		// than as full shields bought at a discount.
+		if (energyAllocated.getActivateShields() >= activeShieldCost) {
 			this.shieldsStatus = ShieldStatus.Active;
-		} else if (energyAllocated.getActivateShields() == minimumShieldCost) {
+		} else if (energyAllocated.getActivateShields() >= minimumShieldCost
+				&& minimumShieldCost > 0) {
 			this.shieldsStatus = ShieldStatus.Minimum;
 		} else {
 			this.shieldsStatus = ShieldStatus.Inactive;
 		}
+		this.shields.setOperatingLevel(this.shieldsStatus);
 
 		// Damage Control
 		// TODO: Damage Control - will probably need a list of systems repaired in the

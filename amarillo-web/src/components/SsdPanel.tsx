@@ -329,6 +329,28 @@ export default function SsdPanel(
         {isMine ? '' : ' (base strength \u2014 an enemy\u2019s reinforcement is not public)'}
       </div>
 
+      {/*
+        D3.242 operating level. This is here because the shield boxes CANNOT show it: D3.33
+        leaves unpowered boxes undestroyed, so a ship that paid nothing for shields still
+        draws a full set while every hit passes straight through them. Reported from a live
+        game on 2026-11-06 as "I had a ship spend 0 energy on shields... but I'm seeing full
+        shields", and the numbers really do look that way. Only an explicit badge fixes it.
+
+        D3.242 and D3.332 make the level public, so it is shown for an enemy ship too.
+      */}
+      {ship.shieldStatus && ship.shieldStatus !== 'ACTIVE' && (
+        <div style={{
+          fontSize: '0.68rem', marginBottom: 6, padding: '3px 6px', borderRadius: 3,
+          color: ship.shieldStatus === 'INACTIVE' ? '#f85149' : '#d29922',
+          border: `1px solid ${ship.shieldStatus === 'INACTIVE' ? '#f85149' : '#d29922'}`,
+          background: ship.shieldStatus === 'INACTIVE' ? '#2d1214' : '#2b2412',
+        }}>
+          {ship.shieldStatus === 'INACTIVE'
+            ? 'SHIELDS OFF \u2014 nothing was paid this turn, so every hit goes internal (D3.32)'
+            : 'MINIMUM SHIELDS \u2014 only five boxes per facing are powered (D3.33)'}
+        </div>
+      )}
+
       {/* ---- arc diagram ------------------------------------------------- */}
       <svg
         viewBox={`${-span} ${-vbHeight} ${span * 2} ${vbHeight * 2}`}

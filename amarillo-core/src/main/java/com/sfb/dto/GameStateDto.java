@@ -763,6 +763,16 @@ public class GameStateDto {
         public int fireControlCost; // always 1
         public int activeShieldCost; // energy to keep shields fully active
         public double minimumShieldCost; // energy for minimum shields
+        /**
+         * (D3.242) What this ship is PAYING for its shields this turn: ACTIVE, MINIMUM or
+         * INACTIVE.
+         *
+         * <p>Needed because the box counts alone cannot show it. (D3.33) keeps unpowered boxes
+         * undestroyed -- a ship that paid nothing still reports all thirty, and looks fully
+         * protected while every hit goes straight inside. That is exactly how the missing
+         * behaviour was reported from a live game on 2026-11-06.
+         */
+        public String shieldStatus;
         public int batteryCharge; // current battery energy available to draw
         public int cloakCost; // energy to maintain cloak (0 if no cloaking device)
         public int maxSpeedNextTurn; // C2.2 acceleration cap for this turn's EA
@@ -1778,6 +1788,7 @@ public class GameStateDto {
         dto.fireControlCost = ship.getFireControlCost();
         dto.activeShieldCost = ship.getActiveShieldCost();
         dto.minimumShieldCost = ship.getMinimumShieldCost();
+        dto.shieldStatus = ship.getShieldStatus().name().toUpperCase();
         dto.batteryCharge = ps.getBatteryPower();
         dto.cloakCost = cloak != null ? cloak.getPowerToActivate() : 0;
         dto.maxSpeedNextTurn = ship.getMaxAccelerationSpeed();

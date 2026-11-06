@@ -4,6 +4,7 @@ import java.util.Map;
 
 import com.sfb.constants.Constants;
 import com.sfb.objects.Unit;
+import com.sfb.properties.ShieldStatus;
 
 public class Shields implements Systems {
 
@@ -40,6 +41,20 @@ public class Shields implements Systems {
 	// Shield manipulation
 	private boolean[] shieldActive; // Indicates what shields are inactive (lowered).
 	private int[] impulseShieldToggled; // The last turn a shield was toggled between active/inactive (raised/lowered).
+
+	/**
+	 * (D3.242) The POWER level of the whole shield system: off, minimum or standard.
+	 *
+	 * <p>Distinct from {@link #shieldActive}, which is (D3.5) dropping ONE shield to let a
+	 * transporter through. This is the ship-wide question of whether anybody paid (D3.32)
+	 * this turn, and it is set from the Energy Allocation Form.
+	 *
+	 * <p>Defaults to Active, and that default is load-bearing: a great many units never file
+	 * an allocation at all -- bases, ground bases, anything built straight in a test -- and
+	 * they must keep working shields. Ship.shieldsStatus defaults the other way, to Inactive,
+	 * which was harmless only while nothing read it.
+	 */
+	private ShieldStatus operatingLevel = ShieldStatus.Active;
 
 	private Unit owningUnit = null;
 
@@ -198,6 +213,45 @@ public class Shields implements Systems {
 	 * @return Amount of damage remaining, if the shield strength was insufficent to
 	 *         stop all damage.
 	 */
+	/**
+	 * (D3.33) How many boxes of this shield are actually powered and able to stop damage.
+	 *
+	 * <blockquote>"If a given shield has twenty boxes, but is operated at minimum level, only
+	 * five of those boxes are operable and available to absorb damage. If six (or more) hits
+	 * were scored on the shield in this condition, the first five would destroy the minimum
+	 * level shield and the remainder would penetrate to become internal hits, even though
+	 * fifteen undestroyed (but unpowered) shield boxes remained."</blockquote>
+	 *
+	 * <p>(D3.331) decides where those five sit: "The five boxes of the minimum shield are the
+	 * first to be destroyed and the last to be repaired, even if the shield is at full
+	 * power." So damage taken while at FULL power has already eaten into them -- the rule's
+	 * own example has a 20-box shield that took two hits down to three working boxes at
+	 * minimum, not five. That is {@code current - (base - 5)}.
+	 */
+	public int operableBoxes(int shieldNumber) {
+		int current = currentShieldValues[shieldNumber - 1];
+		switch (operatingLevel) {
+		case Inactive:
+			return 0;
+		case Minimum:
+			int spent = shieldValues[shieldNumber - 1] - current;   // damage already taken
+			return Math.max(0, Math.min(MINIMUM_SHIELD_BOXES - spent, current));
+		default:
+			return current;
+		}
+	}
+
+	/** (D3.31): "Minimum shields are five boxes." */
+	public static final int MINIMUM_SHIELD_BOXES = 5;
+
+	public void setOperatingLevel(ShieldStatus level) {
+		this.operatingLevel = level;
+	}
+
+	public ShieldStatus getOperatingLevel() {
+		return this.operatingLevel;
+	}
+
 	public int damageShield(int shieldNumber, int amount) {
 		// A lowered shield offers no protection — all damage bleeds through
 		if (!shieldActive[shieldNumber - 1]) {
@@ -226,15 +280,18 @@ public class Shields implements Systems {
 			remainingDamage = 0;
 		}
 
-		// Remove shield boxes from the facing shield. If this stops remaining damage,
-		// return 0. Otherwise return the remaining damage.
-		if (remainingDamage > currentShieldValues[shieldNumber - 1]) {
-			remainingDamage -= currentShieldValues[shieldNumber - 1];
-			currentShieldValues[shieldNumber - 1] = 0;
-		} else {
-			currentShieldValues[shieldNumber - 1] -= remainingDamage;
-			remainingDamage = 0;
-		}
+		// Remove shield boxes from the facing shield, but only the ones that are POWERED
+		// (D3.33). At full strength that is every remaining box and this is the arithmetic
+		// it always was; at minimum it is five, less whatever has already been shot off;
+		// with the shields off it is none, and the whole volley goes inside.
+		//
+		// The unpowered boxes are NOT destroyed by damage that passes them. The rule is
+		// explicit that they remain "undestroyed (but unpowered)", so they are there again
+		// the moment somebody pays for them.
+		int operable = operableBoxes(shieldNumber);
+		int absorbed = Math.min(remainingDamage, operable);
+		currentShieldValues[shieldNumber - 1] -= absorbed;
+		remainingDamage -= absorbed;
 
 		return remainingDamage;
 	}

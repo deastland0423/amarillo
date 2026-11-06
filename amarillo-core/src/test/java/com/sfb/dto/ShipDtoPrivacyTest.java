@@ -143,6 +143,12 @@ public class ShipDtoPrivacyTest {
         "erraticCost",
         // Damage: every box, remaining and maximum
         "shields", "minimumShieldCost", "activeShieldCost",
+        // (D3.242): "The operating level (off, minimum, standard) of shields will be known",
+        // and (D3.332) lets enemy sensors read full-versus-minimum at fifty hexes. So this is
+        // public by the rulebook rather than by convenience -- and it has to be visible to its
+        // OWNER above all, since (D3.33) leaves unpowered boxes undestroyed and a ship with no
+        // shields reports a full set of them.
+        "shieldStatus",
         "availableAhull", "availableChull", "availableFhull", "maxAhull", "maxChull",
         "maxFhull", "availableApr", "maxApr", "availableImpulse", "maxImpulse",
         "availableLWarp", "availableRWarp", "availableCWarp", "maxLWarp", "maxRWarp",
