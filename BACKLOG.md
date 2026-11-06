@@ -616,6 +616,57 @@ groundwork already in place.
 - **G21.1/G21.2 crew quality adjustments.** The declaration is built and `crewQuality` is on
   `ShipSpec`; the adjustment lists are not. The ±3 natural EW is the first slice.
 
+## Ship explosions (D5.0) — NOT started; the trigger exists, the DATA does not (2026-11-05)
+
+A destroyed ship blows up and damages what is near it, and nothing in the game does this yet.
+Raised by the owner on 2026-11-05, on noticing that Annex #1's Master Ship Chart carries an
+explosion-strength column we have never read.
+
+**The rule, read rather than remembered.** (D5.12): when a ship is destroyed in combat it
+explodes IMMEDIATELY, by the self-destruction procedure, and the strength is the chart's, "not
+modified by the existence or non-existence on the unit of any unexpended weapons (including
+mines or drones)" — so a magazine full of drones adds nothing. (D5.2) gives the two triggers:
+self-destruction, or "an excess damage hit after all excess damage boxes are destroyed".
+
+**(D5.41) is the whole geometry, and it is smaller than a mine's.** Basic explosion strength
+(BES) of nine or less affects ONLY the exploding unit's hex. Ten or more affects that hex and
+the six around it — radius one, never further, however big the ship. The BES is applied whole to
+every unit in the zone, "on the shield facing the exploding unit", so this needs a bearing per
+victim and not a flat hit. (D5.42): cloaking is ignored in both directions.
+
+**(D5.13) says who does NOT explode**, and it is most of what we have built lately: fighters,
+seeking weapons, mines and small ground bases (P2.76) do not explode when destroyed. Ships, PFs
+and bases do. See [[feedback_ship_vs_unit]] — this is a rule that says "unit" and then excludes
+the units.
+
+**Chain reactions are specified and are not symmetric.** (D5.31): a ship in the SAME hex that
+the explosion destroys adds its BES to the original and the two are treated as ONE combined
+explosion, because they went up together — so the combined strength can cross the 9/10 radius
+boundary. (D5.32): a ship in a DIFFERENT hex that is destroyed counts as a separate explosion.
+Docked units add their strength (D5.2) unless they escaped (D21.5), but a ship docked TO A BASE
+does not add the base's.
+
+**What already exists, checked 2026-11-05.** The trigger point is built: excess damage runs out
+in `Ship.java` around line 4259 ("excess damage — SHIP DESTROYED") and again at 4302 when every
+system including excess is gone (C3.14), and `BattleStatus` already distinguishes destruction by
+excess damage. `tables.excess` is the box count and is in every ship file. So this hooks into a
+place that exists rather than needing a new one.
+
+**What does not exist is the number.** No `explosionStrength` anywhere in core, and no hull
+declares one — about 430 of them. It is a column in Annex #1 (`data/rules/Master_Annex_File.pdf`,
+"D5.2 Explo Str", beside dock points and the F&E command rating), one faction page at a time,
+and the pages render cleanly at 200 dpi: the Klingon page is PDF 39. Worth doing as its own
+data pass BEFORE the mechanism, because a mechanism with no data cannot be tested on a real
+ship. The F5W family's are already read: F5W/F5WK/FWC/FWL 13, FWV/FWVK 12.
+
+**Deferred clauses to decide when it is built**, none of which block a first slice: (D5.55)
+planets block explosions (P2.547) and webs limit them (G10.72); docked ships are partly shielded
+(C13.52/.66/.74); (D5.14) a separated section deducts its strength; and the whole of (D5.1)
+self-destruction as a PLAYER ACTION — declared at the start of a turn, resolved in
+Self-Destruction Phase #3, blockable by mutiny (G6.41) or enemy boarding parties (D7.7), with
+(D5.51)'s crew-unit restriction and the Orion exemption (G15.1). Destruction-in-combat is the
+useful half and needs none of it.
+
 ## Built, never seen in a browser
 
 Complete in core, server and web, and never played through. Each wants a two-browser session
