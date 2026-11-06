@@ -1696,15 +1696,20 @@ Roughly largest first. Several have had their rules read and their design settle
   ask for PDF scenario examples when starting. SH47's training subset is the best first target.
 - **Fleet builder UI, terrain and deployment.** The S8.0 validator is done (12 rules, core plus
   endpoint); the rest of the screen is not.
-- **ESG (G23).** A six-slice roadmap exists. Slice 1 is the ring that damages what enters it. Note
-  it is a moving hollow damage-ring, not an expanding sphere. (G23.24 capacitors and G23.245's
-  pricing are built.)
+- ~~**ESG (G23).**~~ **BUILT — this entry was stale (corrected 2026-11-06).** `EsgResolver` is a
+  real collaborator citing G23 sixty-two times, and `EsgMineTest` exercises it. It is still a
+  moving hollow damage-ring rather than an expanding sphere. Left as a correction rather than
+  deleted, because "unstarted" said of something with its own resolver is the exact failure mode
+  this file warns about at the top.
 - **Tugs and pods (G14).** Rules now read. Decided: a pod is an attachable **unit**, never a
   tug+pod combination file — G14.34's mid-turn cost change, G14.353 independent status and
   G14.6's pseudo-pod each defeat that. Ten tug hulls are already in the data. The blocker is that
   `moveCost` and `sizeClass` are static JSON.
-- **The Fire Orders pad** — replacing map-clicking with a written order pad. Five-slice plan,
-  with a privacy constraint on seeker grouping.
+- **The Fire Orders pad** — PARTLY BUILT, not unstarted (corrected 2026-11-06).
+  `FireOrdersPad.tsx` is 1,092 lines and carries the declaration button this file elsewhere
+  claimed was missing. Someone should diff the five-slice plan against what shipped before
+  quoting a remaining scope; the privacy constraint on seeker grouping is the part to check
+  first.
 - **Drone speed availability and cost (FD10.651).** Each speed phases Limited → Restricted →
   General. Must be kept **out** of the COI basis when built: S3.211 excludes mandatory upgrades
   from the budget they would otherwise inflate. Separately, special drones (ECM, armour, ATG,
