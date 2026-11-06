@@ -741,6 +741,17 @@ public abstract class Shuttle extends Unit {
 			state.put("x", getLocation().getX());
 			state.put("y", getLocation().getY());
 		}
+		// Its WEAPONS, through the same group a ship's go through (keyed by designator, never
+		// by position). They were left out, on the reasoning that a craft is rebuilt from its
+		// catalogue row -- and it is, ARMED, so a fighter that had fired four of its six drones
+		// got them back. Free ammunition, the fault DroneRackSaveTest closed for ship racks and
+		// DroneStore for the carrier's hold; this is the third and last place it lived.
+		//
+		// It is also where the rails are. A fighter's drones, their composition (FD10.2), its
+		// plasma-D torpedo and its ADD rounds are all weapon state, so none of them crossed a
+		// save, and neither did what each rail is DESIGNED around -- S2.11's year speed and
+		// FD10.646's purchase both move that after the catalogue has spoken.
+		state.put("weapons", getWeapons().exportState());
 		return state;
 	}
 
@@ -776,6 +787,10 @@ public abstract class Shuttle extends Unit {
 		setFacing(com.sfb.systemgroups.StateIo.integer(state, "facing", getFacing()));
 		if (state.get("x") instanceof Number x && state.get("y") instanceof Number y)
 			setLocation(new com.sfb.properties.Location(x.intValue(), y.intValue()));
+
+		// Absent in a save written before the key existed, and Weapons.applyState leaves every
+		// mount as the catalogue armed it in that case.
+		getWeapons().applyState(com.sfb.systemgroups.StateIo.child(state, "weapons"));
 	}
 
 	/**

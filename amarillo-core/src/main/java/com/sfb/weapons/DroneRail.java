@@ -443,4 +443,50 @@ public class DroneRail extends DroneRack {
     public boolean isLoaded() {
         return isPlasmaD() ? torpedo != null : getDrone() != null;
     }
+
+    // -------------------------------------------------------------------------
+    // Saved game (see DroneRack.exportState)
+    // -------------------------------------------------------------------------
+
+    /**
+     * What the rail is DESIGNED around, on top of everything a drone rack saves.
+     *
+     * The inherited save carries the drone actually on the rail, and that was taken for the
+     * whole story. It is not: {@link #designDrone} is set at build from the frame's baseline and
+     * then moved twice before a shot is fired -- by S2.11's mandatory drone speed for the year,
+     * and by FD10.646's purchase. Neither is replayed on load, so leaving it out reverted every
+     * rail in the game to the drone its frame was drawn with.
+     *
+     * <p>It bites in battle rather than at setup, which is what makes it worth a key. The last
+     * resort in {@code FighterArming} loads {@code new Drone(rail.getDesignDrone())} onto an
+     * empty rail, so a fighter rearmed AFTER a load flew a slow baseline drone on a hull whose
+     * year had retired it -- and a special rail flew an ordinary type-I in place of the type-III
+     * that was bought for it.
+     *
+     * <p>Read back through {@link #setDesignDrone}, which is the same gate a LOAD goes through
+     * (FD9.35, FD8.33): a save cannot design a rail around a drone the rail would then refuse.
+     */
+    @Override
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = super.exportState();
+        state.put("designDrone", designDrone == null ? null : designDrone.name());
+        return state;
+    }
+
+    @Override
+    public void applyState(java.util.Map<String, Object> state) {
+        super.applyState(state);
+        if (state == null)
+            return;
+        // Absent in a save written before the key existed, which leaves the baseline the
+        // constructor chose -- strictly what such a save restored before.
+        String wanted = com.sfb.systemgroups.StateIo.text(state, "designDrone");
+        if (wanted == null)
+            return;
+        try {
+            setDesignDrone(com.sfb.objects.DroneType.valueOf(wanted));
+        } catch (IllegalArgumentException e) {
+            // A drone this build does not have: keep the frame's baseline rather than none.
+        }
+    }
 }

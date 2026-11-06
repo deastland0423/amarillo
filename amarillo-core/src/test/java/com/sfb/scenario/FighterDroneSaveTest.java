@@ -204,6 +204,134 @@ public class FighterDroneSaveTest {
             assertEquals("slot " + i, before.get(i).getSpec(), after.get(i).getSpec());
     }
 
+    // ------------------------------------------------------------------ the rails
+
+    /** Every drone rail on the fighter in {@code box}, in the order the weapons list holds them. */
+    private static List<com.sfb.weapons.DroneRail> railsOf(ShuttleSpace box) {
+        List<com.sfb.weapons.DroneRail> rails = new ArrayList<>();
+        Shuttle craft = box.getShuttle();
+        if (craft == null)
+            return rails;
+        for (com.sfb.weapons.Weapon w : craft.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.DroneRail rail)
+                rails.add(rail);
+        return rails;
+    }
+
+    /**
+     * A RAIL's design drone, which is a second record of the same purchase and reverts
+     * separately.
+     *
+     * <p>{@code DroneRail} extends {@code DroneRack} and inherited its save, which carries the
+     * drone actually ON the rail but nothing about what the rail is designed around -- so the
+     * field fell back to {@code defaultDroneFor(type)}, the frame's baseline. That is wrong in
+     * two ways at once after a load: S2.11's mandatory year speed is undone, and FD10.646's
+     * bought drone with it.
+     *
+     * <p>It bites in battle rather than at setup, which is why it is worth saving. The last
+     * resort in {@code FighterArming} loads {@code new Drone(rail.getDesignDrone())} onto an
+     * empty rail, so a fighter rearmed AFTER a load flew a slow baseline drone on a hull whose
+     * year had retired it.
+     */
+    @Test
+    public void everyRailComesBackDesignedAroundTheDroneItWasDesignedAround() {
+        Ship ship = withEcmOnOneFighter();
+        String fighter = firstFighterName(ship);
+        List<com.sfb.weapons.DroneRail> before = railsOf(boxNamed(ship, fighter));
+        assertFalse("fixture: a TADS should have drone rails", before.isEmpty());
+
+        List<com.sfb.weapons.DroneRail> after = railsOf(boxNamed(roundTrip(ship), fighter));
+
+        assertEquals(before.size(), after.size());
+        for (int i = 0; i < before.size(); i++)
+            assertEquals("rail " + i, before.get(i).getDesignDrone(),
+                    after.get(i).getDesignDrone());
+    }
+
+    /**
+     * The S2.11 half on its own, stated as a fact about the year rather than about equality:
+     * in Y180 a standard rail is designed around a FAST type-I, and a save that reverted to the
+     * frame's baseline would hand back the slow one the hull was drawn with.
+     */
+    @Test
+    public void aStandardRailStillWantsTheYearsFastDroneAfterASave() {
+        Ship ship = withEcmOnOneFighter();
+        String fighter = firstFighterName(ship);
+        com.sfb.objects.DroneType wanted = null;
+        for (com.sfb.weapons.DroneRail rail : railsOf(boxNamed(ship, fighter)))
+            if (rail.getDesignDrone() == com.sfb.objects.DroneType.TypeIF) {
+                wanted = rail.getDesignDrone();
+                break;
+            }
+        assertNotNull("fixture: S2.11 should have refitted a rail to a fast type-I by Y180",
+                wanted);
+
+        boolean found = false;
+        for (com.sfb.weapons.DroneRail rail : railsOf(boxNamed(roundTrip(ship), fighter)))
+            if (rail.getDesignDrone() == com.sfb.objects.DroneType.TypeIF)
+                found = true;
+
+        assertTrue("the year's mandatory drone speed was undone by the save", found);
+    }
+
+    /**
+     * The drones actually ON the rails, which is the free-ammunition half of the same gap.
+     *
+     * <p>A fighter is rebuilt from its catalogue row ARMED, so one that had spent four of its
+     * six drones got them back. The same fault {@code DroneRackSaveTest} closed for ship racks
+     * and {@code DroneStore} closed for the carrier's hold -- a fighter's rails were the third
+     * place it lived, because {@code Shuttle.exportState} wrote no weapon state at all.
+     */
+    @Test
+    public void aSpentRailStaysSpentAcrossASave() {
+        Ship ship = withEcmOnOneFighter();
+        String fighter = firstFighterName(ship);
+        List<com.sfb.weapons.DroneRail> rails = railsOf(boxNamed(ship, fighter));
+
+        // Arm them all, then spend two, so the test can tell "spent" from "never loaded".
+        for (com.sfb.weapons.DroneRail rail : rails)
+            if (rail.getDesignDrone() != null)
+                rail.loadDrone(new Drone(rail.getDesignDrone()));
+        List<com.sfb.weapons.DroneRail> loaded = new ArrayList<>();
+        for (com.sfb.weapons.DroneRail rail : rails)
+            if (rail.getDrone() != null)
+                loaded.add(rail);
+        assertTrue("fixture: at least three rails should be armable", loaded.size() >= 3);
+        loaded.get(0).setAmmo(new ArrayList<>());
+        loaded.get(1).setAmmo(new ArrayList<>());
+        int left = loaded.size() - 2;
+
+        List<com.sfb.weapons.DroneRail> after = railsOf(boxNamed(roundTrip(ship), fighter));
+        int stillLoaded = 0;
+        for (com.sfb.weapons.DroneRail rail : after)
+            if (rail.getDrone() != null)
+                stillLoaded++;
+
+        assertEquals("a fighter got its spent drones back", left, stillLoaded);
+    }
+
+    /** FD10.2 on a rail: a bought ECM drone riding one is still an ECM drone after a save. */
+    @Test
+    public void aComposedDroneOnARailKeepsItsComposition() {
+        Ship ship = withEcmOnOneFighter();
+        String fighter = firstFighterName(ship);
+        com.sfb.weapons.DroneRail special = null;
+        for (com.sfb.weapons.DroneRail rail : railsOf(boxNamed(ship, fighter)))
+            if (rail.accepts(DroneLoad.parse("TypeI+ECM").build())) {
+                special = rail;
+                break;
+            }
+        assertNotNull("fixture: some rail should take a one-space ECM drone", special);
+        special.setAmmo(new ArrayList<>(List.of(DroneLoad.parse("TypeI+ECM").build())));
+        int index = railsOf(boxNamed(ship, fighter)).indexOf(special);
+
+        com.sfb.weapons.DroneRail back =
+                railsOf(boxNamed(roundTrip(ship), fighter)).get(index);
+
+        assertNotNull("the rail came back empty", back.getDrone());
+        assertTrue("the ECM drone on the rail came back plain", isEcm(back.getDrone()));
+    }
+
     // ------------------------------------------------------------------ the hold
 
     /**
