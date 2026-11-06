@@ -1,0 +1,101 @@
+{
+  "faction": "Klingon",
+  "type": "FWC",
+  "typeName": "War Destroyer Leader",
+  "line": "DW",
+  "name": "IKS War Axe",
+  "serviceYear": 176,
+  "bpv": 104,
+  "turnMode": "A",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 4,
+  "tokenArt": "klingon/fwc.png",
+
+  "shields": [26, 20, 16, 16, 16, 20],
+
+  "hullBoxes": {
+    "fhull": 2,
+    "ahull": 5
+  },
+
+  "power": {
+    "leftWarp": 9,
+    "rightWarp": 9,
+    "impulse": 4,
+    "apr": 3,
+    "battery": 3
+  },
+
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "auxCon": 1,
+    "security": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 0],
+    "sensor": [6, 5, 3, 0],
+    "scanner": [0, 1, 3, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "labs": 2,
+    "probes": 1,
+    "uim": 1,
+    "derfacs": true
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 28,
+    "boardingParties": 12,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L", "13"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R", "13"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["RS"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["RX"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["RX"] },
+    { "type": "Phaser2", "designator": "7", "arcs": ["RX"] },
+    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FH", "L"] },
+    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FH", "R"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" }
+  ],
+
+  "refits": [
+    {
+      "code": "K",
+      "name": "Phaser-1 refit",
+      "year": 176,
+      "bpv": 3,
+      "replaceWeapons": [{"from": "Phaser2", "to": "Phaser1", "designators": ["5", "6", "7"]}]
+    }
+  ],
+
+  "variants": [
+    {
+      "refits": ["K"],
+      "type": "FWL",
+      "name": "IKS Storm Axe",
+      "typeName": "War Destroyer Leader (Phaser-1 refit)",
+      "serviceYear": 176,
+      "tokenArt": "klingon/fwl.png"
+    }
+  ]
+}
