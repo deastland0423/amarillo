@@ -30,6 +30,7 @@ public class KlingonShips {
         s.put("name", "IKV Saber");
         s.put("serviceyear", 120);
         s.put("bpv", 121);
+        s.put("explosionstrength", 19);  // D5.2, off the Master Ship Chart
         s.put("turnmode", TurnMode.B);
         s.put("sizeclass", 3);
 
@@ -151,6 +152,7 @@ public class KlingonShips {
         s.put("name", "IKV Ransacker");
         s.put("serviceyear", 168);
         s.put("bpv", 110);
+        s.put("explosionstrength", 17);  // D5.2, off the Master Ship Chart
         s.put("turnmode", TurnMode.B);
         s.put("sizeclass", 3);
 
@@ -277,6 +279,7 @@ public class KlingonShips {
         s.put("name", "IKV Dagger");
         s.put("serviceyear", 135);
         s.put("bpv", 71);
+        s.put("explosionstrength", 10);  // D5.2, off the Master Ship Chart
         s.put("turnmode", TurnMode.A);
         s.put("sizeclass", 4);
 

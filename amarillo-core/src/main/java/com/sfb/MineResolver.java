@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.sfb.Game.ActionResult;
-import com.sfb.Game.FireResult;
 import com.sfb.objects.Marker;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
@@ -326,20 +325,16 @@ class MineResolver {
             // Real mine — detonate
             int mineDamage = mine.getMineType().damage;
             log.add("  " + mine.getMineType().label + " DETONATED at " + mine.getLocation() + "!");
-            for (Unit unit : inRange) {
-                if (unit instanceof Ship) {
-                    Ship ship = (Ship) unit;
-                    int shieldNum = game.getShieldNumber(mine, ship);
-                    FireResult result = game.markShieldDamage(ship, shieldNum, mineDamage);
-                    log.add("    " + ship.getName() + " shield #" + shieldNum
-                            + " hit for " + mineDamage
-                            + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
-                    // G13.552: a cloaked ship in a mine blast is exposed to lock-on.
-                    log.addAll(game.flashcubeLockOn(ship));
-                } else {
-                    String dmgLog = game.applyDamageToUnit(mineDamage, unit, 0);
-                    log.add("    " + dmgLog);
-                }
+            // The blast itself is (D5.41) and is shared with an exploding ship, which applies
+            // damage in the same words -- on the shield facing the thing that went off. A mine
+            // is always radius one; a ship explosion is radius zero or one by its strength.
+            for (Ship ship : game.applyBlast(mine, 1, mineDamage, log)) {
+                // G13.552 is written for MINE explosions specifically -- "a cloaked ship is
+                // exposed and is locked onto during the impulse in which it is inside the area
+                // of a mine explosion" -- so it stays with the mine rather than moving into the
+                // shared blast. (D5.42) ignores the cloak for blast EFFECTS either way, but says
+                // nothing about exposing the ship.
+                log.addAll(game.flashcubeLockOn(ship));
             }
             detonated.add(mine);
         }

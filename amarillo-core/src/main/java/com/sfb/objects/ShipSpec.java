@@ -987,6 +987,11 @@ public class ShipSpec {
         // further in. Guarded now by ShipCostTest.
         if (epv > 0)
             m.put("epv", epv);
+        // D5.12: a hull that states no strength must not arrive as a hull that explodes for
+        // nothing. Only the Hydran GEN-F is in that state, and keeping the two apart is the
+        // whole reason the field is boxed -- see explosionStrength above.
+        if (explosionStrength != null)
+            m.put("explosionstrength", explosionStrength);
         if (commandRating > 0)
             m.put("commandrating", commandRating);
         // Absent on a base, which rotates (C3.7) rather than turning and takes its rotation rate

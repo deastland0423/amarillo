@@ -1241,29 +1241,41 @@ class DamageResolver {
      * resumes after the choice.
      */
     void resolveInternalDamage() {
-        while (!pendingInternalDamage.isEmpty()) {
-            PendingDamage pd = pendingInternalDamage.remove(0);
-            if (!pd.isContinuation)
-                pd.target.resetPhaserDacGroup();
-            Ship.DamageResult result = pd.target.applyInternalDamage(pd.bleed, pd.attacker);
-            game.internalDamageLog().add("=== Internal damage — " + pd.target.getName() + " ===");
-            game.internalDamageLog().addAll(result.log);
-            if (result.choiceRequired) {
-                pendingDacChoices.add(new PendingDacChoice(
-                        pd.target, pd.attacker, result.choiceType,
-                        result.choiceRoll, result.options, result.remainingBleed));
-                game.enterDacChoicePhase();
-                game.cleanupDestroyedShips();
-                return;
+        while (true) {
+            while (!pendingInternalDamage.isEmpty()) {
+                PendingDamage pd = pendingInternalDamage.remove(0);
+                if (!pd.isContinuation)
+                    pd.target.resetPhaserDacGroup();
+                Ship.DamageResult result = pd.target.applyInternalDamage(pd.bleed, pd.attacker);
+                game.internalDamageLog().add("=== Internal damage — " + pd.target.getName() + " ===");
+                game.internalDamageLog().addAll(result.log);
+                if (result.choiceRequired) {
+                    pendingDacChoices.add(new PendingDacChoice(
+                            pd.target, pd.attacker, result.choiceType,
+                            result.choiceRoll, result.options, result.remainingBleed));
+                    game.enterDacChoicePhase();
+                    game.cleanupDestroyedShips();
+                    return;
+                }
             }
+            // D7.832/D7.8375: combat damage may have destroyed guarded posts —
+            // roll guard casualties once resolution completes
+            for (Ship ship : game.getShips()) {
+                for (String line : ship.getGuardPosts().reconcileAfterDamage())
+                    game.internalDamageLog().add("  [" + ship.getName() + "] " + line);
+            }
+            game.cleanupDestroyedShips();
+
+            // D5.12: the cleanup above exploded whatever it removed, and a blast QUEUES its
+            // bleed-through rather than applying it — so a wave of explosions has just put
+            // work back on the queue this loop had emptied. Go round again and resolve it,
+            // which is also how a ship killed by an explosion comes to explode itself (D5.32).
+            //
+            // Terminates because the step that explodes a ship also removes it, so each hull
+            // explodes at most once, and a round that sets off nothing queues nothing.
+            if (pendingInternalDamage.isEmpty())
+                break;
         }
-        // D7.832/D7.8375: combat damage may have destroyed guarded posts —
-        // roll guard casualties once resolution completes
-        for (Ship ship : game.getShips()) {
-            for (String line : ship.getGuardPosts().reconcileAfterDamage())
-                game.internalDamageLog().add("  [" + ship.getName() + "] " + line);
-        }
-        game.cleanupDestroyedShips();
         game.checkControlOverflow();
     }
 

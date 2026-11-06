@@ -26,6 +26,7 @@ public class RomulanShips {
         s.put("name", "RIS Talon");
         s.put("serviceyear", 160);
         s.put("bpv", 115);
+        s.put("explosionstrength", 17);  // D5.2, off the Master Ship Chart
         s.put("turnmode", TurnMode.B);
         s.put("sizeclass", 3);
 
@@ -133,6 +134,7 @@ public class RomulanShips {
         s.put("name", "RIS Senator");
         s.put("serviceyear", 162);
         s.put("bpv", 100);
+        s.put("explosionstrength", 13);  // D5.2, off the Master Ship Chart
         s.put("turnmode", TurnMode.D);
         s.put("sizeclass", 3);
 

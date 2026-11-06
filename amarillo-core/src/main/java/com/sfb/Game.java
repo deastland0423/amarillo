@@ -201,6 +201,8 @@ public class Game {
     private final MineResolver mineResolver = new MineResolver(this, mines, ships, seekers, activeShuttles,
             prevLocations);
     private final EsgResolver esgResolver = new EsgResolver(this, ships, seekers, activeShuttles, mines, prevLocations);
+    private final ExplosionResolver explosionResolver =
+            new ExplosionResolver(this, ships, seekers, activeShuttles);
     private final SeekerControl seekerControl = new SeekerControl(this, ships, seekers);
     private final LockOnResolver lockOnResolver = new LockOnResolver(this, ships, seekers, activeShuttles);
     private final SquadronEwResolver squadronEw = new SquadronEwResolver(this, activeShuttles);
@@ -3862,6 +3864,17 @@ public class Game {
      *         (log is populated later when damageResolver.resolveInternalDamage()
      *         runs).
      */
+    /**
+     * Apply an area blast (D5.41) and return the ships it damaged.
+     *
+     * <p>Shared by an exploding ship and a detonating mine, which (D5.41) describes in the same
+     * words. The caller supplies the radius: strength-dependent for a ship, always one for a mine.
+     */
+    List<Ship> applyBlast(com.sfb.objects.Marker origin, int radius, int damage,
+            List<String> log) {
+        return explosionResolver.applyBlast(origin, radius, damage, log);
+    }
+
     public FireResult markShieldDamage(Ship target, int shieldNumber, int totalDamage) {
         return markShieldDamage(target, shieldNumber, totalDamage, null);
     }
@@ -4067,7 +4080,21 @@ public class Game {
                 + available + " available)");
     }
 
+    /**
+     * Remove destroyed ships from play -- and first, let them explode (D5.12).
+     *
+     * <p>The order is the whole reason the explosion lives here rather than at the call sites:
+     * the blast needs the wreck still on the map, because every unit it damages takes that
+     * damage "on the shield facing the exploding unit" (D5.41) and a removed ship has no hex to
+     * face. So explode, then remove.
+     *
+     * <p>Nothing dies of the blast inside this method. markShieldDamage queues bleed-through
+     * rather than resolving it, so the ships the explosion kills are destroyed later, when that
+     * queue is drained -- and they reach this method on a subsequent pass, where they explode in
+     * their own right (D5.32). DamageResolver.resolveInternalDamage owns that drain.
+     */
     void cleanupDestroyedShips() {
+        lastInternalDamageLog.addAll(explosionResolver.explodeDestroyedShips());
         ships.removeIf(s -> {
             if (s.isDestroyed()) {
                 tractorResolver.releaseAllLinksInvolving(s);

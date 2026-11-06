@@ -26,6 +26,7 @@ public class KzintiShips {
         s.put("name", "KHS Quasar");
         s.put("serviceyear", 160);
         s.put("bpv", 128);
+        s.put("explosionstrength", 20);  // D5.2, off the Master Ship Chart
         s.put("turnmode", TurnMode.C);
         s.put("sizeclass", 3);
 
@@ -188,6 +189,7 @@ public class KzintiShips {
         s.put("name", "KHS Quasar");
         s.put("serviceyear", 125);
         s.put("bpv", 116);
+        s.put("explosionstrength", 19);  // D5.2, off the Master Ship Chart
         s.put("turnmode", TurnMode.C);
         s.put("sizeclass", 3);
 

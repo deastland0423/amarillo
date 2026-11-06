@@ -27,6 +27,7 @@ public class OrionShips {
         s.put("name", "Lady Luck");
         s.put("serviceyear", 129);
         s.put("bpv", 68);
+        s.put("explosionstrength", 17);  // D5.2, off the Master Ship Chart
         s.put("turnmode", TurnMode.AA);
         s.put("sizeclass", 4);
         s.put("movecost", 1.0 / 3.0);

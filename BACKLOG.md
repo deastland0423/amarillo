@@ -616,11 +616,54 @@ groundwork already in place.
 - **G21.1/G21.2 crew quality adjustments.** The declaration is built and `crewQuality` is on
   `ShipSpec`; the adjustment lists are not. The ±3 natural EW is the first slice.
 
-## Ship explosions (D5.0) — the DATA is in; the mechanism is not (2026-11-05)
+## Ship explosions (D5.0) — destruction-in-combat BUILT in core; (D5.31) and self-destruction open
 
-A destroyed ship blows up and damages what is near it, and nothing in the game does this yet.
-Raised by the owner on 2026-11-05, on noticing that Annex #1's Master Ship Chart carries an
-explosion-strength column we have never read.
+A destroyed ship blows up and damages what is near it. Raised by the owner on 2026-11-05 off
+Annex #1's unread explosion-strength column; the data landed the same day and the mechanism on
+2026-11-06.
+
+**BUILT (2026-11-06), core only.** `ExplosionResolver`: (D5.12) a ship destroyed in combat
+explodes immediately, (D5.13) who explodes and who does not, (D5.41) the strength-dependent
+radius and the facing shield, (D5.42) cloaking ignored, and (D5.32) a ship killed in another hex
+exploding in its own right. `ShipExplosionTest` covers it, with the Federation FFG (9) and the
+Klingon F5 (10) as the fixture because they straddle the threshold in real chart data.
+
+**Why the owner wanted it:** "Ship explosions can be a big deal in large fleet battles. I've
+focused fire on a small ship in order to destroy nearby drones and fighters with the explosion."
+That tactic is the reason the blast reaches seekers and shuttles and not only ships.
+
+**The trigger is `Game.cleanupDestroyedShips`,** which explodes a wreck and then removes it, in
+that order, because the blast needs the wreck on the map to give each victim a bearing to it
+(D5.41). That ordering is also what stops a double explosion, and a flag guarding the same thing
+was deleted when mutation testing showed no test could fail with it ignored.
+
+**The blast application is SHARED with mines.** `ExplosionResolver.applyBlast` is the mine
+detonation loop with the radius as a parameter; `MineResolver` now calls it with radius one.
+(G13.552) stayed behind at the mine, because the flash-cube exposure of a cloaked ship is
+written for mine explosions specifically and (D5.42) says nothing about it.
+
+**The one trap, if you touch this.** `markShieldDamage` QUEUES bleed-through rather than
+applying it, so a blast kills nobody by the time it returns — the deaths happen when the queue
+is next drained. `DamageResolver.resolveInternalDamage` therefore loops: drain, explode, and go
+round again if the explosions queued anything. Remove that loop and an explosion's internal
+damage silently waits for the next volley.
+
+**STILL OPEN, in the order worth doing:**
+
+- **(D5.31) same-hex combining.** Two ships destroyed in one hex are ONE explosion of their
+  summed strength, not two. Resolving them separately applies two blasts where the rule applies
+  one, which OVER-damages. Not built, and `explodeDestroyedShips` logs a NOTE naming the rule
+  when the situation arises rather than approximating silently. This is the next slice.
+- **(D5.2) docked units add their strength** to the exploding unit, unless they escape (D21.5),
+  and a base the ship is docked TO does not add. Needs the docking model.
+- **(D5.1)/(D5.5) self-destruction as a player action** — declared at the start of a turn,
+  resolved in Self-Destruction Phase #3, blockable by mutiny (G6.41) or enemy boarding parties
+  (D7.7), with (D5.51)'s crew-unit restriction and the Orion exemption (G15.1).
+- **(D5.55) terrain**: planets block explosions (P2.547), webs limit them (G10.72).
+- **(D5.14)** a separated section deducts its explosion strength.
+- **Server and web**: nothing was needed — the blast reports through the existing internal
+  damage log, which already reaches the client. A ship's explosion strength is NOT shown
+  anywhere in the UI; the SSD panel would be the place if it is wanted.
 
 **The rule, read rather than remembered.** (D5.12): when a ship is destroyed in combat it
 explodes IMMEDIATELY, by the self-destruction procedure, and the strength is the chart's, "not
@@ -713,13 +756,9 @@ faction chart, so no BPV cross-check ever ran on them — and there is only one 
 the annex, so the annex does not contradict them either. Per-faction base BPVs legitimately
 differ; these two are probably from their R-sections and probably fine.
 
-**Deferred clauses to decide when it is built**, none of which block a first slice: (D5.55)
-planets block explosions (P2.547) and webs limit them (G10.72); docked ships are partly shielded
-(C13.52/.66/.74); (D5.14) a separated section deducts its strength; and the whole of (D5.1)
-self-destruction as a PLAYER ACTION — declared at the start of a turn, resolved in
-Self-Destruction Phase #3, blockable by mutiny (G6.41) or enemy boarding parties (D7.7), with
-(D5.51)'s crew-unit restriction and the Orion exemption (G15.1). Destruction-in-combat is the
-useful half and needs none of it.
+**Also unresolved, from the original reading:** docked ships are partly shielded from an
+explosion and may partly block one (C13.52/.66/.74), which belongs with the (D5.2) docking work
+above.
 
 ## Built, never seen in a browser
 

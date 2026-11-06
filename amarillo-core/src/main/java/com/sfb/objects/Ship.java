@@ -296,6 +296,13 @@ public class Ship extends Unit implements DroneController {
 	private com.sfb.systemgroups.PlasmaReloadStore plasmaReloadStore = null;
 	private com.sfb.systemgroups.Weapons plasmaStoreWeapons = null;
 	private double coiSpend = 0; // VP spent on Commander's Option Items (S2.20 B / S3.2); handed to the enemy.
+	/**
+	 * D5.2 basic explosion strength off the Master Ship Chart, or null for a hull nobody has
+	 * read one for. Boxed on purpose: zero is a real value the chart gives ground bases
+	 * (D5.13 says small ground bases do not explode), so it cannot also mean "unknown".
+	 */
+	private Integer explosionStrength = null;
+
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
 	private boolean isBase = false; // True for starbases, space stations, outposts — gates base-specific mechanics
 
@@ -337,6 +344,7 @@ public class Ship extends Unit implements DroneController {
 		yearInService = values.get("serviceyear") == null ? 0 : (Integer) values.get("serviceyear");
 		battlePointValue = values.get("bpv") == null ? 0 : (Integer) values.get("bpv");
 		economicPointValue = values.get("epv") == null ? battlePointValue : (Integer) values.get("epv");
+		explosionStrength = (Integer) values.get("explosionstrength");
 		commandRating = values.get("commandrating") == null ? 0 : (Integer) values.get("commandrating");
 		leader = Boolean.TRUE.equals(values.get("isleader"));
 		escort = Boolean.TRUE.equals(values.get("isescort"));
@@ -2657,6 +2665,30 @@ public class Ship extends Unit implements DroneController {
 
 	public int getCommandRating() {
 		return this.commandRating;
+	}
+
+	/**
+	 * D5.2 basic explosion strength, or null if the chart was never read for this hull.
+	 *
+	 * <p>Null and zero are different answers and callers must keep them apart: zero is the
+	 * chart speaking (ground bases), null is nobody having asked. {@code explodes()} is the
+	 * question most callers actually want.
+	 */
+	public Integer getExplosionStrength() {
+		return this.explosionStrength;
+	}
+
+	/**
+	 * D5.13: whether destroying this unit sets off an explosion at all.
+	 *
+	 * <p>The rule names who DOES explode -- "ships (including PFs and bases)" -- and who does
+	 * not: "Fighters, seeking weapons, mines, and small ground bases (P2.76)". Fighters and
+	 * seekers are not Ships here, so the only exclusion this class has to carry is the ground
+	 * base, and the data already says it: the chart lists every ground base at zero. So a
+	 * strength of zero and an unread strength both answer no, by different routes.
+	 */
+	public boolean explodes() {
+		return explosionStrength != null && explosionStrength > 0;
 	}
 
 	/// SHIELDS ///

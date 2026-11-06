@@ -25,6 +25,7 @@ public class FederationShips {
         s.put("name", "USS Lexington");
         s.put("serviceyear", 130);
         s.put("bpv", 125);
+        s.put("explosionstrength", 18);  // D5.2, off the Master Ship Chart
         s.put("turnmode", TurnMode.D);
         s.put("sizeclass", 3);
 
@@ -120,6 +121,7 @@ public class FederationShips {
         s.put("name", "USS Kearsarge");
         s.put("serviceyear", 170);
         s.put("bpv", 116);
+        s.put("explosionstrength", 16);  // D5.2, off the Master Ship Chart
         s.put("turnmode", TurnMode.C);
         s.put("sizeclass", 3);
 
@@ -215,6 +217,7 @@ public class FederationShips {
         s.put("name", "USS Texas");
         s.put("serviceyear", 120);
         s.put("bpv", 98);
+        s.put("explosionstrength", 14);  // D5.2, off the Master Ship Chart
         s.put("turnmode", TurnMode.C);
         s.put("sizeclass", 3);
 
@@ -299,6 +302,7 @@ public class FederationShips {
         s.put("name", "USS Perry");
         s.put("serviceyear", 160);
         s.put("bpv", 75);
+        s.put("explosionstrength", 9);  // D5.2, off the Master Ship Chart
         s.put("turnmode", TurnMode.B);
         s.put("sizeclass", 4);
 
