@@ -5,8 +5,14 @@
   "line": "BASE",
   "name": "Cartel Hold Korgath",
   "serviceYear": 120,
-  "bpv": 200,
-  "epv": 75,
+  "_bpvComment": [
+    "Annex #1 prints 200/75, and its own key says split values are read ECONOMIC/COMBAT, so the",
+    "larger number is the EPV. This was entered the other way round until 2026-11-06. Every other",
+    "split Orion hull (DWS 100/80, LRS 88/68, SAL 112/90, SLV 83/60) was already right, which is",
+    "what made this one findable. A pirate base is expensive to build and poor at fighting."
+  ],
+  "bpv": 75,
+  "epv": 200,
   "sizeClass": 3,
   "explosionStrength": 11,
   "commandRating": 8,

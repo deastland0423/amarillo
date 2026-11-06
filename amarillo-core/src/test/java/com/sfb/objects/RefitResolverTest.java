@@ -237,7 +237,14 @@ public class RefitResolverTest {
 
         ShipSpec converted = RefitResolver.apply(orionBase, List.of("pd"));
 
-        assertEquals("204 — the sheet's four points to change the racks", 204, converted.bpv);
+        /*
+         * Relative to the hull's own value, not a literal. This read 204 until the BS's
+         * point values were found reversed (2026-11-06, bpv 200/epv 75 -> bpv 75/epv 200),
+         * and a data correction failing a test about weapon FAMILIES is a false alarm: the
+         * four points are what this line is actually about.
+         */
+        assertEquals("the sheet's four points to change the racks",
+                orionBase.bpv + 4, converted.bpv);
         assertEquals("no drone rack survives the swap", 0, count(converted, "DroneRack"));
         assertEquals("both become plasma racks", 2, count(converted, "PlasmaRack"));
         assertEquals("rack 1 keeps its RS arc",

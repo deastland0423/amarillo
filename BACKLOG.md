@@ -684,11 +684,34 @@ base's own number. Q-ships come from a table indexed by EMPIRE NAME rather than 
 bases are listed at ZERO, which is the chart agreeing with (D5.13) in the data — and the reason
 the guard's floor is 0 rather than 1.
 
-**22 hulls whose BPV disagrees with Annex #1** — unrelated to this work and left alone, but
-somebody should look: sixteen are ISC (ours consistently lower: CA 142 v 185, CC 198 v 220,
-DN 264 v 280), plus Klingon D7C 136 v 139, Kzinti BC 135 v 128, Lyran CA 131 v 133, Romulan SNE
-68 v 78, Orion BS 200/75 against our 200. Either our files hold a different refit state or they
-are wrong; the chart is one source and the R-sections are another.
+**The BPV disagreements, resolved down to four** (2026-11-06). Of the 21 hulls whose `bpv` did
+not match the chart, **sixteen were never wrong**: each is our unrefitted hull plus the exact sum
+of its own declared refit costs, so the chart lists the fully-refitted ship while we hold the base
+hull and the refits as data (S3.24). All sixteen are ISC, which is just the empire whose hulls
+carry the most standard refits — ISC CA 142 + 43 = 185, CC 198 + 22 = 220, DN 264 + 16 = 280, and
+so on without a single point left over. **Do not "fix" these.** Any future BPV check against Annex
+#1 must add the declared refits before comparing, or it will report the whole ISC list every time.
+
+**One was a real error and is fixed**: the Orion BS had 200/75 entered as bpv/epv. The annex key
+reads *"Split BPVs are economic/combat"*, and the owner's gloss (2026-11-06) gives the reason —
+"a ship with special equipment replacing weapons is still just as expensive to build as the
+original ship (EPV) but isn't as effective in combat (BPV)" — so **the larger number is the EPV**.
+The Orion freighters show it plainly: F-L 61/18, worth carrying and not worth fighting. Every
+other split Orion hull was already right, which is what made this one findable.
+`RefitRaisesBothPointValuesTest.theEconomicRatingIsNeverBelowTheCombatOne` now sweeps the library
+for it, and catches a base's variants along with the base. Note the Andromedans invert this
+(BS 200/400) — out of scope, but do not take them as a counter-example to the rule.
+
+**Four genuinely disagree and nobody has looked**: Klingon D7C 136 v 139, Kzinti BC 135 v 128
+(ours HIGHER, the only one in that direction), Lyran CA 131 v 133, Romulan SNE 68 v 78. None is
+explained by refits. The chart is one source and the R-sections another; whoever picks this up
+should read the R-section entry before touching the file.
+
+**Also unverified, for a different reason**: the Federation BS (107) and Hydran BS (114) against
+the GENERAL BASES row's 120. Base explosion strengths came off the general chart rather than a
+faction chart, so no BPV cross-check ever ran on them — and there is only one generic BS row in
+the annex, so the annex does not contradict them either. Per-faction base BPVs legitimately
+differ; these two are probably from their R-sections and probably fine.
 
 **Deferred clauses to decide when it is built**, none of which block a first slice: (D5.55)
 planets block explosions (P2.547) and webs limit them (G10.72); docked ships are partly shielded

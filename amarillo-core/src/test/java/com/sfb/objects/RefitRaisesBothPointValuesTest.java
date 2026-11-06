@@ -96,4 +96,46 @@ public class RefitRaisesBothPointValuesTest {
         assertEquals("the economic rating rises by the same amount",
                 cost, late.getEconomicBpv() - early.getEconomicBpv());
     }
+
+    /**
+     * Across the whole library: where a hull states both ratings, the ECONOMIC one is the larger.
+     *
+     * <p>Annex #1's own key reads "Split BPVs are economic/combat ratings", and the owner's gloss
+     * (2026-11-06) says why that ordering is not arbitrary: "A ship with special equipment
+     * replacing weapons is still just as expensive to build as the original ship (EPV) but isn't
+     * as effective in combat (BPV)." The Orion freighters are the convention in miniature --
+     * F-L 61/18, worth carrying and not worth fighting.
+     *
+     * <p>Two hulls were entered backwards before this existed, both on 2026-11-05: the Klingon FWV
+     * and the Orion BS, which read 200/75 as bpv/epv and so claimed a pirate base out-fights a
+     * dreadnought. Neither was a reading error in the chart -- both were the cell copied in the
+     * order it is printed. A sweep is the only thing that catches that, because each file on its
+     * own looks perfectly sensible.
+     *
+     * <p>Equal values pass: the Kzinti SDF states 90/90, which is a ship whose two ratings simply
+     * coincide. Zero passes too -- a primitive epv has no other way to say "not a split-value
+     * ship", which {@link #aShipWithNoEconomicRatingDoesNotGainOne()} covers.
+     */
+    @Test
+    public void theEconomicRatingIsNeverBelowTheCombatOne() {
+        java.util.List<String> backwards = new java.util.ArrayList<>();
+        int split = 0;
+        for (ShipSpec s : ShipLibrary.all()) {
+            if (s.epv <= 0)
+                continue;
+            split++;
+            if (s.epv < s.bpv)
+                backwards.add(s.faction + "/" + s.type + " states bpv " + s.bpv + ", epv " + s.epv
+                        + " -- the chart prints " + s.epv + "/" + s.bpv + " and means the reverse");
+        }
+        assertTrue("fixture: the library should hold split-value hulls", split > 20);
+        assertTrue("hulls with the two point values the wrong way round:" + nlJoin(backwards),
+                backwards.isEmpty());
+    }
+
+    /** One hull per line, so a sweep that finds several reports all of them at once. */
+    private static String nlJoin(java.util.List<String> lines) {
+        String sep = System.lineSeparator() + "  ";
+        return lines.isEmpty() ? "" : sep + String.join(sep, lines);
+    }
 }
