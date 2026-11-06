@@ -1697,6 +1697,55 @@ ship and passed. Filter the unconvertible classes out of the compared graph inst
 remains by path fragment. Switching to fragments immediately surfaced four real losses the coarse
 version had been hiding.
 
+## Published scenarios: what SH80 needs (measured 2026-11-06)
+
+The owner asked how close we are to playing the published scenarios. Measured against
+`data/scenarios/sh80.json` — "Dictator's Diplomat", the most demanding file we have,
+with three sides, two of them allied — rather than by reading the loader.
+
+**It already loads and sets up.** `Sh80LoadsTest` puts all three sides on the map with
+their real hulls at their printed stations, headings and speeds, at weapon status, with the
+D7N's UIM refit applied. Nothing had to be added to make that work.
+
+**So a published scenario is PLAYABLE TODAY with its special rules enforced by the players**,
+which is how a face-to-face game works anyway. The prose reaches them: `specialRules`
+travels through `LobbyStateDto` and `PreGame.tsx` lists it before the game
+starts. The question is only how much a rule could enforce for them.
+
+**Structured and ENFORCED today:** start hex, heading, speed and weapon status per ship;
+per-ship refits and faction overrides; deployment zones; terrain and terrain plans;
+objectives; reinforcements with arrival windows and secret selection; COI budgets and
+loadouts; option mounts; `maxTurns`; and — the one that matters most for SH80 — per-side
+`destructionDirections` and `destructionEdges`, which `DisengagementResolver`
+reads. A ship leaving the wrong way really is destroyed.
+
+**Carried but with NO consumer in core**, which is the honest gap:
+- `mapType` — SH80 wants FLOATING, and the scenario tracks how far the xx30 row has
+  shifted. Nothing reads the field. This is the biggest single item for this scenario.
+- `lengthCondition` — "STANDARD" (last side standing) is not computed.
+- `victoryConditions` — a type string plus free text. `VictoryCalculator` exists
+  and does the standard arithmetic, but S2.201 MODIFIED terms are not read from the file.
+
+**What SH80 asks for that no scenario field could express yet**, in rough order of cost:
+- **ALLIANCE.** Two sides that "cannot damage one another in any way (unless the target has
+  been captured)". There is no allied-sides concept — sides are independent teams.
+- **A destruction REGION, not just an edge.** "All territory below the xx30 hex row is
+  Tholian territory. Any ship entering this area, even if pushed there by tractor, is
+  considered destroyed immediately." `MapRegion` already exists for deployment zones, so
+  this is a region with a different verb rather than a new concept.
+- **Conditional disengagement.** The Klingon cannot leave in directions B or C "unless a
+  Romulan crew unit has transferred to the Klingon ship" — a disengagement restriction that
+  depends on game state.
+- **A named character in a box.** Vak Kaleen occupies one of the bridge boxes and has his own
+  movement, injury and capture rules (SH80.46-SH80.467). Nothing models a person as a thing
+  that sits in a system box, and this is the one item that is a genuine feature rather than a
+  field.
+
+**The cheap order, if someone wants published scenarios to run themselves:** the destruction
+region first (MapRegion is there), then the floating map, then alliances. Victory conditions
+and named characters are their own projects. SH47's training subset remains the gentler first
+target — it needs none of the four.
+
 ## Unstarted systems
 
 Roughly largest first. Several have had their rules read and their design settled; those say so.
@@ -1739,9 +1788,8 @@ Roughly largest first. Several have had their rules read and their design settle
   carries year, numPlayers, mapType, lengthCondition, specialRules, sides, victoryConditions,
   shuttleRules and commanderOptions.
 
-  What is actually open is narrower and should be re-scoped by someone who reads the loader:
-  the per-scenario gaps in *Scenario feature gaps* below, and SH47's training subset as the
-  next target. Do not plan this as a greenfield feature.
+  What is actually open is narrower, and the section *Published scenarios: what SH80 needs*
+  below measures it against a real file. Do not plan this as a greenfield feature.
 - **Fleet builder UI, terrain and deployment.** The S8.0 validator is done (12 rules, core plus
   endpoint); the rest of the screen is not.
 - ~~**ESG (G23).**~~ **BUILT — this entry was stale (corrected 2026-11-06).** `EsgResolver` is a
