@@ -29,6 +29,20 @@ public class Objective extends Marker implements Tractorable {
     private int side;
     private int points;                   // VP to the controlling side at scenario end (S2, generic objective scoring)
 
+    // (G25.1) How much room this thing takes up, in cargo spaces; Annex #7K lists the
+    // sizes (a probe is 2, a large mine 4, a stored shuttle 25, a PF 125). Boxed because
+    // a scenario that never says is NOT the same as a weightless one: null means unstated,
+    // and every size gate is then skipped rather than silently passed.
+    private Double cargoSpaces;
+
+    // (G25.214) "It is not possible to transport (or drop) cargo ... into space and have that
+    // cargo then 'exist' for some purpose (e.g. damaging an ESG, later pickup, web anchor). A
+    // special scenario rule might provide a specific type of item that could be left in space
+    // for a time." So leaving a thing adrift is a SCENARIO GRANT, not a general ability, and
+    // the default has to be refusal. An objective that starts free on the map is already such
+    // a grant; this flag is about putting one back.
+    private boolean canBeLeftInSpace;
+
     // While free, an objective can be caught in a tractor beam and drawn aboard
     // via the friendly-shuttle rotation system (J1.621 / SH35.452). These track
     // that transient pull-in; the objective stays FREE (carrier == null) until
@@ -61,6 +75,18 @@ public class Objective extends Marker implements Tractorable {
     public int getPoints() { return points; }
 
     public void setPoints(int points) { this.points = points; }
+
+    /** Size in cargo spaces (G25.1/Annex #7K), or null when the scenario does not say. */
+    public Double getCargoSpaces() { return cargoSpaces; }
+
+    public void setCargoSpaces(Double cargoSpaces) { this.cargoSpaces = cargoSpaces; }
+
+    /** (G25.214) Whether this specific item may be left adrift in space and still exist. */
+    public boolean isCanBeLeftInSpace() { return canBeLeftInSpace; }
+
+    public void setCanBeLeftInSpace(boolean canBeLeftInSpace) {
+        this.canBeLeftInSpace = canBeLeftInSpace;
+    }
 
     public int getSide() { return side; }
 
@@ -108,6 +134,16 @@ public class Objective extends Marker implements Tractorable {
         if (securedBy != null)
             return securedBy;
         return carrier != null ? carrier.getOwner() : null;
+    }
+
+    /**
+     * Cargo spaces for a message: Annex #7K mixes whole numbers with fractions as fine as
+     * 0.05, so a plain {@code double} prints "2.0" where the annex says "2".
+     */
+    public static String formatSpaces(double spaces) {
+        return spaces == Math.rint(spaces)
+                ? String.valueOf((long) spaces)
+                : String.valueOf(spaces);
     }
 
     /** Effective hex: the carrier's when carried, else its own free location. */

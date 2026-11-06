@@ -74,6 +74,8 @@ public class GameStateDto {
         public boolean secured;              // carried off a valid edge — permanent, out of play
         public boolean beingRecovered;       // J1.621 rotation pull-in underway
         public int side;                     // planet hex side 1..6 it sits on, or 0 (SH50.46)
+        public Double cargoSpaces;           // size in cargo spaces (G25.1/Annex #7K); null = unstated
+        public boolean canBeLeftInSpace;     // (G25.214) scenario grant to leave it adrift
     }
 
     public static class WildWeaselDto extends MapObjectDto {
@@ -2828,6 +2830,8 @@ public class GameStateDto {
         dto.tractoredBy = o.getTractoringUnit() != null ? o.getTractoringUnit().getName() : null;
         dto.beingRecovered = o.isBeingRecovered();
         dto.side = o.getSide();
+        dto.cargoSpaces = o.getCargoSpaces();
+        dto.canBeLeftInSpace = o.isCanBeLeftInSpace();
         com.sfb.Player owner = o.getCurrentOwner();
         dto.ownerTeam = owner != null ? owner.getTeamName() : null;
         return dto;

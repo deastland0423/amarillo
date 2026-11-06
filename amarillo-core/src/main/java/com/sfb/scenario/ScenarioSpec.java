@@ -99,6 +99,13 @@ public class ScenarioSpec {
         public boolean      survivesDestruction = true; // survives its carrier's destruction (SH47.475)
         public int          side;                 // planet hex side 1..6 (A..F) it sits on; 0 = none (SH50.46)
         public int          points;               // victory points to the side controlling it at scenario end (0 = none)
+        // Size in cargo spaces (G25.1; Annex #7K lists them: probe 2, large mine 4, stored
+        // shuttle 25, PF 125). Boxed: unset means the scenario never said, and the size
+        // gates are skipped rather than reading an unstated 0 as weightless.
+        public Double       cargoSpaces;
+        // (G25.214) Cargo cannot normally be left in space and still exist; a scenario has
+        // to grant it for a specific item. Default false is the rule, not a placeholder.
+        public boolean      canBeLeftInSpace;
     }
 
     /** A planetary ring band: enterable asteroid-like hexes at [inner, outer] hex-distance from center. */

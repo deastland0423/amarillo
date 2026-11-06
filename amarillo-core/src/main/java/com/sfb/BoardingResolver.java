@@ -239,14 +239,28 @@ class BoardingResolver {
     }
 
     /**
-     * Beam a free objective aboard with the transporter — the real system, one
+     * Beam an objective aboard with the transporter — the real system, one
      * operation. Range ≤5, active fire control for the sensor solution (D6.124;
      * an inert, uncloaked canister needs no stored lock-on, matching the tractor
      * path), one transporter + one use spent, the acting ship's facing shield
      * auto-lowered (G8), and the D6.372 lock roll — which, through a gas-giant
      * ring, must burn the same natural ECM a tractor grab does (SH35/SH47 in
-     * terrain). Unlike a boarding party there is no target-ship shield (a
-     * canister has none) and no crew to hold back. A jammed beam is still spent.
+     * terrain). A jammed beam is still spent.
+     *
+     * <p>The source is either a hex (a free objective) or ANOTHER SHIP that is
+     * carrying it — a ship-to-ship transfer is the same transporter operation,
+     * read from the other end, so it lives here rather than in a parallel method.
+     * The one thing it adds is the far ship's shield: the acting ship lowers its
+     * own (it owns it), but it cannot lower the carrier's, so that one must
+     * ALREADY be down. That is what makes a handoff cooperative without needing a
+     * consent protocol — the carrier drops its shield, which is a move it makes
+     * with the actions it already has — and it is also why a prize can be stolen
+     * off an enemy whose shield is down, exactly as a boarding party could be put
+     * aboard through it (G8).
+     *
+     * <p>(G25.211) caps a transporter at a ten-space item, and forbids two
+     * transporters combining on one object, so anything bigger is permanently
+     * out of reach of this method — it needs a shuttle or a tractor.
      */
     ActionResult retrieveObjectByTransporter(Ship actingShip, com.sfb.objects.Objective objective) {
         if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
@@ -258,13 +272,26 @@ class BoardingResolver {
         if (emBlock != null)
             return emBlock;
 
-        int range = com.sfb.utilities.MapUtils.getRange(actingShip.getLocation(), objective.getLocation());
+        // (G25.211) A transporter moves at most ten cargo spaces, and two can never
+        // combine on one object. A larger item is not a matter of range or energy — it
+        // simply cannot go this way. Skipped when the scenario never stated a size.
+        Double size = objective.getCargoSpaces();
+        if (size != null && size > 10.0)
+            return ActionResult.fail(objective.getName() + " is too big to beam — "
+                    + com.sfb.objects.Objective.formatSpaces(size) + " cargo spaces, and a"
+                    + " transporter moves ten (G25.211); it needs a shuttle or a tractor");
+
+        Ship carrier = objective.getCarrier();
+        if (carrier == actingShip)
+            return ActionResult.fail(objective.getName() + " is already aboard " + actingShip.getName());
+        int range = com.sfb.utilities.MapUtils.getRange(
+                actingShip.getLocation(), objective.getEffectiveLocation());
         if (range > 5)
             return ActionResult.fail(objective.getName() + " is out of transporter range ("
                     + range + " hexes, max 5)");
         // A party on a planet face (SH50.46) can only be beamed if that side of
         // the planet is facing the ship — the planet's bulk hides the far side.
-        if (objective.getSide() != 0
+        if (carrier == null && objective.getSide() != 0
                 && !com.sfb.utilities.MapUtils.isPlanetSideVisible(
                         objective.getLocation(), actingShip.getLocation(), objective.getSide()))
             return ActionResult.fail(objective.getName() + " is on side "
@@ -289,6 +316,18 @@ class BoardingResolver {
                         + actingShip.getName() + " — must wait 8 impulses since last toggle");
         }
 
+        // The far ship's shield is NOT ours to lower. A carrier handing its cargo over
+        // must have dropped the facing shield itself; an enemy that has not is simply
+        // closed. Checked after our own shield so a refusal here does not leave us open
+        // for nothing.
+        if (carrier != null) {
+            int farShield = game.getShieldNumber(actingShip, carrier);
+            if (!carrier.getShields().isTransportable(farShield))
+                return ActionResult.fail(carrier.getName() + " still has shield #" + farShield
+                        + " up facing " + actingShip.getName() + " — it must lower that shield"
+                        + " before " + objective.getName() + " can be beamed across (G8)");
+        }
+
         // D6.372: a jammed beam still expends the operation (spend it first)
         if (!game.spendTransporterEnergy(actingShip, 1))
             return ActionResult.fail(actingShip.getName()
@@ -301,8 +340,10 @@ class BoardingResolver {
         String ewLog = ew != null ? ew.line + " — " : "";
 
         objective.setCarrier(actingShip);
+        objective.setLocation(null);   // carried: the hex now derives from the carrier
+        String from = carrier != null ? " from " + carrier.getName() : "";
         return ActionResult.ok(ewLog + actingShip.getName() + " beams " + objective.getName()
-                + " aboard by transporter");
+                + from + " aboard by transporter");
     }
 
     /**

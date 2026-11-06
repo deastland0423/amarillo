@@ -160,8 +160,15 @@ public class MapObjectPrivacyTest {
 
         // ---- Objectives. Hidden objectives (a ship carrying an admiral, found by some
         // specified means) are a scenario feature nobody has built; today these are public.
+        // cargoSpaces is BULK, not contents: how big a thing is shows on any sensor, and it is
+        // also what tells a player why the beam will refuse it (G25.211). canBeLeftInSpace is a
+        // printed scenario rule (G25.214) that every player reads. The rule that will eventually
+        // force a PRIVATE field here is (G25.25) "the contents of a given point of cargo ...
+        // cannot be detected unless a special scenario rule ... defines otherwise" — contents are
+        // a field nobody has added yet, and Vak Kaleen is the first thing that will need it.
         rule(GameStateDto.ObjectiveDto.class, Visibility.PUBLIC,
-            "carrierName", "retrieval", "ownerTeam", "secured", "beingRecovered", "side");
+            "carrierName", "retrieval", "ownerTeam", "secured", "beingRecovered", "side",
+            "cargoSpaces", "canBeLeftInSpace");
 
         // ---- Only ever sent to someone entitled to see it: an enemy gets a ShuttleDto
         // instead (DtoRedactionTest covers that substitution). Ruled anyway, so a new

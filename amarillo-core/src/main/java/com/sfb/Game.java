@@ -4815,6 +4815,13 @@ public class Game {
      *       J1.621 rotation procedure ({@link #beginObjectiveRecovery}).</li>
      * </ul>
      * (SHUTTLE_PICKUP and the SH47 multi-turn transporter study are deferred.)
+     *
+     * <p>The objective may be free in a hex OR already aboard another ship: a
+     * ship-to-ship TRANSFER is this same action with a different source, so there
+     * is one door rather than two. {@code ship} is always the RECEIVER — it runs
+     * the transporter and spends the energy. See
+     * {@link BoardingResolver#retrieveObjectByTransporter} for why the carrier's
+     * own shield has to be down already.
      */
     public ActionResult pickUpObjective(Ship ship, String objectiveName, RetrievalMethod method) {
         if (method == RetrievalMethod.TRACTOR)
@@ -4827,9 +4834,6 @@ public class Game {
             return ActionResult.fail("Objective not found: " + objectiveName);
         if (obj.isSecured())
             return ActionResult.fail(objectiveName + " has been carried off the map — out of play");
-        if (obj.isCarried())
-            return ActionResult.fail(objectiveName + " is already aboard "
-                    + obj.getCarrier().getName());
         if (!obj.allows(method))
             return ActionResult.fail(objectiveName + " cannot be retrieved by " + method
                     + " (allowed: " + obj.getAllowedRetrieval() + ")");
@@ -4903,6 +4907,39 @@ public class Game {
         return null;
     }
 
+
+    /**
+     * Put a carried objective back into space, in the carrying ship's hex.
+     *
+     * <p>(G25.214) is unusually blunt about this: "It is not possible to transport (or
+     * drop) cargo ... into space and have that cargo then 'exist' for some purpose (e.g.
+     * damaging an ESG, later pickup, web anchor). A special scenario rule might provide a
+     * specific type of item that could be left in space for a time." So this is not a
+     * general ability that some items happen to lack — it is a per-item SCENARIO GRANT,
+     * and the default is refusal. {@code canBeLeftInSpace} is that grant.
+     *
+     * <p>Worth saying plainly because it is the reason a handoff cannot always be done by
+     * dropping the thing and letting the other ship collect it: for most cargo there is no
+     * "leave it here" at all, and the transfer has to be beam, shuttle, or tractor.
+     */
+    public ActionResult jettisonObjective(Ship ship, String objectiveName) {
+        if (currentPhase != ImpulsePhase.ACTIVITY)
+            return ActionResult.fail("Cargo can only be released during the Activity phase");
+        com.sfb.objects.Objective obj = objectives.stream()
+                .filter(o -> o.getName().equalsIgnoreCase(objectiveName))
+                .findFirst().orElse(null);
+        if (obj == null)
+            return ActionResult.fail("Objective not found: " + objectiveName);
+        if (obj.getCarrier() != ship)
+            return ActionResult.fail(objectiveName + " is not aboard " + ship.getName());
+        if (!obj.isCanBeLeftInSpace())
+            return ActionResult.fail(objectiveName + " cannot be left adrift in space (G25.214)"
+                    + " — it has to be handed to another ship or carried off the map");
+        obj.setCarrier(null);
+        obj.setLocation(ship.getLocation());
+        return ActionResult.ok(ship.getName() + " releases " + obj.getName()
+                + " into space at " + ship.getLocation() + " (G25.214)");
+    }
 
     /**
      * A ship carries its objectives off a valid map edge — ownership becomes

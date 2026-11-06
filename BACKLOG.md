@@ -1697,6 +1697,54 @@ ship and passed. Filter the unconvertible classes out of the compared graph inst
 remains by path fragment. Switching to fragments immediately surfaced four real losses the coarse
 version had been hiding.
 
+## Moving an objective between ships (G25.0) — built 2026-11-06
+
+Prompted by Vak Kaleen (SH80.46), but built as the general mechanism: a scenario objective
+could be picked up off the map and carried off it, and nothing in between. Reading (G25.0)
+first changed the design three times, so it is worth recording what the rules actually say.
+
+**Done, all tiers:**
+- **Ship-to-ship transfer is the SAME action as pickup**, with a carrier as the source rather
+  than a hex. `pickUpObjective` used to refuse anything already aboard a ship; it now
+  routes the carried case through the same transporter operation. The receiver is always the
+  acting ship. `PICKUP_OBJECTIVE` on the server needed no change at all.
+- **The carrier's shield is the consent handshake.** The receiver auto-lowers its own facing
+  shield (G8) because it owns it, but it cannot lower the carrier's — so the carrier's must
+  already be down. No new protocol, no new DTO, and no way to drop an enemy's shield by
+  "giving" them something. The same rule means a prize CAN be stolen off an enemy who has a
+  shield down, which is correct and is tested.
+- **(G25.211) size cap.** A transporter moves ten cargo spaces and "two transporters cannot
+  ever be used to move a single object of any size." So a big enough item can never be beamed
+  — that is the rules reason some objectives MUST go by shuttle, not a scenario preference.
+  `Objective.cargoSpaces` is a BOXED Double: unstated is not the same as weightless, and
+  a primitive would have read every silent scenario as zero and passed.
+- **(G25.214) you cannot just drop it.** "It is not possible to transport (or drop) cargo ...
+  into space and have that cargo then 'exist' for some purpose ... A special scenario rule
+  might provide a specific type of item that could be left in space for a time." Jettison
+  therefore DEFAULTS TO REFUSAL and `canBeLeftInSpace` is a per-item scenario grant.
+  This killed the first design, which was to let any ship drop an objective and have the other
+  one collect it — the rule forbids exactly that.
+- Fixed on the way past: the transporter path set the carrier but left the old free hex on the
+  objective. `getEffectiveLocation()` hid it until something asked for the raw one.
+
+**Sizes come from Annex #7K** (it IS in `Master_Annex_File.pdf`, PDF page 157): small objects
+0.05, probe 2, large mine / UIM / cloaking device 4, defence satellite 10, stored shuttle 25,
+available-for-flight shuttle 50, PF 125, PF available for flight 250.
+
+**Still open, in cost order:**
+- **SHUTTLE_PICKUP** — the mode for anything over ten spaces, and the only way to move the big
+  items at all. Needs `Objective.carrier` widened from `Ship` to `Unit` so a shuttle can
+  hold one. (G25.22) gives the rate (a deck crew loads 16 spaces/turn) and (G25.135) the limit
+  (shuttles carry only cargo divisible into four-point units, so one indivisible 25-space item
+  does not fit a shuttle either — it needs a tractor).
+- **(G25.23) DIRECT TRANSFER** — blocked on something bigger: it requires the two units to be
+  DOCKED (C13.0), and docking is not modelled anywhere in core. Rates are a table by docking
+  condition (ship-to-ship 16 spaces/turn), it happens in Marines Activity Stage 6B7, and
+  (G25.236) says it costs no power.
+- **(G25.25) contents** — "the contents of a given point of cargo ... cannot be detected unless
+  a special scenario rule ... defines otherwise." There is no contents field yet; Vak Kaleen is
+  the first thing that will need one, and the first PRIVATE field on ObjectiveDto.
+
 ## Published scenarios: what SH80 needs (measured 2026-11-06)
 
 The owner asked how close we are to playing the published scenarios. Measured against

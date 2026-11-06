@@ -2989,6 +2989,19 @@ public class GameSession {
                 return r;
             }
 
+            // Putting cargo back into space. Not the inverse of PICKUP_OBJECTIVE: (G25.214)
+            // refuses it for anything the scenario has not specifically granted, so core
+            // does the ruling and this just carries the refusal through.
+            case "JETTISON_OBJECTIVE": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.jettisonObjective(ship, request.getObjectiveName());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "ANNOUNCE_ESG": {
                 // Announce a release; the field forms 4 impulses later (G23.31).
                 Ship ship = findShip(request.getShipName());

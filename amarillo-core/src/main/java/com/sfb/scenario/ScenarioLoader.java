@@ -819,6 +819,8 @@ public class ScenarioLoader {
             obj.setSurvivesCarrierDestruction(setup.survivesDestruction);
             obj.setSide(setup.side);
             obj.setPoints(setup.points);
+            obj.setCargoSpaces(setup.cargoSpaces);
+            obj.setCanBeLeftInSpace(setup.canBeLeftInSpace);
             List<String> methods = setup.retrieval != null && !setup.retrieval.isEmpty()
                     ? setup.retrieval
                     : List.of("TRANSPORTER"); // sensible default
