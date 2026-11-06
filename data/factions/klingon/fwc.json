@@ -11,6 +11,7 @@
   "moveCost": 0.5,
   "breakdown": 5,
   "bonusHets": 1,
+  "explosionStrength": 13,
   "commandRating": 5,
   "tokenArt": "klingon/fwc.png",
 

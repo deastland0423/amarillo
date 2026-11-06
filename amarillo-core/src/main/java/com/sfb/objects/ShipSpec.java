@@ -62,6 +62,30 @@ public class ShipSpec {
     public double moveCost;
     public int breakdown;
     public int bonusHets;
+    /**
+     * D5.2: the basic explosion strength, Annex #1's "D5.2" column — what this hull does to its
+     * neighbours when it is destroyed or self-destructs.
+     *
+     * <p>A CHART FACT, which is why it sits here beside the BPV and the command rating rather than
+     * in {@code tables}. The table block holds boxes that are crossed off — damage control, sensor,
+     * scanner, the excess-damage count — and this is not a box. Being here also makes it reachable
+     * by a refit's {@code set}, which nothing inside {@code tables} is.
+     *
+     * <p>BOXED, so that "not read off the chart yet" is a thing the data can say. Roughly 430 hulls
+     * carry no number at the moment and a primitive would give every one of them an explosion of
+     * zero, which is a different claim entirely. See {@code ExplosionStrengthDataTest}.
+     *
+     * <p>Not reduced by anything the ship has spent or dropped (D5.2): unexpended drones and mines
+     * add nothing, and a ship that has dropped its warp engines explodes just as hard. The radius
+     * is in D5.41 and belongs to the mechanism, not here — nine or less is the ship's own hex, ten
+     * or more is that hex and the six around it, and no ship reaches further than that.
+     *
+     * <p>The chart writes a pod's or module's entry as "+1" rather than "1", meaning a unit that
+     * never explodes on its own and only ever adds to the explosion of whatever it is docked to
+     * (D5.2). That is a property of the pod, not a different kind of number, so it is not encoded
+     * here; the sign would have to come off before the first tug is built.
+     */
+    public Integer explosionStrength;
     public boolean nimble;
     public int stealthBonus; // Orion Stealth Bonus in ECM points (G15.8), 0 if none
     public Boolean canDoubleEngines; // G15.28: null/absent = capable (default); set false for freighters & the one non-doubling warship
