@@ -502,6 +502,81 @@ public class Game {
     }
 
     /**
+     * (D5.1) Declare self-destruction for one ship, at the start of a turn.
+     *
+     * <blockquote>"A player may only declare self-destruction at the start of a turn after
+     * the other players have completed their Energy Allocation Forms... he simply marks the
+     * Energy Allocation Form for that turn 'self-destruct'; he is generally not required to
+     * fill it out (and there would be no point). He does not make any other entries... and
+     * the ship can do nothing except execute the self-destruct order."</blockquote>
+     *
+     * <p>So declaring SUBMITS the ship's allocation, as an empty form. That is not a
+     * shortcut: it is what the rule describes, and without it the turn would stall waiting
+     * for an allocation from a ship that is forbidden to make one.
+     *
+     * <p>Resolution is (D5.12)'s explosion, in the Self-Destruction Phase (#3) at the top
+     * of {@link #beginImpulses()} -- after energy allocation and before anything moves.
+     */
+    public ActionResult declareSelfDestruct(Ship ship) {
+        if (ship == null || ship.isDestroyed())
+            return ActionResult.fail("No such ship to destroy");
+        if (!awaitingAllocation)
+            return ActionResult.fail("Self-destruction is declared at the start of a turn,"
+                    + " with the Energy Allocation Forms (D5.1)");
+        if (ship.isSelfDestructDeclared())
+            return ActionResult.fail(ship.getName() + " is already marked self-destruct");
+        String refusal = selfDestructRefusal(ship);
+        if (refusal != null)
+            return ActionResult.fail(refusal);
+
+        ship.declareSelfDestruct();
+        submitAllocation(ship, new Energy());
+        return ActionResult.ok(ship.getName() + " is marked SELF-DESTRUCT and will explode"
+                + " before the first impulse (D5.1)");
+    }
+
+    /**
+     * (D5.51) Why this ship may not self-destruct, or null if it may.
+     *
+     * <blockquote>"In multi-ship scenarios, a ship may not self-destruct unless all but two
+     * (or fewer) of its crew units have been killed or evacuated... This restriction is
+     * ignored if there are more enemy than friendly boarding parties (including militia) on
+     * board or if there are no other friendly ships remaining in play. This restriction
+     * cannot be violated simply for the purpose of destroying nearby enemy units."
+     * </blockquote>
+     *
+     * <p>That last sentence is the point of the whole rule and is what stops this becoming a
+     * weapon: a healthy ship cannot drive into a fleet and detonate. Every escape below is a
+     * ship that is already lost.
+     *
+     * <p>(G15.1) exempts the Orions, who "can ignore this restriction and self-destruct
+     * whenever they are in danger of being captured" -- a pirate does not surrender a hull.
+     */
+    String selfDestructRefusal(Ship ship) {
+        if (ship.getFaction() == com.sfb.properties.Faction.Orion)
+            return null;                                  // G15.1
+        if (ship.getCrew().getAvailableCrewUnits() <= 2)
+            return null;                                  // the rule proper
+        if (ship.getEnemyTroops().total() > ship.getCrew().getAvailableBoardingParties())
+            return null;                                  // boarded, and losing
+        boolean hasFriends = false;
+        for (Ship other : ships) {
+            if (other != ship && !other.isDestroyed() && other.getOwner() != null
+                    && other.getOwner() == ship.getOwner()) {
+                hasFriends = true;
+                break;
+            }
+        }
+        if (!hasFriends)
+            return null;                                  // nothing left to save it for
+        return ship.getName() + " still has "
+                + ship.getCrew().getAvailableCrewUnits()
+                + " crew units: a ship may not self-destruct until all but two are dead or"
+                + " evacuated (D5.51), and the restriction cannot be violated just to"
+                + " destroy nearby enemies";
+    }
+
+    /**
      * Finalise all ships' startTurn() and advance to impulse 1.
      * Called automatically once every ship has submitted an allocation.
      */
@@ -509,6 +584,7 @@ public class Game {
         for (Ship ship : ships) {
             ship.startTurn();
         }
+        resolveSelfDestructions();   // Self-Destruction Phase (#3): before anything moves
         // G7.42: links that persisted from last turn must be maintained (paid for)
         // now, before they can slow anyone (pseudo-speed) or be rotated.
         List<String> tractorMaintLog = tractorResolver.maintainLinksAtTurnStart();
@@ -4093,6 +4169,35 @@ public class Game {
      * queue is drained -- and they reach this method on a subsequent pass, where they explode in
      * their own right (D5.32). DamageResolver.resolveInternalDamage owns that drain.
      */
+    /**
+     * (D5.1) The Self-Destruction Phase: every ship that filed a "self-destruct" form goes up.
+     *
+     * <p>Annex #2 puts this at phase 3, after Energy Allocation and before movement, which is
+     * exactly where {@link #beginImpulses()} stands. The explosion is the same code a ship
+     * destroyed in combat goes through, because (D5.12) says so outright: "The
+     * self-destruction procedure is used to determine the extent of the explosion."
+     *
+     * <p>NOT built, and both would only ever PREVENT a declared destruction: (D5.11)
+     * interruption by mutiny (G6.41, unbuilt) or by enemy boarding parties (D7.7), and
+     * (C13.4812), under which an internally docked ship cannot self-destruct at all. A ship
+     * that declares here always goes up.
+     */
+    private void resolveSelfDestructions() {
+        List<Ship> going = new ArrayList<>();
+        for (Ship ship : ships)
+            if (ship.isSelfDestructDeclared() && !ship.isDestroyed())
+                going.add(ship);
+        if (going.isEmpty())
+            return;
+        lastInternalDamageLog = new ArrayList<>();
+        for (Ship ship : going) {
+            lastInternalDamageLog.add(ship.getName() + " SELF-DESTRUCTS (D5.1)");
+            ship.setBattleStatus(com.sfb.properties.BattleStatus.DESTROYED);
+        }
+        cleanupDestroyedShips();     // which explodes them on the way out (D5.12)
+        lastSeekerLog.addAll(lastInternalDamageLog);
+    }
+
     void cleanupDestroyedShips() {
         lastInternalDamageLog.addAll(explosionResolver.explodeDestroyedShips());
         ships.removeIf(s -> {

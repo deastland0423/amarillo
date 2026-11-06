@@ -1344,6 +1344,16 @@ public class GameSession {
                 return game.execute(new MoveCommand(ship, action));
             }
 
+            case "SELF_DESTRUCT": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                // Deliberately no validation beyond finding the ship. (D5.1) is a start-of-turn
+                // declaration and (D5.51) is a crew-state gate, and BOTH live in core -- see
+                // Game.selfDestructRefusal. A copy here is how the pre-G7.6 tractor cap drifted.
+                return game.declareSelfDestruct(ship);
+            }
+
             case "PERFORM_HET": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)

@@ -663,9 +663,29 @@ later read as a bug. Do not half-fix this.
 **Genuinely still open:**
 - **(D5.2) docked units add their strength** to the exploding unit, unless they escape (D21.5),
   and a base the ship is docked TO does not add. Needs the docking model.
-- **(D5.1)/(D5.5) self-destruction as a player action** — declared at the start of a turn,
-  resolved in Self-Destruction Phase #3, blockable by mutiny (G6.41) or enemy boarding parties
-  (D7.7), with (D5.51)'s crew-unit restriction and the Orion exemption (G15.1).
+- **(D5.1)/(D5.5) self-destruction — BUILT in core and server 2026-11-06, NO UI YET.**
+  `Game.declareSelfDestruct` takes the declaration during the allocation
+  window and files an EMPTY Energy Allocation Form for the ship, because (D5.1) says it makes
+  no entries and can do nothing else — without that the turn stalls waiting for a form the
+  rule forbids. Resolution is at the top of `beginImpulses`, which IS Annex #2
+  phase 3. `Game.selfDestructRefusal` holds (D5.51): legal only at two crew
+  units or fewer, or when out-boarded, or as the last ship of its side, or for an Orion
+  (G15.1). The server action is `SELF_DESTRUCT` and deliberately validates
+  nothing beyond finding the ship — a second copy of the gate is how the pre-G7.6 tractor cap
+  drifted. `SelfDestructionTest`, 9 tests.
+
+  **What is left.** The web has no button, so this is reachable only over the API. It belongs
+  in `EnergyAllocationDialog` as a per-ship control sending `SELF_DESTRUCT`
+  instead of `ALLOCATE`, with a confirmation, since it is irreversible.
+  **The DTO cannot currently say whether it is legal**: `selfDestructRefusal` is
+  core-side only, so either the UI offers the button and surfaces the refusal, or a
+  `canSelfDestruct` flag goes on the ship DTO. That dialog is 1,636 lines with
+  no tests on any path, so take characterisation seriously.
+
+  **Still unbuilt, and both only ever PREVENT a declared destruction:** (D5.11) interruption
+  by mutiny (G6.41, unbuilt) or by enemy boarding parties (D7.7), and (C13.4812), under which
+  an internally docked ship cannot self-destruct at all. A ship that declares today always
+  goes up.
 - **(D5.55) terrain**: planets block explosions (P2.547), webs limit them (G10.72).
 - **(D5.14)** a separated section deducts its explosion strength.
 - **Server and web**: nothing was needed — the blast reports through the existing internal

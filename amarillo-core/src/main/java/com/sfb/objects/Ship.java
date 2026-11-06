@@ -2687,6 +2687,24 @@ public class Ship extends Unit implements DroneController {
 	 * base, and the data already says it: the chart lists every ground base at zero. So a
 	 * strength of zero and an unread strength both answer no, by different routes.
 	 */
+	/**
+	 * D5.1: whether this ship has filed its Energy Allocation Form marked "self-destruct".
+	 *
+	 * <p>Declared at the start of a turn and resolved in the Self-Destruction Phase (#3) before
+	 * the first impulse, so it is never carried across a turn boundary -- the ship is gone by
+	 * the time anything could read it twice.
+	 */
+	private boolean selfDestructDeclared = false;
+
+	public boolean isSelfDestructDeclared() {
+		return selfDestructDeclared;
+	}
+
+	/** D5.1. The gate on WHETHER it may be declared is (D5.51) and lives on Game. */
+	public void declareSelfDestruct() {
+		this.selfDestructDeclared = true;
+	}
+
 	public boolean explodes() {
 		return explosionStrength != null && explosionStrength > 0;
 	}
