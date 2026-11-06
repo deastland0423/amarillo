@@ -840,16 +840,29 @@ absent from the UI — the DAC arming display turned out to be exactly this.
 Surveyed 2026-10-11 against the R3 SSD book's contents list: **32 of its 81 ships are missing**,
 and they are not one job. Page numbers are the PRINTED page; add 1 for the PDF page.
 
-**Ready to enter — nothing new needed (17).** Klingon D7E survey cruiser p8, D7V strike carrier p9,
-D6E survey cruiser p11, D5F anti-fighter cruiser p15, D5I ISF cruiser p17, D5N diplomatic cruiser
-p19, RKL Sparrowhawk p22, F6 battle frigate p23, E5 battle escort p24, C8S space control ship p25,
-AD6 heavy escort cruiser p30, E3D drone escort p34; Hydran SR Outrider p36 and LP Lord Paladin p56;
-Lyran SCS Siberian Lion p62, SR Prairie Cat p65, MP military police p77. The first four Klingon
-ones have token art already drawn and parked in `TokenArtClaimedTest`.
+**Ready to enter — nothing new needed: ELEVEN LEFT, not seventeen** (re-surveyed 2026-11-06).
+The list below was checked hull by hull against `data/factions/` and five of the
+original seventeen were ALREADY ENTERED: Klingon D7E, D7V, D6E, D5N and AD6. A sixth, the D5I,
+was entered on 2026-11-06. Re-check before quoting this list again — a survey ages.
 
-Worth doing D5N early for its own sake: it is one of the two Klingon hulls that DOES have a flag
-bridge (G6.12's exception, with the D7N), so it is the live test of the Annex #7E conversion.
+**Still missing (11):** Klingon D5F anti-fighter cruiser p15, RKL Sparrowhawk p22, F6 battle
+frigate p23, E5 battle escort p24, C8S space control ship p25, E3D drone escort p34; Hydran SR
+Outrider p36 and LP Lord Paladin p56; Lyran SCS Siberian Lion p62, SR Prairie Cat p65, MP
+military police p77. Page numbers are the PRINTED page; add 1 for the PDF page.
 
+**The D5N's flag bridge is settled**, so nobody needs to re-open it: that hull is in, and its
+file records the finding. (G6.12) names the diplomatic ships as the Klingon exception that HAS
+a flag bridge, but neither the D5N's sheet nor the D7N's draws a flag box — the boom runs
+BRIDGE, EMER, SCTY and stops. So no flag is declared and a flag hit converts to a security
+station like any other Klingon ship.
+
+**What the D5I cost, as a measure for the rest:** one page render, about twenty minutes, and
+the hull is 95% its parent (the D5). The 5% is the whole job — the ISF fit has phaser-2s
+forward where the D5 has phaser-1s, disruptors of range 22 where the D5 has 30, and NO
+DERFACS. All three are what a copy of the parent gets wrong, and two of them were caught by
+the owner reading the sheet alongside rather than by the draft. `KlingonD5iTest`
+pins them. **Enter these by diffing against the parent hull, then read the sheet for what the
+diff missed.**
 **Blocked on a weapon system (4).** MD5 Klingon war cruiser mauler p29 and STJ Lyran mauler p75
 need E8.0 maulers — a case-insensitive grep of the whole main source tree returns nothing, and
 D23.0 shock is parked behind the same rule. C9A stasis dreadnought p26 and C7A heavy stasis

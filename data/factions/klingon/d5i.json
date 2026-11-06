@@ -1,0 +1,128 @@
+{
+  "faction": "Klingon",
+  "type": "D5I",
+  "typeName": "ISF Cruiser",
+  "line": "CW",
+  "name": "IKS Inquisitor",
+  "serviceYear": 175,
+  "bpv": 100,
+  "turnMode": "B",
+  "sizeClass": 3,
+  "moveCost": 0.6666667,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "explosionStrength": 17,
+  "commandRating": 6,
+  "aegis": "LIMITED",
+  "aegisWeapons": ["ADD", "Phaser3"],
+
+  "_comment": [
+    "R3.55, Module R3 SSD book printed page 17 (PDF 18). Corner reads YS:175 DK:6 EX:17 CR:6, and",
+    "Annex #1 agrees on both numbers that appear in two places: explosion strength 17, BPV 100.",
+    "",
+    "The D5 hull issued to the Internal Security Forces, and the sheet says in so many words what",
+    "that costs: 'THE D5I ASSIGNED TO THE INTERNAL SECURITY FORCES HAD INFERIOR FIRE CONTROL TO",
+    "THOSE SHIPS IN THE DEEP SPACE FLEET.' Three concrete things carry that, and all three are",
+    "easy to lose by copying the D5:",
+    "  - the FORWARD phasers are PHASER-2s, where the D5 mounts phaser-1s;",
+    "  - the disruptors are RANGE 22. The disruptor table on the sheet stops at the 16-22 column,",
+    "    where the D5's runs to 30. Checked against the printed table, not inferred;",
+    "  - NO DERFACS. The D5 declares it; this hull does not get it.",
+    "It carries no UIM either, like the D5 and unlike the D5N.",
+    "",
+    "Everything else IS the D5, verified box by box rather than assumed: shields 30/26 x5, front",
+    "hull 3 and rear hull 6, warp 12+12, impulse 4+1 emergency, APR 2, batteries 3, three",
+    "transporters, three tractors, two shuttle boxes, sensor 6-5-3-1-0, scanner 0-1-3-5-9, damage",
+    "control 4-2-2-2-0 and four excess boxes.",
+    "",
+    "Smaller complement than the D5: 36 crew units against 40, and six boarding parties against",
+    "eight. An internal-security ship does not carry a boarding force.",
+    "",
+    "One oddity recorded rather than smoothed over: the corner gives YS:175 and the data table",
+    "also lists a Y175 refit, so the window in which this ship has type-A racks is empty in",
+    "practice. The sheet still states the conversion, so it is modelled as printed."
+  ],
+
+  "shields": [30, 26, 26, 26, 26, 26],
+
+  "hullBoxes": {
+    "fhull": 3,
+    "ahull": 6
+  },
+
+  "power": {
+    "leftWarp": 12,
+    "rightWarp": 12,
+    "impulse": 5,
+    "apr": 2,
+    "battery": 3
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 2,
+    "security": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 5, 3, 1, 0],
+    "scanner": [0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 3,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 36,
+    "boardingParties": 6,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["LF", "L", "RR", "5"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["RF", "R", "LR", "21"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["R", "RR"] },
+    { "type": "Disruptor", "designator": "A", "range": 22, "arcs": ["FH", "L"] },
+    { "type": "Disruptor", "designator": "B", "range": 22, "arcs": ["FH", "L"] },
+    { "type": "Disruptor", "designator": "C", "range": 22, "arcs": ["FH", "R"] },
+    { "type": "Disruptor", "designator": "D", "range": 22, "arcs": ["FH", "R"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"] },
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"] },
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" },
+    { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12" }
+  ],
+
+  "_y175Comment": [
+    "The sheet states the conversion outright: 'SHIP HAD TYPE-A DRONE RACKS (ONE RELOAD) UNTIL THE",
+    "Y175 REFIT, WHICH CONVERTED THESE TO TYPE-B DRONE RACKS (2 RELOADS).' The racks are therefore",
+    "named explicitly here rather than left to the faction default, which a bare refitCost block",
+    "would suppress anyway.",
+    "",
+    "The ADDs need no entry: 'ANTI-DRONES ALWAYS HAD 12 ROUNDS', so they are born ADD_12 and the",
+    "universal ADD_6 to ADD_12 conversion has nothing to do."
+  ],
+  "y175Upgrades": {
+    "refitCost": 2,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_B" }
+    ]
+  }
+}
