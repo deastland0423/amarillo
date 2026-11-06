@@ -1753,23 +1753,29 @@ resolver pattern already does, and extend the same habit to the other tiers:
 - **Fractional batteries.** Batteries hold whole points, but transporters (0.2/use) and movement
   costs are fractional.
 - **E1.7 small target modifiers.**
-- **The type-G rack's third reload set never materialises.** Found 2026-10-12 while entering the
-  AD6, whose sheet says "RACKS ALWAYS HAD THREE RELOADS. THIRD RELOAD IS ENTIRELY ADDS." A type-G
-  carries two by default and FD3.72's extra set is expressed as `y175Upgrades.racks[].extraReloads`,
-  which the AD5 and AF5 have carried for some time — and all three ships report **two** reloads
-  after `outfitForYear(.., 176, ..)`, so this is pre-existing and not about the new hull.
+- ~~**The type-G rack's third reload set never materialises.**~~ **NOT A BUG — checked against a
+  running ship 2026-11-06, and the report was a misreading of the COUNT.** An AD6 at Y176 holds
+  exactly what FD3.72 and the sheet describe: `ammo=4, droneReloadSets=2, addReloads=8`. Two sets
+  matching the magazine, plus eight anti-drone rounds as the third reload.
 
-  The diagnosis, as far as it got: `DroneRack.addReloadSets(n)` raises `numberOfReloads` AND
-  appends a set to `reloads`, but only `if (!set.isEmpty())` — it copies the rack's CURRENT
-  `ammoList`, so an unloaded rack appends nothing. `getNumberOfReloads()` then answers
-  `reloads.isEmpty() ? numberOfReloads : reloads.size()`, and with two base sets loaded it reports
-  the list's length and the raised counter is never seen. Either the sets must be materialised from
-  the rack's nominal load rather than its current contents, or the getter must prefer the counter.
-  Both have consequences for ships that legitimately carry partial reloads, so read FD3.70/FD3.72
-  before choosing.
+  The owner stated the rule that settles it (2026-11-06): "The last reload of a Type-G rack is
+  always ADDs. So in Y175 (three reloads), we should see two sets that match the rack's magazine
+  plus 8 ADDs to represent the last reload." Eight is not written down anywhere — four spaces at
+  half a space per anti-drone (FD3.70) — so it follows the rack size.
 
-  Separately and smaller: "third reload is entirely ADDs" is not expressible at all — a reload set
-  does not record what is in it.
+  **Why it looked broken.** The third reload cannot live in `reloads`, because an anti-drone is
+  not a `Drone`; it is the `addReloads` count. So `getNumberOfReloads()` answers 2 (the drone
+  sets) where the SSD says three, and "reports two reloads" was read as a missing set rather
+  than as a different thing being counted. `TypeGThirdReloadTest` now pins the contents on all
+  three hulls, before and after the refit, so the next reader gets the answer rather than the
+  diagnosis.
+
+  **What IS worth knowing**, though nothing is wrong today: `getNumberOfReloads()` returns
+  `reloads.isEmpty() ? numberOfReloads : reloads.size()`, so an UNLOADED type-G answers 3 and a
+  loaded one answers 2. `ReloadStockpile` already avoids it by reading `droneReloadSets()`; the
+  DTO's `reloadCount` still uses the ambiguous getter. It reports the ADDs separately as
+  `antiDroneReloads`, so nothing is lost on the wire — but a UI adding the two numbers together
+  would be wrong, and a UI showing only `reloadCount` disagrees with the sheet.
 - **G6.0 security stations and Klingon mutiny.** Raised by the owner 2026-10-11 as "not sure it's
   worth the bother". Read in full; here is what it actually costs.
 
