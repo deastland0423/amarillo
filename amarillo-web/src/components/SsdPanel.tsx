@@ -338,6 +338,40 @@ export default function SsdPanel(
 
         D3.242 and D3.332 make the level public, so it is shown for an enemy ship too.
       */}
+      {/*
+        D5.2 explosion strength, and the C3.14 excess boxes that are the countdown to using
+        it. The owner asked for both after watching a frigate go up in a live game: you
+        cannot tell from the map whether killing a ship clears the adjacent hexes or only
+        its own, and that decides whether it is worth standing next to.
+
+        D5.41's threshold is the whole reason the radius is spelled out rather than left as
+        a number to interpret: nine or less reaches only its own hex, ten or more takes the
+        six around it, and there is nothing in between.
+
+        != null, not !== undefined. Jackson sends an absent strength as an explicit null, and
+        null !== undefined is true -- CLAUDE.md's standing trap.
+      */}
+      {ship.explosionStrength != null && (
+        <div style={{ fontSize: '0.68rem', color: '#6e7681', marginBottom: 4 }}>
+          Explodes for <strong style={{ color: '#c9d1d9' }}>{ship.explosionStrength}</strong>
+          {ship.explosionStrength >= 10
+            ? ' \u2014 this hex and the six around it (D5.41)'
+            : ' \u2014 this hex only (D5.41)'}
+          {/*
+            Only once some have been taken, as asked. An undamaged ship showing "4 of 4"
+            every time is noise; the number becomes interesting exactly when it starts
+            falling, because (D5.2)'s second trigger is an excess hit with none left.
+          */}
+          {ship.maxExcess != null && ship.availableExcess != null
+            && ship.availableExcess < ship.maxExcess && (
+            <span style={{ color: ship.availableExcess === 0 ? '#f85149' : '#d29922' }}>
+              {' \u00b7 excess '}{ship.availableExcess}/{ship.maxExcess}
+              {ship.availableExcess === 0 ? ' \u2014 the next excess hit destroys it' : ''}
+            </span>
+          )}
+        </div>
+      )}
+
       {ship.shieldStatus && ship.shieldStatus !== 'ACTIVE' && (
         <div style={{
           fontSize: '0.68rem', marginBottom: 6, padding: '3px 6px', borderRadius: 3,

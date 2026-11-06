@@ -149,6 +149,12 @@ public class ShipDtoPrivacyTest {
         // OWNER above all, since (D3.33) leaves unpowered boxes undestroyed and a ship with no
         // shields reports a full set of them.
         "shieldStatus",
+        // (D4.14): "the ship portion of the SSD can be inspected at any time", which (D3.241)
+        // spells out as the enemy knowing "how many damage points have been scored and how
+        // many boxes remain". Excess damage boxes are drawn on that same sheet, so the
+        // countdown to a ship exploding is public -- and so is the strength it goes up for,
+        // which is printed in Annex #1 for every hull in the game.
+        "explosionStrength", "availableExcess", "maxExcess",
         "availableAhull", "availableChull", "availableFhull", "maxAhull", "maxChull",
         "maxFhull", "availableApr", "maxApr", "availableImpulse", "maxImpulse",
         "availableLWarp", "availableRWarp", "availableCWarp", "maxLWarp", "maxRWarp",

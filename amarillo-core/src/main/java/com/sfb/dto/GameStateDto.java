@@ -773,6 +773,30 @@ public class GameStateDto {
          * behaviour was reported from a live game on 2026-11-06.
          */
         public String shieldStatus;
+
+        /**
+         * (D5.2) Basic explosion strength off the Master Ship Chart.
+         *
+         * <p>BOXED, and for the usual reason: the chart gives ground bases ZERO, which is
+         * (D5.13) saying they do not explode, while null means nobody has read a value for
+         * that hull. A primitive would collapse the two and tell the player a Hydran
+         * Gendarme-F explodes for nothing. Exactly CLAUDE.md's DTO trap.
+         *
+         * <p>What is shown is the HULL's number. (D5.2) adds docked units and (D5.14)
+         * deducts a separated section; neither is built, so neither moves this.
+         */
+        public Integer explosionStrength;
+
+        /**
+         * (C3.14) Excess damage boxes left, and how many the hull started with.
+         *
+         * <p>These are the boxes that stand between a ship and (D5.2)'s second trigger: "when
+         * a ship... receives an excess damage hit after all excess damage boxes are
+         * destroyed, it explodes". So the pair is a countdown to the explosion above, which
+         * is why they travel together.
+         */
+        public int availableExcess;
+        public int maxExcess;
         public int batteryCharge; // current battery energy available to draw
         public int cloakCost; // energy to maintain cloak (0 if no cloaking device)
         public int maxSpeedNextTurn; // C2.2 acceleration cap for this turn's EA
@@ -1789,6 +1813,9 @@ public class GameStateDto {
         dto.activeShieldCost = ship.getActiveShieldCost();
         dto.minimumShieldCost = ship.getMinimumShieldCost();
         dto.shieldStatus = ship.getShieldStatus().name().toUpperCase();
+        dto.explosionStrength = ship.getExplosionStrength();
+        dto.availableExcess = ship.getSpecialFunctions().getExcessDamage();
+        dto.maxExcess = ship.getSpecialFunctions().getOriginalExcessDamage();
         dto.batteryCharge = ps.getBatteryPower();
         dto.cloakCost = cloak != null ? cloak.getPowerToActivate() : 0;
         dto.maxSpeedNextTurn = ship.getMaxAccelerationSpeed();

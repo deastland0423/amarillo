@@ -467,6 +467,15 @@ export interface ShipObject extends MapObjectBase {
    * goes straight inside. Optional because an older server will not send it.
    */
   shieldStatus?:     string;
+  /**
+   * D5.2 basic explosion strength, or absent for a hull nobody has read one for.
+   *
+   * Guard with != null, never !== undefined: Jackson serialises a null as an explicit null
+   * rather than omitting the key, and `null !== undefined` is true.
+   */
+  explosionStrength?: number | null;
+  availableExcess?:  number;   // C3.14 excess boxes left
+  maxExcess?:        number;   // and how many the hull started with
   batteryCharge:     number;
   cloakCost:         number;
   maxSpeedNextTurn:  number;   // C2.2 acceleration cap
