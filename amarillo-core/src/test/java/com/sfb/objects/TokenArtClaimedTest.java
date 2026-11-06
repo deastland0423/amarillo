@@ -58,10 +58,11 @@ public class TokenArtClaimedTest {
         AWAITING_A_HULL.put("klingon/d6m.png", "D6M mauler");
         // Drawn 2026-11-05 alongside the FWC/FWL and FWV/FWVK, which Module R6 did have sheets
         // for and which are now in the data. The FWE is not in that book: its Klingon section
-        // runs R3.92 to R3.102 and names no FWE. The hull is real — Annex #1 lists it among the
-        // F5W family ("F5W: F5W, FWV, FWC, FEW, F5WX, FWP") — so this is waiting on whichever
-        // module prints its SSD, not on a decision.
-        AWAITING_A_HULL.put("klingon/fwe.png", "FWE, an F5W variant whose sheet is not in R6");
+        // runs R3.92 to R3.102 and names no FWE. Annex #1's Klingon Master Ship Chart places it
+        // in MODULE J2 at rule R3.113 — 110 points, Y177, crew 28, notes "E, A", which is the
+        // escort the FWV wants. Waiting on a book the owner does not have (2026-11-05), not on
+        // a decision.
+        AWAITING_A_HULL.put("klingon/fwe.png", "FWE war destroyer escort, R3.113, SSD in Module J2");
         // R13.19 ISC Minesweeper, Captain's Module C2 SSD p.45 (PDF p.46). Identified from the
         // book's own contents page rather than guessed: the ISC list there runs R13.2 through
         // R13.22 plus the two Q-ships, and .19 is the only minesweeper in it. Unblocked — it

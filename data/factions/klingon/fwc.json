@@ -3,7 +3,7 @@
   "type": "FWC",
   "typeName": "War Destroyer Leader",
   "line": "DW",
-  "name": "IKS War Axe",
+  "name": "IKS Axe Champion",
   "serviceYear": 176,
   "bpv": 104,
   "turnMode": "A",
@@ -11,7 +11,7 @@
   "moveCost": 0.5,
   "breakdown": 5,
   "bonusHets": 1,
-  "commandRating": 4,
+  "commandRating": 5,
   "tokenArt": "klingon/fwc.png",
 
   "shields": [26, 20, 16, 16, 16, 20],
@@ -82,7 +82,7 @@
     {
       "code": "K",
       "name": "Phaser-1 refit",
-      "year": 176,
+      "year": 177,
       "bpv": 3,
       "replaceWeapons": [{"from": "Phaser2", "to": "Phaser1", "designators": ["5", "6", "7"]}]
     }
@@ -92,9 +92,9 @@
     {
       "refits": ["K"],
       "type": "FWL",
-      "name": "IKS Storm Axe",
+      "name": "IKS Storm Champion",
       "typeName": "War Destroyer Leader (Phaser-1 refit)",
-      "serviceYear": 176,
+      "serviceYear": 177,
       "tokenArt": "klingon/fwl.png"
     }
   ]

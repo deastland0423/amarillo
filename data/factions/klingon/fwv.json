@@ -3,7 +3,7 @@
   "type": "FWV",
   "typeName": "Mobile Carrier",
   "line": "DW",
-  "name": "IKS War Carrier",
+  "name": "IKS War Dueler",
   "serviceYear": 176,
   "bpv": 108,
   "epv": 98,
@@ -100,7 +100,7 @@
     {
       "refits": ["K"],
       "type": "FWVK",
-      "name": "IKS Storm Carrier",
+      "name": "IKS Storm Dueler",
       "typeName": "Mobile Carrier (Phaser-1 refit)",
       "serviceYear": 176,
       "tokenArt": "klingon/fwvk.png"
