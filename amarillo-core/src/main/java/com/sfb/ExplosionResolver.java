@@ -35,12 +35,22 @@ import com.sfb.utilities.MapUtils;
  * does not, (D5.41) the strength-dependent radius and the facing shield, (D5.42) cloaking ignored,
  * and (D5.32) a ship destroyed in another hex exploding in its own right.
  *
- * <p>Deliberately NOT built, and logged when it would have mattered rather than quietly
- * approximated: (D5.31) two ships destroyed in the SAME hex are one combined explosion of summed
- * strength, not two. Resolving them separately applies two blasts where the rule applies one, so
- * {@link #explodeDestroyedShips} says so in the log instead of guessing. Also open: (D5.2)'s
- * docked-unit addition, (D5.14)'s separated section, (D5.55)'s planets and webs, and the whole of
- * (D5.1)/(D5.5) self-destruction as a player action. See BACKLOG.md.
+ * <p><b>(D5.31) will not be built.</b> Two ships destroyed in the SAME hex are, by the rule, one
+ * combined explosion of their summed strength; here they are two separate explosions. The owner
+ * ruled it out on 2026-11-06 as too rare to be worth what it costs, and the cost is the point:
+ * combining means knowing the whole wave of destructions BEFORE resolving any of them, and this
+ * engine cannot know that. Bleed-through is queued rather than applied (see above), so the ships
+ * a blast kills are not destroyed until the queue drains -- after the blast that killed them has
+ * already been resolved. Honouring (D5.31) would mean holding every explosion back until the
+ * damage queue is empty, which reorders the whole of 6D4 for an edge case.
+ *
+ * <p>So this is settled, not pending: two wrecks in one hex each explode on their own, which
+ * over-damages slightly against the rulebook. {@code ShipExplosionTest} pins that behaviour so
+ * nobody reads it as a bug and 'fixes' it into a half-combined state.
+ *
+ * <p>Still open, and these are real gaps rather than decisions: (D5.2)'s docked-unit addition,
+ * (D5.14)'s separated section, (D5.55)'s planets and webs, and the whole of (D5.1)/(D5.5)
+ * self-destruction as a player action. See BACKLOG.md.
  */
 class ExplosionResolver {
 
@@ -94,20 +104,6 @@ class ExplosionResolver {
         }
         if (exploding.isEmpty())
             return log;
-
-        // (D5.31): two of them in one hex should be ONE explosion of summed strength. Say so
-        // rather than pretend -- resolving them separately is two blasts where the rule has one,
-        // and a silent approximation here would read as a rules bug in a playtest.
-        for (Ship s : exploding) {
-            long sameHex = exploding.stream()
-                    .filter(o -> o != s && o.getLocation().equals(s.getLocation())).count();
-            if (sameHex > 0) {
-                log.add("  NOTE: " + (sameHex + 1) + " ships exploded in " + s.getLocation()
-                        + " — D5.31 would combine them into one explosion of their summed"
-                        + " strength. Not implemented: each is resolved separately.");
-                break;
-            }
-        }
 
         for (Ship s : exploding) {
             if (!s.explodes()) {

@@ -229,25 +229,41 @@ public class ShipExplosionTest {
                 before, doomed.getShields().getShieldStrength(1));
     }
 
-    // ------------------------------------------------------------------ D5.31, declared not done
+    // ------------------------------------------------------------------ D5.31, decided against
 
     /**
-     * (D5.31): two ships destroyed in the same hex are ONE explosion of their summed strength.
-     * That is not implemented, and resolving them separately applies two blasts where the rule
-     * applies one — so the log has to say so. A silent approximation here would read as a rules
-     * bug to a playtester and be hunted for in the wrong place.
+     * Two ships destroyed in one hex explode SEPARATELY, which knowingly differs from (D5.31).
+     *
+     * <p>The rule combines them into one explosion of their summed strength. The owner ruled that
+     * out on 2026-11-06 — "very edge case, and involves somehow waiting to see if other ships are
+     * destroyed" — which is exactly the obstacle: bleed-through is queued, not applied, so the
+     * wave of destructions is not known until the damage queue drains, by which time the blasts
+     * have already been resolved. Combining would mean holding every explosion back to the end of
+     * 6D4.
+     *
+     * <p>This test exists because the behaviour is a DECISION, not an oversight. Two separate
+     * blasts over-damage slightly against the rulebook; pinning it stops a later reader filing it
+     * as a bug, and stops a half-fix that combines some cases and not others.
      */
     @Test
-    public void twoWrecksInOneHexSayWhatIsMissing() {
+    public void twoWrecksInOneHexExplodeSeparatelyByDesign() {
         Ship first  = ship(FederationShips.getFedCa(), "First", GROUND_ZERO);
         Ship second = ship(FederationShips.getFedCa(), "Second", GROUND_ZERO);
+        Ship victim = ship(FederationShips.getFedCa(), "NextDoor", NEXT_DOOR);
+        int before = victim.getShields().getShieldStrength(1);
 
         first.setBattleStatus(BattleStatus.DESTROYED);
         second.setBattleStatus(BattleStatus.DESTROYED);
         game.cleanupDestroyedShips();
 
-        assertTrue("the log must name the rule it is not applying, and the hex",
-                log().contains("D5.31") && log().contains(GROUND_ZERO.toString()));
+        // Two blasts of 18 against a 30-point shield: the first leaves 12, the second flattens it
+        // and the remainder bleeds through. Zero is therefore proof that BOTH landed — one alone
+        // would have left 12 standing.
+        assertEquals("fixture: one blast alone would not flatten this shield", 30, before);
+        assertEquals("both blasts land", 0, victim.getShields().getShieldStrength(1));
+        assertTrue("the first is reported in its own right", log().contains("First EXPLODES"));
+        assertTrue("and so is the second", log().contains("Second EXPLODES"));
+        assertFalse("nothing claims to have combined them", log().contains("combined"));
     }
 
     /**

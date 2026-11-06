@@ -648,12 +648,19 @@ is next drained. `DamageResolver.resolveInternalDamage` therefore loops: drain, 
 round again if the explosions queued anything. Remove that loop and an explosion's internal
 damage silently waits for the next volley.
 
-**STILL OPEN, in the order worth doing:**
+**The decided non-goal, and then the real gaps:**
 
-- **(D5.31) same-hex combining.** Two ships destroyed in one hex are ONE explosion of their
-  summed strength, not two. Resolving them separately applies two blasts where the rule applies
-  one, which OVER-damages. Not built, and `explodeDestroyedShips` logs a NOTE naming the rule
-  when the situation arises rather than approximating silently. This is the next slice.
+**(D5.31) WILL NOT BE BUILT — owner's ruling, 2026-11-06.** Two ships destroyed in one hex are,
+by the rule, one combined explosion of their summed strength; we resolve them as two, which
+over-damages slightly. "Very edge case, and involves somehow waiting to see if other ships are
+destroyed." That second half is the real cost: combining means knowing the whole wave of
+destructions BEFORE resolving any of them, and bleed-through is QUEUED rather than applied — so
+the ships a blast kills are not destroyed until the queue drains, after the blast that killed
+them has been resolved. Honouring it would mean holding every explosion back to the end of 6D4.
+`ShipExplosionTest.twoWrecksInOneHexExplodeSeparatelyByDesign` pins the behaviour so it is not
+later read as a bug. Do not half-fix this.
+
+**Genuinely still open:**
 - **(D5.2) docked units add their strength** to the exploding unit, unless they escape (D21.5),
   and a base the ship is docked TO does not add. Needs the docking model.
 - **(D5.1)/(D5.5) self-destruction as a player action** — declared at the start of a turn,
