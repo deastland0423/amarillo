@@ -13,6 +13,7 @@
   "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
+  "explosionStrength": 14,
   "commandRating": 6,
   "tokenArt": "romulan/spc.png",
 

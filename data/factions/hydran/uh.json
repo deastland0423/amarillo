@@ -14,6 +14,7 @@
   "bonusHets": 1,
   "carrierClass": "CAPABLE",
   "requiresEscort": true,
+  "explosionStrength": 10,
   "commandRating": 4,
 
   "tokenArt": "hydran/uh.png",

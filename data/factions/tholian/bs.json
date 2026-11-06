@@ -7,6 +7,7 @@
   "serviceYear": 120,
   "bpv": 120,
   "sizeClass": 3,
+  "explosionStrength": 11,
   "commandRating": 8,
   "isBase": true,
   "_note": "R1.3, Module R1 SSD book, headed THOLIAN HOLDFAST BASE. The Base Station chassis the other empires share — shields 21/30/35, hull, power, tables, crew 90, boarding parties 12. What makes it Tholian is that it has NO HEAVY WEAPON at all: no photon, disruptor or plasma, but a seventh phaser-4 and two more phaser-3s on 360-degree arcs instead, and a web caster. Its refit line is the barest of any base — the Y170 and Y175 shield refits and nothing else. No turnMode and no moveCost: a base rotates (C3.7) and the scenario sets the rate. The fighter and hangar MODULES are optional purchases and are out of this baseline. The web is inert here as on every Tholian hull — see auxiliary.web in ShipJsonKeyGuardTest.",

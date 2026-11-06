@@ -13,6 +13,7 @@
   "breakdown": 5,
   "bonusHets": 1,
   "carrierClass": "CAPABLE",
+  "explosionStrength": 13,
   "commandRating": 6,
   "tokenArt": "hydran/nsc.png",
   

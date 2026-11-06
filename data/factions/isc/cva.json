@@ -11,6 +11,7 @@
   "moveCost": 1.5,
   "breakdown": 3,
   "bonusHets": 1,
+  "explosionStrength": 31,
   "commandRating": 10,
   "carrierClass": "CAPABLE",
   "requiresEscort": true,

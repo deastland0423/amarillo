@@ -11,6 +11,7 @@
   "moveCost": 0.3333333,
   "breakdown": 4,
   "bonusHets": 1,
+  "explosionStrength": 8,
   "commandRating": 3,
   "tokenArt": "klingon/e4d.png",
 

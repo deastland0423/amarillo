@@ -12,6 +12,7 @@
   "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
+  "explosionStrength": 15,
   "commandRating": 6,
   "aegis": "LIMITED",
   "aegisWeapons": ["Phaser3"],

@@ -11,6 +11,7 @@
   "moveCost": 0.5,
   "breakdown": 6,
   "bonusHets": 1,
+  "explosionStrength": 14,
   "commandRating": 6,
   "isLeader": true,
 

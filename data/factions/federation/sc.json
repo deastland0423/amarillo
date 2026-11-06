@@ -12,6 +12,7 @@
   "moveCost": 0.5,
   "breakdown": 3,
   "bonusHets": 1,
+  "explosionStrength": 10,
   "commandRating": 5,
   "tokenArt": "federation/sc.png",
 

@@ -12,6 +12,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 2,
+  "explosionStrength": 18,
   "commandRating": 9,
   "tokenArt": "klingon/d6c.png",
 

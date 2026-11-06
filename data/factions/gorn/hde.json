@@ -14,6 +14,7 @@
   "isEscort": true,
   "carrierClass": "CASUAL",
   "aegis": "LIMITED",
+  "explosionStrength": 15,
   "commandRating": 6,
 
   "shields": [27, 20, 20, 20, 20, 20],

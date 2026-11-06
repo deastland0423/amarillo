@@ -12,6 +12,7 @@
   "breakdown": 5,
   "bonusHets": 1,
   "isLeader": true,
+  "explosionStrength": 19,
   "commandRating": 9,
 
   "shields": [30, 30, 24, 24, 24, 30],

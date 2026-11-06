@@ -7,6 +7,7 @@
   "serviceYear": 168,
   "sizeClass": 3,
   "bpv": 110,
+  "explosionStrength": 23,
   "commandRating": 6,
   "turnMode": "A",
   "moveCost": 0.6666667,

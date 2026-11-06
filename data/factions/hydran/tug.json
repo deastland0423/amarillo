@@ -13,6 +13,7 @@
   "moveCost": 1.0,
   "breakdown": 4,
   "bonusHets": 1,
+  "explosionStrength": 15,
   "commandRating": 8,
   "tokenArt": "hydran/dg.png",
   

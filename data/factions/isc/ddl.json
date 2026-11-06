@@ -11,6 +11,7 @@
   "moveCost": 0.5,
   "breakdown": 6,
   "bonusHets": 1,
+  "explosionStrength": 13,
   "commandRating": 5,
   "isLeader": true,
   "tokenArt": "isc/ddl.png",

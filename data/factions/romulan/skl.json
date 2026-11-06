@@ -13,6 +13,7 @@
   "breakdown": 6,
   "bonusHets": 1,
   "isLeader": true,
+  "explosionStrength": 14,
   "commandRating": 5,
   "tokenArt": "romulan/skl.png",
 

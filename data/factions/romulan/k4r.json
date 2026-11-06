@@ -13,6 +13,7 @@
   "moveCost": 0.3333333,
   "breakdown": 4,
   "bonusHets": 1,
+  "explosionStrength": 7,
   "commandRating": 3,
   "shields": [21, 12, 7, 5, 7, 12],
   "hullBoxes": {

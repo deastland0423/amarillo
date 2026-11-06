@@ -7,6 +7,7 @@
   "serviceYear": 120,
   "bpv": 120,
   "sizeClass": 3,
+  "explosionStrength": 11,
   "commandRating": 8,
   "isBase": true,
   "_note": "R1.3, Module R1 SSD book. The Base Station chassis the Federation and Klingon share — shields 21/30/35, hull, power, tables, crew 90, boarding parties 12, the same nine phasers in three pods. What makes it Romulan is a 360-degree PLASMA-S where the others mount a photon or disruptor, two PLASMA-D RACKS on the side arcs, no drones at all, and an optional CLOAK. No turnMode and no moveCost: a base rotates (C3.7) and the scenario sets the rate. The fighter and hangar MODULES are optional purchases and are out of this baseline. NOT MODELLED, both of them downgrades the sheet describes rather than refits it sells: prior to Y165 the plasma-Ds are phaser-3s on 360-degree arcs and the BPV drops 8; prior to Y170 the plasma-S is a plasma-G and the BPV drops 5. The Y180 sabot refit (+4, speed-40 torpedoes) is also unmodelled.",

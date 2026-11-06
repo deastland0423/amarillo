@@ -12,6 +12,7 @@
   "breakdown": 6,
   "bonusHets": 1,
   "isLeader": true,
+  "explosionStrength": 10,
   "commandRating": 4,
   "tokenArt": "hydran/cu.png",
   

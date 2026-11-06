@@ -12,6 +12,7 @@
   "moveCost": 0.5,
   "breakdown": 4,
   "bonusHets": 1,
+  "explosionStrength": 9,
   "commandRating": 5,
   "carrierClass": "CAPABLE",
   "droneStorageSpaces": 100,

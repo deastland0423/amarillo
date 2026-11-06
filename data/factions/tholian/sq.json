@@ -11,6 +11,7 @@
   "moveCost": 0.3333333,
   "breakdown": 2,
   "bonusHets": 0,
+  "explosionStrength": 5,
   "commandRating": 3,
   "_note": "One web generator on a converted freighter (E13.0) — the Tholian Q-ship trick in miniature. The SSD adds that the web generator is destroyed on FLAG hits, and that the Y183 snare refit (+3) lets it operate as a web snare (E13.3, Module C2, with E13.32 for the snare's firing arc); neither is modelled.",
   "shields": [10, 10, 10, 10, 10, 10],

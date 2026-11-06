@@ -12,6 +12,7 @@
   "moveCost": 1.0,
   "breakdown": 4,
   "bonusHets": 1,
+  "explosionStrength": 19,
   "commandRating": 6,
   "tokenArt": "kzinti/tug.png",
   

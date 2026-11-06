@@ -12,6 +12,7 @@
   "moveCost": 0.3333333,
   "breakdown": 6,
   "bonusHets": 2,
+  "explosionStrength": 9,
   "commandRating": 3,
   "tokenArt": "isc/ff.png",
 

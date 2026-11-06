@@ -11,6 +11,7 @@
   "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
+  "explosionStrength": 15,
   "commandRating": 6,
   "tokenArt": "hydran/mng.png",
   "carrierClass": "CAPABLE",

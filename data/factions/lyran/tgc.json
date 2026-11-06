@@ -12,6 +12,7 @@
   "moveCost": 1.0,
   "breakdown": 3,
   "bonusHets": 1,
+  "explosionStrength": 19,
   "commandRating": 8,
   "tokenArt": "lyran/tug.png",
   

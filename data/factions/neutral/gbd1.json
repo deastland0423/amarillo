@@ -8,6 +8,7 @@
   "serviceYear": 120,
   "bpv": 8,
   "sizeClass": 5,
+  "explosionStrength": 0,
   "commandRating": 0,
 
   "_comment": [

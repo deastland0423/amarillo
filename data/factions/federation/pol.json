@@ -12,6 +12,7 @@
   "breakdown": 6,
   "nimble": true,
   "bonusHets": 2,
+  "explosionStrength": 7,
   "commandRating": 3,
   "tokenArt": "federation/pol.png",
   

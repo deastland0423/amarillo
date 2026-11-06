@@ -616,7 +616,7 @@ groundwork already in place.
 - **G21.1/G21.2 crew quality adjustments.** The declaration is built and `crewQuality` is on
   `ShipSpec`; the adjustment lists are not. The ±3 natural EW is the first slice.
 
-## Ship explosions (D5.0) — NOT started; the trigger exists, the DATA does not (2026-11-05)
+## Ship explosions (D5.0) — the DATA is in; the mechanism is not (2026-11-05)
 
 A destroyed ship blows up and damages what is near it, and nothing in the game does this yet.
 Raised by the owner on 2026-11-05, on noticing that Annex #1's Master Ship Chart carries an
@@ -652,21 +652,43 @@ system including excess is gone (C3.14), and `BattleStatus` already distinguishe
 excess damage. `tables.excess` is the box count and is in every ship file. So this hooks into a
 place that exists rather than needing a new one.
 
-**What does not exist is the number.** No `explosionStrength` anywhere in core, and no hull
-declares one — about 430 of them.
+**THE NUMBER NOW EXISTS. 355 of 356 hulls carry one** (2026-11-05), read off Annex #1's "D5.2"
+column in `data/rules/Master_Annex_File.pdf`, which IS Module G3's annexes — no other book was
+needed. `ShipSpec.explosionStrength` is an `Integer` and `ExplosionStrengthDataTest` now demands
+one from every hull, with a parked list of exactly one entry: the Hydran GEN-F, which the chart
+does not list apart from the GEN.
 
-**But the data is already on disk, and this is the thing to know before planning the pass.** The
-owner named Module G3 as the book that holds every ship's explosion strength (2026-11-05), and
-`data/rules/Master_Annex_File.pdf` IS Module G3's annexes — its page footers say so. Nothing
-needs to be bought or asked for. The column is headed "D5.2" in each faction's Master Ship
-Chart, between C13.3 dock points and the F&E command rating, and the charts run from PDF page
-25 (Federation) to about 105, roughly ten pages per large empire: Klingon 35-44, Romulan 45-53,
-Kzinti 54-58, Gorn 59-63, Hydran 72-77, Lyran 81-85, ISC 89-93, LDR 94-95. The pages are images
-and render legibly at 200 dpi whole, no cropping needed — PDF 39 is the one these notes were
-read off.
+**Read by geometry, not by eye.** The chart pages are text, not scans, but rotated 90 degrees,
+so `pdftotext -layout` pairs each ship's label with a NEIGHBOUR's numbers — which looks like
+data rather than like an error, and is the trap in this file. Poppler's `-bbox-layout` gives
+word coordinates; a printed row is then a column of constant x and a printed column a band of y,
+and the header column (anchored on its own "D5.2" entry) gives the bands. The scripts are gone
+but the method is the point, and it applies to every other column in the annex.
 
-Worth doing as its own data pass BEFORE the mechanism, because a mechanism with no data cannot
-be tested on a real ship. The F5W family's are already read: F5W/F5WK/FWC/FWL 13, FWV/FWVK 12.
+**What made it trustworthy was pulling the BPV column alongside** and comparing it to each ship
+file's own `bpv`. 291 of 313 agreed exactly; the disagreements are listed below. That check
+caught a real error in its first run: the annex's key says **"Split BPVs are read
+economic/combat"**, so a chart cell of `108/98` is `bpv 98, epv 108` — the opposite of the
+obvious reading, and the FWV had been entered backwards an hour earlier.
+
+**Three cross-checks on the column itself**, since a BPV match proves the ROW and not the
+column: mean strength by size class came out 29.1 / 17.2 / 9.5 for classes 2 / 3 / 4 across
+eleven separate faction charts; the Orions sit above everyone despite small hulls, which is
+(D5.2) saying their nuclear suicide bombs are included; and a Lyran page nobody had looked at
+matched the written values ship for ship.
+
+**Where the odd ones came from.** Bases take 11 from the GENERAL BASES chart, which prints
+"11+" — the "+" is (D5.2)'s own arithmetic, a docked module adding ITS strength, so 11 is the
+base's own number. Q-ships come from a table indexed by EMPIRE NAME rather than type code
+(page 17). Freighters share rows by class (F-AL covers all four armed-large variants). Ground
+bases are listed at ZERO, which is the chart agreeing with (D5.13) in the data — and the reason
+the guard's floor is 0 rather than 1.
+
+**22 hulls whose BPV disagrees with Annex #1** — unrelated to this work and left alone, but
+somebody should look: sixteen are ISC (ours consistently lower: CA 142 v 185, CC 198 v 220,
+DN 264 v 280), plus Klingon D7C 136 v 139, Kzinti BC 135 v 128, Lyran CA 131 v 133, Romulan SNE
+68 v 78, Orion BS 200/75 against our 200. Either our files hold a different refit state or they
+are wrong; the chart is one source and the R-sections are another.
 
 **Deferred clauses to decide when it is built**, none of which block a first slice: (D5.55)
 planets block explosions (P2.547) and webs limit them (G10.72); docked ships are partly shielded

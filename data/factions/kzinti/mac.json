@@ -11,6 +11,7 @@
   "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
+  "explosionStrength": 16,
   "commandRating": 6,
   "isEscort": true,
   "carrierClass": "CASUAL",

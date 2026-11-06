@@ -11,6 +11,7 @@
   "moveCost": 0.5,
   "breakdown": 2,
   "bonusHets": 0,
+  "explosionStrength": 10,
   "commandRating": 3,
   "_note": "Two web generators on a converted freighter (E13.0), which is the Tholian version of the Q-ship trick — it looks like cargo until it webs the raider in place. The SSD adds that web generators are destroyed on FLAG hits, and that the Y183 snare refit (+6) lets both operate as web snares (E13.3, Module C2); neither is modelled.",
   "shields": [20, 20, 20, 20, 20, 20],

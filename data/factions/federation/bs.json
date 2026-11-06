@@ -7,6 +7,7 @@
   "serviceYear": 120,
   "bpv": 107,
   "sizeClass": 3,
+  "explosionStrength": 11,
   "commandRating": 8,
   "isBase": true,
   "_note": "R1.3, Module R1 SSD book. THE SHEET DRAWS THE Y160 SHIP and tells you what to take away for an earlier one: prior to Y160, delete the drone rack and the ADD and reduce the BPV by 13. A refit can only ADD, so this file inverts that — the base IS the pre-Y160 station at 107 points with neither, and the Y160 refit puts them back for the 13 the sheet names. The drawn configuration is therefore the BS60 variant rather than the bare BS. No turnMode and no moveCost: a base rotates (C3.7) and the scenario sets the rate. The fighter and hangar MODULES are optional purchases and are out of this baseline.",

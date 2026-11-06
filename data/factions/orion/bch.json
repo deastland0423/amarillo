@@ -7,6 +7,7 @@
   "serviceYear": 180,
   "sizeClass": 3,
   "bpv": 180,
+  "explosionStrength": 30,
   "commandRating": 10,
   "turnMode": "C",
   "moveCost": 1.0,

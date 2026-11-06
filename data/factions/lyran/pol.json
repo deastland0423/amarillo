@@ -11,6 +11,7 @@
   "moveCost": 0.3333333,
   "breakdown": 6,
   "bonusHets": 2,
+  "explosionStrength": 6,
   "commandRating": 3,
   "nimble": true,
 

@@ -14,6 +14,7 @@
   "carrierClass": "CAPABLE",
   "isEscort": true,
   "aegis": "FULL",
+  "explosionStrength": 11,
   "commandRating": 4,
   
   "tokenArt": "hydran/da.png",

@@ -7,6 +7,7 @@
   "serviceYear": 120,
   "bpv": 120,
   "sizeClass": 3,
+  "explosionStrength": 11,
   "commandRating": 8,
   "isBase": true,
   "_note": "R1.3, Module R1 SSD book. Shares the Base Station chassis with the Federation BS exactly — shields, hull, power, tables, crew and the nine phasers all match box for box. What makes it Klingon is the 360-degree DISRUPTOR where the Federation mounts a photon, two SECURITY STATIONS, and the Y165 UIM-and-DERFACS refit in place of the Federation's AWR refit. No turnMode and no moveCost: a base rotates (C3.7) and the scenario sets the rate. The fighter and hangar MODULES are optional purchases and are deliberately out of this baseline.",

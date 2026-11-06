@@ -7,6 +7,7 @@
   "serviceYear": 120,
   "bpv": 114,
   "sizeClass": 3,
+  "explosionStrength": 11,
   "commandRating": 8,
   "isBase": true,
   "_note": "R1.3, Module R1 SSD book, headed HYDRAN BASE STATION. The Base Station chassis the other empires share - shields 21/30/35, hull, power, tables, crew 90, boarding parties 12, six phaser-4s in three pods. What makes it Hydran is that the three phaser-3s are phaser-Gs instead, and the central heavy weapon is a pair of 360-degree guns rather than one: a hellbore and a fusion beam. AS WITH THE FEDERATION BASE THIS FILE INVERTS THE SHEET. The sheet draws the Y158 ship and says that prior to Y158 you replace the hellbore with a fusion beam and reduce the BPV by six, and a refit can only add - so the base IS the pre-Y158 station at 114 points with two fusion beams, and the Y158 refit turns gun A into the hellbore for the six points the sheet names. No turnMode and no moveCost: a base rotates (C3.7) and the scenario sets the rate. The Y168 fusion holding refit is on the sheet at ZERO points and needs no entry here: E7.5 holding is year-gated at Y168 in ScenarioLoader.applyFusionHolding, so a base built for Y168 or later already has it. The fighter, hangar and PF MODULES are optional purchases and are out of this baseline.",

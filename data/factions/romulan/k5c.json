@@ -12,6 +12,7 @@
   "moveCost": 0.5,
   "breakdown": 4,
   "bonusHets": 1,
+  "explosionStrength": 11,
   "commandRating": 5,
   "isLeader": true,
   "tokenArt": "romulan/k5c.png",

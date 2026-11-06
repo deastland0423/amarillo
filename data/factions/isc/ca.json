@@ -11,6 +11,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "explosionStrength": 22,
   "commandRating": 8,
   "tokenArt": "isc/ca.png",
   "note": "R13.6, Captain's Module C2 SSD p.33. The sheet draws the FULLY REFITTED ship at 185 points and prices each refit as a deduction, so the hull here is the Y160 original: eight phaser-1s and two plasma-G, 185 - 6 - 15 - 10 - 12 = 142. The four refits add or convert their way back up to the printed ship. The Y180 Sabot refit (+10) is deliberately absent: it allows speed-40 torpedoes under FP11.0 in Module R10, which is out of scope.",

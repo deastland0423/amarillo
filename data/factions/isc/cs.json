@@ -11,6 +11,7 @@
   "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
+  "explosionStrength": 17,
   "commandRating": 6,
   "tokenArt": "isc/cs.png",
   "note": "R13.11, Captain's Module C2 SSD p.38 (PDF p.39). The Light Cruiser's hull with TWO PPDs at FA where the CL carries two plasma-G at FP; shields, hull, warp, impulse, crew and every damage track are the CL's unchanged, which is why it is lined with it. Size class 3, so E11.16 allows the PPDs. Two of them, so a CS flagship contributes two to E11.17's allowance rather than the cap of four.\n\nTHE PHASER-3s ARE BASE ARMAMENT, NOT A REFIT, and that is the one thing on this hull worth reading twice. The CL carries four of them as its Y165 PH-3 refit; this ship enters service in Y168, AFTER that date, so the sheet draws them already fitted and there is no refit line to copy. The file was first entered with no phaser-3s at all - neither base nor refit - which is exactly what a dropped refit looks like, and is the same shape as the FFL that inherited a probe its sheet does not have. Questioned and answered by the owner 2026-10-23; recorded here so the missing refit line never reads as an oversight again.\n\nPROVENANCE: derived from cl.json and diffed against it field by field, not read box by box off its own sheet. The owner vouched for the hull. If a number here is ever in doubt, the sheet is the authority and this file has not been checked against it.",

@@ -8,6 +8,7 @@
   "serviceYear": 134,
   "bpv": 8,
   "sizeClass": 5,
+  "explosionStrength": 0,
   "commandRating": 0,
   "_comment": [
     "R1.14, Advanced Missions SSD book page 9. One of the ground base fits \u2014 the chassis is the",

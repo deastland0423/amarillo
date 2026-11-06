@@ -12,6 +12,7 @@
   "moveCost": 0.5,
   "breakdown": 5,
   "bonusHets": 1,
+  "explosionStrength": 10,
   "commandRating": 6,
   "tokenArt": "romulan/bh.png",
   "shields": [25, 25, 25, 25, 25, 25],

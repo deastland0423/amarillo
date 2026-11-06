@@ -11,6 +11,7 @@
   "moveCost": 0.3333333,
   "breakdown": 2,
   "bonusHets": 0,
+  "explosionStrength": 5,
   "commandRating": 3,
   "_note": "No cloakCost, deliberately: the SSD data table says DOES NOT HAVE CLOAK. And the plasma-G bears ASTERN (RA), which is the design of the ship, not an error — it looks like a freighter, so a raider beginning its attack run sees it turn and run, and closes into the one arc that can hurt it.",
   "shields": [10, 10, 10, 10, 10, 10],

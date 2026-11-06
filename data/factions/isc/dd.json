@@ -11,6 +11,7 @@
   "moveCost": 0.5,
   "breakdown": 6,
   "bonusHets": 1,
+  "explosionStrength": 12,
   "commandRating": 4,
   "tokenArt": "isc/dd.png",
   "note": "R13.17, Captain's Module C2 SSD p.43. One refit only — 92 less the 4 for going without PL-F gives the Y160 hull at 88. No PPD, no plasma-S, and its phaser-3s are standard rather than a refit, so this is the plainest of the ISC line. Size class FOUR, which matters for R13.1C: a destroyer is itself a 'size-class-4 or larger ship'. No balcony note on this sheet, unlike the CA and CL. The Y180 Sabot refit (+4) is absent for the usual reason: FP11.0 lives in Module R10, out of scope.",

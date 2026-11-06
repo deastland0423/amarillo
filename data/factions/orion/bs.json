@@ -8,6 +8,7 @@
   "bpv": 200,
   "epv": 75,
   "sizeClass": 3,
+  "explosionStrength": 11,
   "commandRating": 8,
   "isBase": true,
   "_note": "R1.3, Module R1 SSD book, headed ORION BASE STATION. It shares the Base Station hull, power and tables with the six empire bases - shields 21/30/35, damage control 4/4/2/2/2/0, excess 6, one bay with two admin shuttles - and almost nothing else. ITS CREW IS 70, NOT 90: the sheet's crew block is seven columns wide where every other base's is nine. It mounts SIX phasers, not nine, and they are phaser-1s and phaser-3s rather than the phaser-4s the empires fit. It has NO heavy weapon of its own, only an option mount (G15.4) the buyer fills. And its point value is split 200 BPV / 75 EPV, which is why epv is set here rather than left to default to the BPV. NO STEALTH BONUS: the sheet says so outright, which is worth stating because every other Orion hull has one - the absence is the base's, not an omission. No turnMode and no moveCost: a base rotates (C3.7) and the scenario sets the rate. The fighter, hangar and PF MODULES are optional purchases and are out of this baseline. NOT MODELLED: the sheet's OAKDISC +5. FD4.5 is unbuilt (see control.oakdisc in ShipJsonKeyGuardTest) and a refit block naming a field the spec does not declare throws at load, so it cannot be parked here as a refit either.",

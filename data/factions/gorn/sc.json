@@ -12,6 +12,7 @@
   "moveCost": 0.5,
   "breakdown": 4,
   "bonusHets": 1,
+  "explosionStrength": 9,
   "commandRating": 4,
 
   "shields": [14, 10, 8, 7, 8, 10],

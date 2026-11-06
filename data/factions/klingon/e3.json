@@ -12,6 +12,7 @@
   "breakdown": 5,
   "bonusHets": 2,
   "nimble": true,
+  "explosionStrength": 7,
   "commandRating": 3,
   "tokenArt": "klingon/e3.png",
   

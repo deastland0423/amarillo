@@ -13,6 +13,7 @@
   "moveCost": 1.5,
   "breakdown": 5,
   "bonusHets": 1,
+  "explosionStrength": 26,
   "commandRating": 10,
   "droneStorageSpaces": 150,
   "requiresEscort": true,

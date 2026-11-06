@@ -11,6 +11,7 @@
   "moveCost": 0.5,
   "breakdown": 4,
   "bonusHets": 1,
+  "explosionStrength": 11,
   "commandRating": 4,
   "tokenArt": "klingon/f5d.png",
   

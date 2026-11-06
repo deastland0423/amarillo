@@ -12,6 +12,7 @@
   "moveCost": 0.5,
   "breakdown": 4,
   "bonusHets": 1,
+  "explosionStrength": 9,
   "commandRating": 4,
   "tokenArt": "romulan/k5r.png",
   "shields": [21, 16, 9, 9, 9, 16],

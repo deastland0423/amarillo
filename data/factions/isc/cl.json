@@ -11,6 +11,7 @@
   "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
+  "explosionStrength": 17,
   "commandRating": 6,
   "tokenArt": "isc/cl.png",
   "note": "R13.9, Captain's Module C2 SSD p.36. Like the CA, the sheet draws the fully refitted ship (145) and prices each refit as a deduction, so the hull here is the Y160 original: six phaser-1s and two plasma-G, 145 - 4 - 10 - 8 = 123. NO PPD — the pulsar device is a heavy-hull weapon and this ship has no refit line for one, which is the clearest difference from the Star Cruiser. Its plasma-S sit on the CENTRELINE at FP rather than in the wings at LP/RP, and it carries four rear-firing plasma-F instead of six. The Y180 Sabot refit (+8) is absent for the same reason as the CA's: FP11.0 lives in Module R10, out of scope. Probe AMMO (5 rounds) is not modelled — auxiliary.probes is the launcher count.",

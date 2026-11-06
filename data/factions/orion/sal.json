@@ -8,6 +8,7 @@
   "sizeClass": 3,
   "bpv": 90,
   "epv": 112,
+  "explosionStrength": 22,
   "commandRating": 6,
   "turnMode": "C",
   "moveCost": 0.6666667,

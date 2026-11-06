@@ -13,6 +13,7 @@
   "bonusHets": 1,
   "isEscort": true,
   "carrierClass": "CASUAL",
+  "explosionStrength": 17,
   "commandRating": 6,
   "aegis": "FULL",
   "tokenArt": "klingon/ad5.png",

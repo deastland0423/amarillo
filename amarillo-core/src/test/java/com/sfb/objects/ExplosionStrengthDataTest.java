@@ -9,18 +9,22 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- * D5.2 explosion strengths in the ship data: what is declared must be sane, and what is read off
- * the chart must survive into the variants.
+ * D5.2 explosion strengths in the ship data: every hull has one, it is sane, and it survives into
+ * the variants.
  *
- * <h2>Why this does not yet demand a number from every hull</h2>
- * The figures live in Annex #1's "D5.2" column ({@code data/rules/Master_Annex_File.pdf}, which is
- * Module G3's annexes), one chart page per faction, and reading all of them is a data pass of its
- * own — see the ship-explosion section of BACKLOG.md. About 430 hulls carry no number today.
+ * <h2>Where the numbers came from</h2>
+ * Annex #1's "D5.2" column, in {@code data/rules/Master_Annex_File.pdf} — which IS Module G3's
+ * annexes, so no other book is involved. All 355 were read in one pass on 2026-11-05, and each
+ * was checked against the chart's own BPV column: a hull whose chart BPV equals the one in its
+ * ship file is a hull paired with the right row. That check earned its place by catching a real
+ * error while it ran — the annex reads split values "economic/combat", which is the opposite
+ * way round from the obvious reading.
  *
- * <p>That is what {@link ShipSpec#explosionStrength} is an {@code Integer} for: a primitive would
- * have said every unread hull explodes for zero, which is a claim rather than a silence. When the
- * pass is finished, {@link #everyDeclaredStrengthIsPlausible()} becomes "every hull declares one"
- * and this paragraph goes with it.
+ * <h2>Zero is a value; null is a gap</h2>
+ * The chart lists ground bases at ZERO, agreeing with (D5.13): small ground bases do not explode.
+ * So the floor here is 0 and not 1. {@link ShipSpec#explosionStrength} stays an {@code Integer}
+ * because those two states must remain distinguishable — a hull nobody has read is not a hull
+ * that explodes for nothing.
  */
 public class ExplosionStrengthDataTest {
 
@@ -30,13 +34,69 @@ public class ExplosionStrengthDataTest {
     }
 
     /**
-     * Every number that IS declared is in the range a basic explosion strength occupies.
+     * Hulls the chart does not list separately, each with the reason — the same shape as the
+     * parked art in {@code TokenArtClaimedTest}. A list like this is worth reading only while
+     * every line is still true, which {@link #noParkedHullOutlivesItsReason()} enforces.
+     */
+    private static final java.util.Map<String, String> NOT_ON_THE_CHART =
+            new java.util.LinkedHashMap<>();
+    static {
+        NOT_ON_THE_CHART.put("Hydran/GEN-F",
+                "the Gendarme with fighters. Annex #1 prints one GEN row (strength 7) and no"
+                + " variant rows, and (D5.12) says the strength is not modified by what a ship"
+                + " carries — so 7 is very likely right, and 'very likely' is not a source.");
+    }
+
+    /**
+     * Every hull in the data has a number, or a line above saying why it has not.
+     *
+     * <p>This is the half that stops the pass rotting. Entering a hull is exactly the moment to
+     * forget a field nothing yet reads, and without this the next ship file would simply be
+     * silent about it.
+     */
+    @Test
+    public void everyHullDeclaresAnExplosionStrength() {
+        List<String> missing = new ArrayList<>();
+        int seen = 0;
+        for (ShipSpec spec : ShipLibrary.all()) {
+            if (spec.refitOf != null)
+                continue;                       // a variant inherits its hull's; see below
+            seen++;
+            String key = spec.faction + "/" + spec.type;
+            if (spec.explosionStrength == null && !NOT_ON_THE_CHART.containsKey(key))
+                missing.add(key + " — read it off Annex #1's D5.2 column");
+        }
+        assertTrue("fixture: the library should be loaded", seen > 300);
+        assertTrue("hulls with no explosion strength:\n  " + String.join("\n  ", missing),
+                missing.isEmpty());
+    }
+
+    /** A parked hull that has since been given a number is a line claiming something untrue. */
+    @Test
+    public void noParkedHullOutlivesItsReason() {
+        List<String> stale = new ArrayList<>();
+        for (String key : NOT_ON_THE_CHART.keySet()) {
+            String[] parts = key.split("/", 2);
+            ShipSpec spec = ShipLibrary.get(parts[0], parts[1]);
+            if (spec == null)
+                stale.add(key + " — no such hull any more; remove this line");
+            else if (spec.explosionStrength != null)
+                stale.add(key + " — it has a number now; remove this line");
+        }
+        assertTrue("NOT_ON_THE_CHART has entries that are no longer true:\n  "
+                + String.join("\n  ", stale), stale.isEmpty());
+    }
+
+    /**
+     * Every number is in the range a basic explosion strength occupies.
      *
      * <p>The upper bound is doing the real work. A BPV typed into this field by mistake is the
-     * error this field invites — they are adjacent in the chart and adjacent in the JSON — and
-     * every warship BPV above a frigate's is three digits while the largest explosion strengths on
-     * the Romulan chart are in the forties. If a legitimate base ever exceeds this, raise the
-     * bound; do not widen it pre-emptively, because a bound that admits 104 admits the mistake.
+     * error this field invites — the two are adjacent in the chart and adjacent in the JSON —
+     * and every warship BPV above a frigate's is three digits, while the largest strength in our
+     * data is a base's. If a legitimate hull ever exceeds this, raise the bound; do not widen it
+     * pre-emptively, because a bound that admits 104 admits the mistake.
+     *
+     * <p>The floor is 0, not 1: the chart gives ground bases zero, which is (D5.13) in the data.
      */
     @Test
     public void everyDeclaredStrengthIsPlausible() {
@@ -47,11 +107,11 @@ public class ExplosionStrengthDataTest {
                 continue;
             declared++;
             int bes = spec.explosionStrength;
-            if (bes < 1 || bes > 99)
+            if (bes < 0 || bes > 99)
                 wrong.add(spec.faction + "/" + spec.type + " = " + bes
-                        + " — outside 1..99; a BPV in the explosionStrength field looks like this");
+                        + " — outside 0..99; a BPV in the explosionStrength field looks like this");
         }
-        assertTrue("fixture: some hull should declare one by now", declared > 0);
+        assertTrue("fixture: the hulls should carry numbers by now", declared > 300);
         assertTrue("implausible explosion strengths:\n  " + String.join("\n  ", wrong),
                 wrong.isEmpty());
     }

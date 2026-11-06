@@ -12,6 +12,7 @@
   "moveCost": 0.3333333,
   "breakdown": 4,
   "bonusHets": 1,
+  "explosionStrength": 8,
   "commandRating": 2,
   "crewQuality": "poor",
   "tokenArt": "klingon/e4j.png",

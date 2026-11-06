@@ -13,6 +13,7 @@
   "moveCost": 0.5,
   "breakdown": 6,
   "bonusHets": 1,
+  "explosionStrength": 10,
   "commandRating": 5,
   "tokenArt": "romulan/skf.png",
 

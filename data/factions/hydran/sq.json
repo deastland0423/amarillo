@@ -12,6 +12,7 @@
   "moveCost": 0.3333333,
   "breakdown": 2,
   "bonusHets": 0,
+  "explosionStrength": 5,
   "commandRating": 3,
   "tokenArt": "hydran/sq.png",
   
