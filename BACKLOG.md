@@ -840,12 +840,12 @@ absent from the UI — the DAC arming display turned out to be exactly this.
 Surveyed 2026-10-11 against the R3 SSD book's contents list: **32 of its 81 ships are missing**,
 and they are not one job. Page numbers are the PRINTED page; add 1 for the PDF page.
 
-**Ready to enter — nothing new needed: ELEVEN LEFT, not seventeen** (re-surveyed 2026-11-06).
-The list below was checked hull by hull against `data/factions/` and five of the
-original seventeen were ALREADY ENTERED: Klingon D7E, D7V, D6E, D5N and AD6. A sixth, the D5I,
-was entered on 2026-11-06. Re-check before quoting this list again — a survey ages.
+**Ready to enter — nothing new needed: TEN LEFT, not seventeen** (re-surveyed 2026-11-06).
+The list was checked hull by hull against `data/factions/` and five of the original seventeen
+were ALREADY ENTERED: Klingon D7E, D7V, D6E, D5N and AD6. Two more went in on 2026-11-06, the
+D5I and the D5F. Re-check before quoting this list again — a survey ages.
 
-**Still missing (11):** Klingon D5F anti-fighter cruiser p15, RKL Sparrowhawk p22, F6 battle
+**Still missing (10):** Klingon RKL Sparrowhawk p22, F6 battle
 frigate p23, E5 battle escort p24, C8S space control ship p25, E3D drone escort p34; Hydran SR
 Outrider p36 and LP Lord Paladin p56; Lyran SCS Siberian Lion p62, SR Prairie Cat p65, MP
 military police p77. Page numbers are the PRINTED page; add 1 for the PDF page.

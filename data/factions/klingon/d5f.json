@@ -1,0 +1,144 @@
+{
+  "faction": "Klingon",
+  "type": "D5F",
+  "typeName": "Anti-Fighter Cruiser",
+  "line": "CW",
+  "name": "IKS Swarmbreaker",
+  "serviceYear": 172,
+  "bpv": 110,
+  "turnMode": "B",
+  "sizeClass": 3,
+  "moveCost": 0.6666667,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "explosionStrength": 17,
+  "commandRating": 6,
+  "tokenArt": "klingon/d5f.png",
+  "aegis": "LIMITED",
+  "aegisWeapons": ["ADD", "Phaser3"],
+
+  "_comment": [
+    "R3.52, Module R3 SSD book printed page 15 (PDF 16). Corner reads YS:172 DK:6 EX:17 CR:6, and",
+    "Annex #1 agrees on explosion strength 17 and BPV 110.",
+    "",
+    "The D5 hull rebuilt to kill fighters and drones, and the trade is the whole ship: it gives up",
+    "BOTH DRONE RACKS and mounts FOUR anti-drone racks in their place, where the D5 carries two of",
+    "each. Everything it fires at a seeking weapon, it fires twice as much of.",
+    "",
+    "Read against the D5I entered the same day, because these two are opposites and copying either",
+    "one into the other would be wrong in both directions:",
+    "  - the forward phasers here are PHASER-1s (the D5I's are phaser-2s);",
+    "  - the disruptors are RANGE 30, the full table out to the 23-30 column (the D5I stops at 22);",
+    "  - it has DERFACS and a UIM — the data table says '1 x UIM STANDARD', and the disruptor",
+    "    table prints HIT(UIM), HIT(DERFACS) and HIT(OL/UIM) rows the D5I's simply does not have.",
+    "This is the deep-space fit; the D5I is the one with the inferior fire control.",
+    "",
+    "Everything else IS the D5, counted rather than inherited: shields 30/26 x5, hull 3 forward and",
+    "6 rear, warp 12+12, impulse 4+1 emergency, APR 2, batteries 3, three transporters, three",
+    "tractors, two shuttle boxes, 40 crew units, 8 boarding parties, sensor 6-5-3-1-0, scanner",
+    "0-1-3-5-9, damage control 4-2-2-2-0 and four excess boxes.",
+    "",
+    "Two notes on the sheet we do NOT model, recorded so nobody hunts for them:",
+    "  - 'LIMITED AEGIS SYSTEM CONTROLS PH-3s AND ADDs' — that one IS modelled, above.",
+    "  - 'THIS SHIP CAN CONTROL A NUMBER OF SEEKING WEAPONS EQUAL TO ITS SENSOR RATING', which is",
+    "    the ordinary limit stated out loud rather than a special power. Compare the D5N, whose",
+    "    sheet HALVES it — that one is a real modifier and is also unmodelled."
+  ],
+
+  "shields": [30, 26, 26, 26, 26, 26],
+
+  "hullBoxes": {
+    "fhull": 3,
+    "ahull": 6
+  },
+
+  "power": {
+    "leftWarp": 12,
+    "rightWarp": 12,
+    "impulse": 5,
+    "apr": 2,
+    "battery": 3
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 2,
+    "security": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 5, 3, 1, 0],
+    "scanner": [0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 3,
+    "labs": 2,
+    "probes": 1,
+    "uim": 1,
+    "derfacs": true
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 40,
+    "boardingParties": 8,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX", "13"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["LF", "L", "RR", "5"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["RF", "R", "LR", "21"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["R", "RR"] },
+    { "type": "Disruptor", "designator": "A", "range": 30, "arcs": ["FH", "L"] },
+    { "type": "Disruptor", "designator": "B", "range": 30, "arcs": ["FH", "L"] },
+    { "type": "Disruptor", "designator": "C", "range": 30, "arcs": ["FH", "R"] },
+    { "type": "Disruptor", "designator": "D", "range": 30, "arcs": ["FH", "R"] },
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" },
+    { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12" },
+    { "type": "ADD", "designator": "ADD 3", "addType": "ADD_12" },
+    { "type": "ADD", "designator": "ADD 4", "addType": "ADD_12" }
+  ],
+
+  "_refitComment": [
+    "The data table lists one refit: K REFIT (Y175) = +2, and the sheet says which phasers it",
+    "touches — 'PHASER-2s MARKED K ARE CHANGED TO PHASER-1s ON THE K REFIT'. The two marked boxes",
+    "are the wing phasers 3 and 4, exactly as on the D5 and the D5N. The forward pair are already",
+    "phaser-1s.",
+    "",
+    "No y175Upgrades block: this hull has no drone racks to convert, and its ADDs are born with",
+    "twelve rounds ('ANTI-DRONES ALWAYS HAD 12 ROUNDS'), so the universal ADD_6 to ADD_12",
+    "conversion has nothing to do either."
+  ],
+  "refits": [
+    {
+      "code": "K",
+      "name": "Phaser-1 refit",
+      "year": 175,
+      "bpv": 2,
+      "replaceWeapons": [{ "from": "Phaser2", "to": "Phaser1", "designators": ["3", "4"] }]
+    }
+  ],
+  "variants": [
+    {
+      "refits": ["K"],
+      "type": "D5FK",
+      "name": "IKS Swarmbreaker II",
+      "typeName": "Anti-Fighter Cruiser (Phaser-1 refit)",
+      "serviceYear": 175
+    }
+  ]
+}
