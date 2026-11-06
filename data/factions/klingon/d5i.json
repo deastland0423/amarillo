@@ -13,6 +13,7 @@
   "bonusHets": 1,
   "explosionStrength": 17,
   "commandRating": 6,
+  "tokenArt": "klingon/d5i.png",
   "aegis": "LIMITED",
   "aegisWeapons": ["ADD", "Phaser3"],
 
