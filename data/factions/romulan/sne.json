@@ -6,7 +6,7 @@
   "name": "RIS Orcus",
   "series": "EAGLE",
   "serviceYear": 171,
-  "bpv": 68,
+  "bpv": 78,
   "turnMode": "D",
   "sizeClass": 4,
   "moveCost": 0.25,

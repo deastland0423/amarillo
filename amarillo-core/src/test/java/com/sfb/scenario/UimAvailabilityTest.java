@@ -36,6 +36,17 @@ public class UimAvailabilityTest {
         ShuttleCatalog.loadDefault("../data");
     }
 
+    /**
+     * The D7C's declared BPV, in one place because three assertions below are offsets from it.
+     *
+     * <p>It read 136 until 2026-11-06, when the owner corrected the hull to Annex #1's 139 --
+     * and two tests failed with "expected 131 but was 134", which names neither the hull nor the
+     * reason. What these tests are about is the year-gated ADJUSTMENTS, minus five for the
+     * missing UIM and plus three for the Y175 refit; the base is a fixture, so it lives here
+     * where a data correction is a one-line fix.
+     */
+    private static final int D7C_BPV = 139;
+
     /** One Klingon hull through the real loader at a scenario year. */
     private Ship klingon(String type, int year) {
         ScenarioSpec spec = new ScenarioSpec();
@@ -85,26 +96,26 @@ public class UimAvailabilityTest {
 
     /**
      * NB the "later" year is Y170, not Y180. The D7C carries a {@code y175Upgrades} refitCost of 3
-     * for its ADD conversion, so a Y180 D7C is 139 rather than 136 — two year-gated adjustments on
+     * for its ADD conversion, so a Y180 D7C is 142 rather than 139 — two year-gated adjustments on
      * one hull, and picking Y180 here measured both at once. Keep the two gates apart in tests.
      */
     @Test
     public void theD7cIsTheOtherAffectedHull() {
         Ship early = klingon("D7C", 150);
         assertFalse(early.hasUim());
-        assertEquals(136 - 5, early.getBattlePointValue());
+        assertEquals(D7C_BPV - 5, early.getBattlePointValue());
 
         Ship later = klingon("D7C", 170);
         assertTrue(later.hasUim());
-        assertEquals(136, later.getBattlePointValue());
+        assertEquals(D7C_BPV, later.getBattlePointValue());
     }
 
     /** And both gates on one hull compose: pre-Y165 loses the UIM, post-Y175 adds the refit. */
     @Test
     public void theUimGateAndTheY175RefitComposeOnTheD7c() {
-        assertEquals("Y150: no UIM, no refit", 136 - 5, klingon("D7C", 150).getBattlePointValue());
-        assertEquals("Y170: UIM, no refit",    136,     klingon("D7C", 170).getBattlePointValue());
-        assertEquals("Y180: UIM and refit",    136 + 3, klingon("D7C", 180).getBattlePointValue());
+        assertEquals("Y150: no UIM, no refit", D7C_BPV - 5, klingon("D7C", 150).getBattlePointValue());
+        assertEquals("Y170: UIM, no refit",    D7C_BPV,     klingon("D7C", 170).getBattlePointValue());
+        assertEquals("Y180: UIM and refit",    D7C_BPV + 3, klingon("D7C", 180).getBattlePointValue());
     }
 
     /**

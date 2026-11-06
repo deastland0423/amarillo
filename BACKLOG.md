@@ -734,7 +734,7 @@ base's own number. Q-ships come from a table indexed by EMPIRE NAME rather than 
 bases are listed at ZERO, which is the chart agreeing with (D5.13) in the data — and the reason
 the guard's floor is 0 rather than 1.
 
-**The BPV disagreements, resolved down to four** (2026-11-06). Of the 21 hulls whose `bpv` did
+**The BPV disagreements, all resolved** (2026-11-06). Of the 21 hulls whose `bpv` did
 not match the chart, **sixteen were never wrong**: each is our unrefitted hull plus the exact sum
 of its own declared refit costs, so the chart lists the fully-refitted ship while we hold the base
 hull and the refits as data (S3.24). All sixteen are ISC, which is just the empire whose hulls
@@ -752,10 +752,20 @@ other split Orion hull was already right, which is what made this one findable.
 for it, and catches a base's variants along with the base. Note the Andromedans invert this
 (BS 200/400) — out of scope, but do not take them as a counter-example to the rule.
 
-**Four genuinely disagree and nobody has looked**: Klingon D7C 136 v 139, Kzinti BC 135 v 128
-(ours HIGHER, the only one in that direction), Lyran CA 131 v 133, Romulan SNE 68 v 78. None is
-explained by refits. The chart is one source and the R-sections another; whoever picks this up
-should read the R-section entry before touching the file.
+**The remaining four were ours being wrong, and the owner has fixed all four** (2026-11-06):
+Klingon D7C 136 → 139, Kzinti BC 135 → 128, Lyran CA 131 → 133, Romulan SNE 68 → 78. The BC was
+the one caught from the side, by the sample builder in `KzintiShips` having said 128 all along —
+two sources against the file. The owner's verdict on the rest: "All of your reads on BPV were
+correct."
+
+**The cross-check now comes out clean: 308 hulls, 292 exact and 16 explained by declared
+refits, nothing unexplained.** Worth re-running after any data pass; the method is in the
+geometry note above, and remember to add the refits before calling anything a mismatch.
+
+Two tests pinned the old prices and moved with them: `CarrierPriceByYearTest` (the BC, twice)
+and `UimAvailabilityTest` (the D7C, three times). The D7C's base is now a named constant there,
+because the failure read "expected 131 but was 134" and named neither the hull nor the reason —
+those tests are about the year-gated adjustments, not the price.
 
 **Also unverified, for a different reason**: the Federation BS (107) and Hydran BS (114) against
 the GENERAL BASES row's 120. Base explosion strengths came off the general chart rather than a
