@@ -1719,6 +1719,29 @@ loadouts; option mounts; `maxTurns`; and — the one that matters most for SH80 
 `destructionDirections` and `destructionEdges`, which `DisengagementResolver`
 reads. A ship leaving the wrong way really is destroyed.
 
+**The transcription had THREE errors, found only by reading the printed scenario against the
+file (2026-11-06).** All three sat in (SH80.41) — the one part of this scenario the engine
+actually enforces — so the automation was faithfully applying the wrong rule:
+
+- the **Federation carried no restriction at all**, so the Lexington could run out in any
+  direction, where SH80.41 allows only A;
+- the **Klingon listed F as fatal**, where "B, C, E, or F" are all legal exits;
+- the **Romulan used map EDGES**, the wrong model as well as the wrong content: the rule
+  restricts the DIRECTION of disengagement, and the map floats in any case.
+
+Also unset: `commanderOptions.maxDroneSpeed`, though (SH80.432) says all drones are
+"medium," Speed 20 and the field already existed.
+
+**The lesson is that a transcribed scenario needs checking against its printed page the way a
+ship does against its SSD.** None of the three looks wrong in the file, and the engine cannot
+tell — it enforced them exactly as written. Any other transcribed scenario in
+`data/scenarios/` should be assumed unchecked until someone has the page beside it.
+
+One clause is deliberately NOT encoded: the Klingon "cannot disengage by any means in
+direction B or C unless a Romulan crew unit has transferred". Listing B and C would forbid
+outright what the scenario permits once the transfer happens, so it stays with the players and
+the file records why.
+
 **Carried but with NO consumer in core**, which is the honest gap:
 - `mapType` — SH80 wants FLOATING, and the scenario tracks how far the xx30 row has
   shifted. Nothing reads the field. This is the biggest single item for this scenario.

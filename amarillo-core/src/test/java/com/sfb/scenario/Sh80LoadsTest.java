@@ -68,21 +68,38 @@ public class Sh80LoadsTest {
     }
 
     /**
-     * The per-side disengagement restrictions are STRUCTURED, not prose, and
-     * {@code DisengagementResolver} reads them. This is the part of SH80 that is genuinely
-     * enforced today.
+     * (SH80.41) The per-side disengagement restrictions, which are STRUCTURED rather than prose
+     * and which {@code DisengagementResolver} actually enforces — a ship leaving the wrong way
+     * is destroyed.
+     *
+     * <p>All three sides were WRONG in the data until 2026-11-06, in the one part of this
+     * scenario the engine enforces: the Federation carried no restriction at all, the Klingon
+     * had a legal direction (F) listed as fatal, and the Romulan used map EDGES, which is the
+     * wrong model for a rule about the direction of disengagement on a floating map.
      */
     @Test
-    public void thePerSideDisengagementRestrictionsSurviveTheLoad() {
-        ScenarioSpec.SideSpec klingon = spec.sides.get(1);
-        ScenarioSpec.SideSpec romulan = spec.sides.get(2);
+    public void thePerSideDisengagementRestrictionsMatchTheScenario() {
+        ScenarioSpec.SideSpec federation = spec.sides.get(0);
+        ScenarioSpec.SideSpec klingon    = spec.sides.get(1);
+        ScenarioSpec.SideSpec romulan    = spec.sides.get(2);
 
-        assertEquals("the Klingon is destroyed leaving A, D or F",
-                java.util.Set.of("A", "D", "F"), klingon.destructionDirections);
-        assertEquals("and the Romulan off three edges",
-                java.util.Set.of("TOP", "BOTTOM", "LEFT"), romulan.destructionEdges);
+        assertEquals("SH80.41: the Federation can only disengage in A",
+                java.util.Set.of("B", "C", "D", "E", "F"), federation.destructionDirections);
+        assertEquals("SH80.41: the Klingon can only disengage in B, C, E or F",
+                java.util.Set.of("A", "D"), klingon.destructionDirections);
+        assertEquals("SH80.41: the Romulan can only disengage in B or C",
+                java.util.Set.of("A", "D", "E", "F"), romulan.destructionDirections);
+
+        for (ScenarioSpec.SideSpec side : spec.sides)
+            assertTrue(side.name + " should restrict by DIRECTION, not by map edge",
+                    side.destructionEdges.isEmpty());
     }
 
+    /** (SH80.432) "All drones are medium, Speed 20." The field existed and was never set. */
+    @Test
+    public void theDroneSpeedCapIsSet() {
+        assertEquals(Integer.valueOf(20), spec.commanderOptions.maxDroneSpeed);
+    }
     /** The prose rules reach the player, which is how they get enforced at all today. */
     @Test
     public void theSpecialRulesAreCarriedForThePlayersToRead() {

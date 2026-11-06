@@ -28,12 +28,23 @@
           "refits": []
         }
       ],
-      "reinforcements": []
+      "reinforcements": [],
+      "destructionDirections": [
+        "B",
+        "C",
+        "D",
+        "E",
+        "F"
+      ],
+      "_disengagementComment": "SH80.41: \"The Federation units can only disengage in direction A.\" Every other exit is destruction. This side carried NO restriction at all until 2026-11-06, so the Lexington could run out in any direction it liked."
     },
     {
       "name": "Klingon Empire",
       "faction": "Klingon",
-      "destructionDirections": ["A", "D", "F"],
+      "destructionDirections": [
+        "A",
+        "D"
+      ],
       "ships": [
         {
           "type": "D7N",
@@ -42,15 +53,17 @@
           "startHeading": "B",
           "startSpeed": 5,
           "weaponStatus": 1,
-          "refits": ["uim"]
+          "refits": [
+            "uim"
+          ]
         }
       ],
-      "reinforcements": []
+      "reinforcements": [],
+      "_disengagementComment": "SH80.41: \"The Klingon ship can only disengage in directions B, C, E, or F\", so only A and D are fatal. F was wrongly listed here until 2026-11-06 and cost the Dictator a legal exit. The rest of the clause is CONDITIONAL and is left to the players: it \"cannot disengage by any means in direction B or C unless a Romulan crew unit has transferred to the Klingon ship\". Nothing in the engine can test that, and encoding B and C here would forbid outright what the scenario allows once the transfer happens."
     },
     {
       "name": "Romulan Star Empire",
       "faction": "Romulan",
-      "destructionEdges": ["TOP", "BOTTOM", "LEFT"],
       "ships": [
         {
           "type": "K5RB",
@@ -62,7 +75,14 @@
           "refits": []
         }
       ],
-      "reinforcements": []
+      "reinforcements": [],
+      "destructionDirections": [
+        "A",
+        "D",
+        "E",
+        "F"
+      ],
+      "_disengagementComment": "SH80.41: \"The Romulan ship can only disengage in directions B or C.\" This read destructionEdges TOP/BOTTOM/LEFT until 2026-11-06, which is the wrong model as well as the wrong content -- SH80.41 restricts the DIRECTION of disengagement, not which map edge is crossed, and the map floats in any case."
     }
   ],
   "victoryConditions": {
@@ -77,8 +97,8 @@
   },
   "commanderOptions": {
     "budgetPercent": 20,
-   
     "allowTBombs": true,
-    "allowCommandos": true
+    "allowCommandos": true,
+    "maxDroneSpeed": 20
   }
 }
