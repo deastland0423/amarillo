@@ -422,6 +422,21 @@ public class Drone extends Unit implements Seeker {
 	 * <p>{@code launcherName} is a name on purpose and always has been — it is kept so an
 	 * orphaned drone can still say where it came from after the launching ship is gone, which is
 	 * exactly the property a save needs.
+	 *
+	 * <h2>{@code load} is what the drone is MADE of, and the type cannot say it</h2>
+	 * FD10.2 made a drone a frame, an engine and a payload, so a type-I in a rack may be a
+	 * warhead drone or an ECM drone (FD10.44) and the type name is the same either way. Writing
+	 * only the type restored a chimera: the ECM drone's zero warhead and its rack size came back
+	 * in the saved numbers above while its ECM module did not, so what flew was a standard
+	 * type-I that did no damage and jammed nothing. Nothing in the drone said which, because
+	 * every FD10.4x effect reads {@link #getSpec} and the type still said type-I.
+	 *
+	 * <p>So the composition travels as {@link DroneLoad#format}, the textual form the COI and the
+	 * scenario files have always used for the same fact. An unmodified drone formats as its basis
+	 * name alone — {@code "TypeI"} — which is the very token {@code droneType} holds, and that
+	 * is what makes the key cost nothing in the common case and read cleanly across builds:
+	 * {@code droneType} is still written for a reader that has never heard of {@code load}, and
+	 * {@link #fromState} still restores a drone from {@code droneType} alone.
 	 */
 	@Override
 	public java.util.Map<String, Object> exportState() {
@@ -429,6 +444,11 @@ public class Drone extends Unit implements Seeker {
 		state.put(Seeker.SAVE_KIND, SAVE_KIND_DRONE);
 		state.put("name", getName());
 		state.put("droneType", type == null ? null : type.name());
+		// What it is BUILT from (FD10.2), which the type name cannot carry. Null only for a
+		// drone with no type at all; DroneLoad refuses a spec whose frame or engine disagrees
+		// with its basis, so a drone that cannot describe itself writes nothing rather than a
+		// description of a different drone.
+		state.put("load", formatLoad());
 
 		if (getLocation() != null) {
 			state.put("x", getLocation().getX());
@@ -459,6 +479,24 @@ public class Drone extends Unit implements Seeker {
 	}
 
 	/**
+	 * This drone as one {@link DroneLoad} token, or null if it cannot be described as one.
+	 *
+	 * A spec is only ever handed to a drone through {@code DroneLoad.build} or a loader that
+	 * built it the same way, so the refusal is defensive rather than expected — and the answer
+	 * to it is to fall back on the type, which is strictly what a save wrote before this key
+	 * existed.
+	 */
+	private String formatLoad() {
+		if (type == null)
+			return null;
+		try {
+			return new DroneLoad(type, spec).format();
+		} catch (IllegalArgumentException e) {
+			return type.name();
+		}
+	}
+
+	/**
 	 * Rebuild a drone from a save, with its references already resolved by the caller.
 	 *
 	 * The type comes first and through the constructor, because it is what gives the drone its
@@ -479,7 +517,22 @@ public class Drone extends Unit implements Seeker {
 				return null;
 			}
 		}
-		Drone drone = droneType == null ? new Drone() : new Drone(droneType);
+		// The COMPOSITION when the save has one, because a type-I may be a warhead drone or an
+		// ECM drone and only this tells them apart (FD10.44). A load naming a module this build
+		// does not have, or absent entirely as it is in every save written before it existed,
+		// leaves the drone as its type: less than was saved, but still a drone of the right
+		// family rather than nothing at all.
+		String load = com.sfb.systemgroups.StateIo.text(state, "load");
+		Drone drone = null;
+		if (load != null) {
+			try {
+				drone = DroneLoad.parse(load).build();
+			} catch (IllegalArgumentException e) {
+				drone = null;
+			}
+		}
+		if (drone == null)
+			drone = droneType == null ? new Drone() : new Drone(droneType);
 
 		String name = com.sfb.systemgroups.StateIo.text(state, "name");
 		if (name != null)
