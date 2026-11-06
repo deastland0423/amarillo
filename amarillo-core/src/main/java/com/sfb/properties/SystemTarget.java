@@ -33,7 +33,16 @@ public class SystemTarget {
         CHULL,
         CLOAKING_DEVICE,
         DERFACS,
-        UIM
+        UIM,
+        // Control rooms. (D7.8371) one guard covers all CONNECTED boxes of a single type,
+        // and "different types of control boxes (security, flag, aux, emer, bridge) can
+        // never be protected by a single guard" — so each type is one post, never a pool.
+        // (D7.827) also lets a raid name a control box as the room an individual is in.
+        BRIDGE,
+        FLAG,
+        EMER,
+        AUXCON,
+        SECURITY
     }
 
     private final Type   type;

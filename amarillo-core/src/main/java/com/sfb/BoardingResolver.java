@@ -128,6 +128,23 @@ class BoardingResolver {
             systems.add(new SystemTarget(SystemTarget.Type.CHULL, "Center Hull"));
         }
 
+        // Control rooms. One entry PER TYPE, not per box: (D7.8371) makes the connected
+        // boxes of a type a single group for guarding, and a raider names the room rather
+        // than a box within it (D7.827). Listed here rather than in a second enumeration
+        // because the guard-posting UI reads this same list — so a room becomes raidable
+        // and guardable together, which is the pairing (D7.8371) assumes.
+        com.sfb.systemgroups.ControlSpaces c = target.getControlSpaces();
+        if (c.getAvailableBridge() > 0)
+            systems.add(new SystemTarget(SystemTarget.Type.BRIDGE, "Bridge"));
+        if (c.getAvailableFlag() > 0)
+            systems.add(new SystemTarget(SystemTarget.Type.FLAG, "Flag Bridge"));
+        if (c.getAvailableEmer() > 0)
+            systems.add(new SystemTarget(SystemTarget.Type.EMER, "Emergency Bridge"));
+        if (c.getAvailableAuxcon() > 0)
+            systems.add(new SystemTarget(SystemTarget.Type.AUXCON, "Auxiliary Control"));
+        if (c.getAvailableSecurity() > 0)
+            systems.add(new SystemTarget(SystemTarget.Type.SECURITY, "Security Station"));
+
         return systems;
     }
 
@@ -684,6 +701,23 @@ class BoardingResolver {
                 return target.getSpecialFunctions().damageSensor();
             case SCANNERS:
                 return target.getSpecialFunctions().damageScanner();
+            // Control rooms. (D7.823) bars only damage-control and excess-damage boxes, and
+            // (D7.827) explicitly has a raider name "a given SSD box or room" — so these are
+            // legitimate raid targets, which is the other half of (D7.8371) letting them be
+            // guarded. Note that the Annex #7E flag-bridge-to-security CONVERSION is NOT
+            // applied here: that is how the DAC reallocates a hit when a ship has no flag
+            // bridge, and a raider walking into a named room is not the DAC. A ship without
+            // the room simply has nothing to raid.
+            case BRIDGE:
+                return target.getControlSpaces().damageBridge();
+            case FLAG:
+                return target.getControlSpaces().damageFlag();
+            case EMER:
+                return target.getControlSpaces().damageEmer();
+            case AUXCON:
+                return target.getControlSpaces().damageAuxcon();
+            case SECURITY:
+                return target.getControlSpaces().damageSecurity();
             case BATTERY:
                 return target.getPowerSystems().damageBattery();
             case FHULL:

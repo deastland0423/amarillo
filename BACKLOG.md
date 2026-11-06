@@ -1697,6 +1697,49 @@ ship and passed. Filter the unconvertible classes out of the compared graph inst
 remains by path fragment. Switching to fragments immediately surfaced four real losses the coarse
 version had been hiding.
 
+## Named individuals aboard a ship (D7.82/D7.83) — the route to Vak Kaleen
+
+**(D7.8371) control-room guards: FIXED 2026-11-06.** Owner caught the claim that control rooms
+were not guardable "by design". They are: *"A single boarding party, assigned as a guard, is
+sufficient to protect all connected control boxes of a single type ... Different types of control
+boxes (security, flag, aux, emer, bridge) can never be protected by a single guard."* So it is one
+post PER TYPE covering every connected box of it — the same group shape as a warp engine, and
+(D7.8375) therefore holds the combat-damage casualty roll until the WHOLE group is gone.
+
+`SystemTarget.Type` had no control room at all, so the bridge of every ship in the game was both
+unguardable and un-raidable. Those were one bug, not two: the raid picker and the guard picker
+both read `getTargetableSystems`, so adding the five rooms there fixed both through all three
+tiers with no UI change. Note the Annex #7E flag-to-security CONVERSION is deliberately NOT applied
+to a raid — that is how the DAC reallocates a hit on a hull with no flag bridge, and a raider
+naming a room is not the DAC.
+
+**The bigger find: Vak Kaleen is an instance of a GENERAL rule, not a scenario special.** The whole
+of SH80.46 is already covered by rules we have not built:
+
+- **(D7.838)** *"Up to six individuals may be specified as being in a given compartment (or room, a
+  designation not specifically translatable into specific systems boxes on the SSD), and one
+  boarding party can guard that one room. For example, several legendary officers could be
+  designated as being in the 'bridge'."* This is the representation: a named person occupies a
+  ROOM, and a room is explicitly looser than an SSD box.
+- **(D7.824)** *"Hit-and-run raids may be made to remove specific individuals or objects from a
+  given ship ... When trying to capture a person or object, the result 'System destroyed and BP
+  returned safely' is read 'target captured and BP returned safely.'"* That is the CAPTURE
+  mechanism, and it reuses the hit-and-run result table we already have.
+- **(D7.827)** assassination raids: the raider names *"a given SSD box or room where an individual
+  might be located (G22.13)"*, and any identified person present is killed.
+- **(D7.826)** crew units, deck crews and boarding parties CANNOT be raided — so the individual is
+  a different kind of thing from the personnel around them.
+
+SH80.5's terms line up exactly: 200 points to the Federation if Kaleen is captured (D7.824), 100 if
+he is killed (D7.827). The scenario invents nothing. **This supersedes the earlier plan of modelling
+him as an `Objective` retrieved by transporter** — the transporter path is still right for the
+ally-to-ally handoff SH80 allows, but capture and death belong to the raid table.
+
+**What to build, in order:** an occupant list on a room (D7.838, up to six, with identity); raid
+outcomes reading capture/assassination against it (D7.824/D7.827); then (G22.13) legendary
+officers, which is the same feature with a different source of names. The injury/death cup of
+SH80.461-.467 still needs the printed page — ask the owner to re-upload it.
+
 ## Moving an objective between ships (G25.0) — built 2026-11-06
 
 Prompted by Vak Kaleen (SH80.46), but built as the general mechanism: a scenario objective

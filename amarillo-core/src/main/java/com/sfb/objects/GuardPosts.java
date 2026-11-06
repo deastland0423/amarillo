@@ -38,7 +38,14 @@ public class GuardPosts {
     private static final Set<SystemTarget.Type> SINGLETON_TYPES = EnumSet.of(
             SystemTarget.Type.WARP_L, SystemTarget.Type.WARP_R, SystemTarget.Type.WARP_C,
             SystemTarget.Type.IMPULSE, SystemTarget.Type.SENSORS, SystemTarget.Type.SCANNERS,
-            SystemTarget.Type.CLOAKING_DEVICE, SystemTarget.Type.DERFACS);
+            SystemTarget.Type.CLOAKING_DEVICE, SystemTarget.Type.DERFACS,
+            // (D7.8371) "A single boarding party, assigned as a guard, is sufficient to
+            // protect all connected control boxes of a single type ... Different types of
+            // control boxes (security, flag, aux, emer, bridge) can never be protected by a
+            // single guard." That is one post PER TYPE covering every box of it — the same
+            // shape as a warp engine, not a pool — so they belong here.
+            SystemTarget.Type.BRIDGE, SystemTarget.Type.FLAG, SystemTarget.Type.EMER,
+            SystemTarget.Type.AUXCON, SystemTarget.Type.SECURITY);
 
     private static final Set<SystemTarget.Type> POOL_TYPES = EnumSet.of(
             SystemTarget.Type.TRANSPORTERS, SystemTarget.Type.BATTERY,
@@ -444,6 +451,14 @@ public class GuardPosts {
                 return ship.getCloakingDevice() != null && ship.getCloakingDevice().isFunctional();
             case DERFACS:
                 return ship.getDerfacs() != null && ship.getDerfacs().isFunctional();
+            // A control-room post covers the whole group (D7.8371), so it survives while
+            // ANY box of that type does — which is also what (D7.8375) wants for combat
+            // damage: the casualty roll waits until the entire group is gone.
+            case BRIDGE:   return ship.getControlSpaces().getAvailableBridge() > 0;
+            case FLAG:     return ship.getControlSpaces().getAvailableFlag() > 0;
+            case EMER:     return ship.getControlSpaces().getAvailableEmer() > 0;
+            case AUXCON:   return ship.getControlSpaces().getAvailableAuxcon() > 0;
+            case SECURITY: return ship.getControlSpaces().getAvailableSecurity() > 0;
             default: return false;
         }
     }
