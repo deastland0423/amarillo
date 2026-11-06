@@ -243,8 +243,10 @@ public class CarrierPriceByYearTest {
 
                 assertEquals("no fighters and no refit crossed, so nothing for the date to change",
                                 early, stillEarly, 1e-9);
-                assertEquals("a 135 hull and sixteen mediums at a half (S2.11)", 143, early, 1e-9);
+                // 128, not the 135 this read until 2026-11-06: the owner corrected the hull
+                // after Annex #1 and the sample builder both gave 128 against the file's 135.
+                assertEquals("a 128 hull and sixteen mediums at a half (S2.11)", 136, early, 1e-9);
                 assertEquals("plus the Y175 rack refit the BC declares, and twenty fast drones at a point",
-                                159, late, 1e-9);
+                                152, late, 1e-9);
         }
 }
