@@ -653,11 +653,20 @@ excess damage. `tables.excess` is the box count and is in every ship file. So th
 place that exists rather than needing a new one.
 
 **What does not exist is the number.** No `explosionStrength` anywhere in core, and no hull
-declares one — about 430 of them. It is a column in Annex #1 (`data/rules/Master_Annex_File.pdf`,
-"D5.2 Explo Str", beside dock points and the F&E command rating), one faction page at a time,
-and the pages render cleanly at 200 dpi: the Klingon page is PDF 39. Worth doing as its own
-data pass BEFORE the mechanism, because a mechanism with no data cannot be tested on a real
-ship. The F5W family's are already read: F5W/F5WK/FWC/FWL 13, FWV/FWVK 12.
+declares one — about 430 of them.
+
+**But the data is already on disk, and this is the thing to know before planning the pass.** The
+owner named Module G3 as the book that holds every ship's explosion strength (2026-11-05), and
+`data/rules/Master_Annex_File.pdf` IS Module G3's annexes — its page footers say so. Nothing
+needs to be bought or asked for. The column is headed "D5.2" in each faction's Master Ship
+Chart, between C13.3 dock points and the F&E command rating, and the charts run from PDF page
+25 (Federation) to about 105, roughly ten pages per large empire: Klingon 35-44, Romulan 45-53,
+Kzinti 54-58, Gorn 59-63, Hydran 72-77, Lyran 81-85, ISC 89-93, LDR 94-95. The pages are images
+and render legibly at 200 dpi whole, no cropping needed — PDF 39 is the one these notes were
+read off.
+
+Worth doing as its own data pass BEFORE the mechanism, because a mechanism with no data cannot
+be tested on a real ship. The F5W family's are already read: F5W/F5WK/FWC/FWL 13, FWV/FWVK 12.
 
 **Deferred clauses to decide when it is built**, none of which block a first slice: (D5.55)
 planets block explosions (P2.547) and webs limit them (G10.72); docked ships are partly shielded
