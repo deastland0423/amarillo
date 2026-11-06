@@ -802,6 +802,13 @@ above.
 Complete in core, server and web, and never played through. Each wants a two-browser session
 (Chrome + Edge) more than it wants code.
 
+**Ship explosions (D5.0) came OFF this list on 2026-11-06**, verified in a live two-browser
+game within hours of being built. The owner's log, kept because it exercises the threshold
+case: a strength-10 hull (an F5-family frigate, the lowest value that reaches beyond its own
+hex) exploded at <3|3>, put 10 on the facing shield of a ship one hex away, and killed six
+drones. One point lower and it would have touched nothing outside its hex — so the one live
+test happened to land on the only value where (D5.41) being wrong would be invisible.
+
 - **Aegis fire control (D13)** — complete all tiers 2026-10-07.
 - **The fire declaration round** — all three phases plus the multi-ship EW fix.
 - **Hangar Ops and the COI screen** — unverified since `ea8e82d` changed the DTO to send
@@ -1725,8 +1732,16 @@ Roughly largest first. Several have had their rules read and their design settle
   bases, option mounts and commander's options.
 - **The campaign system.** Owner's direction, not designed. Would lean on drone storage, crew
   quality and carriers. Rule pointers: G21.3 → U7.9/U2.0, G22 legendary officers → U7.8/U1.26.
-- **The scenario system** — year, forces, BPV budget, loadouts, victory conditions. Deferred;
-  ask for PDF scenario examples when starting. SH47's training subset is the best first target.
+- ~~**The scenario system**~~ **LARGELY BUILT — this entry was stale (corrected 2026-11-06).**
+  `com.sfb.scenario` holds ScenarioSpec, ScenarioLoader, Deployment, TerrainGenerator,
+  FleetLoader/FleetValidator, CoiBudget/CoiChoices/CoiLoadout and SavedGame. There are ELEVEN
+  scenario files in `data/scenarios/`, including a published one (sh80.json) whose spec
+  carries year, numPlayers, mapType, lengthCondition, specialRules, sides, victoryConditions,
+  shuttleRules and commanderOptions.
+
+  What is actually open is narrower and should be re-scoped by someone who reads the loader:
+  the per-scenario gaps in *Scenario feature gaps* below, and SH47's training subset as the
+  next target. Do not plan this as a greenfield feature.
 - **Fleet builder UI, terrain and deployment.** The S8.0 validator is done (12 rules, core plus
   endpoint); the rest of the screen is not.
 - ~~**ESG (G23).**~~ **BUILT — this entry was stale (corrected 2026-11-06).** `EsgResolver` is a
