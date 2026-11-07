@@ -176,7 +176,7 @@ public class ObjectiveGuardTest {
     public void araidableObjectAppearsInTheTargetList() {
         Game game = gameWithCarriedBox();
         Ship fed = shipNamed(game, "USS Enterprise");
-        named(game, "Stasis Box").setRaidable(true);
+        named(game, "Stasis Box").setRaidCapture(true);
 
         assertTrue("the raider should see the prize among the systems",
                 game.getTargetableSystems(fed).stream().anyMatch(
@@ -188,7 +188,7 @@ public class ObjectiveGuardTest {
     @Test
     public void theObjectIsOfferedOnlyOnTheShipCarryingIt() {
         Game game = gameWithCarriedBox();
-        named(game, "Stasis Box").setRaidable(true);
+        named(game, "Stasis Box").setRaidCapture(true);
 
         assertTrue("the Klingon is not carrying it, so nothing to seize there",
                 game.getTargetableSystems(shipNamed(game, "IKV Saber")).stream().noneMatch(
@@ -200,7 +200,7 @@ public class ObjectiveGuardTest {
     public void aFreeObjectIsNotARaidTargetAtAll() {
         Game game = gameWithCarriedBox();
         Objective free = new Objective("Loose Canister", 14, 14);
-        free.setRaidable(true);
+        free.setRaidCapture(true);
         game.addObjective(free);
 
         for (Ship s : game.getShips())
@@ -214,7 +214,7 @@ public class ObjectiveGuardTest {
     public void theWireCodeNamesTheObject() {
         Game game = gameWithCarriedBox();
         Ship fed = shipNamed(game, "USS Enterprise");
-        named(game, "Stasis Box").setRaidable(true);
+        named(game, "Stasis Box").setRaidCapture(true);
 
         SystemTarget parsed = game.parseRaidTargetCode(fed, "OBJECTIVE:Stasis Box");
         assertNotNull(parsed);
@@ -313,11 +313,141 @@ public class ObjectiveGuardTest {
     @Test
     public void aRaidCannotBeAimedAtAnUnraidableBox() {
         Game game = gameReadyToRaid();
-        named(game, "Stasis Box").setRaidable(false);
+        named(game, "Stasis Box").setRaidCapture(false);
 
         assertNull("D7.825 refuses it, so the code must not resolve",
                 game.parseRaidTargetCode(shipNamed(game, "USS Enterprise"),
                         "OBJECTIVE:Stasis Box"));
+    }
+
+    // ---------------------------------------------------------------- intent (D7.85/D7.827)
+
+    /**
+     * (D7.85) The two attempts are independent, and the rule is why: "Hit and run raids can
+     * DESTROY, BUT NOT CAPTURE, a cloaking device or a DERFACS or UIM fire control system." A
+     * scenario can therefore offer one, the other, both, or neither — and a VIP a side wants
+     * dead is the mirror image of a box a side wants taken.
+     */
+    @Test
+    public void aScenarioCanPermitWreckingWithoutSeizing() {
+        Game game = gameWithCarriedBox();
+        Ship fed = shipNamed(game, "USS Enterprise");
+        Objective vip = named(game, "Stasis Box");
+        vip.setRaidCapture(false);
+        vip.setRaidDestroy(true);
+
+        java.util.List<SystemTarget> offered = game.getTargetableSystems(fed).stream()
+                .filter(st -> st.getType() == SystemTarget.Type.OBJECTIVE).toList();
+
+        assertEquals("one row, for the one permitted attempt", 1, offered.size());
+        assertEquals(SystemTarget.RaidIntent.DESTROY, offered.get(0).getRaidIntent());
+    }
+
+    /** Both permitted, and the raider picks — so the pad gets a row for each. */
+    @Test
+    public void bothAttemptsAreOfferedSeparatelyWhenBothArePermitted() {
+        Game game = gameWithCarriedBox();
+        Ship fed = shipNamed(game, "USS Enterprise");
+        Objective vip = named(game, "Stasis Box");
+        vip.setRaidCapture(true);
+        vip.setRaidDestroy(true);
+
+        java.util.Set<SystemTarget.RaidIntent> intents = game.getTargetableSystems(fed).stream()
+                .filter(st -> st.getType() == SystemTarget.Type.OBJECTIVE)
+                .map(SystemTarget::getRaidIntent)
+                .collect(java.util.stream.Collectors.toSet());
+
+        assertEquals("the choice is the raider's (D7.824/D7.827), so both must be selectable",
+                java.util.Set.of(SystemTarget.RaidIntent.CAPTURE,
+                        SystemTarget.RaidIntent.DESTROY), intents);
+    }
+
+    /**
+     * And the gate is PER INTENT on the server. A request naming the forbidden one of the two
+     * must fail even though the other is allowed — which a target list alone cannot enforce,
+     * since nothing stops a request naming a row the pad never offered.
+     */
+    @Test
+    public void theForbiddenAttemptIsRefusedEvenWhenTheOtherIsAllowed() {
+        Game game = gameWithCarriedBox();
+        Ship fed = shipNamed(game, "USS Enterprise");
+        Objective box = named(game, "Stasis Box");
+        box.setRaidCapture(true);
+        box.setRaidDestroy(false);
+
+        assertNotNull("seizing is granted",
+                game.parseRaidTargetCode(fed, "OBJECTIVE:CAPTURE:Stasis Box"));
+        assertNull("wrecking is not, and must not resolve",
+                game.parseRaidTargetCode(fed, "OBJECTIVE:DESTROY:Stasis Box"));
+    }
+
+    /** A bare code still means CAPTURE — what a guard post uses, and the older wire form. */
+    @Test
+    public void aBareCodeStillMeansCapture() {
+        Game game = gameWithCarriedBox();
+        Ship fed = shipNamed(game, "USS Enterprise");
+        named(game, "Stasis Box").setRaidCapture(true);
+
+        SystemTarget parsed = game.parseRaidTargetCode(fed, "OBJECTIVE:Stasis Box");
+        assertNotNull(parsed);
+        assertEquals(SystemTarget.RaidIntent.CAPTURE, parsed.getRaidIntent());
+    }
+
+    /**
+     * The intent is read from the FRONT, never the end, because an objective's name is free
+     * text that may contain a colon of its own.
+     */
+    @Test
+    public void anObjectiveNameMayContainAColon() {
+        Game game = gameWithCarriedBox();
+        Ship fed = shipNamed(game, "USS Enterprise");
+        Objective odd = new Objective("Crate 7: Do Not Open", 10, 10);
+        odd.setRaidDestroy(true);
+        odd.setCarrier(fed);
+        odd.setLocation(null);
+        game.addObjective(odd);
+
+        SystemTarget parsed =
+                game.parseRaidTargetCode(fed, "OBJECTIVE:DESTROY:Crate 7: Do Not Open");
+        assertNotNull("the name must survive its own colon", parsed);
+        assertEquals("Crate 7: Do Not Open", parsed.getObjectiveName());
+        assertEquals(SystemTarget.RaidIntent.DESTROY, parsed.getRaidIntent());
+    }
+
+    /**
+     * (D7.827) A kill raid finishes the job on the row that would have handed the thing over,
+     * and the party walks away — so wrecking is the EASIER of the two attempts: two rows of
+     * the chart destroy, only one captures.
+     */
+    @Test
+    public void aKillRaidDestroysOnTheRowThatWouldHaveCaptured() {
+        boolean sawDestroyedWithPartySafe = false;
+
+        for (int attempt = 0; attempt < 400 && !sawDestroyedWithPartySafe; attempt++) {
+            Game game = gameReadyToRaid();
+            Objective vip = named(game, "Stasis Box");
+            vip.setRaidCapture(false);
+            vip.setRaidDestroy(true);
+            Ship raider = shipNamed(game, "IKV Saber");
+            Ship holder = shipNamed(game, "USS Enterprise");
+
+            Game.ActionResult result = game.performHitAndRun(raider, holder,
+                    java.util.List.of(SystemTarget.forObjective("Stasis Box",
+                            SystemTarget.RaidIntent.DESTROY)));
+            assertTrue(result.getMessage(), result.isSuccess());
+
+            boolean gone = game.getObjectives().stream()
+                    .noneMatch(o -> "Stasis Box".equals(o.getName()));
+            if (gone && result.getMessage().contains("raiding party returned"))
+                sawDestroyedWithPartySafe = true;
+
+            assertFalse("a kill raid must never hand the thing over",
+                    game.getObjectives().stream().anyMatch(
+                            o -> "Stasis Box".equals(o.getName()) && o.getCarrier() == raider));
+        }
+
+        assertTrue("no kill raid ever succeeded — the DESTROY intent is not wired up",
+                sawDestroyedWithPartySafe);
     }
 
     // ---------------------------------------------------------------- stranded guards
@@ -401,7 +531,7 @@ public class ObjectiveGuardTest {
      */
     private static Game gameReadyToRaid() {
         Game game = gameWithCarriedBox();
-        named(game, "Stasis Box").setRaidable(true);
+        named(game, "Stasis Box").setRaidCapture(true);
 
         Ship raider = shipNamed(game, "IKV Saber");
         Ship holder = shipNamed(game, "USS Enterprise");

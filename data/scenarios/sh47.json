@@ -110,7 +110,8 @@
       ],
       "studyMode": "TURNS",
       "studyRequired": 2,
-      "raidable": true,
+      "raidCapture": true,
+      "raidDestroy": false,
       "cargoSpaces": 2.0,
       "survivesDestruction": true,
       "points": 0
@@ -122,6 +123,6 @@
     "_pointsComment": "points 0 on purpose. SH47.5 is not scored in victory points: 'the player who successfully disengages with a Stasis Box wins the game', which victoryConditions SPECIAL carries. A point value here would quietly add a second, contradictory way to win.",
     "_retrievalComment": "TRANSPORTER only. SH47.474 has the ship drop one shield and beam the box aboard after two complete turns of study; the two-turn wait is not built yet, so today the beam works as soon as the counter is turned over. TRACTOR is deliberately absent - SH47 never offers the J1.621 rotation procedure that SH35.452 does.",
     "_studyComment": "SH47.474: 'he must spend two complete turns in the hex studying the Stasis Box with his instruments. On the next turn, the ship may drop one shield and beam the Stasis Box aboard.' studyMode TURNS pays one per COMPLETE turn in the hex and wipes a ship that breaks off, which is what makes SH47.8's Kzinti weasel tactic worth anything. TURNS rather than RESEARCH_POINTS deliberately: G4.11 points would make study lab-dependent, and a Fed DD has 8 labs against the Kzinti CL's 4 - while SH47.71's balance option swaps the CL for a Kzinti DD with only 2, so the lever meant to help the weaker player would quadruple its disadvantage. SH47.474 is lab-independent precisely so that cannot happen.",
-    "_raidComment": "SH47.476: 'If the Stasis Box is aboard one ship, the other ship may attempt a hit-and-run raid to seize the box (it can be guarded) or may try to capture or destroy the ship carrying it.' raidable true is that allowance, and it has to be stated because D7.825 refuses every non-SSD item by default - 'cannot be attacked by hit and run raids unless the rules specifically allow it'. D7.824 then supplies the resolution with no new table: 'System destroyed and BP returned safely' is read 'target captured', while 'System and BP destroyed' is applied as stated - so a bad roll loses the box outright. The guard half is D7.83, posted with OBJECTIVE:Stasis Box 1 during Energy Allocation."
+    "_raidComment": "SH47.476: 'If the Stasis Box is aboard one ship, the other ship may attempt a hit-and-run raid to seize the box (it can be guarded) or may try to capture or destroy the ship carrying it.' So raidCapture true and raidDestroy FALSE: the scenario offers seizing the box, and offers wrecking the SHIP, but never offers a raid aimed at wrecking the box. A failed seizure can still ruin it, because D7.824's 'System and BP destroyed' row is 'applied as stated' - you cannot aim to destroy it, you can lose it trying to take it. Both flags have to be stated at all because D7.825 refuses every non-SSD item by default. The two are separate because D7.85 keeps them separate - 'hit and run raids can destroy, but not capture, a cloaking device' - while which permitted attempt is made stays the raider's choice (D7.824/D7.827). The guard half is D7.83, posted with OBJECTIVE:Stasis Box 1."
   }
 }

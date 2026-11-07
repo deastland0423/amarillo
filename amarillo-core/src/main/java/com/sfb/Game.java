@@ -6189,9 +6189,14 @@ public class Game {
         // this side alone — and it has to be on the server, not in the target list, because a
         // pad that never offers the row is no defence against a request that names it anyway.
         if (target != null && target.getType() == SystemTarget.Type.OBJECTIVE) {
+            // PER INTENT, not merely "is it raidable". D7.85 is the case that forces it: a
+            // thing can be destroyable and not capturable, so a request naming the forbidden
+            // one of the two must fail even though the other is allowed.
             boolean allowed = objectives.stream()
                     .anyMatch(o -> o.getName().equals(target.getObjectiveName())
-                            && o.getCarrier() == ship && o.isRaidable());
+                            && o.getCarrier() == ship
+                            && (target.getRaidIntent() == SystemTarget.RaidIntent.DESTROY
+                                    ? o.isRaidDestroy() : o.isRaidCapture()));
             if (!allowed)
                 return null;
         }

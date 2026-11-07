@@ -925,7 +925,8 @@ public class ScenarioLoader {
         copy.canBeLeftInSpace = template.canBeLeftInSpace;
         copy.studyMode = template.studyMode;
         copy.studyRequired = template.studyRequired;
-        copy.raidable = template.raidable;
+        copy.raidCapture = template.raidCapture;
+        copy.raidDestroy = template.raidDestroy;
 
         ScenarioSpec carrier = new ScenarioSpec();
         carrier.objectives = new ArrayList<>(List.of(copy));
@@ -946,7 +947,8 @@ public class ScenarioLoader {
             obj.setPoints(setup.points);
             obj.setCargoSpaces(setup.cargoSpaces);
             obj.setCanBeLeftInSpace(setup.canBeLeftInSpace);
-            obj.setRaidable(setup.raidable);   // (D7.825) scenario grant
+            obj.setRaidCapture(setup.raidCapture);   // (D7.824) scenario grant
+            obj.setRaidDestroy(setup.raidDestroy);   // (D7.85/D7.827)
             if (setup.hidden)
                 obj.hide();   // SH47.46: face down until a ship enters the hex
             if (setup.studyMode != null && !setup.studyMode.isBlank()) {

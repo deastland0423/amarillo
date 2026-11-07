@@ -67,6 +67,25 @@ public class SystemTarget {
     private final String displayName;
     private final BoardingPartyQuality attackerQuality;
     private final String objectiveName; // non-null only for OBJECTIVE targets
+    private final RaidIntent raidIntent; // non-null only for OBJECTIVE targets
+
+    /**
+     * (D7.824/D7.827) What a raid is TRYING to do to a carried object.
+     *
+     * <p>On the target rather than on the objective, because the rules put the choice on the
+     * attacker: "when TRYING TO CAPTURE a person or object...", "the attacking player INDICATES
+     * that he is making an assassination raid." The objective says which attempts are POSSIBLE
+     * (D7.85); this says which one is being made.
+     *
+     * <p>Irrelevant to a guard post, which covers the thing against any raid whatever the
+     * raider wanted — so a post is created with CAPTURE and nothing reads it.
+     */
+    public enum RaidIntent {
+        /** (D7.824) Take it: "the result ... is read 'target captured and BP returned safely'". */
+        CAPTURE,
+        /** (D7.85/D7.827) Wreck it, or kill them. Succeeds on the same row that would capture. */
+        DESTROY
+    }
 
     /**
      * (D7.83) A carried object or individual, named the way every other objective action names
@@ -74,26 +93,37 @@ public class SystemTarget {
      * would otherwise fit takes a {@code displayName} that is only a label.
      */
     public static SystemTarget forObjective(String objectiveName) {
-        return forObjective(objectiveName, BoardingPartyQuality.NORMAL);
+        return forObjective(objectiveName, RaidIntent.CAPTURE, BoardingPartyQuality.NORMAL);
     }
 
-    public static SystemTarget forObjective(String objectiveName,
+    public static SystemTarget forObjective(String objectiveName, RaidIntent intent) {
+        return forObjective(objectiveName, intent, BoardingPartyQuality.NORMAL);
+    }
+
+    public static SystemTarget forObjective(String objectiveName, RaidIntent intent,
                                             BoardingPartyQuality attackerQuality) {
-        return new SystemTarget(objectiveName, attackerQuality);
+        return new SystemTarget(objectiveName, intent, attackerQuality);
     }
 
-    private SystemTarget(String objectiveName, BoardingPartyQuality attackerQuality) {
+    private SystemTarget(String objectiveName, RaidIntent intent,
+                         BoardingPartyQuality attackerQuality) {
         this.type            = Type.OBJECTIVE;
         this.weapon          = null;
         this.index           = 0;
         this.displayName     = objectiveName;
         this.attackerQuality = attackerQuality;
         this.objectiveName   = objectiveName;
+        this.raidIntent      = intent == null ? RaidIntent.CAPTURE : intent;
     }
 
     /** The objective this target names, or null if it is not an OBJECTIVE target. */
     public String getObjectiveName() {
         return objectiveName;
+    }
+
+    /** What the raid is attempting (D7.824/D7.827); null for a non-OBJECTIVE target. */
+    public RaidIntent getRaidIntent() {
+        return raidIntent;
     }
 
     /** Constructor for non-weapon system targets (attacker quality defaults to NORMAL). */
@@ -122,6 +152,7 @@ public class SystemTarget {
         this.displayName     = displayName;
         this.attackerQuality = attackerQuality;
         this.objectiveName   = null;
+        this.raidIntent      = null;
     }
 
     /** Constructor for weapon targets (attacker quality defaults to NORMAL). */
@@ -137,6 +168,7 @@ public class SystemTarget {
         this.displayName     = weapon.getName();
         this.attackerQuality = attackerQuality;
         this.objectiveName   = null;
+        this.raidIntent      = null;
     }
 
     public Type getType() {

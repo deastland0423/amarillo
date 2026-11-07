@@ -150,9 +150,20 @@ class BoardingResolver {
         // So a carried objective is a raid target when, and only when, the scenario says so —
         // D7.825 refuses every non-SSD item by default. Listed last, after the hardware, which
         // is also the order a raiding player thinks in: the prize is not a system.
-        for (com.sfb.objects.Objective o : game.getObjectives())
-            if (o.getCarrier() == target && o.isRaidable())
-                systems.add(SystemTarget.forObjective(o.getName()));
+        // ONE ROW PER PERMITTED ATTEMPT, not one per object. D7.85 lets a thing be
+        // destroyable but not capturable (and a scenario may do the reverse), and D7.824/D7.827
+        // give the choice between them to the raider — so the pad has to offer them as separate
+        // selections rather than making the server guess which one was meant.
+        for (com.sfb.objects.Objective o : game.getObjectives()) {
+            if (o.getCarrier() != target)
+                continue;
+            if (o.isRaidCapture())
+                systems.add(SystemTarget.forObjective(o.getName(),
+                        SystemTarget.RaidIntent.CAPTURE));
+            if (o.isRaidDestroy())
+                systems.add(SystemTarget.forObjective(o.getName(),
+                        SystemTarget.RaidIntent.DESTROY));
+        }
 
         return systems;
     }
@@ -183,16 +194,34 @@ class BoardingResolver {
             }
         }
         if (upper.startsWith("OBJECTIVE:")) {
-            // (D7.83) "specific individuals or objects". Named rather than indexed, because the
-            // name is what every other objective action addresses it by, and it must be a thing
-            // actually ABOARD THIS SHIP — a guard cannot be posted on a box in somebody else's
-            // hold, nor on one still lying in an asteroid hex.
-            String objectiveName = code.substring(10);
+            // (D7.83/D7.824) "specific individuals or objects". Named rather than indexed,
+            // because the name is what every other objective action addresses it by, and it
+            // must be a thing actually ABOARD THIS SHIP — a guard cannot be posted on a box in
+            // somebody else's hold, nor on one still lying in an asteroid hex.
+            //
+            // An optional INTENT follows the prefix: "OBJECTIVE:DESTROY:Ambassador Vrex".
+            // Parsed before the name and never from the end, because an objective's name is
+            // free text that may itself contain a colon, while the intent word cannot.
+            // Bare "OBJECTIVE:<name>" means CAPTURE, which is what a guard post uses and what
+            // a raid meant before (D7.827) had a word here.
+            String rest = code.substring(10);
+            SystemTarget.RaidIntent intent = SystemTarget.RaidIntent.CAPTURE;
+            for (SystemTarget.RaidIntent candidate : SystemTarget.RaidIntent.values()) {
+                String tag = candidate.name() + ":";
+                if (rest.length() > tag.length()
+                        && rest.substring(0, tag.length()).equalsIgnoreCase(tag)) {
+                    intent = candidate;
+                    rest = rest.substring(tag.length());
+                    break;
+                }
+            }
+            final String objectiveName = rest;
             com.sfb.objects.Objective found = game.getObjectives().stream()
                     .filter(o -> o.getName().equalsIgnoreCase(objectiveName))
                     .filter(o -> o.getCarrier() == ship)
                     .findFirst().orElse(null);
-            return found == null ? null : SystemTarget.forObjective(found.getName());
+            return found == null ? null
+                    : SystemTarget.forObjective(found.getName(), intent);
         }
         try {
             SystemTarget.Type type = SystemTarget.Type.valueOf(upper);
@@ -718,12 +747,21 @@ class BoardingResolver {
         if (prize == null)
             return st.getDisplayName() + " is no longer aboard " + target.getName();
 
+        boolean destroying = st.getRaidIntent() == SystemTarget.RaidIntent.DESTROY;
+
         if (result == HarResult.SYSTEM_BP_RETURNS) {
+            if (guard != null)
+                followUp.add(target.getGuardPosts().onGuardedBoxDestroyedByRaid(guard));
+            if (destroying) {
+                // (D7.85/D7.827) The row that would have handed the thing over instead finishes
+                // it, and the party walks away. Killing is the easier of the two attempts: two
+                // rows of the chart destroy, only one captures.
+                game.getObjectives().remove(prize);
+                return prize.getName() + " DESTROYED \u2014 raiding party returned (D7.827)";
+            }
             prize.setCarrier(actingShip);
             prize.setLocation(null);
             prize.getStudyProgress().clear();
-            if (guard != null)
-                followUp.add(target.getGuardPosts().onGuardedBoxDestroyedByRaid(guard));
             return prize.getName() + " CAPTURED \u2014 now aboard " + actingShip.getName()
                     + " (D7.824)";
         }

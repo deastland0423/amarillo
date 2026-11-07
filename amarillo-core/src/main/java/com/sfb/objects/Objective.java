@@ -36,20 +36,35 @@ public class Objective extends Marker implements Tractorable {
     private Double cargoSpaces;
 
     /**
-     * (D7.825/D7.824) Whether a hit-and-run raid may be made to seize this thing.
+     * (D7.85/D7.824) What a hit-and-run raid may try to do to this thing — take it, wreck it,
+     * either, or neither.
      *
-     * <h2>Default FALSE, and that is the rule rather than caution</h2>
+     * <h2>Two flags, because the rules carry the distinction on the TARGET</h2>
+     * D7.85 states it outright: "Hit and run raids can DESTROY, BUT NOT CAPTURE, a cloaking
+     * device or a DERFACS or UIM fire control system." So "what can be done to this" is a
+     * property of the thing, and the two halves are genuinely independent — a stasis box is
+     * worth seizing, an enemy ambassador is worth killing, and a scenario may offer one without
+     * the other.
+     *
+     * <p>Which of the permitted things a raider ATTEMPTS stays the raider's choice, because
+     * that is where D7.824 and D7.827 put it: "when TRYING TO CAPTURE a person or object...",
+     * "the attacking player INDICATES that he is making an assassination raid." A single
+     * property saying what a raid "does" would quietly take that choice away.
+     *
+     * <h2>Both default FALSE, and that is the rule rather than caution</h2>
      * D7.825: "Non-SSD items and special abilities ... CANNOT be attacked by hit and run raids
-     * UNLESS THE RULES SPECIFICALLY ALLOW IT." An objective is exactly such a non-SSD item, so
-     * refusal is the general case and a scenario grants the exception — which is also what
-     * D7.824 says in so many words: "This will normally involve items specified by a given
-     * scenario."
+     * UNLESS THE RULES SPECIFICALLY ALLOW IT." An objective is exactly such an item, so refusal
+     * is the general case and a scenario grants the exception — which is also what D7.824 says
+     * in so many words: "This will normally involve items specified by a given scenario."
      *
-     * <p>SH47.476 is one such grant: "If the Stasis Box is aboard one ship, the other ship may
-     * attempt a hit-and-run raid to seize the box (it can be guarded)." A probe canister in
-     * SH35 is not — nothing there offers a raid for it, so nothing should.
+     * <p>SH47.476 grants capture only: "the other ship may attempt a hit-and-run raid to seize
+     * the box (it can be guarded) OR may try to capture or destroy the SHIP carrying it." A
+     * raid to wreck the box is not on offer there — though a failed seizure can still ruin it,
+     * because D7.824's "System and BP destroyed" row is "applied as stated". You cannot aim to
+     * destroy it; you can lose it trying to take it.
      */
-    private boolean raidable;
+    private boolean raidCapture;
+    private boolean raidDestroy;
 
     // (G25.214) "It is not possible to transport (or drop) cargo ... into space and have that
     // cargo then 'exist' for some purpose (e.g. damaging an ESG, later pickup, web anchor). A
@@ -167,10 +182,21 @@ public class Objective extends Marker implements Tractorable {
         this.canBeLeftInSpace = canBeLeftInSpace;
     }
 
-    /** (D7.825) Whether a hit-and-run raid may be made to seize this; a scenario grant. */
-    public boolean isRaidable() { return raidable; }
+    /** (D7.824) Whether a raid may try to SEIZE this; a scenario grant. */
+    public boolean isRaidCapture() { return raidCapture; }
 
-    public void setRaidable(boolean raidable) { this.raidable = raidable; }
+    /** (D7.85/D7.827) Whether a raid may try to WRECK or kill this; a scenario grant. */
+    public boolean isRaidDestroy() { return raidDestroy; }
+
+    public void setRaidCapture(boolean raidCapture) { this.raidCapture = raidCapture; }
+
+    public void setRaidDestroy(boolean raidDestroy) { this.raidDestroy = raidDestroy; }
+
+    /**
+     * Whether a raid may be aimed at this at all (D7.825). DERIVED, never stored: two records
+     * of one fact is how a thing ends up raidable with no raid that can touch it.
+     */
+    public boolean isRaidable() { return raidCapture || raidDestroy; }
 
     public int getSide() { return side; }
 

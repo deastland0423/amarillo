@@ -3266,9 +3266,19 @@ public class GameController {
                             m.put("code", "TRACTOR:" + st.getIndex());
                         } else if (st.getType()
                                 == com.sfb.properties.SystemTarget.Type.OBJECTIVE) {
-                            // (D7.824) A carried object the scenario has made raidable. Named,
-                            // like a weapon, because the name is its identity.
-                            m.put("code", "OBJECTIVE:" + st.getObjectiveName());
+                            // (D7.824/D7.827) A carried object the scenario has opened to
+                            // raiding, as one row PER PERMITTED ATTEMPT — the choice between
+                            // taking it and wrecking it is the raider's, so it has to be a
+                            // choice on the pad. Named, like a weapon, because the name is its
+                            // identity; the intent rides in front of it so an objective name
+                            // containing a colon cannot be misread as one.
+                            boolean destroy = st.getRaidIntent()
+                                    == com.sfb.properties.SystemTarget.RaidIntent.DESTROY;
+                            m.put("code", "OBJECTIVE:" + (destroy ? "DESTROY:" : "CAPTURE:")
+                                    + st.getObjectiveName());
+                            m.put("label", (destroy ? "Destroy " : "Seize ")
+                                    + st.getObjectiveName());
+                            return m;
                         } else {
                             m.put("code", st.getType().name());
                         }
