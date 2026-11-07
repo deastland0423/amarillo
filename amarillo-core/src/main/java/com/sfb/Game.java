@@ -5081,15 +5081,30 @@ public class Game {
         // Face-down counters first (SH47.46). Removed as they are examined, so the list stays
         // the set of hexes nobody has looked at.
         for (com.sfb.objects.SearchMarker marker : new ArrayList<>(searchMarkers)) {
-            Ship finder = shipStandingOn(marker.getLocation());
-            if (finder == null)
-                continue;
+            Ship ship = shipStandingOn(marker.getLocation());
+            String examiner;
+            if (ship != null) {
+                examiner = ship.getName();   // (SH47.471) automatic, any impulse
+            } else {
+                // SH47.472: a shuttle or fighter searches by ENDING ITS MOVEMENT on the
+                // counter and rolling a 1 or 2. "Ending their movement for the turn" is the end
+                // of the turn, which is why the rule says the roll can only be made on impulse
+                // #32 — so a craft gets one attempt a turn where a ship gets one an impulse.
+                //
+                // Simply BEING there on 32 is enough; the craft need not have moved onto the
+                // counter that impulse. The rule's own "the shuttle may remain in the hex ...
+                // to try again" only makes sense if sitting still counts as ending movement
+                // there. (Owner's reading, 2026-11-07.)
+                examiner = craftExaminationOn(marker.getLocation(), log);
+                if (examiner == null)
+                    continue;
+            }
             searchMarkers.remove(marker);
             switch (marker.getKind()) {
                 case OBJECTIVE -> {
                     com.sfb.objects.Objective found = marker.getObjective();
                     objectives.add(found);
-                    log.add(finder.getName() + " examines the counter and finds "
+                    log.add(examiner + " examines the counter and finds "
                             + found.getName() + " (SH47.471)");
                 }
                 case MINE -> {
@@ -5101,10 +5116,10 @@ public class Game {
                     // escape exists only because the move that uncovers it does not set it off.
                     com.sfb.objects.SpaceMine found = marker.getMine();
                     mines.add(found);
-                    log.add(finder.getName() + " examines the counter — a nuclear space mine,"
+                    log.add(examiner + " examines the counter — a nuclear space mine,"
                             + " and it is live (SH47.48)");
                 }
-                case NOTHING -> log.add(finder.getName()
+                case NOTHING -> log.add(examiner
                         + " examines the counter — nothing but rocks (SH47.471)");
             }
         }
@@ -5125,6 +5140,60 @@ public class Game {
                     + " (SH47.471)");
         }
         return log;
+    }
+
+    /**
+     * (SH47.472) A shuttle or fighter searching the counter in this hex.
+     *
+     * <h2>One attempt a turn, and only a one-in-three</h2>
+     * "Shuttles or fighters may examine an inverted counter by ending their movement in a hex
+     * containing a counter and rolling a die. If the result is '1' or '2,' the counter is
+     * examined; otherwise, it is not." A ship entering the hex searches it outright and may do
+     * so on any impulse; a craft has to park on it and then usually fails. A counter a cruiser
+     * clears in one impulse takes a shuttle three turns on average.
+     *
+     * <h2>Impulse 32 is a consequence, not a separate rule</h2>
+     * The roll needs the craft's movement for the TURN to be over, and the turn's last impulse
+     * is the thirty-second — which is why the rule says "they can only make their rolls on
+     * impulse #32 of any given turn". So the gate here is the impulse, and a failed roll costs
+     * the craft a whole turn before it may try again.
+     *
+     * <p>Being there is enough: a craft need not have moved onto the counter this impulse. The
+     * rule's own "the shuttle may remain in the hex ... to try again" only works if sitting
+     * still counts as ending movement there.
+     *
+     * <p>Every craft on the counter rolls, not just the first. Two shuttles parked on one
+     * counter are two pairs of eyes, and the rule puts no limit on how many may look.
+     *
+     * @return the name of the craft that succeeded, or null if none did (or it is not impulse 32)
+     */
+    private String craftExaminationOn(com.sfb.properties.Location hex, List<String> log) {
+        // The absolute check is not redundant. TurnTracker.getLocalImpulse maps impulse 0 to
+        // 32 ("if the div is 0, we're actually on the 32nd impulse"), which is right mid-game
+        // and wrong for a clock that has not started — so a game sitting at impulse 0 reports
+        // impulse 32 and would let a craft search before the first turn began.
+        if (hex == null
+                || clock.getImpulse() <= 0
+                || getCurrentImpulse() != com.sfb.constants.Constants.IMPULSES_PER_TURN)
+            return null;
+        String found = null;
+        for (com.sfb.objects.shuttles.Shuttle craft : activeShuttles) {
+            if (craft.getLocation() == null || !craft.getLocation().equals(hex))
+                continue;
+            int roll = new com.sfb.utilities.DiceRoller().rollOneDie();
+            if (roll <= 2) {
+                // Recorded even though the caller logs the find, because WHICH craft looked and
+                // what it rolled is the part a player cannot reconstruct afterwards.
+                log.add(craft.getName() + " searches the counter (roll " + roll
+                        + ") — examined (SH47.472)");
+                if (found == null)
+                    found = craft.getName();
+            } else {
+                log.add(craft.getName() + " searches the counter (roll " + roll
+                        + ") — nothing found; it may try again next turn (SH47.472)");
+            }
+        }
+        return found;
     }
 
     /** The first ship in this hex, or null. Ships only — see the sweep's note on SH47.472. */

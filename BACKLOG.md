@@ -1988,11 +1988,22 @@ Three things about it are worth keeping:
   and run raids can destroy, but not capture, a cloaking device". Which permitted attempt is
   made stays the raider's choice (D7.824/D7.827), so the list offers one row per attempt and the
   server gates each one.
-- **SH47.472 examination by shuttle or fighter.** End movement in the hex and roll a 1 or 2 —
-  and because a craft must END its movement there, only on impulse #32 of any given turn. Ships
-  examine counters today; craft reveal nothing, which is the harsher reading and the one that
-  cannot accidentally hand over a box. The sweep that would need extending is
-  `Game.revealObjectivesUnderShips`, which deliberately walks ships only.
+- **SH47.472 craft examination BUILT.** A shuttle or fighter searches a counter by being on it
+  at impulse 32 and rolling a 1 or 2. Impulse 32 is a CONSEQUENCE, not a separate rule: the roll
+  needs the craft's movement for the TURN to be over, so a craft gets one attempt a turn where a
+  ship gets one an impulse, and a counter a cruiser clears in one impulse takes a shuttle three
+  turns on average. Simply being there is enough — the rule's own "the shuttle may remain in the
+  hex ... to try again" only works if sitting still counts as ending movement there (owner's
+  reading). Every craft on the counter rolls; two shuttles are two pairs of eyes. A shuttle can
+  turn up an NSM as readily as a box, which is correct: a shuttle is size class 6 and SH47's
+  mines accept 1-6.
+
+  Two traps found writing it, both worth keeping. **`TurnTracker.getLocalImpulse` maps impulse
+  0 to 32** — "if the div is 0, we're actually on the 32nd impulse", right mid-game and wrong
+  for a clock that has not started, so a game at impulse 0 reports impulse 32. The production
+  path now checks the absolute clock too. And **an assertion that cannot pass is worse than one
+  that cannot fail**: the first draft asked `getSearchMarkers().isEmpty()`, which can never be
+  true when the fixture lays all eighteen counters, and it reported a working feature broken.
 - **SH47.5's incident tiebreaker.** "If no boxes exist, the player who scored the most internal
   hits on the other LOSES the scenario and ruins his career by provoking an incident." Nothing
   tallies internal hits SCORED per side — damage is recorded on the ship that took it, not

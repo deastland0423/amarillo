@@ -466,6 +466,126 @@ public class SearchMarkerTest {
         return game;
     }
 
+    // ------------------------------------------------------------------ craft (SH47.472)
+
+    /**
+     * (SH47.472) "Shuttles or fighters may examine an inverted counter by ending their movement
+     * in a hex containing a counter and rolling a die. If the result is '1' or '2,' the counter
+     * is examined; otherwise, it is not."
+     *
+     * <p>So a craft search BOTH succeeds and fails, and a test that only proved it can succeed
+     * would pass just as well against a craft that always succeeds — which would make a shuttle
+     * strictly better at this than the cruiser it launched from. Both outcomes are required.
+     */
+    @Test
+    public void aCraftOnACounterSometimesFindsItAndSometimesDoesNot() {
+        boolean sawFound = false;
+        boolean sawMissed = false;
+
+        for (int run = 0; run < 400 && !(sawFound && sawMissed); run++) {
+            Game game = gameWithCraftOnACounter();
+            runToImpulse32Movement(game);
+            if (counterGone(game))
+                sawFound = true;
+            else
+                sawMissed = true;
+        }
+
+        assertTrue("a craft must be able to find the counter (roll 1-2)", sawFound);
+        assertTrue("and must be able to fail — otherwise it beats a starship at searching",
+                sawMissed);
+    }
+
+    /**
+     * And it is one chance in three, not one in two or one in one. Checked loosely, because the
+     * dice are not seeded and a tight bound would make this test flake; loose is still enough
+     * to catch a comparison written the wrong way round, which would give 4-in-6 or 6-in-6.
+     */
+    @Test
+    public void theCraftRollIsOneInThree() {
+        int found = 0;
+        int runs = 600;
+        for (int run = 0; run < runs; run++) {
+            Game game = gameWithCraftOnACounter();
+            runToImpulse32Movement(game);
+            if (counterGone(game))
+                found++;
+        }
+        double rate = found / (double) runs;
+        assertTrue("expected about a third, got " + rate, rate > 0.22 && rate < 0.45);
+    }
+
+    /**
+     * Not before impulse 32. The rule hangs the roll on the craft's movement for the TURN being
+     * over, which is why it says "they can only make their rolls on impulse #32 of any given
+     * turn" — so a shuttle parked on a counter all turn gets ONE attempt, not thirty-two.
+     */
+    @Test
+    public void aCraftCannotSearchBeforeTheEndOfTheTurn() {
+        Game game = gameWithCraftOnACounter();
+        int before = game.getSearchMarkers().size();
+
+        // Every impulse up to but not including the last.
+        while (game.getCurrentImpulse() < 32)
+            game.advancePhase();
+
+        assertEquals("thirty-one impulses of sitting on it must achieve nothing",
+                before, game.getSearchMarkers().size());
+    }
+
+    /** A ship is unaffected: it searches by entering, on any impulse (SH47.471). */
+    @Test
+    public void aShipStillSearchesOnAnyImpulse() {
+        Game game = gameWithCraftOnACounter();
+        // Put a ship on a different counter and advance one impulse only.
+        com.sfb.objects.SearchMarker other = game.getSearchMarkers().stream()
+                .filter(m -> !m.getLocation().equals(new Location(10, 10)))
+                .findFirst().orElseThrow();
+        shipNamed(game, "USS Enterprise").setLocation(other.getLocation());
+
+        advancePastMovement(game);
+
+        assertTrue("the ship's counter is gone on impulse 1",
+                game.getSearchMarkers().stream().noneMatch(
+                        m -> m.getLocation().equals(other.getLocation())));
+    }
+
+    /**
+     * A shuttle can turn up a MINE as readily as a box, which is a nasty and entirely correct
+     * outcome: a shuttle is size class 6, and SH47's NSMs are set to accept 1-6.
+     */
+    @Test
+    public void aCraftCanUncoverAMineToo() {
+        for (int run = 0; run < 400; run++) {
+            Game game = gameWithCraftOnACounter();
+            // Replace the counter under the shuttle with a mine.
+            game.getSearchMarkers().removeIf(m -> m.getLocation().equals(new Location(10, 10)));
+            game.addSearchMarker(SearchMarker.mined(new Location(10, 10),
+                    com.sfb.objects.SpaceMine.createPrePlacedNSM(new Location(10, 10),
+                            List.of(1, 2, 3, 4, 5, 6))));
+
+            runToImpulse32Movement(game);
+            if (!game.getMines().isEmpty()) {
+                assertEquals(new Location(10, 10), game.getMines().get(0).getLocation());
+                return;
+            }
+        }
+        throw new AssertionError("no craft ever uncovered the mine in 400 turns");
+    }
+
+    /** The log names the craft and the roll — the part a player cannot reconstruct after. */
+    @Test
+    public void theCraftSearchIsLogged() {
+        for (int run = 0; run < 100; run++) {
+            Game game = gameWithCraftOnACounter();
+            runToImpulse32Movement(game);
+            if (game.getLastSeekerLog().stream().anyMatch(
+                    l -> l.contains("Scout 1") && l.contains("SH47.472")))
+                return;
+        }
+        throw new AssertionError("the craft search should appear in the impulse log");
+    }
+
     // ------------------------------------------------------------------ across a save
 
     /**
@@ -576,6 +696,76 @@ public class SearchMarkerTest {
     }
 
     // ------------------------------------------------------------------ helpers
+
+    /**
+     * The standard field with its counters, a ship far away, and an admin shuttle parked on the
+     * counter at 10|10. The shuttle is placed rather than launched: a launch would spend the
+     * bay, the launch delay and an impulse of movement, none of which this rule cares about.
+     */
+    private static Game gameWithCraftOnACounter() {
+        Game game = new Game();
+        game.setupFromScenario(searchSpec(2, 4));
+
+        Player fed = new Player();
+        fed.setName("Captain Dan");
+        fed.setTeamName("Federation");
+        game.getPlayers().add(fed);
+        game.getShips().add(ship(FederationShips.getFedCa(), "USS Enterprise", 40, 5, fed));
+
+        // A counter where the shuttle can sit. The standard layout is rolled, so the fixture
+        // puts one at a hex it chooses rather than hoping the dice obliged.
+        game.getSearchMarkers().removeIf(m -> m.getLocation().equals(new Location(10, 10)));
+        game.addSearchMarker(SearchMarker.hiding(new Location(10, 10), box("Stasis Box")));
+
+        com.sfb.objects.shuttles.AdminShuttle scout =
+                new com.sfb.objects.shuttles.AdminShuttle();
+        scout.setName("Scout 1");
+        scout.setLocation(new Location(10, 10));
+        scout.setFacing(1);
+        game.getActiveShuttles().add(scout);
+
+        game.startTurn();
+        for (Ship s : game.getShips()) {
+            Energy e = new Energy();
+            e.setLifeSupport(s.getLifeSupportCost());
+            e.setFireControl(s.getFireControlCost());
+            e.setActivateShields(s.getActiveShieldCost());
+            game.submitAllocation(s, e);
+        }
+        return game;
+    }
+
+    /**
+     * Advance until impulse 32's MOVEMENT phase has been left, which is where the craft roll
+     * happens.
+     *
+     * <p>Advances FIRST and tests after, which is not a style choice: {@code getLocalImpulse}
+     * maps impulse 0 to 32 ("if the div is 0, we're actually on the 32nd impulse"), so a game
+     * that has not started yet reports impulse 32 and a test-before-advance loop exits without
+     * ever running a phase.
+     */
+    /**
+     * Whether the counter UNDER THE SHUTTLE has been searched.
+     *
+     * <p>Not {@code getSearchMarkers().isEmpty()}, which is what the first draft asked and
+     * which can never be true: the fixture lays the full field of eighteen, so seventeen
+     * counters remain however well the shuttle does. An assertion that cannot pass is worse
+     * than one that cannot fail — it reported a working feature broken.
+     */
+    private static boolean counterGone(Game game) {
+        return game.getSearchMarkers().stream()
+                .noneMatch(m -> m.getLocation().equals(new Location(10, 10)));
+    }
+
+    private static void runToImpulse32Movement(Game game) {
+        for (int guard = 0; guard < 200; guard++) {
+            game.advancePhase();
+            if (game.getCurrentImpulse() == 32
+                    && game.getCurrentPhase() != Game.ImpulsePhase.MOVEMENT)
+                return;
+        }
+        throw new AssertionError("never reached the end of impulse 32");
+    }
 
     private static TerrainGenerator.Plan field(boolean markCounters) {
         TerrainGenerator.Plan plan = new TerrainGenerator.Plan();
