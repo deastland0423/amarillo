@@ -85,8 +85,17 @@ public class Sh47LoadsTest {
         Ship xerxes = bySide.get(0).get(0);
         Ship mystic = bySide.get(1).get(0);
 
-        assertEquals("Xerxes", xerxes.getName());
-        assertEquals("Mystic", mystic.getName());
+        // The PRINTED NAME has to be in there; the registry prefix is the file's business.
+        // SH47.2 writes "DD Xerxes" and "CL Mystic", as ADB writes every ship name, but every
+        // other scenario in data/scenarios uses prefixes — USS, IKV, HMS, KHS, IKS — and "USS
+        // Xerxes" is the same destroyer. This asserted the bare string and failed the build the
+        // moment the file was brought into line with its neighbours, which is a test holding a
+        // cosmetic field still rather than protecting a rule. The STATIONS below are what this
+        // test is named for and what SH47.2 actually fixes.
+        assertTrue("SH47.2 names her Xerxes, however she is prefixed: " + xerxes.getName(),
+                xerxes.getName().contains("Xerxes"));
+        assertTrue("SH47.2 names her Mystic, however she is prefixed: " + mystic.getName(),
+                mystic.getName().contains("Mystic"));
         assertEquals("SH47.2: DD Xerxes in 4230", "<42|30>", xerxes.getLocation().toString());
         assertEquals("SH47.2: CL Mystic in 0101", "<1|1>", mystic.getLocation().toString());
     }
