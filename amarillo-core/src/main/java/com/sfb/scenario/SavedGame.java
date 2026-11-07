@@ -50,6 +50,15 @@ public class SavedGame {
      * Bumped when the envelope changes. Distinct from {@link Game#SAVE_FORMAT_VERSION}, which
      * versions the STATE inside: the two can move independently, and a reader needs to know
      * which one it cannot understand.
+     *
+     * <p><b>Before you change this number, read {@code SaveFormatVersionTripwireTest}.</b> It
+     * fails the build when you do, on purpose — see that class for the decision a bump calls
+     * for. The owner asked to be told when this happens.
+     *
+     * <p>Note that this half is already protected by something stricter: this class does not
+     * ignore unknown properties, so a save carrying an envelope field this build has never heard
+     * of fails to parse whatever the version says. The STATE version matters more, because
+     * unknown keys in the state map ARE silently ignored.
      */
     public static final int ENVELOPE_VERSION = 1;
 

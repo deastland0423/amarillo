@@ -2351,7 +2351,16 @@ public class Game {
     // Saved game: turn-boundary snapshot (slice D3)
     // -------------------------------------------------------------------------
 
-    /** Bumped when the format changes in a way a reader has to know about. */
+    /**
+     * Bumped when the format changes in a way a reader has to know about — a key whose meaning
+     * changes, one that is removed or renamed, a field that moves. NOT for a purely additive key
+     * with a forgiving default, which an old reader handles correctly by missing it.
+     *
+     * <p><b>Before you change this number, read {@code SaveFormatVersionTripwireTest}.</b> It
+     * will fail the build when you do, on purpose: the bump itself is nearly free, but it is the
+     * moment to decide what happens to the saves already on disk, and to commit a golden save
+     * from the build before the bump. The owner asked to be told when this happens.
+     */
     public static final int SAVE_FORMAT_VERSION = 1;
 
     /** The format version written inside a saved state map, or 0 if it does not say. */

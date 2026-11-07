@@ -1573,6 +1573,38 @@ and their `ScenarioSpec` never existed as a file. Once a battle is underway a fl
 scenario game are the same thing — both reach `GameSession.adopt(spec, id)` and `Game` never
 learns which path it came from — so there is one save format and one restore path, not two.
 
+### Save versions, and the golden save that is deferred until one is bumped
+
+Two version numbers, both hand-written constants, both still **1** and bumped exactly never since
+the commits that introduced them: `Game.SAVE_FORMAT_VERSION` versions the STATE map and
+`SavedGame.ENVELOPE_VERSION` versions the envelope around it. Nothing derives them. Every save
+file that has ever existed in this repo says 1, so the newer-format refusal built on 2026-11-06
+has never fired and cannot fire today.
+
+**The check runs ONE WAY.** `version > ours` is the only comparison, in both places, so a bump
+stops an OLDER build reading a file this one writes. It does nothing for the direction that
+actually happens here — a NEW build reading an OLD file — because **nothing branches on the
+version to migrate.** The numbers are a gate and nothing more. That means a breaking change
+leaves every existing save loading and coming back subtly wrong, bumped or not.
+
+Version 1 is nevertheless honest: the fifteen commits that have touched `exportState` since
+mid-October were almost all ADDITIVE, and an added key with a forgiving default is read correctly
+by an old reader that simply misses it. A bump is owed when a key's MEANING changes, when one is
+removed or renamed, or when a field moves between owners.
+
+**DEFERRED, by the owner's decision, until a version is bumped: a golden save fixture.** A real
+save file, written by the build before the bump, committed, and loaded by a test. Every save test
+in this repo writes and reads with today's code, so writer and reader move together and a renamed
+key passes — a committed file cannot move, which is the whole value of it. Three things to settle
+when it is written: it cannot live in `data/saves` (gitignored as player data); `amarillo-core`
+has no test resources directory yet; and the embedded scenario NAMES hulls rather than copying
+them, so the fixture will legitimately begin reporting changed hulls as the ship data evolves,
+and must assert facts that do not depend on current hull JSON.
+
+`SaveFormatVersionTripwireTest` is the reminder: it fails the build the moment either constant
+changes, and its class comment carries the decision — migrate old saves, or add a floor and
+refuse them, but not neither. The owner asked to be notified when this comes up.
+
 **Load order is the format**, and it is not optional:
 `setupFromScenario(saved.scenario)` builds the pieces, then `applyState(saved.state)` overlays
 the battle. `SavedGame.restore()` does both.
