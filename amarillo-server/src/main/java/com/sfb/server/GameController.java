@@ -3264,6 +3264,11 @@ public class GameController {
                             m.put("code", "WEAPON:" + st.getDisplayName());
                         } else if (st.getType() == com.sfb.properties.SystemTarget.Type.TRACTOR) {
                             m.put("code", "TRACTOR:" + st.getIndex());
+                        } else if (st.getType()
+                                == com.sfb.properties.SystemTarget.Type.OBJECTIVE) {
+                            // (D7.824) A carried object the scenario has made raidable. Named,
+                            // like a weapon, because the name is its identity.
+                            m.put("code", "OBJECTIVE:" + st.getObjectiveName());
                         } else {
                             m.put("code", st.getType().name());
                         }

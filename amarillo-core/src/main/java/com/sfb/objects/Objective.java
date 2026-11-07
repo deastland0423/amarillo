@@ -35,6 +35,22 @@ public class Objective extends Marker implements Tractorable {
     // and every size gate is then skipped rather than silently passed.
     private Double cargoSpaces;
 
+    /**
+     * (D7.825/D7.824) Whether a hit-and-run raid may be made to seize this thing.
+     *
+     * <h2>Default FALSE, and that is the rule rather than caution</h2>
+     * D7.825: "Non-SSD items and special abilities ... CANNOT be attacked by hit and run raids
+     * UNLESS THE RULES SPECIFICALLY ALLOW IT." An objective is exactly such a non-SSD item, so
+     * refusal is the general case and a scenario grants the exception — which is also what
+     * D7.824 says in so many words: "This will normally involve items specified by a given
+     * scenario."
+     *
+     * <p>SH47.476 is one such grant: "If the Stasis Box is aboard one ship, the other ship may
+     * attempt a hit-and-run raid to seize the box (it can be guarded)." A probe canister in
+     * SH35 is not — nothing there offers a raid for it, so nothing should.
+     */
+    private boolean raidable;
+
     // (G25.214) "It is not possible to transport (or drop) cargo ... into space and have that
     // cargo then 'exist' for some purpose (e.g. damaging an ESG, later pickup, web anchor). A
     // special scenario rule might provide a specific type of item that could be left in space
@@ -150,6 +166,11 @@ public class Objective extends Marker implements Tractorable {
     public void setCanBeLeftInSpace(boolean canBeLeftInSpace) {
         this.canBeLeftInSpace = canBeLeftInSpace;
     }
+
+    /** (D7.825) Whether a hit-and-run raid may be made to seize this; a scenario grant. */
+    public boolean isRaidable() { return raidable; }
+
+    public void setRaidable(boolean raidable) { this.raidable = raidable; }
 
     public int getSide() { return side; }
 

@@ -145,6 +145,15 @@ class BoardingResolver {
         if (c.getAvailableSecurity() > 0)
             systems.add(new SystemTarget(SystemTarget.Type.SECURITY, "Security Station"));
 
+        // (D7.824) "Hit-and-run raids may be made to remove specific individuals or objects
+        // from a given ship. This will normally involve items specified by a given scenario."
+        // So a carried objective is a raid target when, and only when, the scenario says so —
+        // D7.825 refuses every non-SSD item by default. Listed last, after the hardware, which
+        // is also the order a raiding player thinks in: the prize is not a system.
+        for (com.sfb.objects.Objective o : game.getObjectives())
+            if (o.getCarrier() == target && o.isRaidable())
+                systems.add(SystemTarget.forObjective(o.getName()));
+
         return systems;
     }
 
@@ -649,7 +658,9 @@ class BoardingResolver {
 
             String hitResult;
             List<String> followUp = new ArrayList<>();
-            if (systemHit) {
+            if (st.getType() == SystemTarget.Type.OBJECTIVE) {
+                hitResult = resolveObjectiveRaid(actingShip, target, st, result, guard, followUp);
+            } else if (systemHit) {
                 boolean damaged = applyHitAndRunHit(target, st, followUp);
                 hitResult = damaged ? st.getDisplayName() + " DAMAGED"
                         : st.getDisplayName() + " already destroyed";
@@ -679,6 +690,54 @@ class BoardingResolver {
                 .append(" / ").append(targetSystems.size()).append(" sent");
 
         return ActionResult.ok(log.toString());
+    }
+
+    /**
+     * (D7.824) A raid for an OBJECT rather than a system, which is the same chart read
+     * differently.
+     *
+     * <p>The rule is explicit about the mapping, and about its asymmetry: "When trying to
+     * capture a person or object, the result 'System destroyed and BP returned safely' is read
+     * 'TARGET CAPTURED and BP returned safely.' The result 'System and BP destroyed' is applied
+     * AS STATED." So the good result hands the prize over intact, and the bad one destroys it —
+     * no new table, and no softening of the row that costs you the thing you came for.
+     *
+     * <p>A captured object changes hands rather than changing hex: it goes straight into the
+     * raider's hold, which is what a transporter raid does. Its study progress is NOT carried
+     * over — whoever took it has learned nothing about it, and the new owner starts the two
+     * turns from nothing (SH47.474).
+     */
+    private String resolveObjectiveRaid(Ship actingShip, Ship target, SystemTarget st,
+                                        HarResult result,
+                                        com.sfb.objects.GuardPosts.Interception guard,
+                                        List<String> followUp) {
+        com.sfb.objects.Objective prize = game.getObjectives().stream()
+                .filter(o -> o.getName().equals(st.getObjectiveName()))
+                .filter(o -> o.getCarrier() == target)
+                .findFirst().orElse(null);
+        if (prize == null)
+            return st.getDisplayName() + " is no longer aboard " + target.getName();
+
+        if (result == HarResult.SYSTEM_BP_RETURNS) {
+            prize.setCarrier(actingShip);
+            prize.setLocation(null);
+            prize.getStudyProgress().clear();
+            if (guard != null)
+                followUp.add(target.getGuardPosts().onGuardedBoxDestroyedByRaid(guard));
+            return prize.getName() + " CAPTURED \u2014 now aboard " + actingShip.getName()
+                    + " (D7.824)";
+        }
+        if (result == HarResult.BOTH_DESTROYED) {
+            // "Applied as stated": the object is destroyed outright. Not the same thing as its
+            // carrier blowing up, so survivesCarrierDestruction (SH47.475) has no say here —
+            // that clause is about surviving the SHIP, and this is a charge set against the
+            // thing itself.
+            game.getObjectives().remove(prize);
+            if (guard != null)
+                followUp.add(target.getGuardPosts().onGuardedBoxDestroyedByRaid(guard));
+            return prize.getName() + " DESTROYED in the attempt (D7.824)";
+        }
+        return prize.getName() + " not taken";
     }
 
     /**

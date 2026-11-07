@@ -106,6 +106,11 @@ public class ScenarioSpec {
         // (G25.214) Cargo cannot normally be left in space and still exist; a scenario has
         // to grant it for a specific item. Default false is the rule, not a placeholder.
         public boolean      canBeLeftInSpace;
+        // (D7.825/D7.824) Whether an enemy may mount a hit-and-run raid to SEIZE this from
+        // the hold that has it. Default false, which is D7.825's own default: "non-SSD items
+        // ... cannot be attacked by hit and run raids unless the rules specifically allow it."
+        // SH47.476 is such an allowance; SH35's canister is not.
+        public boolean      raidable;
         // (SH47.474) What a ship must do in the hex before it may take this thing.
         // studyMode is "NONE" (the default), "TURNS" — complete turns in the hex, which is
         // SH47.474 — or "RESEARCH_POINTS", G4.11 points so that lab boxes set the pace, for a

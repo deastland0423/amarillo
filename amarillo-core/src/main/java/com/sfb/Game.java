@@ -6181,7 +6181,21 @@ public class Game {
      * "TRACTOR:<beam>", or a type name. Shared by raids and guard posting.
      */
     public SystemTarget parseRaidTargetCode(Ship ship, String code) {
-        return boardingResolver.parseTargetCode(ship, code);
+        SystemTarget target = boardingResolver.parseTargetCode(ship, code);
+        // (D7.825) "Non-SSD items ... cannot be attacked by hit and run raids unless the rules
+        // specifically allow it." The shared parse resolves a carried objective for either
+        // purpose, and the two purposes differ here: GUARDING one the scenario has not made
+        // raidable is merely pointless, while RAIDING it is forbidden. So the gate belongs on
+        // this side alone — and it has to be on the server, not in the target list, because a
+        // pad that never offers the row is no defence against a request that names it anyway.
+        if (target != null && target.getType() == SystemTarget.Type.OBJECTIVE) {
+            boolean allowed = objectives.stream()
+                    .anyMatch(o -> o.getName().equals(target.getObjectiveName())
+                            && o.getCarrier() == ship && o.isRaidable());
+            if (!allowed)
+                return null;
+        }
+        return target;
     }
 
     // --- Guards (D7.83) ---

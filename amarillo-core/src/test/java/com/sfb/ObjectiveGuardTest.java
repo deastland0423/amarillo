@@ -148,6 +148,178 @@ public class ObjectiveGuardTest {
         assertTrue(fed.getGuardPosts().postedObjectives().isEmpty());
     }
 
+    // ---------------------------------------------------------------- raidable (D7.825)
+
+    /**
+     * (D7.825) "Non-SSD items and special abilities ... cannot be attacked by hit and run raids
+     * UNLESS THE RULES SPECIFICALLY ALLOW IT."
+     *
+     * <p>So the default is refusal and a scenario grants the exception, which is also how
+     * D7.824 puts it: "This will normally involve items specified by a given scenario." A box
+     * nobody has made raidable does not appear in an enemy's target list at all — not greyed
+     * out, not refused on submission: absent, because as far as D7.825 is concerned there is
+     * nothing there to raid.
+     */
+    @Test
+    public void anObjectIsNotARaidTargetUnlessTheScenarioSaysSo() {
+        Game game = gameWithCarriedBox();
+        Ship fed = shipNamed(game, "USS Enterprise");
+
+        assertFalse("the default is D7.825's refusal", named(game, "Stasis Box").isRaidable());
+        assertTrue("so it is not offered to a raider",
+                game.getTargetableSystems(fed).stream().noneMatch(
+                        st -> st.getType() == SystemTarget.Type.OBJECTIVE));
+    }
+
+    /** Granted, and it joins the enemy's target list beside the hardware. */
+    @Test
+    public void araidableObjectAppearsInTheTargetList() {
+        Game game = gameWithCarriedBox();
+        Ship fed = shipNamed(game, "USS Enterprise");
+        named(game, "Stasis Box").setRaidable(true);
+
+        assertTrue("the raider should see the prize among the systems",
+                game.getTargetableSystems(fed).stream().anyMatch(
+                        st -> st.getType() == SystemTarget.Type.OBJECTIVE
+                                && "Stasis Box".equals(st.getObjectiveName())));
+    }
+
+    /** And only where it actually is: a raid lists the systems of the ship holding it. */
+    @Test
+    public void theObjectIsOfferedOnlyOnTheShipCarryingIt() {
+        Game game = gameWithCarriedBox();
+        named(game, "Stasis Box").setRaidable(true);
+
+        assertTrue("the Klingon is not carrying it, so nothing to seize there",
+                game.getTargetableSystems(shipNamed(game, "IKV Saber")).stream().noneMatch(
+                        st -> st.getType() == SystemTarget.Type.OBJECTIVE));
+    }
+
+    /** A free box on the map is nobody's to raid — a raid boards a SHIP. */
+    @Test
+    public void aFreeObjectIsNotARaidTargetAtAll() {
+        Game game = gameWithCarriedBox();
+        Objective free = new Objective("Loose Canister", 14, 14);
+        free.setRaidable(true);
+        game.addObjective(free);
+
+        for (Ship s : game.getShips())
+            assertTrue("a box in open space is in no ship's target list",
+                    game.getTargetableSystems(s).stream().noneMatch(
+                            st -> "Loose Canister".equals(st.getObjectiveName())));
+    }
+
+    /** The code the pad sends resolves back to the same target, and only when raidable. */
+    @Test
+    public void theWireCodeNamesTheObject() {
+        Game game = gameWithCarriedBox();
+        Ship fed = shipNamed(game, "USS Enterprise");
+        named(game, "Stasis Box").setRaidable(true);
+
+        SystemTarget parsed = game.parseRaidTargetCode(fed, "OBJECTIVE:Stasis Box");
+        assertNotNull(parsed);
+        assertEquals(SystemTarget.Type.OBJECTIVE, parsed.getType());
+        assertEquals("Stasis Box", parsed.getObjectiveName());
+    }
+
+    // ---------------------------------------------------------------- the raid itself (D7.824)
+
+    /**
+     * (D7.824) The chart is reused and RE-READ, and the re-reading is where the whole thing
+     * lives: "the result 'System destroyed and BP returned safely' is read 'target captured and
+     * BP returned safely.' The result 'System and BP destroyed' is applied AS STATED."
+     *
+     * <h2>Why this test runs the raid instead of calling the mapping</h2>
+     * The size-class work earlier today taught the lesson the hard way: four tests of the
+     * PREDICATE all passed with the behaviour deleted. Listing the box as a target proves
+     * nothing about what happens when somebody takes the shot, so this drives real raids until
+     * both outcomes have come up, and checks the state after each.
+     *
+     * <p>The dice are not seeded, so the loop keeps raiding until it has seen a capture and a
+     * destruction. Each outcome is a 1-in-6 row, so a few dozen attempts suffice; the assertion
+     * at the end is that both were actually reached, which is what stops a silent no-op from
+     * passing as success.
+     */
+    @Test
+    public void aRaidEitherTakesTheBoxOrDestroysIt() {
+        boolean sawCapture = false;
+        boolean sawDestroyed = false;
+
+        for (int attempt = 0; attempt < 400 && !(sawCapture && sawDestroyed); attempt++) {
+            Game game = gameReadyToRaid();
+            Ship raider = shipNamed(game, "IKV Saber");
+            Ship holder = shipNamed(game, "USS Enterprise");
+
+            Game.ActionResult result = game.performHitAndRun(raider, holder,
+                    java.util.List.of(SystemTarget.forObjective("Stasis Box")));
+            if (!result.isSuccess())
+                throw new AssertionError("fixture: the raid must get away — "
+                        + result.getMessage());
+
+            Objective box = game.getObjectives().stream()
+                    .filter(o -> "Stasis Box".equals(o.getName())).findFirst().orElse(null);
+
+            if (box == null) {
+                sawDestroyed = true;
+                assertTrue("a destroyed box must say so: " + result.getMessage(),
+                        result.getMessage().contains("DESTROYED"));
+            } else if (box.getCarrier() == raider) {
+                sawCapture = true;
+                assertNull("a captured box is in a hold, not in a hex", box.getLocation());
+                assertTrue("a capture must say so: " + result.getMessage(),
+                        result.getMessage().contains("CAPTURED"));
+            } else {
+                assertSame("otherwise it has not moved", holder, box.getCarrier());
+            }
+        }
+
+        assertTrue("no raid ever captured the box — the D7.824 re-reading is not wired up",
+                sawCapture);
+        assertTrue("no raid ever destroyed it — 'applied as stated' is not wired up",
+                sawDestroyed);
+    }
+
+    /**
+     * A captured box starts its study again from nothing. Whoever carried it off learned
+     * nothing in the process, so SH47.474's two turns are two turns for the new owner too.
+     */
+    @Test
+    public void aCapturedBoxBringsNoStudyProgressWithIt() {
+        for (int attempt = 0; attempt < 400; attempt++) {
+            Game game = gameReadyToRaid();
+            Ship raider = shipNamed(game, "IKV Saber");
+            Ship holder = shipNamed(game, "USS Enterprise");
+            Objective box = named(game, "Stasis Box");
+            box.setStudy(Objective.StudyMode.TURNS, 2);
+            box.creditStudy("USS Enterprise", 2);
+
+            game.performHitAndRun(raider, holder,
+                    java.util.List.of(SystemTarget.forObjective("Stasis Box")));
+
+            Objective after = game.getObjectives().stream()
+                    .filter(o -> "Stasis Box".equals(o.getName())).findFirst().orElse(null);
+            if (after != null && after.getCarrier() == raider) {
+                assertEquals("the raider has learned nothing about it",
+                        0, after.studyProgressFor("IKV Saber"));
+                assertEquals("and the previous owner's work goes with the box",
+                        0, after.studyProgressFor("USS Enterprise"));
+                return;
+            }
+        }
+        throw new AssertionError("no capture occurred in 400 attempts");
+    }
+
+    /** A ship holding nothing raidable offers no such target, so no raid can be aimed at one. */
+    @Test
+    public void aRaidCannotBeAimedAtAnUnraidableBox() {
+        Game game = gameReadyToRaid();
+        named(game, "Stasis Box").setRaidable(false);
+
+        assertNull("D7.825 refuses it, so the code must not resolve",
+                game.parseRaidTargetCode(shipNamed(game, "USS Enterprise"),
+                        "OBJECTIVE:Stasis Box"));
+    }
+
     // ---------------------------------------------------------------- stranded guards
 
     /**
@@ -220,6 +392,33 @@ public class ObjectiveGuardTest {
         game.addObjective(box);
 
         game.startTurn();    // guards are posted during Energy Allocation (D7.83)
+        return game;
+    }
+
+    /**
+     * The Klingon adjacent to the Federation ship, in the Activity phase, with a boarding party
+     * and the transporter energy to send it — everything D7.8 asks for before a raid.
+     */
+    private static Game gameReadyToRaid() {
+        Game game = gameWithCarriedBox();
+        named(game, "Stasis Box").setRaidable(true);
+
+        Ship raider = shipNamed(game, "IKV Saber");
+        Ship holder = shipNamed(game, "USS Enterprise");
+        raider.setLocation(new Location(10, 11));      // range 1
+
+        submitAllocations(game);
+        while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            game.advancePhase();
+
+        raider.setActiveFireControl(true);
+        raider.addLockOn(holder);
+        raider.getTransporters().bankEnergy(4.0);
+        raider.getCrew().setAvailableBoardingParties(4);
+        // A raid cannot beam through a live shield, and the TARGET'S shield is not the
+        // raider's to drop — so the fixture has to open the hull the way a battle would.
+        for (int shield = 1; shield <= 6; shield++)
+            holder.getShields().lowerShield(shield);
         return game;
     }
 
