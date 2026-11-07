@@ -1,0 +1,92 @@
+{
+  "id": "SH47",
+  "name": "The Stasis Box",
+  "year": 152,
+  "numPlayers": 2,
+  "description": "In Y152 the Federation destroyer Xerxes, surveying an asteroid field in disputed territory, detected the sensor readings of a Stasis Box — and found the Kzinti light cruiser Mystic looking for the same box.",
+  "_subsetComment": "TRAINING SUBSET. The scenario's own box hunt (SH47.47) is NOT in this file, because the engine has no hidden-identity counters: the eighteen counters of the field are laid out as plain asteroids, so no Stasis Box and no NSM is in play. Everything else is the printed scenario. That makes this the gentle two-ship introduction it was written to be - a Fed DD and a Kzinti CL at opposite corners of a standard asteroid field - and the box layer grows into this same file once hidden objectives, scenario-placed mines and the two-turn study exist. Putting the boxes in as VISIBLE objectives would work mechanically and ruin the scenario, so they are left out rather than faked.",
+  "mapType": "STANDARD",
+  "mapCols": 42,
+  "mapRows": 30,
+  "_mapSizeComment": "SH47.41 fixes the map, and the scenario pins its size: the four set-up hexes it names are 4230 (SH47.2, Federation), 0101 (SH47.2, Kzinti), 0130 and 4201 (SH47.64, the third and fourth players) - the four corners of the printed 42x30 map. Stated explicitly because ScenarioSpec defaults to 32 rows, which would leave the Xerxes two rows short of her corner.",
+  "lengthCondition": "STANDARD",
+  "specialRules": [
+    "MAP (SH47.41): The map is fixed; it does not float. Any unit leaving the map has disengaged and cannot return. The Federation can only disengage from the 42xx map edge. The Kzinti can only disengage from the 01xx map edge.",
+    "COMBAT (SH47.45): A period of peace exists between the races of the two players. The ships are neither required nor expected to have combat with each other, but such combat is not prohibited.",
+    "ASTEROID FIELD (SH47.46): Take 18 asteroid counters, 2 NSM counters and 2 Klingon pod counters (which represent Stasis Boxes). Turn them all upside down, shuffle them thoroughly, then remove four and set them aside face down without looking at them. Place the rest using the asteroid field procedure (P3.1). Detonating an NSM or removing a Stasis Box does NOT make the asteroids centered on it disappear. -- NOT IN THIS FILE: the field is laid out by P3.11/P3.12 as eighteen plain asteroid counters, so no box and no mine is hidden in it.",
+    "STASIS BOX (SH47.47): A ship examines a face-down counter by entering its hex; a shuttle or fighter may examine one by ending its movement in the hex and rolling a 1 or 2, which it can only do on impulse #32. A found box takes two complete turns of study in the hex, after which the ship may drop one shield and beam it aboard (SH47.474). A carried box survives its carrier's destruction and remains in the hex (SH47.475), and the other ship may hit-and-run raid to seize it, guarded or not (SH47.476). -- NOT IN THIS FILE: there are no boxes to find.",
+    "NSMs (SH47.48): The NSM counters are mines (M2.0) set to detonate against the first target of size class 6 or larger that triggers them, and are asteroid counters as well. They only roll for triggering AFTER they have been revealed, and explode off the shield facing behind which the ship entered the hex. -- NOT IN THIS FILE: no mines are pre-placed.",
+    "SHUTTLES AND PFs (SH47.42): No shuttles or PFs have warp booster packs. No ship in this scenario is qualified to carry an MRS shuttle (SH47.421). There were no EW fighters available at the time (SH47.422), and there are no PFs in the basic version (SH47.423).",
+    "REFITS (SH47.44): No unit in this scenario has been refitted."
+  ],
+  "terrainPlan": [
+    {
+      "type": "ASTEROID_FIELD",
+      "_comment": "SH47.2's terrain is the standard asteroid field, and the engine already lays it out by the rule: P3.11's eighteen named counter hexes, each rolled one hex in a random direction, with every hex within two becoming an asteroid hex (P3.12). SH47.46's shuffling changes what four of the counters ARE, never where they sit - and SH47.46 says so outright, since removing a box leaves its asteroid hexes behind. So this geometry already IS the scenario's field. No seed: a seed makes one plan lay out the same way every time, and this field should differ from playing to playing, the way a reshuffled stack of counters does."
+    }
+  ],
+  "sides": [
+    {
+      "name": "United Federation of Planets",
+      "faction": "Federation",
+      "ships": [
+        {
+          "type": "DD",
+          "shipName": "Xerxes",
+          "startHex": "4230",
+          "startHeading": "F",
+          "startSpeed": 4,
+          "weaponStatus": 0,
+          "refits": []
+        }
+      ],
+      "reinforcements": [],
+      "destructionEdges": [
+        "TOP",
+        "BOTTOM",
+        "LEFT"
+      ],
+      "_headingComment": "SH47.2 reads \"heading at player's option\" for both ships, and a heading is fixed here anyway. Saying it properly needs a deployment zone of a single hex - MapRegion.circle(\"4230\", 0), which the deployment screen already supports - but a submitted placement overwrites startSpeed too, and SH47.2 fixes the speed at 4. Heading F points the Xerxes out of her corner toward the field and the Mystic.",
+      "_disengagementComment": "SH47.41: \"The Federation can only disengage from 42xx map edge\" - the right-hand edge, which is also the corner she starts in. The other three are marked destruction, which is HARSHER than the printed text: SH47.41 says only that leaving the map is disengagement and that the Federation's is limited to that edge, and never says an illegal exit destroys the ship (contrast SH80.41, which does say it). Marked anyway because destruction is the only enforcement the engine has, and the alternative is a Xerxes free to carry a box out of the Kzinti's edge and win - which SH47.41 plainly forbids and SH47.5 would then reward."
+    },
+    {
+      "name": "Kzinti Hegemony",
+      "faction": "Kzinti",
+      "ships": [
+        {
+          "type": "CL",
+          "shipName": "Mystic",
+          "startHex": "0101",
+          "startHeading": "C",
+          "startSpeed": 4,
+          "weaponStatus": 0,
+          "refits": []
+        }
+      ],
+      "reinforcements": [],
+      "destructionEdges": [
+        "TOP",
+        "BOTTOM",
+        "RIGHT"
+      ],
+      "_headingComment": "As on the Federation side: SH47.2 leaves the heading to the player. C points the Mystic out of her corner toward the field and the Xerxes.",
+      "_disengagementComment": "SH47.41: \"The Kzinti can only disengage from 01xx map edge\" - the left-hand edge, the corner she starts in. The other three are destruction for the same reason, and with the same caveat, as the Federation side."
+    }
+  ],
+  "victoryConditions": {
+    "type": "SPECIAL",
+    "notes": "SH47.5: The player who successfully disengages with a Stasis Box wins the game. If two boxes exist, it is possible that both players could win. If no boxes exist, the player who scored the most internal hits on the other LOSES the scenario, having ruined his career by provoking an incident. -- In this file no boxes exist, so the game is decided by SH47.3 (one side destroyed, captured or disengaged) and by SH47.5's incident clause, which nothing in the engine tallies: no side's internal hits scored are counted. Historically the Xerxes recovered the box and disengaged with damage, while the Mystic took a volley of photons and returned to base."
+  },
+  "shuttleRules": {
+    "warpBoosterPacks": false,
+    "megapacks": false,
+    "mrsShuttles": false,
+    "pfs": false
+  },
+  "commanderOptions": {
+    "budgetPercent": 20,
+    "allowTBombs": true,
+    "allowCommandos": true,
+    "maxDroneSpeed": 8
+  }
+}

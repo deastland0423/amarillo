@@ -1857,8 +1857,73 @@ the file records why.
 
 **The cheap order, if someone wants published scenarios to run themselves:** the destruction
 region first (MapRegion is there), then the floating map, then alliances. Victory conditions
-and named characters are their own projects. SH47's training subset remains the gentler first
-target — it needs none of the four.
+and named characters are their own projects. SH47's training subset needed none of the four
+and has been built — see the next section.
+
+## SH47 "The Stasis Box" — training subset BUILT 2026-11-06
+
+`data/scenarios/sh47.json`, guarded by `Sh47LoadsTest`. The first published scenario in this
+repo meant to be PLAYED rather than measured: Fed DD *Xerxes* at 4230 and Kzinti CL *Mystic* at
+0101 — opposite corners of the printed map — at speed 4, WS-0, in a standard P3.1 asteroid
+field, with each side able to leave by one map edge only.
+
+Three things about it are worth keeping:
+
+- **The asteroid field came for free, and exactly.** `TerrainGenerator` already implements
+  P3.11/P3.12 — eighteen counters in the hexes the rule names, each rolled one hex, every hex
+  within two becoming an asteroid hex. SH47.46's shuffle changes what four of the counters ARE
+  and never where they sit, and the rule says so outright: removing a Stasis Box leaves its
+  asteroid hexes behind. So the geometry the engine lays out already IS this scenario's field.
+  No seed in the file, deliberately — the field should differ from playing to playing, the way
+  a reshuffled stack of counters does.
+- **Edges here, directions in SH80.** SH47.41 fixes the map and names map edges outright
+  ("the Federation can only disengage from 42xx map edge"), so this file uses
+  `destructionEdges` and must not use `destructionDirections`. SH80.41 restricts the DIRECTION
+  of disengagement on a floating map, so it is the exact opposite. Same two fields, opposite
+  verdicts, and only the scenario text decides which. One caveat recorded in the file: marking
+  the other three edges as DESTRUCTION is harsher than SH47.41, which never says an illegal
+  exit kills the ship. It is the only enforcement there is, and the alternative is a Xerxes
+  free to carry a box out of the Kzinti's edge and win.
+- **The map is 42x30, and `ScenarioSpec` defaults to 32 rows.** The scenario is what proves
+  the size: every set-up hex it names is a corner — 4230 and 0101 for the two players, 0130
+  and 4201 for the third and fourth of SH47.64. Two other files in `data/scenarios` state 42x32
+  explicitly. Worth deciding whether the DEFAULT is wrong rather than restating it per file.
+
+**What the subset leaves out — the fog layer, which is the scenario's whole point:**
+- **Hidden counter identity, with an unknown count.** Eighteen face-down counters of which two
+  are Stasis Boxes and two are nuclear space mines; four are removed unseen, so neither player
+  knows whether two boxes exist, one, or none. `Objective` has no `revealed` state at all, and
+  each counter is DUAL-FUNCTION: the same hex is an asteroid and maybe an objective.
+  `MapObjectPrivacyTest` names the OMISSION mechanism and says nothing uses it yet; this would
+  be its first real use. Until then the boxes are absent rather than visible — a visible box
+  loads, plays, and throws the scenario away.
+- **Scenario-placed free-standing mines.** NSM exists as a mine type with an M2.1 bay drop, but
+  `ScenarioSpec` has no `mines` field: nothing can pre-place one. SH47.48 then adds its own
+  clauses — armed only AFTER being revealed, triggering on size class 6 or larger, detonating
+  off the shield behind which the ship entered the hex.
+- **SH47.474's two-turn study.** Two complete turns in the hex before the shield comes down and
+  the box is beamed aboard. The `pickUpObjective` javadoc already names this as deferred; the
+  beam itself is built (`retrieveObjectByTransporter`, shields-down and all).
+- **SH47.472 examination by shuttle or fighter.** End movement in the hex and roll a 1 or 2 —
+  and because a shuttle must END its movement there, only on impulse #32 of a turn.
+- **SH47.476 guarding a carried box.** Guards post to SSD systems, not to a carried object.
+  Same shape as D7.838's individuals in a room, so it falls out of that work rather than
+  needing its own.
+- **SH47.5's incident tiebreaker.** "If no boxes exist, the player who scored the most internal
+  hits on the other LOSES." Nothing tallies internal hits SCORED per side.
+
+Already built and used by the file: SH47.475 (`survivesCarrierDestruction`, whose code comment
+cites the clause), disengage-with-the-box-wins (a safe-edge exit calls
+`game.secureObjectivesFor`), SH47.431's 20% COI, SH47.432's slow drones via
+`commanderOptions.maxDroneSpeed`, SH47.44's no-refits, and P3.21/P3.22 asteroid collision
+damage.
+
+One small thing found while writing the file: **deployment overwrites a scenario-fixed speed.**
+SH47.2 says "heading at player's option, speed 4", which a deployment zone of a single hex
+(`MapRegion.circle("4230", 0)`) expresses perfectly — except that `applyDeployments` writes the
+submitted `startSpeed` over the spec's, and the deployment screen lets the player choose it. So
+the headings are fixed in the file instead. Letting a scenario pin speed while leaving heading
+and hex to the player is a few lines, and SH47 is the case that wants it.
 
 ## Unstarted systems
 
