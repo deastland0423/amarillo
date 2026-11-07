@@ -2062,6 +2062,19 @@ public class GameSession {
                     e.setErraticManuvers(emCost);
                 }
 
+                // (D22.0) THE BUDGET. Nothing on this side used to check it: the OVER BUDGET
+                // warning lived only in the dialog, so a modified or simply buggy client could
+                // allocate whatever it liked and be believed. Movement was the lone exception,
+                // rejected against warp engine capacity above.
+                //
+                // The arithmetic is Game's, where the rules live; only the refusing is here,
+                // at the boundary a client can reach. Game.submitAllocation deliberately does
+                // not gate on it — see that method for why, and for the eleven test fixtures
+                // that allocate more than their hulls hold.
+                String overspend = game.allocationOverspend(ship, e);
+                if (overspend != null)
+                    return ActionResult.fail(overspend);
+
                 ActionResult allocResult = game.submitAllocation(ship, e);
                 // If this was the last allocation, beginImpulses() ran lock-on rolls — drain
                 // them

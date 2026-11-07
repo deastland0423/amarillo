@@ -385,4 +385,55 @@ public class Energy {
 	public Map<DroneRack, List<Drone>> getReloadAssignments() {
 		return reloadAssignments;
 	}
+
+	/**
+	 * A LOWER BOUND on the energy this form spends, for the server-side budget check.
+	 *
+	 * <h2>Deliberately a floor, not an audit</h2>
+	 * Nothing on the server compared an allocation form against the ship's power: the
+	 * OVER BUDGET warning lived only in the client, so a modified or simply buggy client could
+	 * allocate whatever it liked and be believed. (Movement was the exception, and still is —
+	 * the ALLOCATE handler rejects a speed the warp engines cannot pay for, which is why the
+	 * largest term was never the exposure.)
+	 *
+	 * <p>An exact total would mean restating roughly twenty-six rate calculations that currently
+	 * live in the dialog, and getting any one of them wrong REFUSES A LEGAL FORM — a worse bug
+	 * than the one being closed, and one that would strike in the middle of somebody's turn. So
+	 * this sums only what {@code Energy} itself holds at one-for-one with energy points, and can
+	 * therefore only ever UNDER-count. It catches the gross case and never the honest one.
+	 *
+	 * <p>Known omissions, all of them held outside this object: ECM and ECCM, suicide-shuttle
+	 * arming and holding, and wild-weasel charging. Add them here as they move into
+	 * {@code Energy}, not by guessing their rates from the client.
+	 *
+	 * <p>{@code batteryDraw} is excluded because it is INCOME, not spend — it raises the budget
+	 * on the other side of the comparison. Counting it here would make a ship that leans on its
+	 * batteries look like a cheat.
+	 *
+	 * @param cloakCost the ship's cost to hold its cloak (G13), the one rate Energy cannot know
+	 */
+	public double committedEnergyFloor(int cloakCost) {
+		double total = lifeSupport + fireControl + activateShields
+				+ generalReinforcement
+				+ warpMovement + impulseMovement
+				+ highEnergyTurns + erraticManuvers
+				+ warpTacticalTurns + impulseTacticalTurn
+				+ phaserCapacitor
+				+ transporters + tractors
+				+ plasmaActivation
+				+ batteryRecharge
+				+ scoutEwPoints + poweredChannels.size()   // a point each
+				+ (energizeCaps ? 1 : 0)                    // WS-0 flat point
+				+ (cloakPaid ? cloakCost : 0);
+
+		for (int shield : specificReinforcement)
+			total += shield;
+		for (Integer esg : esgEnergy.values())
+			total += esg == null ? 0 : esg;
+		for (Integer caps : fighterCapacitorsByBox.values())
+			total += caps == null ? 0 : caps;
+		for (Double arming : armingEnergy.values())
+			total += arming == null ? 0 : arming;
+		return total;
+	}
 }

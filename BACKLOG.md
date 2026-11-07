@@ -343,6 +343,30 @@ unreachable for a PPD, which needs a lock throughout (E11.15); it is also absent
 firing path for EVERY weapon, which is noted at `Game.adjustedRange` and is a separate question
 from this one.
 
+## Eleven test fixtures allocate more energy than their hulls hold (found 2026-11-07)
+
+Found while adding the server-side allocation budget check (D22.0). Enforcing it inside
+`Game.submitAllocation` broke eleven tests across six files, because their fixtures spend more
+than the ship has: `CloakRetentionTest` flies a Romulan KR that holds 37 power, spends 20 of it
+on the cloak, and then buys speed on top. The tests are about retaining a lock, not about paying
+for it, so the forms are shorthand rather than claims.
+
+That is defensible as a fixture and worth knowing as a fact: **those tests assert behaviour at
+allocations the game cannot legally reach.** Whether that invalidates anything depends on the
+test — a cloak-retention roll probably does not care how the speed was paid for, but "fast
+cloaker" cases may be describing a hull that cannot both cloak and go that fast. A Romulan KR
+with 20 going to the cloak has 17 left, which at moveCost 1.0 is speed 17 before life support,
+fire control and shields come out of it.
+
+The enforcement therefore sits in the ALLOCATE handler, at the boundary a client can reach,
+while the arithmetic stays in `Game.allocationOverspend` where the rules live. Fixing the
+fixtures is a separate job: each needs a form that balances, and some may need a different hull
+or a slower speed to make their premise legal. `AllocationBudgetTest` covers the check itself.
+
+Known omissions in the spend floor, all held outside `Energy` and so not yet counted: ECM and
+ECCM, suicide-shuttle arming and holding, wild-weasel charging. The floor can only under-count,
+which is the safe direction — it catches the gross case and never an honest form.
+
 ## Ready to start
 
 Each of these was named by an earlier session as the next sensible slice in its area, with the

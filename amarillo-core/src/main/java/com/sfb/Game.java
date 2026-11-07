@@ -546,6 +546,73 @@ public class Game {
     }
 
     /**
+     * Why this form cannot be paid for, or null if it can.
+     *
+     * <h2>A QUERY, not a gate — and submitAllocation deliberately does not call it</h2>
+     * The arithmetic belongs here, where the rules are; the refusing belongs at the boundary a
+     * client can reach, which is the ALLOCATE handler. Enforcing it inside
+     * {@link #submitAllocation} looked tidier and broke ELEVEN existing tests, because their
+     * fixtures allocate more than the hull has on purpose: {@code CloakRetentionTest} flies a
+     * Romulan KR that holds 37 power and spends 20 of it on the cloak, then buys speed on top,
+     * because the test is about retaining a lock and not about paying for it. Those fixtures
+     * are shorthand, not claims — and a gate here would force every one of them to balance a
+     * form the test does not care about.
+     *
+     * <p>Worth knowing all the same: those eleven fixtures describe allocations the game cannot
+     * legally reach, so whatever they asserted was asserted at an impossible state. That is a
+     * separate question from this one and recorded in BACKLOG rather than fixed here.
+     *
+     * <h2>The budget, matching the dialog's</h2>
+     * Total available power, plus what is drawn FROM batteries (income, which raises the
+     * ceiling), plus whatever doubled engines put out this turn (G15.2). That is the same three
+     * terms the Energy Allocation dialog adds up, and it has to be: a server budget that
+     * disagreed with the one on screen would refuse a form the player watched fit.
+     *
+     * <h2>The tolerance is not optional</h2>
+     * Movement cost is stored per hull as a truncated decimal — 0.6666667 standing in for two
+     * thirds — so a ship buying speed 3 commits 2.0000001 points and one buying thirty commits
+     * 20.000001. Compared strictly, every such ship would be refused at full power. The same
+     * artefact is why the dialog once said "23.0 / 23" and OVER BUDGET together, and why
+     * {@code hexesBought} carries its own epsilon. A hundredth of a point is below anything the
+     * game can spend: energy comes in quarters and thirds, never hundredths.
+     */
+    public String allocationOverspend(Ship ship, Energy allocation) {
+        if (allocation == null)
+            return null;
+        double budget = ship.getPowerSystems().getTotalAvailablePower()
+                + allocation.getBatteryDraw()
+                + doubledEngineOutput(ship, allocation);
+        int cloakCost = ship.getCloakingDevice() == null ? 0
+                : ship.getCloakingDevice().getPowerToActivate();
+        double committed = allocation.committedEnergyFloor(cloakCost);
+
+        if (committed <= budget + 0.01)
+            return null;
+        return String.format(
+                "%s cannot pay for this allocation: at least %.1f energy committed against %.1f"
+                + " available (power %d, batteries %d, doubled engines %d)",
+                ship.getName(), committed, budget,
+                ship.getPowerSystems().getTotalAvailablePower(),
+                allocation.getBatteryDraw(),
+                doubledEngineOutput(ship, allocation));
+    }
+
+    /** (G15.2) What this turn's doubled engines add to the budget — Orion only. */
+    private int doubledEngineOutput(Ship ship, Energy allocation) {
+        com.sfb.systemgroups.PowerSystems ps = ship.getPowerSystems();
+        int bonus = 0;
+        if (allocation.isDoubleLwarp())
+            bonus += ps.getAvailableLWarp();
+        if (allocation.isDoubleRwarp())
+            bonus += ps.getAvailableRWarp();
+        if (allocation.isDoubleCwarp())
+            bonus += ps.getAvailableCWarp();
+        if (allocation.isDoubleImpulse())
+            bonus += ps.getAvailableImpulse();
+        return bonus;
+    }
+
+    /**
      * (D5.1) Declare self-destruction for one ship, at the start of a turn.
      *
      * <blockquote>"A player may only declare self-destruction at the start of a turn after
