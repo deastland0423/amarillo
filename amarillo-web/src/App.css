@@ -1423,6 +1423,30 @@ h3 {
   max-height: calc(90vh - 42px); /* 42px ≈ titlebar height */
 }
 
+/* ---- EA sticky header: ship name + budget, pinned while the form scrolls ---- */
+
+.ea-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+
+  /* Opaque, and the dialog's own colour: the form slides BEHIND this, so anything
+     translucent would show two sets of numbers at once. */
+  background: #161b22;
+
+  /* Breaks out of .ea-body's padding so it spans the dialog edge to edge and leaves no strip
+     above itself for content to show through. The negative top margin cancels the body's
+     padding-top; the matching padding puts it back inside the block. */
+  margin: -0.75rem -0.75rem 0;
+  padding: 0.6rem 0.75rem 0.5rem;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-bottom: 1px solid #30363d;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
 /* ---- EA budget bar ---- */
 
 .ea-budget-bar {
@@ -1436,16 +1460,6 @@ h3 {
   border: 1px solid #30363d;
   color: #8b949e;
 
-  /* STICKY, because going over budget is the one mistake this dialog exists to prevent and
-     the form is far taller than the window. Scrolled down to put two points into a phaser
-     capacitor, a player could not see that the total had already passed the limit without
-     scrolling back up to look — so the warning was furthest away exactly when it mattered.
-     The bar carries the OVER BUDGET flag with it, so the flag comes along.
-     It already has an opaque background, so content passes behind it rather than through. */
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
 }
 
 .ea-budget-bar.over {

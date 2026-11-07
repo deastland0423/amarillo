@@ -680,16 +680,30 @@ export default function EnergyAllocationDialog({
       )}
 
       <div className="ea-body">
-        {/* Ship name */}
-        <div className="ea-ship-name">{ship.name}</div>
+        {/*
+          STICKY HEADER: whose form this is, and what it has spent so far.
 
-        {/* Budget bar */}
-        <div className={`ea-budget-bar ${overBudget ? 'over' : ''}`}>
-          <span>Spent</span>
-          <span className="ea-budget-nums">
-            {spent.toFixed(1)} / {total}
-          </span>
-          {overBudget && <span className="ea-budget-over">OVER BUDGET</span>}
+          One block rather than a sticky budget bar alone, because the two answers belong
+          together — a total with no name on it is the wrong kind of certainty when several
+          ships allocate in a round. The title bar and the ship tabs above are already outside
+          the scrolling body; this puts the two facts that change as you type up there with
+          them, the way the map keeps its toolbar while the map scrolls underneath.
+
+          Going over budget is the one mistake this dialog exists to prevent, and the form is
+          far taller than the window: scrolled down to put two points into a phaser capacitor,
+          a player could not tell the total had already passed the limit without scrolling back
+          to look. The warning was furthest away exactly when it mattered most.
+        */}
+        <div className="ea-sticky-header">
+          <div className="ea-ship-name">{ship.name}</div>
+
+          <div className={`ea-budget-bar ${overBudget ? 'over' : ''}`}>
+            <span>Spent</span>
+            <span className="ea-budget-nums">
+              {spent.toFixed(1)} / {total}
+            </span>
+            {overBudget && <span className="ea-budget-over">OVER BUDGET</span>}
+          </div>
         </div>
 
         {/* ---- Batteries ---- */}
