@@ -73,6 +73,16 @@ public class GuardPosts {
     private final Ship ship;
 
     private final Map<Weapon, BoardingPartyQuality> weaponGuards = new LinkedHashMap<>();
+    /**
+     * (D7.83) Guards on carried objects and individuals, by objective NAME.
+     *
+     * <p>Keyed like the weapon map rather than pooled like the hull boxes, because (D7.833)
+     * allows "no more than one boarding party ... to guard one object, area, or group of
+     * people" — a specific thing, once. The NAME is the key because that is the identity every
+     * objective action already uses; the objective itself is not held here, so a box that
+     * leaves the ship cannot be kept alive by its own guard post.
+     */
+    private final Map<String, BoardingPartyQuality> objectiveGuards = new LinkedHashMap<>();
     private final Map<Integer, BoardingPartyQuality> tractorGuards = new TreeMap<>();
     private final Map<SystemTarget.Type, BoardingPartyQuality> singletonGuards =
             new EnumMap<>(SystemTarget.Type.class);
@@ -110,6 +120,7 @@ public class GuardPosts {
         switch (kindOf(target)) {
             case WEAPON:   weaponGuards.put(target.getWeapon(), quality); break;
             case TRACTOR:  tractorGuards.put(target.getIndex(), quality); break;
+            case OBJECTIVE: objectiveGuards.put(target.getObjectiveName(), quality); break;
             default:
                 if (POOL_TYPES.contains(target.getType())) {
                     poolGuards.computeIfAbsent(target.getType(), t -> new ArrayList<>()).add(quality);
@@ -135,6 +146,9 @@ public class GuardPosts {
             case TRACTOR:
                 freed = tractorGuards.remove(target.getIndex());
                 break;
+            case OBJECTIVE:
+                freed = objectiveGuards.remove(target.getObjectiveName());
+                break;
             default:
                 if (POOL_TYPES.contains(target.getType())) {
                     List<BoardingPartyQuality> list = poolGuards.get(target.getType());
@@ -154,11 +168,13 @@ public class GuardPosts {
         int released = 0;
         for (BoardingPartyQuality q : weaponGuards.values()) { returnToRoster(q); released++; }
         for (BoardingPartyQuality q : tractorGuards.values()) { returnToRoster(q); released++; }
+        for (BoardingPartyQuality q : objectiveGuards.values()) { returnToRoster(q); released++; }
         for (BoardingPartyQuality q : singletonGuards.values()) { returnToRoster(q); released++; }
         for (List<BoardingPartyQuality> list : poolGuards.values())
             for (BoardingPartyQuality q : list) { returnToRoster(q); released++; }
         weaponGuards.clear();
         tractorGuards.clear();
+        objectiveGuards.clear();
         singletonGuards.clear();
         poolGuards.clear();
         poolLastKnown.clear();
@@ -183,6 +199,15 @@ public class GuardPosts {
             case TRACTOR:
                 return tractorGuards.containsKey(target.getIndex())
                         ? new Interception(SystemTarget.Type.TRACTOR, null, target.getIndex(), "guarded beam")
+                        : null;
+            case OBJECTIVE:
+                // (D7.831) A raid against a guarded OBJECT reads the harsher chart, exactly as
+                // one against a guarded compartment does: the rule names "a guarded object,
+                // person, or compartment" in one breath. No pooling and no die here — the
+                // guard is on that specific thing, so it is either met or not.
+                return objectiveGuards.containsKey(target.getObjectiveName())
+                        ? new Interception(SystemTarget.Type.OBJECTIVE, null, 0,
+                                "guarded object")
                         : null;
             default:
                 if (POOL_TYPES.contains(target.getType())) {
@@ -330,8 +355,14 @@ public class GuardPosts {
     }
 
     /** Total boarding parties currently standing guard. */
+    /** Names of the objects currently under guard (D7.83), for reconciling against the hold. */
+    public Set<String> postedObjectives() {
+        return new java.util.LinkedHashSet<>(objectiveGuards.keySet());
+    }
+
     public int totalPosted() {
-        int total = weaponGuards.size() + tractorGuards.size() + singletonGuards.size();
+        int total = weaponGuards.size() + tractorGuards.size() + singletonGuards.size()
+                + objectiveGuards.size();
         for (List<BoardingPartyQuality> list : poolGuards.values())
             total += list.size();
         return total;
@@ -341,11 +372,12 @@ public class GuardPosts {
     // Internals
     // -------------------------------------------------------------------------
 
-    private enum Kind { WEAPON, TRACTOR, OTHER }
+    private enum Kind { WEAPON, TRACTOR, OBJECTIVE, OTHER }
 
     private Kind kindOf(SystemTarget target) {
         if (target.getType() == SystemTarget.Type.WEAPON) return Kind.WEAPON;
         if (target.getType() == SystemTarget.Type.TRACTOR) return Kind.TRACTOR;
+        if (target.getType() == SystemTarget.Type.OBJECTIVE) return Kind.OBJECTIVE;
         return Kind.OTHER;
     }
 
@@ -365,6 +397,16 @@ public class GuardPosts {
                     return "Tractor beam #" + target.getIndex() + " is destroyed or missing";
                 if (tractorGuards.containsKey(target.getIndex()))
                     return "Already guarded — one guard per system (D7.833)";
+                return null;
+            }
+            case OBJECTIVE: {
+                String name = target.getObjectiveName();
+                if (name == null || name.isBlank())
+                    return "No objective named";
+                if (objectiveGuards.containsKey(name))
+                    return "Already guarded \u2014 one guard per object (D7.833)";
+                // That the thing is actually ABOARD is checked by Game, which is what knows
+                // where every objective is. This class only holds the post.
                 return null;
             }
             case UIM:

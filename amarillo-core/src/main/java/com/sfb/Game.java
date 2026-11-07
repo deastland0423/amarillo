@@ -1141,6 +1141,9 @@ public class Game {
         // SH47.474: a complete turn in the hex is only complete now, so this is where study is
         // paid out — and where a ship that broke off loses what it had.
         List<String> studyLog = creditStudyAtTurnEnd();
+        // D7.83: next turn's assignments are about to be made, so any guard whose charge has
+        // left the hold goes back to the pool first.
+        studyLog.addAll(releaseStrandedObjectiveGuards());
 
         // P2.4113: a shuttle that entered the atmosphere on a PRIOR turn spends
         // this turn descending and lands on Impulse 32 (this turn boundary).
@@ -5197,6 +5200,43 @@ public class Game {
                         + " (SH47.474)");
             }
             o.beginStudyTurn();
+        }
+        return log;
+    }
+
+    /**
+     * Return any boarding party still guarding something that is no longer in its own hold
+     * (D7.83).
+     *
+     * <h2>At the turn boundary, and only there</h2>
+     * A box can leave a hold in four ways — beamed out by its owner, jettisoned, stolen by
+     * another ship's transporter, or gone down with the ship — and a guard left posted on one
+     * is a marine locked in an empty compartment, counted out of (D7.4) for nothing. ONE sweep
+     * rather than a release call on each of those four paths, because a release call that has
+     * to be written at every site is one that gets forgotten at the fifth.
+     *
+     * <p>The turn boundary is also the rule's own answer: D7.83 says guard assignments "are
+     * made at the start of the turn and cannot be changed until the next turn", so a post does
+     * not dissolve the instant its charge is carried off — it lapses when the next turn's
+     * assignments are made. (D7.832 is the exception and is immediate, but that is destruction
+     * and {@code onGuardedBoxDestroyedByRaid} already handles its own case.)
+     *
+     * @return one line per guard sent back to the roster
+     */
+    private List<String> releaseStrandedObjectiveGuards() {
+        List<String> log = new ArrayList<>();
+        for (Ship ship : ships) {
+            for (String guarded : ship.getGuardPosts().postedObjectives()) {
+                boolean stillAboard = objectives.stream()
+                        .anyMatch(o -> guarded.equals(o.getName()) && o.getCarrier() == ship);
+                if (stillAboard)
+                    continue;
+                ship.getGuardPosts().release(
+                        com.sfb.properties.SystemTarget.forObjective(guarded));
+                log.add(ship.getName() + "'s guard on " + guarded
+                        + " has nothing left to guard — returned to the boarding party pool"
+                        + " (D7.83)");
+            }
         }
         return log;
     }

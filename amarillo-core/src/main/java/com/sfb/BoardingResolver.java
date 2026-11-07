@@ -173,9 +173,22 @@ class BoardingResolver {
                 return null;
             }
         }
+        if (upper.startsWith("OBJECTIVE:")) {
+            // (D7.83) "specific individuals or objects". Named rather than indexed, because the
+            // name is what every other objective action addresses it by, and it must be a thing
+            // actually ABOARD THIS SHIP — a guard cannot be posted on a box in somebody else's
+            // hold, nor on one still lying in an asteroid hex.
+            String objectiveName = code.substring(10);
+            com.sfb.objects.Objective found = game.getObjectives().stream()
+                    .filter(o -> o.getName().equalsIgnoreCase(objectiveName))
+                    .filter(o -> o.getCarrier() == ship)
+                    .findFirst().orElse(null);
+            return found == null ? null : SystemTarget.forObjective(found.getName());
+        }
         try {
             SystemTarget.Type type = SystemTarget.Type.valueOf(upper);
-            if (type == SystemTarget.Type.WEAPON || type == SystemTarget.Type.TRACTOR)
+            if (type == SystemTarget.Type.WEAPON || type == SystemTarget.Type.TRACTOR
+                    || type == SystemTarget.Type.OBJECTIVE)
                 return null; // those require the prefixed forms above
             return new SystemTarget(type, code);
         } catch (IllegalArgumentException e) {
