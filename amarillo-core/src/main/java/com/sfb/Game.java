@@ -4106,6 +4106,16 @@ public class Game {
         return shipMover.getMovableShuttles();
     }
 
+    /**
+     * Shuttles that still owe a move this impulse, whether or not their turn has come.
+     *
+     * <p>For the PHASE GATE, never for the move UI. See
+     * {@link ShipMover#getShuttlesOwingMovement()} for why the two need different questions.
+     */
+    public List<com.sfb.objects.shuttles.Shuttle> getShuttlesOwingMovement() {
+        return shipMover.getShuttlesOwingMovement();
+    }
+
     public boolean canMoveShuttleThisImpulse(com.sfb.objects.shuttles.Shuttle shuttle) {
         return shipMover.canMoveShuttleThisImpulse(shuttle);
     }

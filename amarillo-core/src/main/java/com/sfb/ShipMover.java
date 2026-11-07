@@ -560,6 +560,53 @@ class ShipMover {
         return movable;
     }
 
+    /**
+     * Shuttles that still OWE a move this impulse, whether or not it is their turn yet.
+     *
+     * <h2>Two questions, and the ready gate was asking the wrong one</h2>
+     * {@link #getMovableShuttles()} answers "may this shuttle move right NOW", and correctly
+     * returns nothing while any ship still owes a move: C1.313's order of precedence puts ships
+     * (2) and nimble ships (3) ahead of fighters and shuttles (4), so a shuttle's turn has not
+     * come round. That is right for the UI, which should not offer a move out of order.
+     *
+     * <p>It is the wrong question for the phase gate, which needs "will this shuttle need to
+     * move before the impulse is over". Asked through the movable list, the answer was NO
+     * whenever the OPPONENT'S ship had not moved yet — so a player who pressed Ready early
+     * passed a check that could not see their own shuttle, and the impulse ended with its move
+     * silently skipped. Whoever readied last was unaffected, because by then the ships had moved
+     * and the list told the truth, which is why one player's shuttle behaved perfectly and the
+     * other's lost half its movement.
+     *
+     * <p>So this deliberately omits the ships-first gate and nothing else: same movement chart,
+     * same per-impulse bookkeeping, same exclusions for a craft that cannot fly.
+     */
+    public List<com.sfb.objects.shuttles.Shuttle> getShuttlesOwingMovement() {
+        int impulse = game.getCurrentImpulse();
+        List<com.sfb.objects.shuttles.Shuttle> owing = new ArrayList<>();
+        for (com.sfb.objects.shuttles.Shuttle s : activeShuttles) {
+            if (!s.isPlayerControlled())
+                continue;
+            if (s.isBeingRecovered())
+                continue; // shut down for recovery (J1.622)
+            if (s.isTractored())
+                continue; // held fast — cannot fly out of the beam (G7.5)
+            // P2.45: a shuttle on or under a planet owes nothing. Checked here as well as in
+            // canMoveShuttleThisImpulse, because a gate that demanded a move from a landed
+            // shuttle could never be satisfied and would freeze the phase outright.
+            com.sfb.properties.LandingPhase phase = s.getLandingPhase();
+            if (phase == com.sfb.properties.LandingPhase.DESCENDING
+                    || phase == com.sfb.properties.LandingPhase.LANDED)
+                continue;
+            if (phase == com.sfb.properties.LandingPhase.CLIMBING
+                    && game.getCurrentTurn() <= s.getTakeoffTurn())
+                continue;
+            if (MovementUtil.moveThisImpulse(impulse, s.getSpeed())
+                    && !movedShuttlesThisImpulse.contains(s))
+                owing.add(s);
+        }
+        return owing;
+    }
+
     public boolean canMoveShuttleThisImpulse(com.sfb.objects.shuttles.Shuttle shuttle) {
         if (game.getCurrentPhase() != Game.ImpulsePhase.MOVEMENT)
             return false;

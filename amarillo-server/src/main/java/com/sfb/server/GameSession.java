@@ -1292,9 +1292,14 @@ public class GameSession {
                                 .filter(myNames::contains)
                                 .findFirst()
                                 .orElse(null);
-                        // Then check player-controlled shuttles (owned by this player's ships)
+                        // Then player-controlled shuttles. NOT getMovableShuttles(), which
+                        // answers "may it move right now" and is empty while any ship still
+                        // owes a move (C1.313 puts ships ahead of shuttles). Asked that way,
+                        // this check could not see the player's own shuttle whenever the
+                        // OPPONENT'S ship was still pending — so readying early passed a
+                        // vacuous check and the impulse ended with the shuttle's move skipped.
                         if (pending == null) {
-                            pending = game.getMovableShuttles().stream()
+                            pending = game.getShuttlesOwingMovement().stream()
                                     .filter(s -> myNames.contains(s.getParentShipName()))
                                     .map(s -> s.getName())
                                     .findFirst()
