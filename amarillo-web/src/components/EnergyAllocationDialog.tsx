@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ShipObject, ShuttleObject, WeaponState } from '../types/gameState';
 import { ANTI_DRONE_KEY, claimedByOtherRacks, reloadEntriesFor } from './reloadPool';
+import { budgetState } from '../game/energyBudget';
 import { gameApi } from '../api/gameApi';
 import type { GuardOptions } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
@@ -479,7 +480,10 @@ export default function EnergyAllocationDialog({
     && (ship.phaserCapacitor ?? 0) >= (ship.phaserCapacitorMax ?? 0);
 
   const { spent, total, doublingBonus } = calcBudget(ship, alloc);
-  const overBudget = spent > total;
+  // ONE reading of the number, for both the verdict and the display. Read two ways it said
+  // "23.0 / 23" and OVER BUDGET at the same time, because movement cost is a truncated decimal
+  // (0.6666667 standing in for 2/3) and speed 3 therefore costs 2.0000001. See energyBudget.ts.
+  const { shown: spentShown, overBudget } = budgetState(spent, total);
 
   /**
    * J4.961's total for one fighter: twice its pod count. Looked up across every ship's bays
@@ -700,7 +704,7 @@ export default function EnergyAllocationDialog({
           <div className={`ea-budget-bar ${overBudget ? 'over' : ''}`}>
             <span>Spent</span>
             <span className="ea-budget-nums">
-              {spent.toFixed(1)} / {total}
+              {spentShown.toFixed(1)} / {total}
             </span>
             {overBudget && <span className="ea-budget-over">OVER BUDGET</span>}
           </div>
