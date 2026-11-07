@@ -923,6 +923,8 @@ public class ScenarioLoader {
         copy.points = template.points;
         copy.cargoSpaces = template.cargoSpaces;
         copy.canBeLeftInSpace = template.canBeLeftInSpace;
+        copy.studyMode = template.studyMode;
+        copy.studyRequired = template.studyRequired;
 
         ScenarioSpec carrier = new ScenarioSpec();
         carrier.objectives = new ArrayList<>(List.of(copy));
@@ -945,6 +947,19 @@ public class ScenarioLoader {
             obj.setCanBeLeftInSpace(setup.canBeLeftInSpace);
             if (setup.hidden)
                 obj.hide();   // SH47.46: face down until a ship enters the hex
+            if (setup.studyMode != null && !setup.studyMode.isBlank()) {
+                try {
+                    obj.setStudy(com.sfb.objects.Objective.StudyMode
+                            .valueOf(setup.studyMode.toUpperCase()), setup.studyRequired);
+                } catch (IllegalArgumentException e) {
+                    // Reported rather than silently ignored: an unreadable study mode would
+                    // leave the objective free for the taking, which is the scenario's whole
+                    // point of difficulty gone with no sign that anything was wrong.
+                    System.err.println("ScenarioLoader: unknown studyMode '" + setup.studyMode
+                            + "' on objective " + setup.name
+                            + " — it can be taken with no study at all");
+                }
+            }
             List<String> methods = setup.retrieval != null && !setup.retrieval.isEmpty()
                     ? setup.retrieval
                     : List.of("TRANSPORTER"); // sensible default

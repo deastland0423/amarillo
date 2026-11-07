@@ -1138,6 +1138,10 @@ public class Game {
             ship.cleanUp();
         }
 
+        // SH47.474: a complete turn in the hex is only complete now, so this is where study is
+        // paid out — and where a ship that broke off loses what it had.
+        List<String> studyLog = creditStudyAtTurnEnd();
+
         // P2.4113: a shuttle that entered the atmosphere on a PRIOR turn spends
         // this turn descending and lands on Impulse 32 (this turn boundary).
         // getCurrentTurn() is still the turn just ended (startTurn() is below).
@@ -1156,6 +1160,7 @@ public class Game {
         // processed
 
         List<String> endLog = new ArrayList<>(lastBoardingLog);
+        endLog.addAll(studyLog);
         endLog.addAll(landingLog);
         return ActionResult.ok(endLog.isEmpty() ? "" : String.join("\n", endLog));
     }
@@ -1240,6 +1245,10 @@ public class Game {
                 // SH47.471: all movement for the impulse is in, so every ship is in the hex it
                 // entered — the moment to turn over any counter somebody has just arrived on.
                 lastSeekerLog.addAll(revealObjectivesUnderShips());
+                // SH47.474 asks for COMPLETE turns in the hex, so a ship that is anywhere else
+                // on any impulse has already lost this one. Checked here because movement is
+                // the only thing that changes where anything is.
+                noteStudyPositions();
                 log.addAll(lastSeekerLog);
                 if (!pendingVolleys.isEmpty()) {
                     reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
@@ -5125,6 +5134,73 @@ public class Game {
         return null;
     }
 
+    /**
+     * Mark every ship that is NOT in an objective's hex as having broken its study this impulse
+     * (SH47.474's "two complete turns in the hex").
+     *
+     * <p>Note the direction: this records failure, not progress. A ship earns nothing here — it
+     * only loses the turn by being elsewhere — and {@link #creditStudyAtTurnEnd} pays out at
+     * the end to whoever never left. Written that way because "complete" is a property of the
+     * whole turn and cannot be known until it is over, whereas being absent is known at once.
+     */
+    private void noteStudyPositions() {
+        for (com.sfb.objects.Objective o : objectives) {
+            if (!o.requiresStudy())
+                continue;
+            com.sfb.properties.Location hex = o.getEffectiveLocation();
+            for (Ship ship : ships)
+                if (hex == null || ship.getLocation() == null
+                        || !ship.getLocation().equals(hex))
+                    o.breakStudy(ship.getName());
+        }
+    }
+
+    /**
+     * Turn end: pay out a complete turn of study (SH47.474), or wipe the ship that broke off.
+     *
+     * <p>The two accrual rules share this one place. TURNS pays 1 — SH47.474 asks for turns and
+     * says nothing about the ship's instruments, deliberately: see {@code Objective.StudyMode}
+     * for why making it lab-dependent would turn SH47.71's balance option into its opposite.
+     * RESEARCH_POINTS pays the G4.11 total at range 0, which is the right model for a survey
+     * scenario where the number of lab boxes IS the point.
+     */
+    private List<String> creditStudyAtTurnEnd() {
+        List<String> log = new ArrayList<>();
+        for (com.sfb.objects.Objective o : objectives) {
+            if (!o.requiresStudy())
+                continue;
+            com.sfb.properties.Location hex = o.getEffectiveLocation();
+            for (Ship ship : ships) {
+                if (o.studyBrokenThisTurn(ship.getName())) {
+                    if (o.studyProgressFor(ship.getName()) > 0) {
+                        o.creditStudy(ship.getName(), 0);   // wipes it
+                        log.add(ship.getName() + " broke off studying " + o.getName()
+                                + " — progress lost (SH47.474)");
+                    }
+                    continue;
+                }
+                if (hex == null || ship.getLocation() == null
+                        || !ship.getLocation().equals(hex))
+                    continue;
+
+                int gained = switch (o.getStudyMode()) {
+                    case TURNS -> 1;
+                    // Range 0: studying means being in the hex with it.
+                    case RESEARCH_POINTS -> ship.getLabs() == null ? 0
+                            : ship.getLabs().calculateResearchPoints(0);
+                    case NONE -> 0;
+                };
+                int now = o.creditStudy(ship.getName(), gained);
+                log.add(ship.getName() + " studied " + o.getName() + " — " + now + " of "
+                        + o.getStudyRequired()
+                        + (o.isStudiedBy(ship.getName()) ? ", ready to beam aboard" : "")
+                        + " (SH47.474)");
+            }
+            o.beginStudyTurn();
+        }
+        return log;
+    }
+
     /** Face-down counters still unsearched (SH47.46). */
     public List<com.sfb.objects.SearchMarker> getSearchMarkers() {
         return searchMarkers;
@@ -5172,6 +5248,21 @@ public class Game {
         if (!obj.allows(method))
             return ActionResult.fail(objectiveName + " cannot be retrieved by " + method
                     + " (allowed: " + obj.getAllowedRetrieval() + ")");
+        // SH47.474: "he must spend two complete turns in the hex studying the Stasis Box with
+        // his instruments. On the next turn, the ship may drop one shield and beam the Stasis
+        // Box aboard." Credit lands at turn end, so the earliest a ship that studied turns 1
+        // and 2 can beam is turn 3 — which is what "on the next turn" says.
+        //
+        // No secrecy problem in naming the shortfall: the box is face up by now, how long study
+        // takes is printed in the scenario, and a player is entitled to know how their own ship
+        // is getting on.
+        if (!obj.isStudiedBy(ship.getName()))
+            return ActionResult.fail(ship.getName() + " has not finished studying "
+                    + objectiveName + " — "
+                    + obj.studyProgressFor(ship.getName()) + " of " + obj.getStudyRequired()
+                    + (obj.getStudyMode() == com.sfb.objects.Objective.StudyMode.TURNS
+                            ? " complete turns in the hex" : " research points")
+                    + " (SH47.474)");
         switch (method) {
             case TRANSPORTER:
                 return boardingResolver.retrieveObjectByTransporter(ship, obj);

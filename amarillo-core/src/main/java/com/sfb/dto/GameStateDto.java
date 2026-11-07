@@ -77,6 +77,23 @@ public class GameStateDto {
         public int side;                     // planet hex side 1..6 it sits on, or 0 (SH50.46)
         public Double cargoSpaces;           // size in cargo spaces (G25.1/Annex #7K); null = unstated
         public boolean canBeLeftInSpace;     // (G25.214) scenario grant to leave it adrift
+        /**
+         * (SH47.474) What must be done in the hex before this can be taken, and how far the
+         * VIEWER'S OWN ships have got.
+         *
+         * <p>{@code studyMode} is null when nothing is required, so the pad can leave the whole
+         * business out rather than showing "0 of 0". Boxed on purpose: a primitive would arrive
+         * as 0 on every objective in every scenario that has no study at all, which is the
+         * first of the two DTO traps this project keeps paying for.
+         *
+         * <p>{@code studyProgress} holds only the requesting player's ships. An opponent's
+         * progress is not published — the rules never say a captain can read how far the other
+         * side's instruments have got, and it would be a tactical gift: knowing the Kzinti is
+         * one turn from the box tells you exactly when to spoil it.
+         */
+        public String studyMode;
+        public Integer studyRequired;
+        public java.util.Map<String, Integer> studyProgress;
     }
 
     /**
@@ -1487,7 +1504,7 @@ public class GameStateDto {
         // it is the dev and solo view, documented as such on the constructor above.
         for (com.sfb.objects.Objective o : game.getObjectives())
             if (o.isRevealed() || viewerTeam == null)
-                mapObjects.add(fromObjective(o));
+                mapObjects.add(fromObjective(o, game, viewerTeam));
 
         // Face-down counters. Sent to EVERYONE, omniscient view included, because where the
         // counters are was never the secret — see SearchMarkerDto for what is.
@@ -2887,7 +2904,8 @@ public class GameStateDto {
         return dto;
     }
 
-    private static ObjectiveDto fromObjective(com.sfb.objects.Objective o) {
+    private static ObjectiveDto fromObjective(com.sfb.objects.Objective o, Game game,
+            String viewerTeam) {
         ObjectiveDto dto = new ObjectiveDto();
         dto.name = o.getName();
         // Effective location: the carrier's hex when carried, else its own
@@ -2904,6 +2922,21 @@ public class GameStateDto {
         dto.canBeLeftInSpace = o.isCanBeLeftInSpace();
         com.sfb.Player owner = o.getCurrentOwner();
         dto.ownerTeam = owner != null ? owner.getTeamName() : null;
+
+        // (SH47.474) Study, and only the viewer's own ships' progress — see ObjectiveDto. Left
+        // entirely null when the scenario asks for no study, which is every scenario but one.
+        if (o.requiresStudy()) {
+            dto.studyMode = o.getStudyMode().name();
+            dto.studyRequired = o.getStudyRequired();
+            dto.studyProgress = new java.util.LinkedHashMap<>();
+            for (Ship ship : game.getShips()) {
+                if (hiddenFrom(viewerTeam, ship.getOwner()))
+                    continue;
+                int done = o.studyProgressFor(ship.getName());
+                if (done > 0)
+                    dto.studyProgress.put(ship.getName(), done);
+            }
+        }
         return dto;
     }
 

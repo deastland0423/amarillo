@@ -287,6 +287,263 @@ public class ObjectiveFogTest {
         assertSame(fed, box.getCarrier());
     }
 
+    // ------------------------------------------------------------------ study (SH47.474)
+
+    /**
+     * SH47.474: "he must spend two complete turns in the hex studying the Stasis Box with his
+     * instruments. On the next turn, the ship may drop one shield and beam the Stasis Box
+     * aboard."
+     *
+     * <p>So the beam is refused until the work is done, and the refusal says how far along the
+     * ship is — no secrecy problem there, since the box is face up by then and how long study
+     * takes is printed in the scenario.
+     */
+    @Test
+    public void aBoxCannotBeBeamedBeforeItHasBeenStudied() {
+        Game game = runningGame();
+        Objective box = studyBoxAt(game, 10, 10, 2);
+        Ship fed = shipNamed(game, "USS Enterprise");
+
+        while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            game.advancePhase();
+        fed.setActiveFireControl(true);
+        fed.getTransporters().bankEnergy(1.0);
+
+        Game.ActionResult result =
+                game.pickUpObjective(fed, "Stasis Box", RetrievalMethod.TRANSPORTER);
+        assertFalse(result.isSuccess());
+        assertTrue("the refusal should say how far along: " + result.getMessage(),
+                result.getMessage().contains("0 of 2"));
+        assertNull("and it stays where it is", box.getCarrier());
+    }
+
+    /** Two complete turns in the hex, and then it may be taken. */
+    @Test
+    public void twoCompleteTurnsInTheHexEarnTheBox() {
+        Game game = runningGame();
+        Objective box = studyBoxAt(game, 10, 10, 2);
+
+        endTurn(game);
+        assertEquals("one turn in", 1, box.studyProgressFor("USS Enterprise"));
+        assertFalse(box.isStudiedBy("USS Enterprise"));
+
+        endTurn(game);
+        assertEquals(2, box.studyProgressFor("USS Enterprise"));
+        assertTrue("two complete turns done", box.isStudiedBy("USS Enterprise"));
+    }
+
+    /** And "on the next turn" the beam works. */
+    @Test
+    public void onTheNextTurnTheBoxComesAboard() {
+        Game game = runningGame();
+        studyBoxAt(game, 10, 10, 2);
+        endTurn(game);
+        endTurn(game);
+
+        Ship fed = shipNamed(game, "USS Enterprise");
+        while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            game.advancePhase();
+        fed.setActiveFireControl(true);
+        fed.getTransporters().bankEnergy(1.0);
+
+        Game.ActionResult result =
+                game.pickUpObjective(fed, "Stasis Box", RetrievalMethod.TRANSPORTER);
+        assertTrue(result.getMessage(), result.isSuccess());
+    }
+
+    /**
+     * A ship that is not in the hex earns nothing, which is the whole of "in the hex".
+     */
+    @Test
+    public void aShipElsewhereLearnsNothing() {
+        Game game = runningGame();
+        Objective box = studyBoxAt(game, 10, 10, 2);   // the Klingon is at 20|20
+
+        endTurn(game);
+
+        assertEquals(1, box.studyProgressFor("USS Enterprise"));
+        assertEquals("the Klingon is twenty hexes away", 0, box.studyProgressFor("IKV Saber"));
+    }
+
+    /**
+     * Breaking off LOSES the work (SH47.474's "two COMPLETE turns").
+     *
+     * <p>This is the clause that makes SH47.8's Kzinti advice worth following — "if you have to
+     * stop and study the box, have a weasel ready to make things a little harder on him". If
+     * progress survived an interruption, spoiling a rival's study would buy nothing and the
+     * tactic the scenario recommends would be pointless.
+     */
+    @Test
+    public void breakingOffLosesTheProgress() {
+        Game game = runningGame();
+        Objective box = studyBoxAt(game, 10, 10, 3);
+
+        endTurn(game);
+        assertEquals("fixture: a turn banked", 1, box.studyProgressFor("USS Enterprise"));
+
+        // Driven off: moved out of the hex, so this turn is not a complete one.
+        shipNamed(game, "USS Enterprise").setLocation(new Location(12, 12));
+        endTurn(game);
+
+        assertEquals("the banked turn is gone, not merely not added",
+                0, box.studyProgressFor("USS Enterprise"));
+    }
+
+    /** Leaving mid-turn and coming back is still not a complete turn in the hex. */
+    @Test
+    public void aRoundTripDuringTheTurnIsNotACompleteTurn() {
+        Game game = runningGame();
+        Objective box = studyBoxAt(game, 10, 10, 2);
+        Ship fed = shipNamed(game, "USS Enterprise");
+
+        // Away for one impulse, back for the rest.
+        fed.setLocation(new Location(11, 11));
+        while (game.getCurrentPhase() != Game.ImpulsePhase.MOVEMENT)
+            game.advancePhase();
+        game.advancePhase();                      // the sweep sees it elsewhere
+        fed.setLocation(new Location(10, 10));
+        endTurn(game);
+
+        assertEquals("it was not in the hex for the whole turn",
+                0, box.studyProgressFor("USS Enterprise"));
+    }
+
+    /**
+     * RESEARCH_POINTS is the other accrual rule, for a survey scenario where the number of lab
+     * boxes IS the point. G4.11 at range 0 pays 5-10 per functioning lab, so a Federation CA
+     * banks a real score in one turn — and this is the first production caller the chart has
+     * ever had.
+     */
+    @Test
+    public void researchPointsPayOutOfTheLabChart() {
+        Game game = runningGame();
+        Objective box = studyBoxAt(game, 10, 10, 0);
+        box.setStudy(Objective.StudyMode.RESEARCH_POINTS, 10_000);   // never finishes
+
+        endTurn(game);
+
+        int labs = shipNamed(game, "USS Enterprise").getLabs().getFunctioningLabs();
+        int gained = box.studyProgressFor("USS Enterprise");
+        assertTrue("G4.11 pays 5-10 a lab at range 0, so " + labs + " labs give "
+                        + (5 * labs) + "-" + (10 * labs) + ", got " + gained,
+                gained >= 5 * labs && gained <= 10 * labs);
+    }
+
+    /** An objective with no study requirement is taken as before — every other scenario. */
+    @Test
+    public void anObjectiveWithNoStudyIsTakenAtOnce() {
+        Game game = runningGame();
+        Objective plain = new Objective("Probe Canister", 10, 10);
+        plain.getAllowedRetrieval().add(RetrievalMethod.TRANSPORTER);
+        plain.setCargoSpaces(2.0);
+        game.addObjective(plain);
+
+        assertFalse(plain.requiresStudy());
+        assertTrue("no study means no gate", plain.isStudiedBy("USS Enterprise"));
+    }
+
+    // ---- what the client is told
+
+    /** The threshold is public — it is printed in the scenario both players are reading. */
+    @Test
+    public void theStudyRequirementIsPublic() {
+        Game game = runningGame();
+        studyBoxAt(game, 10, 10, 2);
+
+        GameStateDto.ObjectiveDto dto = objectiveIn(game, "Klingons");
+        assertEquals("TURNS", dto.studyMode);
+        assertEquals(Integer.valueOf(2), dto.studyRequired);
+    }
+
+    /**
+     * But WHOSE progress is not. Knowing a rival is one turn from the box tells you exactly
+     * when to spoil it, and no rule gives a captain that reading.
+     */
+    @Test
+    public void aPlayerSeesOnlyItsOwnShipsProgress() {
+        Game game = runningGame();
+        studyBoxAt(game, 10, 10, 5);
+        endTurn(game);
+
+        assertEquals("the Federation sees its own ship",
+                java.util.Set.of("USS Enterprise"),
+                objectiveIn(game, "Federation").studyProgress.keySet());
+        assertTrue("and the Klingon sees nothing of it",
+                objectiveIn(game, "Klingons").studyProgress.isEmpty());
+    }
+
+    /** Nothing at all when no study is asked for, rather than a misleading "0 of 0". */
+    @Test
+    public void noStudyMeansNoStudyFieldsAtAll() {
+        Game game = runningGame();
+        Objective plain = new Objective("Probe Canister", 10, 10);
+        plain.getAllowedRetrieval().add(RetrievalMethod.TRANSPORTER);
+        game.addObjective(plain);
+
+        GameStateDto.ObjectiveDto dto = objectiveIn(game, "Federation");
+        assertNull("boxed on purpose, so 'not applicable' can be said", dto.studyMode);
+        assertNull(dto.studyRequired);
+        assertNull(dto.studyProgress);
+    }
+
+    /** Progress survives a reload; the threshold comes back from the scenario. */
+    @Test
+    public void studyProgressSurvivesAReload() {
+        ScenarioSpec spec = specWith(studySetup("Stasis Box", "1012", 2));
+        Game before = new Game();
+        before.setupFromScenario(spec);
+        named(before, "Stasis Box").creditStudy("USS Hood", 1);
+
+        Objective after = named(reload(before, spec), "Stasis Box");
+        assertEquals("two turns of work must not vanish into a save",
+                1, after.studyProgressFor("USS Hood"));
+        assertEquals("and the threshold is the scenario's, not the save's",
+                2, after.getStudyRequired());
+        assertEquals(Objective.StudyMode.TURNS, after.getStudyMode());
+    }
+
+    /** The scenario file is what sets it (SH47 writes "TURNS"/2 on its template). */
+    @Test
+    public void aScenarioDeclaresTheStudyRequirement() {
+        Game game = new Game();
+        game.setupFromScenario(specWith(studySetup("Stasis Box", "1012", 2)));
+
+        Objective box = named(game, "Stasis Box");
+        assertEquals(Objective.StudyMode.TURNS, box.getStudyMode());
+        assertEquals(2, box.getStudyRequired());
+        assertTrue(box.requiresStudy());
+    }
+
+    private static Objective studyBoxAt(Game game, int x, int y, int turns) {
+        Objective box = new Objective("Stasis Box", x, y);
+        box.getAllowedRetrieval().add(RetrievalMethod.TRANSPORTER);
+        box.setCargoSpaces(2.0);
+        box.setStudy(Objective.StudyMode.TURNS, turns);
+        game.addObjective(box);
+        return box;
+    }
+
+    private static ScenarioSpec.ObjectiveSetup studySetup(String name, String hex, int turns) {
+        ScenarioSpec.ObjectiveSetup setup = objective(name, hex, false);
+        setup.studyMode = "TURNS";
+        setup.studyRequired = turns;
+        return setup;
+    }
+
+    /** Round the clock to the next turn boundary, which is where study is paid out. */
+    private static void endTurn(Game game) {
+        while (game.getCurrentImpulse() != 32 || game.getCurrentPhase() != Game.ImpulsePhase.END_OF_IMPULSE)
+            game.advancePhase();
+        game.endTurn();
+        for (Ship s : game.getShips()) {
+            Energy e = new Energy();
+            e.setLifeSupport(s.getLifeSupportCost());
+            e.setFireControl(s.getFireControlCost());
+            e.setActivateShields(s.getActiveShieldCost());
+            game.submitAllocation(s, e);
+        }
+    }
+
     // ------------------------------------------------------------------ across a save
 
     /** Found stays found — otherwise a reload hands back every box the players worked for. */

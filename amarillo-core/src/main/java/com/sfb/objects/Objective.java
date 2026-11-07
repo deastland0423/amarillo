@@ -63,6 +63,56 @@ public class Objective extends Marker implements Tractorable {
     // it stays examined, for everyone, including the player who did not do the examining.
     private boolean revealed = true;
 
+    /**
+     * How a ship earns the right to take this thing (SH47.474), and how much it needs.
+     *
+     * <h2>One accumulator, two accrual rules</h2>
+     * SH47.474 wants two COMPLETE TURNS in the hex, flat, with no reference to the ship's
+     * instruments. A survey or monster scenario instead wants G4.1 research points, where the
+     * number of lab boxes is the whole point. Those are the same mechanic with different
+     * arithmetic per turn, so they share one counter and one threshold rather than becoming two
+     * code paths.
+     *
+     * <h2>Why SH47 is TURNS and not points, which was the tempting answer</h2>
+     * G4.11's chart is already implemented and, until this, had no production caller at all —
+     * so paying study out of it is attractive. But it would make study lab-dependent, and the
+     * lab counts decide the scenario: a Federation DD has EIGHT labs against the Kzinti CL's
+     * four, which turns SH47.474's even two turns into one turn against two or three.
+     *
+     * <p>The clincher is SH47.71, the scenario's own balance lever: "change the Kzinti CL to a
+     * Kzinti DD" — which has TWO labs. The option meant to help the weaker player would
+     * quadruple their disadvantage, so the lever becomes an anti-lever. SH47.474 is
+     * lab-independent precisely so that cannot happen.
+     */
+    public enum StudyMode {
+        /** No study needed; a revealed objective may be taken at once. The default. */
+        NONE,
+        /** Complete turns in the hex (SH47.474). One per turn, whatever the ship is. */
+        TURNS,
+        /** G4.11 research points, so lab boxes set the pace. Range is 0 — same hex. */
+        RESEARCH_POINTS
+    }
+
+    private StudyMode studyMode = StudyMode.NONE;
+    private int studyRequired;
+
+    /**
+     * How far each ship has got, by ship NAME, and reset when it breaks off.
+     *
+     * <p>PER SHIP, because SH47.474 gives the work to "the player in the hex with it" — one
+     * side's patient fortnight is not the other's. And reset on leaving, because the rule says
+     * two COMPLETE turns: a ship that breaks off loses what it had. That is what makes the
+     * Kzinti tactic in SH47.8 — "if you have to stop and study the box, have a weasel ready" —
+     * worth anything at all. Interrupting a rival's study has to cost them something.
+     */
+    private final java.util.Map<String, Integer> studyProgress = new java.util.LinkedHashMap<>();
+
+    /**
+     * Ships that have already failed to be in the hex at some point this turn, so cannot be
+     * credited with a COMPLETE turn of it however the turn ends. Cleared at turn start.
+     */
+    private final java.util.Set<String> studyBrokenThisTurn = new java.util.LinkedHashSet<>();
+
     public Objective() {}
 
     public Objective(String name, int x, int y) {
@@ -142,6 +192,74 @@ public class Objective extends Marker implements Tractorable {
      * simplification — the counter is physically turned over on the table.
      */
     public void reveal() { this.revealed = true; }
+
+    // --- Study (SH47.474) ---
+
+    public StudyMode getStudyMode() { return studyMode; }
+
+    public int getStudyRequired() { return studyRequired; }
+
+    public void setStudy(StudyMode mode, int required) {
+        this.studyMode = mode == null ? StudyMode.NONE : mode;
+        this.studyRequired = Math.max(0, required);
+    }
+
+    /** Whether anything has to be done before this can be taken at all. */
+    public boolean requiresStudy() {
+        return studyMode != StudyMode.NONE && studyRequired > 0;
+    }
+
+    public int studyProgressFor(String shipName) {
+        return studyProgress.getOrDefault(shipName, 0);
+    }
+
+    /** Whether this ship has done the work (SH47.474) and may now take it. */
+    public boolean isStudiedBy(String shipName) {
+        return !requiresStudy() || studyProgressFor(shipName) >= studyRequired;
+    }
+
+    /** Turn start: everyone is eligible for a complete turn again. */
+    public void beginStudyTurn() {
+        studyBrokenThisTurn.clear();
+    }
+
+    /**
+     * This ship was somewhere else just now, so this turn cannot be a complete one for it.
+     * Idempotent — called every impulse the ship is away.
+     */
+    public void breakStudy(String shipName) {
+        studyBrokenThisTurn.add(shipName);
+    }
+
+    public boolean studyBrokenThisTurn(String shipName) {
+        return studyBrokenThisTurn.contains(shipName);
+    }
+
+    /**
+     * Turn end: credit a ship that was in the hex throughout, or wipe one that was not.
+     *
+     * <p>Wiping is the harsher of the two readings of "two complete turns" and the one that
+     * makes the rule mean something: without it a ship could study a turn, run from a photon
+     * salvo, and come back to resume where it left off, which is not spending two complete
+     * turns in the hex by any reading.
+     *
+     * @param amount what a complete turn is worth — 1 for TURNS, the G4.11 total for points
+     * @return the ship's progress after this turn
+     */
+    public int creditStudy(String shipName, int amount) {
+        if (!requiresStudy())
+            return 0;
+        if (studyBrokenThisTurn.contains(shipName)) {
+            studyProgress.remove(shipName);
+            return 0;
+        }
+        int now = studyProgressFor(shipName) + Math.max(0, amount);
+        studyProgress.put(shipName, now);
+        return now;
+    }
+
+    /** Progress by ship name, for the save and the DTO. */
+    public java.util.Map<String, Integer> getStudyProgress() { return studyProgress; }
 
     public boolean isFree() { return carrier == null && securedBy == null; }
 
@@ -230,6 +348,13 @@ public class Objective extends Marker implements Tractorable {
         // a reloaded counter go on hiding exactly as far as it had. Without this a reload would
         // hand back every box the players had spent turns examining.
         state.put("revealed", revealed);
+        // How far each ship has got (SH47.474). MUTABLE, so it travels — losing it would hand
+        // back two turns of work and, worse, do it silently. The MODE and the THRESHOLD do not
+        // travel: those are what the scenario says this thing is, like its retrieval methods.
+        state.put("studyProgress", new java.util.LinkedHashMap<>(studyProgress));
+        // Deliberately NOT saved: studyBrokenThisTurn. A save is taken at a turn boundary, and
+        // beginStudyTurn() clears it there anyway — persisting it would carry a mid-turn fact
+        // across the one moment it is guaranteed to be empty.
         return state;
     }
 
@@ -259,5 +384,11 @@ public class Objective extends Marker implements Tractorable {
         // counters visible. A hardcoded true would have quietly uncovered every box in an older
         // SH47 save; a hardcoded false would have hidden every probe canister in an older SH35.
         this.revealed = com.sfb.systemgroups.StateIo.flag(state, "revealed", this.revealed);
+        studyProgress.clear();
+        if (state.get("studyProgress") instanceof java.util.Map<?, ?> saved)
+            for (java.util.Map.Entry<?, ?> e : saved.entrySet())
+                if (e.getValue() instanceof Number n)
+                    studyProgress.put(String.valueOf(e.getKey()), n.intValue());
+        studyBrokenThisTurn.clear();
     }
 }

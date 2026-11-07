@@ -52,6 +52,11 @@ import static org.junit.Assert.*;
  * the secret is not what the counter IS but that there is one in this hex, and no amount of
  * field redaction hides that. ObjectiveFogTest covers it.
  * <p>
+ * A third such mechanism arrived with it: PER-VIEWER FILTERING of a collection, where the field
+ * is sent to everyone but its CONTENTS differ by who asked — {@code ObjectiveDto.studyProgress}
+ * holds only the requesting player's own ships. Reflection sees a populated field and can say
+ * nothing about whose rows are in it, so that one is pinned by assertion too.
+ * <p>
  * The rulings are the ship owner's (2026-09-20).
  */
 public class MapObjectPrivacyTest {
@@ -175,7 +180,22 @@ public class MapObjectPrivacyTest {
         // a field nobody has added yet, and Vak Kaleen is the first thing that will need it.
         rule(GameStateDto.ObjectiveDto.class, Visibility.PUBLIC,
             "carrierName", "retrieval", "ownerTeam", "secured", "beingRecovered", "side",
-            "cargoSpaces", "canBeLeftInSpace");
+            "cargoSpaces", "canBeLeftInSpace",
+            // (SH47.474) studyMode and studyRequired are printed in the scenario, so both
+            // players read them in the book before the first impulse.
+            "studyMode", "studyRequired",
+            // studyProgress is PUBLIC here, and the label needs its reason. It is not blank to
+            // an enemy — which is what PRIVATE means in this file — because it is FILTERED per
+            // viewer: the map holds only the requesting player's own ships, so what each side
+            // receives is legitimately theirs. An opponent's progress is never in it, and must
+            // not be: knowing the Kzinti is one turn from the box tells you exactly when to
+            // spoil it.
+            //
+            // That per-viewer filtering of a collection is a fourth mechanism alongside the two
+            // the class comment names, and field reflection cannot see it either. The guard
+            // here can only say "something reaches everyone"; ObjectiveFogTest is what pins
+            // whose rows those are.
+            "studyProgress");
 
         // ---- A face-down counter (SH47.46), and the entry is DELIBERATELY EMPTY.
         //

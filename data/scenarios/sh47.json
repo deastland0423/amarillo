@@ -108,6 +108,8 @@
       "retrieval": [
         "TRANSPORTER"
       ],
+      "studyMode": "TURNS",
+      "studyRequired": 2,
       "cargoSpaces": 2.0,
       "survivesDestruction": true,
       "points": 0
@@ -117,6 +119,7 @@
     "_mineSizeComment": "mineSizeClasses 1-6 is SH47.48's 'first target of size class 6 or larger'. Note which way the numbers run: in SFB (R0.6) a LARGER size class is a SMALLER unit, so 'class 6 or larger' is the set 1..6 and excludes 7 and up. That is M2.14's setting, whose stated purpose is to stop an enemy sweeping a minefield with drones - get it backwards and the mine ignores every ship and goes off on a drone.",
     "_survivesComment": "survivesDestruction true is SH47.475: 'If a ship carrying a Stasis Box is destroyed, the box is undamaged and remains in the hex where the ship exploded.' Note this is the OPPOSITE of SH35.454, which annihilates its canister - the field exists because the two scenarios disagree.",
     "_pointsComment": "points 0 on purpose. SH47.5 is not scored in victory points: 'the player who successfully disengages with a Stasis Box wins the game', which victoryConditions SPECIAL carries. A point value here would quietly add a second, contradictory way to win.",
-    "_retrievalComment": "TRANSPORTER only. SH47.474 has the ship drop one shield and beam the box aboard after two complete turns of study; the two-turn wait is not built yet, so today the beam works as soon as the counter is turned over. TRACTOR is deliberately absent - SH47 never offers the J1.621 rotation procedure that SH35.452 does."
+    "_retrievalComment": "TRANSPORTER only. SH47.474 has the ship drop one shield and beam the box aboard after two complete turns of study; the two-turn wait is not built yet, so today the beam works as soon as the counter is turned over. TRACTOR is deliberately absent - SH47 never offers the J1.621 rotation procedure that SH35.452 does.",
+    "_studyComment": "SH47.474: 'he must spend two complete turns in the hex studying the Stasis Box with his instruments. On the next turn, the ship may drop one shield and beam the Stasis Box aboard.' studyMode TURNS pays one per COMPLETE turn in the hex and wipes a ship that breaks off, which is what makes SH47.8's Kzinti weasel tactic worth anything. TURNS rather than RESEARCH_POINTS deliberately: G4.11 points would make study lab-dependent, and a Fed DD has 8 labs against the Kzinti CL's 4 - while SH47.71's balance option swaps the CL for a Kzinti DD with only 2, so the lever meant to help the weaker player would quadruple its disadvantage. SH47.474 is lab-independent precisely so that cannot happen."
   }
 }
