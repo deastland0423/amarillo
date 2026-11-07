@@ -735,15 +735,56 @@ function drawObjects(
         oy = cy - Math.cos(ang) * SIZE * 0.55;
       }
       const s = 8;
-      ctx.fillStyle   = '#e0b34a';
-      ctx.strokeStyle = grabbed ? '#22d3ee' : '#8a6d1f';
-      ctx.lineWidth   = grabbed ? 2 : 1.5;
-      ctx.beginPath();
-      ctx.rect(ox - s, oy - s, s * 2, s * 2);
-      ctx.fill();
-      ctx.stroke();
+      // Counter art, with the same resolution chain terrain uses: per-type default now, and
+      // an instance tokenArt the day a scenario wants one objective to look unlike another.
+      // Until then every objective is the "!" counter, which is the point — a Stasis Box and
+      // a cargo pod are the same KIND of thing to a player deciding whether to go get it.
+      const objectiveImg = loadTokenImage('terrain/objective.png', onImageLoad);
+      if (objectiveImg) {
+        ctx.drawImage(objectiveImg, ox - s * 1.5, oy - s * 1.5, s * 3, s * 3);
+        if (grabbed) {
+          // The beam is the one thing worth ringing: it says this one is already being taken.
+          ctx.strokeStyle = '#22d3ee';
+          ctx.lineWidth   = 2;
+          ctx.beginPath();
+          ctx.arc(ox, oy, s * 1.6, 0, 2 * Math.PI);
+          ctx.stroke();
+        }
+      } else {
+        ctx.fillStyle   = '#e0b34a';
+        ctx.strokeStyle = grabbed ? '#22d3ee' : '#8a6d1f';
+        ctx.lineWidth   = grabbed ? 2 : 1.5;
+        ctx.beginPath();
+        ctx.rect(ox - s, oy - s, s * 2, s * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
       const label = o.beingRecovered ? `${o.name ?? 'Objective'} ⟳` : (o.name ?? 'Objective');
       drawMapLabel(ctx, label, ox, oy + s + 2, { fill: '#ffffff', font: 'bold 9px sans-serif' });
+      continue;
+    }
+    if (obj.type === 'SEARCH_MARKER') {
+      // A face-down counter (SH47.46). Every one is drawn the same, deliberately — see
+      // SearchMarkerObject. No label: the name is a hex string ("Counter <14|9>") that would
+      // only clutter a field already thick with asteroid tokens.
+      const mysteryImg = loadTokenImage('terrain/mystery.png', onImageLoad);
+      const ms = 12;
+      if (mysteryImg) {
+        ctx.drawImage(mysteryImg, cx - ms, cy - ms, ms * 2, ms * 2);
+      } else {
+        ctx.fillStyle   = '#2f3a4a';
+        ctx.strokeStyle = '#8fa3bf';
+        ctx.lineWidth   = 1.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, ms, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#d6e2f0';
+        ctx.font      = 'bold 15px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('?', cx, cy + 1);
+      }
       continue;
     }
     if (obj.type === 'SHUTTLE' || obj.type === 'SUICIDE_SHUTTLE' || obj.type === 'SCATTER_PACK') {

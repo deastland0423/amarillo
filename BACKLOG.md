@@ -1922,35 +1922,46 @@ Three things about it are worth keeping:
   explicitly. Worth deciding whether the DEFAULT is wrong rather than restating it per file.
 
 **What the subset leaves out — the fog layer, which is the scenario's whole point:**
-- **Hidden counters: the FOG is built, the random PLACEMENT is not.** As of 2026-11-07 an
-  `Objective` can be laid face down (`"hidden": true` in `ObjectiveSetup`), is omitted from
-  both players' DTOs entirely until found, is turned face up for everyone the moment a ship is
-  in its hex (SH47.471/.473), refuses pickup and tractor with the SAME words a non-existent
-  objective gets, and survives a save in either state. `ObjectiveFogTest` covers it; objectives
-  are the first use of the OMISSION mechanism `MapObjectPrivacyTest` had named and nothing used.
+- **Hidden counters BUILT 2026-11-07, except the NSMs.** SH47.46's box hunt works: eighteen
+  face-down counters on the map, two Stasis Boxes among them, four withdrawn from the stack
+  unseen so neither player knows whether two exist, one, or none (~66/31/2.6%). A ship searches
+  one by entering its hex; the counter goes and what it held takes its place. `SearchMarkerTest`
+  and `Sh47LoadsTest` cover it, and `sh47.json` uses it.
 
-  What is NOT built is SH47.46's placement, and it is the part that makes the scenario work.
-  Twenty-two counters — eighteen asteroid, two NSM, two Klingon pods — are shuffled, **four are
-  removed unseen**, and the remaining eighteen are laid out; so neither player knows whether
-  two boxes exist, one, or none, and the count is as much of the secret as the position.
-  `TerrainGenerator.standardField` rolls each counter's hex into a LOCAL and keeps only the
-  asteroid hexes it expands to, so there is nowhere to put a box even if the spec could ask.
-  That wants the generator to emit `ObjectiveSetup`s alongside its `TerrainSetup`s, which is a
-  new thing for it to do and the reason this is still open. Until then `sh47.json` carries no
-  boxes at all: absent rather than visible, because a visible box loads, plays and throws the
-  scenario away.
+  **The model is a counter, not a hidden objective, and that was a correction.** The first cut
+  hid the OBJECTIVE and left it out of the DTO — which gets the secret backwards, because
+  SH47.471 has a ship search a counter "by entering the hex with the counter" and it could not
+  choose to do that if the counters were invisible. Positions are public; the assignment and
+  the COUNT are not. Worse, it put the box in a list every DTO builder then had to remember to
+  filter, and that failed twice in a day: once through `mapObjects`, once through the live
+  scoreboard, the second caught only by reading the rule back against the DTO. A counter's
+  payload is in no list until it is found. `SearchMarkerDto` has no fields at all, and
+  `MapObjectPrivacyTest` carries a deliberately EMPTY ruling for it so the first field added
+  fails the build — that test iterates its rulings, not the DTO hierarchy, so a class with no
+  entry is invisible to it.
 
-  Two things worth keeping from the fog work. **The refusals must be word-for-word identical**
-  to the not-found ones, or naming a hex and reading the error back is a free sensor sweep —
-  that is asserted, not just commented. And the reveal is a **sweep at the end of MOVEMENT**,
-  not a hook on hex entry: there are about twenty places in the three movers that put a unit in
-  a new hex, and `applyTerrainCollision`'s own comment records what happened last time a
-  per-entry hook had to be called from all of them.
+  **No `revealed` flag on a marker**, because one never exists revealed: examining it removes it
+  and materialises the payload in the same step, so the live list IS the unsearched set. That
+  drops SH47.473's "it remains face up" on purpose — on the table the counter IS the marker for
+  the asteroid field centred on it, which is why SH47.46 has to say removing a box leaves its
+  asteroids behind. We expand the field into independent hexes at setup, so the counter has no
+  second job and deleting it loses nothing a player can act on.
 
-  Also still open, and separate: a counter is DUAL-FUNCTION — the same hex is an asteroid and
-  maybe an objective — and SH47.472's shuttle/fighter examination (a 1-2 roll, only on impulse
-  #32, because a craft must END its movement there). Craft reveal nothing today, which is the
-  harsher reading and the one that cannot accidentally hand over a box.
+  **The spec/server line is where the privacy lives.** `ScenarioSpec` carries the counter
+  positions and the bag's shape — both printed in the rulebook — and never the assignment,
+  because the lobby broadcasts the spec to both players. The draw happens in
+  `ScenarioLoader.loadSearchMarkers` when the Game is built, and the save records the hand so a
+  reload cannot re-deal and move the box.
+
+  **The terrain output did not change**, which is what kept this cheap: 22 less 4 is 18, so
+  every counter position is filled whatever the draw does. `keepingTheCountersChangesNoTerrain`
+  pins it.
+
+  Still open here: **`Objective.revealed` now has no user.** The hidden-objective path still
+  works and the sweep still handles it — it is one rule, "a ship in the hex finds what is in the
+  hex" — but SH47 uses counters instead. Give it one more scenario; if nothing claims it, cut
+  it, the DTO omission and the scoreboard filter along with it.
+
 - **Scenario-placed free-standing mines.** NSM exists as a mine type with an M2.1 bay drop, but
   `ScenarioSpec` has no `mines` field: nothing can pre-place one. SH47.48 then adds its own
   clauses — armed only AFTER being revealed, triggering on size class 6 or larger, detonating

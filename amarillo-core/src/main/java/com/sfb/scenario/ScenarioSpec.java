@@ -126,6 +126,7 @@ public class ScenarioSpec {
      * <p>Withdrawing before dealing is what makes the COUNT a secret as well as the position:
      * remove four of twenty-two and it may be that two boxes are out there, or one, or none.
      */
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class SearchBag {
         /** How many counters hide a capturable object. */
         public int          objectives;

@@ -691,6 +691,22 @@ export interface ObjectiveObject extends MapObjectBase {
   canBeLeftInSpace?: boolean;       // (G25.214) scenario grant to leave it adrift
 }
 
+/**
+ * A face-down counter (SH47.46): a hex somebody can search, holding something nobody knows
+ * about yet.
+ *
+ * It has NO FIELDS of its own, and that is the mechanism rather than an oversight. Where the
+ * counters are is public — a ship searches one by entering its hex, which it could not choose
+ * to do if they were invisible — and everything else is the secret: not only what this counter
+ * hides, but how many boxes exist at all, since four of twenty-two were withdrawn unseen.
+ *
+ * So every counter renders identically. If a counter appeared only where something was hidden,
+ * the counters would spell out the answer. Do not add a payload hint here.
+ */
+export interface SearchMarkerObject extends MapObjectBase {
+  type: 'SEARCH_MARKER';
+}
+
 export interface WildWeaselObject extends MapObjectBase {
   type:           'WILD_WEASEL';
   facing:         number;
@@ -710,6 +726,7 @@ export type MapObject =
   | MineObject
   | TerrainObject
   | ObjectiveObject
+  | SearchMarkerObject
   | WildWeaselObject;
 
 export interface ShipVpRow {

@@ -22,7 +22,9 @@
   "terrainPlan": [
     {
       "type": "ASTEROID_FIELD",
-      "_comment": "SH47.2's terrain is the standard asteroid field, and the engine already lays it out by the rule: P3.11's eighteen named counter hexes, each rolled one hex in a random direction, with every hex within two becoming an asteroid hex (P3.12). SH47.46's shuffling changes what four of the counters ARE, never where they sit - and SH47.46 says so outright, since removing a box leaves its asteroid hexes behind. So this geometry already IS the scenario's field. No seed: a seed makes one plan lay out the same way every time, and this field should differ from playing to playing, the way a reshuffled stack of counters does."
+      "_comment": "SH47.2's terrain is the standard asteroid field, and the engine already lays it out by the rule: P3.11's eighteen named counter hexes, each rolled one hex in a random direction, with every hex within two becoming an asteroid hex (P3.12). SH47.46's shuffling changes what four of the counters ARE, never where they sit - and SH47.46 says so outright, since removing a box leaves its asteroid hexes behind. So this geometry already IS the scenario's field. No seed: a seed makes one plan lay out the same way every time, and this field should differ from playing to playing, the way a reshuffled stack of counters does.",
+      "markCounters": true,
+      "_counterComment": "markCounters keeps the eighteen rolled counter positions, which the generator used to compute into a local and throw away. SH47.471 searches a counter by entering ITS hex - the centre, not any of the nineteen asteroid hexes it expands to - so a ship can sail through a whole blob of rocks and find nothing."
     }
   ],
   "sides": [
@@ -88,5 +90,23 @@
     "allowTBombs": true,
     "allowCommandos": true,
     "maxDroneSpeed": 8
+  },
+  "searchBag": {
+    "objectives": 2,
+    "withdrawUnseen": 4,
+    "objectiveTemplate": {
+      "name": "Stasis Box",
+      "retrieval": [
+        "TRANSPORTER"
+      ],
+      "cargoSpaces": 2.0,
+      "survivesDestruction": true,
+      "points": 0
+    },
+    "_comment": "SH47.46: 18 asteroid counters, 2 NSM and 2 Klingon pod counters (the Stasis Boxes), shuffled face down, FOUR REMOVED UNSEEN, and the rest laid out by P3.1. Withdrawing before dealing is what hides the COUNT as well as the position - it works out at about 66% two boxes, 31% one, 2.6% none, which is why SH47.8 tells both captains to play as though one exists. Twenty-two less four is eighteen, so every counter position is filled and the asteroid field is the same whatever the draw does; SH47.46 says exactly that when it notes the asteroids stay behind when a box is removed.",
+    "_nsmComment": "NOT IN THIS FILE: the 2 NSM counters. Nothing can pre-place a mine yet (ScenarioSpec has no mines field) and SH47.48 adds clauses of its own - armed only once revealed, triggering on size class 6 or larger, detonating off the shield the ship entered behind. The bag therefore deals 2 boxes among 18 counters rather than 2 boxes and 2 mines among 18, so the field is a little safer than the scenario intends. See BACKLOG.",
+    "_survivesComment": "survivesDestruction true is SH47.475: 'If a ship carrying a Stasis Box is destroyed, the box is undamaged and remains in the hex where the ship exploded.' Note this is the OPPOSITE of SH35.454, which annihilates its canister - the field exists because the two scenarios disagree.",
+    "_pointsComment": "points 0 on purpose. SH47.5 is not scored in victory points: 'the player who successfully disengages with a Stasis Box wins the game', which victoryConditions SPECIAL carries. A point value here would quietly add a second, contradictory way to win.",
+    "_retrievalComment": "TRANSPORTER only. SH47.474 has the ship drop one shield and beam the box aboard after two complete turns of study; the two-turn wait is not built yet, so today the beam works as soon as the counter is turned over. TRACTOR is deliberately absent - SH47 never offers the J1.621 rotation procedure that SH35.452 does."
   }
 }

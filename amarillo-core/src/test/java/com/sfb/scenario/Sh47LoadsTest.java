@@ -10,6 +10,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sfb.Game;
 import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShuttleCatalog;
@@ -18,12 +19,16 @@ import com.sfb.objects.ShuttleCatalog;
  * SH47 "The Stasis Box" loads and sets up — the second published scenario in {@code
  * data/scenarios}, and the first one meant to be PLAYED rather than measured.
  *
- * <p>The file is a deliberate SUBSET. SH47's own box hunt needs hidden-identity counters, which
- * the engine does not have: eighteen face-down counters of which two are Stasis Boxes and two
- * are nuclear space mines, four removed unseen so neither player knows how many boxes exist at
- * all. None of that is in the file, and the tests below assert its ABSENCE as deliberately as
- * they assert the rest is present — a file that quietly shipped the boxes as ordinary visible
- * objectives would load, play, and not be SH47.
+ * <p>The file was a deliberate SUBSET, and is now most of the scenario. The box hunt landed on
+ * 2026-11-07: eighteen face-down counters, two of them Stasis Boxes, four withdrawn from the
+ * stack unseen so that neither player knows whether two boxes exist, one, or none. The tests
+ * below pin the counters AND the fact that no box is on the map until somebody searches for one
+ * — a file that quietly shipped the boxes as ordinary visible objectives would load, play, and
+ * not be SH47.
+ *
+ * <p>What is still missing is the two NSM counters, because nothing can pre-place a mine and
+ * SH47.48 carries clauses of its own. The bag therefore deals 2 boxes among 18 counters rather
+ * than 2 boxes and 2 mines, which makes the field a shade safer than the printed scenario.
  *
  * <p>What IS the printed scenario: a Fed DD and a Kzinti CL at opposite corners of a standard
  * P3.1 asteroid field, speed 4 at WS-0, 20% Commander's Options, slow drones, no refits, and
@@ -241,5 +246,90 @@ public class Sh47LoadsTest {
         assertNotNull(spec.victoryConditions.notes);
         assertTrue("the incident clause is the half that is not modelled",
                 spec.victoryConditions.notes.contains("internal hits"));
+    }
+
+    // ---------------------------------------------------------------- the counters
+
+    /**
+     * SH47.46's counters reach the Game. The field has always been right — P3.11's eighteen
+     * rolled centres with their radius-2 blobs — but the generator computed each centre into a
+     * local and threw it away, so there was nowhere for a Stasis Box to be until 2026-11-07.
+     */
+    @Test
+    public void theFieldLaysEighteenSearchableCounters() throws Exception {
+        Game game = new Game();
+        game.setupFromScenario(fresh());
+
+        assertEquals("P3.11 lays eighteen counters", 18, game.getSearchMarkers().size());
+    }
+
+    /**
+     * Two boxes in a bag of eighteen with four withdrawn unseen — so a game may hold two, one
+     * or none, and nobody can know which until they go and look.
+     *
+     * <p>Run many times because the whole point is that it VARIES. Asserting one deal would
+     * pass just as well against a generator that always dealt the same hand, which is the one
+     * thing SH47.46 is written to prevent.
+     */
+    @Test
+    public void theBoxCountIsNotKnowableInAdvance() throws Exception {
+        java.util.Set<Long> counts = new java.util.HashSet<>();
+        java.util.Set<String> places = new java.util.HashSet<>();
+        for (int run = 0; run < 300; run++) {
+            Game game = new Game();
+            game.setupFromScenario(fresh());
+            long boxes = game.getSearchMarkers().stream()
+                    .filter(m -> m.getKind()
+                            == com.sfb.objects.SearchMarker.PayloadKind.OBJECTIVE)
+                    .count();
+            assertTrue("never more than the bag held: " + boxes, boxes <= 2);
+            counts.add(boxes);
+            game.getSearchMarkers().stream()
+                    .filter(m -> m.getKind()
+                            == com.sfb.objects.SearchMarker.PayloadKind.OBJECTIVE)
+                    .forEach(m -> places.add(m.getLocation().toString()));
+        }
+        assertTrue("the number of boxes must vary between games: " + counts, counts.size() > 1);
+        assertTrue("and so must where they are: " + places.size(), places.size() > 2);
+    }
+
+    /** Nothing is on the map to find until somebody searches for it. */
+    @Test
+    public void noBoxIsOnTheMapAtSetup() throws Exception {
+        Game game = new Game();
+        game.setupFromScenario(fresh());
+
+        assertTrue("a box exists only once a counter is turned over",
+                game.getObjectives().isEmpty());
+    }
+
+    /**
+     * And the SPEC carries positions but never the answer. The lobby broadcasts the spec to
+     * both players so the deployment screen can show them the map, which makes everything in
+     * it public by construction — so the draw happens when the Game is built, not here.
+     */
+    @Test
+    public void theSpecPublishesWhereTheCountersAreAndNothingElse() throws Exception {
+        ScenarioSpec spec = fresh();
+        new Game().setupFromScenario(spec);   // expands the plan into the spec
+
+        assertEquals(18, spec.searchMarkers.size());
+        assertEquals("the bag's SHAPE is printed in the rulebook and is public",
+                2, spec.searchBag.objectives);
+        assertEquals(4, spec.searchBag.withdrawUnseen);
+        assertEquals("Stasis Box", spec.searchBag.objectiveTemplate.name);
+
+        // Nothing in the spec says which counter is which. If an assignment ever appears here,
+        // it is on the wire to both players the moment the lobby lists the scenario.
+        assertTrue("a hidden objective must not be pre-placed in the spec",
+                spec.objectives == null || spec.objectives.isEmpty());
+    }
+
+    /** SH47.475 travels with the box: it survives the ship carrying it. */
+    @Test
+    public void aBoxSurvivesTheShipCarryingIt() throws Exception {
+        ScenarioSpec spec = fresh();
+        assertTrue("SH47.475, and the opposite of SH35.454",
+                spec.searchBag.objectiveTemplate.survivesDestruction);
     }
 }
