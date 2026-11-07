@@ -798,14 +798,119 @@ public class ScenarioLoader {
                         if (ship.startHex != null && !ship.startHex.isBlank())
                             keepClear.add(MapRegion.circle(ship.startHex, 0));
 
-        List<ScenarioSpec.TerrainSetup> generated = TerrainGenerator.generate(
+        TerrainGenerator.Generated generated = TerrainGenerator.expand(
                 spec.terrainPlan, keepClear, spec.mapCols, spec.mapRows);
 
         if (spec.terrain == null)
             spec.terrain = new ArrayList<>();
-        spec.terrain.addAll(generated);
+        spec.terrain.addAll(generated.terrain);
+
+        // Counter POSITIONS only (SH47.46). What each hides is drawn when the Game is built
+        // and never comes near the spec, because the spec is broadcast to the lobby — see
+        // ScenarioSpec.SearchBag.
+        if (!generated.counters.isEmpty()) {
+            if (spec.searchMarkers == null)
+                spec.searchMarkers = new ArrayList<>();
+            for (com.sfb.properties.Location counter : generated.counters)
+                spec.searchMarkers.add(formatHex(counter));
+        }
         // Spent: the hexes are in spec.terrain now, and running again would double them.
         spec.terrainPlan = null;
+    }
+
+    /**
+     * Deal the face-down counters (SH47.46).
+     *
+     * <h2>The withdrawal is what hides the COUNT</h2>
+     * The bag holds one entry per counter position — two Stasis Boxes and sixteen ordinary
+     * asteroid counters, for eighteen positions. Four are then removed and set aside without
+     * being looked at, and the rest are dealt. Because the withdrawal happens before the deal
+     * and takes no account of what it is taking, it may remove both boxes, one, or neither: the
+     * players cannot know whether two boxes are out there, or one, or none. SH47.8 tells both
+     * captains to play as though one exists, which is right — it works out at about 97%.
+     *
+     * <p>Every position still receives a counter, because twenty-two less four is eighteen. So
+     * the asteroid field is identical whatever the draw does, which is exactly what SH47.46
+     * says in so many words: removing a Stasis Box does not remove the asteroids centred on it.
+     *
+     * <h2>Drawn HERE, not in the spec</h2>
+     * The result is a list of live markers for the Game and goes nowhere near the
+     * {@code ScenarioSpec}, which the lobby broadcasts to both players. The spec carries the
+     * positions and the bag's shape, both of which are printed in the rulebook; the assignment
+     * is the secret and stays on the server.
+     */
+    public static List<com.sfb.objects.SearchMarker> loadSearchMarkers(ScenarioSpec spec) {
+        List<com.sfb.objects.SearchMarker> result = new ArrayList<>();
+        if (spec.searchMarkers == null || spec.searchMarkers.isEmpty())
+            return result;
+
+        List<Location> positions = new ArrayList<>();
+        for (String hex : spec.searchMarkers) {
+            Location loc = parseHex(hex);
+            if (loc != null)
+                positions.add(loc);
+        }
+        ScenarioSpec.SearchBag bag = spec.searchBag;
+        if (bag == null) {
+            // Positions with no bag: every counter is an ordinary asteroid counter. Searching
+            // them finds nothing, which is a legitimate scenario and not an error.
+            for (Location loc : positions)
+                result.add(com.sfb.objects.SearchMarker.empty(loc));
+            return result;
+        }
+
+        // One slot per position, plus the ones that will be withdrawn. Boolean rather than an
+        // enum because there is one kind of payload today; see SearchMarker.PayloadKind for
+        // why the NSM counters are not here yet.
+        int slots = positions.size() + Math.max(0, bag.withdrawUnseen);
+        List<Boolean> stack = new ArrayList<>();
+        for (int i = 0; i < Math.max(0, bag.objectives); i++)
+            stack.add(Boolean.TRUE);
+        while (stack.size() < slots)
+            stack.add(Boolean.FALSE);
+
+        java.util.Collections.shuffle(stack);
+        // "Remove four of the counters and set them aside face down without looking at them."
+        // Taken off the shuffled stack, so what goes is whatever happens to be on top.
+        for (int i = 0; i < Math.max(0, bag.withdrawUnseen) && !stack.isEmpty(); i++)
+            stack.remove(stack.size() - 1);
+
+        int boxNumber = 0;
+        for (int i = 0; i < positions.size(); i++) {
+            Location loc = positions.get(i);
+            boolean hidesSomething = i < stack.size() && stack.get(i);
+            if (!hidesSomething || bag.objectiveTemplate == null) {
+                result.add(com.sfb.objects.SearchMarker.empty(loc));
+                continue;
+            }
+            boxNumber++;
+            result.add(com.sfb.objects.SearchMarker.hiding(loc,
+                    buildTemplateObjective(bag.objectiveTemplate, boxNumber, loc)));
+        }
+        return result;
+    }
+
+    /**
+     * One objective from the bag's template. Numbered when more than one can exist, because
+     * every action addresses an objective BY NAME and two things called "Stasis Box" would be
+     * one thing as far as {@code pickUpObjective} is concerned.
+     */
+    private static com.sfb.objects.Objective buildTemplateObjective(
+            ScenarioSpec.ObjectiveSetup template, int number, Location loc) {
+        ScenarioSpec.ObjectiveSetup copy = new ScenarioSpec.ObjectiveSetup();
+        copy.name = (template.name == null ? "Objective" : template.name) + " " + number;
+        copy.hex = formatHex(loc);
+        copy.retrieval = template.retrieval;
+        copy.survivesDestruction = template.survivesDestruction;
+        copy.side = template.side;
+        copy.points = template.points;
+        copy.cargoSpaces = template.cargoSpaces;
+        copy.canBeLeftInSpace = template.canBeLeftInSpace;
+
+        ScenarioSpec carrier = new ScenarioSpec();
+        carrier.objectives = new ArrayList<>(List.of(copy));
+        List<com.sfb.objects.Objective> built = loadObjectives(carrier);
+        return built.isEmpty() ? null : built.get(0);
     }
 
     public static List<com.sfb.objects.Objective> loadObjectives(ScenarioSpec spec) {
@@ -866,6 +971,15 @@ public class ScenarioLoader {
         int col = Integer.parseInt(hex.substring(0, 2));
         int row = Integer.parseInt(hex.substring(2, 4));
         return new Location(col, row);
+    }
+
+    /**
+     * The inverse of {@link #parseHex}: CCRR, zero-padded, which is how every other hex in a
+     * scenario file is written. A {@code Location}'s own {@code toString} produces
+     * "&lt;10|12&gt;", which is the DTO's wire format and would not parse back.
+     */
+    static String formatHex(Location loc) {
+        return String.format("%02d%02d", loc.getX(), loc.getY());
     }
 
     /**

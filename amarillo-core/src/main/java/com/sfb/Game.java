@@ -119,6 +119,9 @@ public class Game {
     private final List<SpaceMine> mines = new ArrayList<>();
     private final List<Terrain> terrain = new ArrayList<>();
     private final List<com.sfb.objects.Objective> objectives = new ArrayList<>(); // capturable scenario objects
+    // Face-down counters waiting to be searched (SH47.46). The list IS the unsearched set:
+    // examining one removes it and materialises what it held, so a marker never exists revealed.
+    private final List<com.sfb.objects.SearchMarker> searchMarkers = new ArrayList<>();
     private final Set<Location> asteroidHexes = new HashSet<>();
     private final Set<Location> planetHexes = new HashSet<>();          // full footprint — no-entry
     private final Set<Location> planetSurfaceHexes = new HashSet<>();    // blocks LOS (P2.321)
@@ -296,6 +299,11 @@ public class Game {
             addTerrain(t);
         for (com.sfb.objects.Objective o : ScenarioLoader.loadObjectives(scenario))
             addObjective(o);
+
+        // The face-down counters, dealt here and nowhere else (SH47.46). A reload re-deals and
+        // is then overwritten by applyState's saved list, which is the authoritative hand.
+        searchMarkers.clear();
+        searchMarkers.addAll(ScenarioLoader.loadSearchMarkers(scenario));
 
         for (int i = 0; i < scenario.sides.size(); i++) {
             ScenarioSpec.SideSpec side = scenario.sides.get(i);
@@ -2496,6 +2504,14 @@ public class Game {
             objectiveStates.add(o.exportState());
         state.put("objectives", objectiveStates);
 
+        // Face-down counters, described outright rather than overlaid. These are DRAWN at setup
+        // — four of twenty-two withdrawn unseen, the rest dealt at random — so rebuilding them
+        // from the scenario would deal a different hand on every load and move the box.
+        List<Map<String, Object>> markerStates = new ArrayList<>();
+        for (com.sfb.objects.SearchMarker marker : searchMarkers)
+            markerStates.add(marker.exportState());
+        state.put("searchMarkers", markerStates);
+
         state.put("players", playerStates);
 
         return state;
@@ -2597,6 +2613,7 @@ public class Game {
         problems.addAll(reviveSavedSeekers(state));
         problems.addAll(reviveSavedMines(state));
         problems.addAll(restoreSavedObjectives(state));
+        problems.addAll(restoreSavedSearchMarkers(state));
         resolveSavedCraftReferences(state);
         resolveSavedShipControl(state);
         resolveSavedLockOns(state);
@@ -2847,6 +2864,44 @@ public class Game {
         for (String missing : byName.keySet())
             problems.add(missing + " is in the save but not in the scenario");
 
+        return problems;
+    }
+
+    /**
+     * Put back the counters nobody has searched yet (SH47.46).
+     *
+     * <h2>Authoritative when present, and absent means leave alone</h2>
+     * The same rule objectives follow, for the same reason. Counters are REMOVED as they are
+     * examined, so a save listing four of them after a battle that started with eighteen is
+     * telling the truth: fourteen have been looked at. Clearing the list and refilling it from
+     * the save is therefore correct — but only when the save has a list to refill it from. A
+     * save written before counters existed has no key at all, and reading that as "every
+     * counter was searched" would quietly end the hunt.
+     *
+     * <p>Nothing rebuilds these from the scenario, which is why the save describes them in full:
+     * the generator DREW them, withdrawing four of twenty-two unseen, and a redraw would move
+     * the box.
+     */
+    private List<String> restoreSavedSearchMarkers(Map<String, Object> state) {
+        List<String> problems = new ArrayList<>();
+        if (!(state.get("searchMarkers") instanceof List<?> list))
+            return problems; // pre-counter save: leave whatever the scenario laid out
+
+        searchMarkers.clear();
+        for (Object entry : list) {
+            if (!(entry instanceof Map<?, ?> raw))
+                continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> saved = (Map<String, Object>) raw;
+            com.sfb.objects.SearchMarker marker = com.sfb.objects.SearchMarker.fromState(saved);
+            if (marker == null) {
+                problems.add("a face-down counter could not be restored: the save calls it a "
+                        + com.sfb.systemgroups.StateIo.text(saved, "kind")
+                        + ", which this build does not have");
+                continue;
+            }
+            searchMarkers.add(marker);
+        }
         return problems;
     }
 
@@ -5010,19 +5065,61 @@ public class Game {
      */
     private List<String> revealObjectivesUnderShips() {
         List<String> log = new ArrayList<>();
+
+        // Face-down counters first (SH47.46). Removed as they are examined, so the list stays
+        // the set of hexes nobody has looked at.
+        for (com.sfb.objects.SearchMarker marker : new ArrayList<>(searchMarkers)) {
+            Ship finder = shipStandingOn(marker.getLocation());
+            if (finder == null)
+                continue;
+            searchMarkers.remove(marker);
+            switch (marker.getKind()) {
+                case OBJECTIVE -> {
+                    com.sfb.objects.Objective found = marker.getObjective();
+                    objectives.add(found);
+                    log.add(finder.getName() + " examines the counter and finds "
+                            + found.getName() + " (SH47.471)");
+                }
+                case NOTHING -> log.add(finder.getName()
+                        + " examines the counter — nothing but rocks (SH47.471)");
+            }
+        }
+
+        // And an objective hidden in the open rather than under a counter. Nothing in the
+        // scenario library asks for this today — SH47 hides its boxes under counters, which is
+        // the stronger mechanism because an unexamined box does not exist to be leaked. It is
+        // kept because the data switch exists and the two are one rule: a ship in the hex finds
+        // what is in the hex.
         for (com.sfb.objects.Objective o : objectives) {
             if (o.isRevealed() || o.getLocation() == null)
                 continue;
-            for (Ship ship : ships) {
-                if (ship.getLocation() == null || !ship.getLocation().equals(o.getLocation()))
-                    continue;
-                o.reveal();
-                log.add(ship.getName() + " examines the hex and finds " + o.getName()
-                        + " (SH47.471)");
-                break;
-            }
+            Ship finder = shipStandingOn(o.getLocation());
+            if (finder == null)
+                continue;
+            o.reveal();
+            log.add(finder.getName() + " examines the hex and finds " + o.getName()
+                    + " (SH47.471)");
         }
         return log;
+    }
+
+    /** The first ship in this hex, or null. Ships only — see the sweep's note on SH47.472. */
+    private Ship shipStandingOn(com.sfb.properties.Location hex) {
+        if (hex == null)
+            return null;
+        for (Ship ship : ships)
+            if (ship.getLocation() != null && ship.getLocation().equals(hex))
+                return ship;
+        return null;
+    }
+
+    /** Face-down counters still unsearched (SH47.46). */
+    public List<com.sfb.objects.SearchMarker> getSearchMarkers() {
+        return searchMarkers;
+    }
+
+    public void addSearchMarker(com.sfb.objects.SearchMarker marker) {
+        searchMarkers.add(marker);
     }
 
     /**

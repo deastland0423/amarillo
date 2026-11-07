@@ -46,6 +46,7 @@ public class GameStateDto {
             @JsonSubTypes.Type(value = MineDto.class, name = "MINE"),
             @JsonSubTypes.Type(value = TerrainDto.class, name = "TERRAIN"),
             @JsonSubTypes.Type(value = ObjectiveDto.class, name = "OBJECTIVE"),
+            @JsonSubTypes.Type(value = SearchMarkerDto.class, name = "SEARCH_MARKER"),
             @JsonSubTypes.Type(value = WildWeaselDto.class, name = "WILD_WEASEL"),
     })
     public static abstract class MapObjectDto {
@@ -76,6 +77,30 @@ public class GameStateDto {
         public int side;                     // planet hex side 1..6 it sits on, or 0 (SH50.46)
         public Double cargoSpaces;           // size in cargo spaces (G25.1/Annex #7K); null = unstated
         public boolean canBeLeftInSpace;     // (G25.214) scenario grant to leave it adrift
+    }
+
+    /**
+     * A face-down counter (SH47.46). It has NO FIELDS OF ITS OWN, and that is the mechanism.
+     *
+     * <p>Position is public — the counters are on the table and a ship searches one by entering
+     * its hex, which it could not choose to do otherwise. Everything else is the secret: not
+     * only what this counter hides but, because four of twenty-two were withdrawn unseen, how
+     * many boxes are out there at all.
+     *
+     * <p>So there is no payload field, no kind, and no hint. Privacy by the ABSENCE OF A
+     * CHANNEL rather than by filtering one — which is the lesson of the two filters the hidden
+     * objective needed, one on {@code mapObjects} and one on the scoreboard, each found
+     * separately and the second only by reading the rule back against the DTO. A field that
+     * does not exist cannot be forgotten at a new exit.
+     *
+     * <p>Every counter is identical here, deliberately. A DTO that appeared only where an
+     * objective was hidden would announce exactly what it was meant to keep.
+     *
+     * <p>{@code name} and {@code tractoredBy} come from the base class. The name is a hex label
+     * ("Counter &lt;14|9&gt;") that gives nothing away, and a beam cannot hold a note about a
+     * hex, so {@code tractoredBy} is always null.
+     */
+    public static class SearchMarkerDto extends MapObjectDto {
     }
 
     public static class WildWeaselDto extends MapObjectDto {
@@ -1463,6 +1488,16 @@ public class GameStateDto {
         for (com.sfb.objects.Objective o : game.getObjectives())
             if (o.isRevealed() || viewerTeam == null)
                 mapObjects.add(fromObjective(o));
+
+        // Face-down counters. Sent to EVERYONE, omniscient view included, because where the
+        // counters are was never the secret — see SearchMarkerDto for what is.
+        for (com.sfb.objects.SearchMarker marker : game.getSearchMarkers()) {
+            SearchMarkerDto dto = new SearchMarkerDto();
+            dto.name = marker.getName();
+            dto.location = marker.getLocation() == null ? null
+                    : marker.getLocation().toString();
+            mapObjects.add(dto);
+        }
 
         // Aggregate volleys by (target, shieldNumber) so the reinforcement dialog
         // shows the combined incoming total per shield facing. EPT volleys

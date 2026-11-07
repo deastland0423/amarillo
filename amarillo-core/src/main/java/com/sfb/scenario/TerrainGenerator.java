@@ -69,6 +69,12 @@ public final class TerrainGenerator {
          * body.
          */
         public List<ScenarioSpec.RingBand> rings;
+        /**
+         * ASTEROID_FIELD: keep the rolled counter positions, for a scenario whose counters can
+         * be searched (SH47.46). Off by default — an ordinary field has no use for them and
+         * every scenario written before this one would otherwise sprout eighteen counters.
+         */
+        public boolean markCounters;
     }
 
     // -------------------------------------------------------------------------
@@ -208,10 +214,37 @@ public final class TerrainGenerator {
      */
     public static List<ScenarioSpec.TerrainSetup> generate(
             List<Plan> plans, List<MapRegion> keepClear, int mapCols, int mapRows) {
+        return expand(plans, keepClear, mapCols, mapRows).terrain;
+    }
 
-        List<ScenarioSpec.TerrainSetup> out = new ArrayList<>();
+    /**
+     * What a run of the generator produced: the hexes, and the COUNTER POSITIONS behind them.
+     *
+     * <h2>Why the positions had to stop being thrown away</h2>
+     * {@code standardField} rolled each counter's hex into a local, expanded its radius-2
+     * footprint, and dropped it. That was right while a counter was only a step on the way to a
+     * field of asteroid hexes. SH47.46 makes the counter a place in its own right — the thing a
+     * ship enters to search — and there was nowhere to put a Stasis Box even if a scenario
+     * could ask for one.
+     *
+     * <p>Two lists rather than one richer terrain entry, because a counter position is not
+     * terrain: no asteroid hex is special for being a counter's centre, and P3.12 is explicit
+     * that a hex near two counters is no different from a hex near one. The terrain output is
+     * byte-for-byte what it was.
+     */
+    public static class Generated {
+        public final List<ScenarioSpec.TerrainSetup> terrain = new ArrayList<>();
+        /** Rolled counter centres, in layout order, for plans that asked to keep them. */
+        public final List<Location> counters = new ArrayList<>();
+    }
+
+    public static Generated expand(
+            List<Plan> plans, List<MapRegion> keepClear, int mapCols, int mapRows) {
+
+        Generated result = new Generated();
+        List<ScenarioSpec.TerrainSetup> out = result.terrain;
         if (plans == null)
-            return out;
+            return result;
 
         Set<String> used = new LinkedHashSet<>(); // every hex already spoken for
         for (Plan plan : plans) {
@@ -222,14 +255,15 @@ public final class TerrainGenerator {
             Random rng = new Random(plan.seed);
 
             switch (plan.type.toUpperCase()) {
-                case "ASTEROID_FIELD" -> standardField(rng, used, out, mapCols, mapRows);
+                case "ASTEROID_FIELD" -> standardField(rng, used, out, mapCols, mapRows,
+                        plan.markCounters ? result.counters : null);
                 case "PLANET" -> placeBodies(plan, rng, keepClear, used, out, mapCols, mapRows, 0);
                 case "GAS_GIANT" -> placeBodies(plan, rng, keepClear, used, out, mapCols, mapRows,
                         Math.max(0, plan.radius));
                 default -> System.err.println("TerrainGenerator: unknown plan type '" + plan.type + "' — skipped");
             }
         }
-        return out;
+        return result;
     }
 
     // -------------------------------------------------------------------------
@@ -251,7 +285,7 @@ public final class TerrainGenerator {
      */
     private static void standardField(Random rng, Set<String> used,
             List<ScenarioSpec.TerrainSetup> out,
-            int mapCols, int mapRows) {
+            int mapCols, int mapRows, List<Location> counterSink) {
         for (String start : COUNTER_HEXES) {
             Location counter = MapRegion.parse(start);
             if (counter == null)
@@ -263,6 +297,12 @@ public final class TerrainGenerator {
                     counter, DIRECTIONS[rng.nextInt(DIRECTIONS.length)], mapCols, mapRows);
             if (rolled != null)
                 counter = rolled; // a counter rolled off the map stays where it was
+
+            // Where the counter came to rest, for a scenario that searches them (SH47.46).
+            // Recorded BEFORE the footprint is expanded, because `used` swallows the centre
+            // along with everything else and there would be no telling it apart afterwards.
+            if (counterSink != null)
+                counterSink.add(counter);
 
             for (Location hex : within(counter, FIELD_RADIUS, mapCols, mapRows)) {
                 if (used.add(key(hex)))

@@ -112,6 +112,39 @@ public class ScenarioSpec {
         public boolean      hidden;
     }
 
+    /**
+     * (SH47.46) How many of the field's counters hide something, and how many are withdrawn
+     * before any are placed.
+     *
+     * <h2>This block is PUBLIC, and that is correct</h2>
+     * It is printed in the rulebook: both players know there are two Stasis Boxes among
+     * twenty-two counters and that four are set aside unseen. What they do not know is WHICH,
+     * and that assignment is never written here — it is drawn when the Game is built and lives
+     * only on the server. The spec is broadcast to the lobby so the deployment screen can show
+     * players the map, so anything placed in it is public by construction.
+     *
+     * <p>Withdrawing before dealing is what makes the COUNT a secret as well as the position:
+     * remove four of twenty-two and it may be that two boxes are out there, or one, or none.
+     */
+    public static class SearchBag {
+        /** How many counters hide a capturable object. */
+        public int          objectives;
+        /** Counters set aside face down before any are placed, never looked at. */
+        public int          withdrawUnseen;
+        /** What each hidden object is; its hex is whichever counter draws it. */
+        public ObjectiveSetup objectiveTemplate;
+    }
+
+    /**
+     * (SH47.46) Face-down counters, as HEXES ONLY. Filled in by {@code expandTerrainPlans} from
+     * a field that asked to keep its counter positions, and public for the same reason the bag
+     * is: a ship searches a counter by entering its hex, which it could not choose to do if the
+     * counters were invisible. What each one hides is not here and never will be.
+     */
+    public List<String> searchMarkers;
+
+    public SearchBag searchBag;
+
     /** A planetary ring band: enterable asteroid-like hexes at [inner, outer] hex-distance from center. */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RingBand {

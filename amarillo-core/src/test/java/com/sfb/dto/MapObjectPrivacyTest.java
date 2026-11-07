@@ -177,6 +177,20 @@ public class MapObjectPrivacyTest {
             "carrierName", "retrieval", "ownerTeam", "secured", "beingRecovered", "side",
             "cargoSpaces", "canBeLeftInSpace");
 
+        // ---- A face-down counter (SH47.46), and the entry is DELIBERATELY EMPTY.
+        //
+        // SearchMarkerDto declares no fields of its own: position is public because a ship
+        // searches a counter by entering its hex, and everything else — what this one hides,
+        // and how many boxes exist at all once four of twenty-two have been withdrawn unseen —
+        // is the secret. Privacy by the absence of a channel rather than by filtering one.
+        //
+        // The entry exists because this test iterates RULINGS, not the DTO hierarchy. A class
+        // with no entry is invisible to the guard, so a `payloadKind` added here in a hurry
+        // would have shipped unexamined — which is the exact failure the file was written to
+        // prevent. With the entry, the first field added fails the build until somebody rules
+        // on it. Leave it empty.
+        rule(GameStateDto.SearchMarkerDto.class, Visibility.PUBLIC);
+
         // ---- Only ever sent to someone entitled to see it: an enemy gets a ShuttleDto
         // instead (DtoRedactionTest covers that substitution). Ruled anyway, so a new
         // field cannot slip in unexamined if that ever changes.
