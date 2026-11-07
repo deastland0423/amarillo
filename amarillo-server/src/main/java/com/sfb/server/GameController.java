@@ -3292,6 +3292,61 @@ public class GameController {
     }
 
     // -------------------------------------------------------------------------
+    // Player aid — the printed charts, served rather than retyped
+    //
+    // Reference data, not a disclosure: the tables are in the rulebook and a ship's own speed,
+    // crew and fire control belong to its captain. So there is no token check here beyond the
+    // session, as with the H&R options above.
+    //
+    // SERVED rather than copied into the client on purpose. The frontend already carries 485
+    // lines of hand-mirrored weapon tables with a standing note to update them whenever a Java
+    // weapon changes, and two mine numbers that disagreed with the rulebook turned up in a
+    // single playtest today. One definition of a chart is worth an endpoint.
+    // -------------------------------------------------------------------------
+
+    @GetMapping("/{id}/player-aid/terrain")
+    public ResponseEntity<?> getTerrainCharts(
+            @PathVariable String id,
+            @RequestParam(required = false) String ship) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            com.sfb.Game game = session.getGame();
+            Ship subject = ship == null ? null : game.getShips().stream()
+                    .filter(s -> s.getName().equalsIgnoreCase(ship))
+                    .findFirst().orElse(null);
+            com.sfb.Game.TerrainChartPosition position = game.terrainChartPosition(subject);
+
+            Map<String, Object> out = new java.util.LinkedHashMap<>();
+            out.put("speedColumns", com.sfb.Game.TERRAIN_SPEED_COLUMNS);
+            out.put("charts", List.of(
+                    chart("Asteroid Collision", "P3.2", com.sfb.Game.asteroidDamageChart()),
+                    chart("Ring Material", "P2.223", com.sfb.Game.ringDamageChart())));
+            if (position != null) {
+                Map<String, Object> you = new java.util.LinkedHashMap<>();
+                you.put("shipName", subject.getName());
+                you.put("effectiveSpeed", position.effectiveSpeed());
+                you.put("speedColumn", position.speedColumn());
+                you.put("dieShift", position.dieShift());
+                you.put("modifiers", position.modifiers());
+                out.put("you", you);
+            }
+            return ResponseEntity.ok(out);
+        });
+    }
+
+    private static Map<String, Object> chart(String name, String rule, int[][] rows) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("name", name);
+        m.put("rule", rule);
+        m.put("rows", rows);
+        return m;
+    }
+
+    // -------------------------------------------------------------------------
     // Guard options — owner-only: guard posts are secret (D7.831); they are
     // deliberately absent from the broadcast GameStateDto, which both players
     // receive identically. The raider learns of a guard by walking into it.

@@ -3297,3 +3297,31 @@ h3 {
   max-width: 7rem;
   font-size: 0.8rem;
 }
+
+/* Player-aid reference charts (P3.2, P2.223). The highlighted column is the one the selected
+   ship's effective speed puts it in — the only thing this has over the printed Annex. */
+.aid-table {
+  border-collapse: collapse;
+  font-size: 0.72rem;
+  width: 100%;
+}
+.aid-table th,
+.aid-table td {
+  border: 1px solid #21262d;
+  padding: 2px 6px;
+  text-align: center;
+}
+.aid-table thead th {
+  color: #8b949e;
+  font-weight: 500;
+}
+.aid-table tbody th {
+  color: #8b949e;
+  font-weight: 500;
+  width: 2.2rem;
+}
+.aid-cell-yours {
+  background: #1f2d3d;
+  color: #e6edf3;
+  font-weight: 600;
+}

@@ -28,6 +28,7 @@ import { channelLendCeiling } from './scoutLending';
 import { shipHasFreeBalcony } from './balcony';
 import { weaponTitleShort } from './weaponTitle';
 import { saveButtonState } from './saveButton';
+import { PlayerAidPanel } from './PlayerAidPanel';
 
 interface Props {
   session: LobbyResult;
@@ -789,6 +790,8 @@ interface SidebarProps {
   // Transporters submenu
   transportersOpen:    boolean;
   onToggleTransporters: () => void;
+  playerAidOpen: boolean;
+  onTogglePlayerAid: () => void;
   // Beam a free objective aboard by transporter (SH47) — objective-pick mode
   beamObjectMode:       boolean;
   canBeamObjectTargets: boolean;
@@ -857,6 +860,7 @@ function ShipSidebar({
   harMode, harTarget, harOptions, harParties, harError, harLoading,
   onStartHar, onCancelHar, onSetHarParties, onSubmitHar,
   transportersOpen, onToggleTransporters,
+  playerAidOpen, onTogglePlayerAid,
   beamObjectMode, canBeamObjectTargets, onStartBeamObject, onCancelBeamObject,
   crewMode, crewTarget, crewAmount, crewError,
   onStartCrew, onCancelCrew, onSetCrewAmount, onSubmitCrew,
@@ -1204,6 +1208,13 @@ function ShipSidebar({
                     Transporters
                   </button>
                 )}
+                <button
+                  className={`action-strip-btn${playerAidOpen ? ' active' : ''}`}
+                  onClick={onTogglePlayerAid}
+                  title="Terrain collision charts (P3.2, P2.223), with this ship's row and column marked"
+                >
+                  Charts
+                </button>
                 {canDropMine && (
                   <button
                     className={`action-strip-btn${dropMineMode ? ' active' : ''}`}
@@ -1652,6 +1663,13 @@ function ShipSidebar({
                 </div>
               )}
 
+              {playerAidOpen && (
+                <PlayerAidPanel
+                  gameId={gameId}
+                  shipName={ship.name}
+                  onClose={onTogglePlayerAid}
+                />
+              )}
               {transportersOpen && (
                 <div className="transporter-submenu">
                   <button
@@ -2524,6 +2542,10 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [harLoading, setHarLoading] = useState(false);
   // Transporters submenu + transport crew state
   const [transportersOpen, setTransportersOpen] = useState(false);
+  // Player aid: the printed terrain charts, opened on demand. One button rather than a
+  // permanent risk readout, which is both less interface and more information — see
+  // PlayerAidPanel for why the table beats a forecast.
+  const [playerAidOpen, setPlayerAidOpen] = useState(false);
   const [crewMode,    setCrewMode]    = useState(false);
   const [crewTarget,  setCrewTarget]  = useState<ShipObject | null>(null);
   const [crewAmount,  setCrewAmount]  = useState(1);
@@ -4663,6 +4685,8 @@ export default function GameBoard({ session, onLeave }: Props) {
             onSubmitHar={handleSubmitHar}
             transportersOpen={transportersOpen}
             onToggleTransporters={handleToggleTransporters}
+            playerAidOpen={playerAidOpen}
+            onTogglePlayerAid={() => setPlayerAidOpen(o => !o)}
             crewMode={crewMode}
             crewTarget={crewTarget}
             crewAmount={crewAmount}

@@ -1297,6 +1297,22 @@ export const gameApi = {
     return request(`/api/games/scenarios/cartels`);
   },
 
+  /**
+   * The terrain collision charts (P3.2, P2.223), with the named ship's row and column worked
+   * out server-side.
+   *
+   * The numbers come from core rather than living in the client, because the chart and the roll
+   * that reads it must not be able to disagree — see terrainCharts.ts for the file next door
+   * that shows what the other choice costs.
+   */
+  getTerrainCharts(
+    gameId: string,
+    ship?: string | null,
+  ): Promise<import('../game/terrainCharts').TerrainChartData> {
+    const q = ship ? `?ship=${encodeURIComponent(ship)}` : '';
+    return request(`/api/games/${gameId}/player-aid/terrain${q}`);
+  },
+
   getHarOptions(
     gameId: string,
     playerToken: string,

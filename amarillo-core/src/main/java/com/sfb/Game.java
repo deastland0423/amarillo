@@ -5749,6 +5749,86 @@ public class Game {
      * @param crew   crew quality for the C11.33 poor-crew negation, or null
      */
     /** P3.2's speed columns. */
+    /** Column headings for the two terrain tables (P3.2), in bracket order. */
+    public static final String[] TERRAIN_SPEED_COLUMNS = { "1-6", "7-14", "15-25", "26+" };
+
+    /** (P3.2) The asteroid collision chart, as a copy — [die-1][speed bracket]. */
+    public static int[][] asteroidDamageChart() {
+        return copyChart(ASTEROID_DAMAGE);
+    }
+
+    /** (P2.223) The ring material chart, as a copy — [die-1][speed bracket]. */
+    public static int[][] ringDamageChart() {
+        return copyChart(RING_DAMAGE);
+    }
+
+    private static int[][] copyChart(int[][] chart) {
+        int[][] out = new int[chart.length][];
+        for (int i = 0; i < chart.length; i++)
+            out[i] = chart[i].clone();
+        return out;
+    }
+
+    /**
+     * Where a given ship sits on the terrain charts right now, for the player aid.
+     *
+     * <h2>Why the server works this out</h2>
+     * The CHARTS are printed data and could live anywhere. Which cell a ship is reading is not:
+     * it depends on EFFECTIVE speed (C2.451, so Erratic Maneuvers are already in it), on
+     * nimbleness (C11.21), on crew quality cancelling that benefit (C11.33) and on fire control
+     * (D6.628). Four rules, so the answer belongs on this side of the wire — the client would
+     * otherwise carry a second copy of them, which is how the 485 lines of hand-mirrored weapon
+     * tables in the frontend got to be a standing maintenance note.
+     *
+     * <p>Nothing here is secret. The chart is in the rulebook and a ship's own speed, crew and
+     * fire control are its own captain's business, so this is a convenience rather than a
+     * disclosure — unlike nearly everything else added today.
+     *
+     * @param ship whose row and column to mark, or null for the bare charts
+     */
+    public TerrainChartPosition terrainChartPosition(Ship ship) {
+        if (ship == null)
+            return null;
+        int speed = ship.effectiveSpeed();
+        int column = Math.min(bracketFor(speed), TERRAIN_SPEED_COLUMNS.length - 1);
+        List<String> notes = new ArrayList<>();
+
+        boolean nimble = ship.isNimble();
+        com.sfb.systemgroups.Crew.CrewQuality crew = crewQualityFor(ship);
+        boolean poorCrew = crew == com.sfb.systemgroups.Crew.CrewQuality.POOR;
+        boolean passive = !ship.isActiveFireControl();
+
+        // The shift is whatever collisionDie would do, asked rather than re-derived, so the aid
+        // cannot disagree with the roll it is describing.
+        int shift = collisionDie(3, nimble, crew, passive) - 3;
+
+        if (nimble && !poorCrew)
+            notes.add("nimble -1 (C11.21)");
+        else if (nimble && poorCrew)
+            notes.add("nimble, but a poor crew cancels it (C11.33)");
+        if (passive)
+            notes.add("passive fire control +1 (D6.628)");
+        if (ship.isEmEffective())
+            notes.add("erratic maneuvers already in the effective speed (C10.45)");
+        if (notes.isEmpty())
+            notes.add("no modifiers");
+
+        return new TerrainChartPosition(speed, column, shift, notes);
+    }
+
+    /**
+     * A ship's place on the terrain charts: which column its speed puts it in, and how far its
+     * die is shifted before the chart is read.
+     *
+     * @param effectiveSpeed C2.451 speed, EM included
+     * @param speedColumn    index into {@link #TERRAIN_SPEED_COLUMNS}
+     * @param dieShift       added to the raw die before reading the row; negative is better
+     * @param modifiers      what makes up that shift, in the player's words
+     */
+    public record TerrainChartPosition(int effectiveSpeed, int speedColumn, int dieShift,
+                                       List<String> modifiers) {
+    }
+
     private static int bracketFor(int speed) {
         return speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
     }
