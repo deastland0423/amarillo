@@ -171,6 +171,11 @@ class SaveGameEndpointTest {
     /**
      * The turn-boundary rule. Mid-turn, the engine is full of per-impulse state held by object
      * identity, which this format deliberately does not carry.
+     *
+     * <p>Note what this test does NOT cover, and was read as covering: it allocates for BOTH
+     * ships, so it only ever exercised the fully-under-way case. The halfway state -- one form
+     * in, one still to come -- was accepted by the endpoint and lost the submitted form. See
+     * {@link #savingAfterOneShipHasAllocatedIsRefused()}.
      */
     @Test
     void savingMidTurnIsRefusedAndSaysWhen() {
@@ -186,6 +191,68 @@ class SaveGameEndpointTest {
         String error = String.valueOf(response.getBody().get("error"));
         assertTrue(error.contains("between turns"), error);
         assertFalse(savedFile("test-save-mid").isFile(), "nothing should have been written");
+    }
+
+    /**
+     * The gap this endpoint shipped with: a save taken after SOME ships have allocated.
+     *
+     * <p>{@code isAwaitingAllocation()} is still true here, so the endpoint accepted it -- and
+     * the snapshot carries no half-finished round, so the save reloaded with every ship queued
+     * again and the submitted form thrown away. Asserted at the layer that GATES it, because
+     * core being right about the state is no use if the endpoint does not ask.
+     */
+    @Test
+    void savingAfterOneShipHasAllocatedIsRefused() {
+        startBattle();
+        com.sfb.objects.Ship first = session.getGame().getShips().get(0);
+        session.getGame().submitAllocation(first, first.buildAutoAllocation());
+        assertTrue(session.getGame().isAwaitingAllocation(),
+                "fixture: the round is still open, which is why this slipped through");
+        assertFalse(session.getGame().getAllocationQueue().isEmpty(),
+                "fixture: at least one ship has still to allocate");
+
+        var response = controller.saveGame(session.getId(), host, Map.of("id", "test-save-half"));
+
+        assertEquals(400, response.getStatusCode().value());
+        String error = String.valueOf(response.getBody().get("error"));
+        assertTrue(error.contains("before the first Energy Allocation Form"), error);
+        assertTrue(error.contains("lose the forms already in"), error);
+        assertFalse(savedFile("test-save-half").isFile(), "nothing should have been written");
+    }
+
+    /**
+     * (D5.1) A declared self-destruct is submitted as an empty Energy Allocation Form, so it
+     * closes the save window too -- and it is the costlier loss, because the declaration
+     * vanished on reload and the ship then did not explode.
+     */
+    @Test
+    void savingAfterASelfDestructDeclarationIsRefused() {
+        startBattle();
+        com.sfb.objects.Ship doomed = session.getGame().getShips().get(0);
+        doomed.getCrew().setAvailableCrewUnits(1);   // (D5.51) a healthy ship may not
+        assertTrue(session.getGame().declareSelfDestruct(doomed).isSuccess(),
+                "fixture: the declaration should be accepted");
+
+        var response = controller.saveGame(session.getId(), host, Map.of("id", "test-save-sd"));
+
+        assertEquals(400, response.getStatusCode().value());
+        assertTrue(String.valueOf(response.getBody().get("error"))
+                .contains("before the first Energy Allocation Form"));
+        assertFalse(savedFile("test-save-sd").isFile(), "nothing should have been written");
+    }
+
+    /** And the moment that IS allowed still is, so the fix did not close the window entirely. */
+    @Test
+    void savingBeforeAnyAllocationIsAccepted() {
+        startBattle();
+        assertTrue(session.getGame().isPristineTurnBoundary(), "fixture: nobody has allocated");
+
+        var response = controller.saveGame(session.getId(), host,
+                Map.of("id", "test-save-pristine"));
+
+        assertEquals(200, response.getStatusCode().value());
+        assertTrue(savedFile("test-save-pristine").isFile());
+        written.add(savedFile("test-save-pristine"));
     }
 
     @Test

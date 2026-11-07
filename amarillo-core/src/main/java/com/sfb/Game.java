@@ -236,6 +236,11 @@ public class Game {
     private boolean inProgress = false;
     private boolean awaitingAllocation = false;
     private final List<Ship> allocationQueue = new ArrayList<>();
+    // Whether any PLAYER decision has been recorded in this turn's allocation round. Not the
+    // same as "the queue has shrunk": startTurn() auto-submits for every unit whose allocation
+    // holds no choice, so the queue is already short before anybody has decided anything.
+    // See isPristineTurnBoundary(), which is the only thing that reads it.
+    private boolean playerAllocationSubmitted = false;
 
     // --- Setup ---
 
@@ -454,6 +459,10 @@ public class Game {
         for (Ship ship : new ArrayList<>(allocationQueue))
             if (ship.hasNoEnergyAllocationChoice())
                 submitAllocation(ship, ship.buildAutoAllocation());
+        // Cleared AFTER the automatic submissions above, which set it on their way through
+        // submitAllocation(). Nothing a player chose has been recorded yet, so this is the
+        // one moment in the turn a save can be taken from — see isPristineTurnBoundary().
+        playerAllocationSubmitted = false;
 
         // No engaged ships left to allocate (e.g. all disengaged, or every unit allocated itself
         // above) — don't stall the turn waiting for allocations that will never come. Guarded on
@@ -476,6 +485,30 @@ public class Game {
         return awaitingAllocation;
     }
 
+    /**
+     * True at the one moment a save can be taken from: the start of a turn, before any player
+     * has submitted an Energy Allocation Form.
+     *
+     * <h2>Why {@link #isAwaitingAllocation()} was not enough</h2>
+     * It stays true from the first ship's form to the last, and {@link #exportState()} carries
+     * neither {@link #allocationQueue} nor {@link #awaitingAllocation}. So a save taken halfway
+     * through the round reloaded with EVERY ship queued again and the forms already submitted
+     * silently discarded — {@code energyAllocated} back to zero, and a declared self-destruct
+     * (D5.1) simply gone, with {@code restore()} reporting no problems at all. Both were
+     * reproduced before this existed.
+     *
+     * <p>The alternative was to serialise the half-finished round. That is the wrong trade: the
+     * format's whole premise is that between turns the per-impulse graph is not there to
+     * serialise, and a round in progress is exactly that graph starting to form. Refusing the
+     * save costs a player one click; carrying it wrong costs them a turn's decisions.
+     *
+     * <p>A restored game lands here by construction — {@code setupFromScenario} ends in
+     * {@link #startTurn()} — so what a save can be taken from is what it loads into.
+     */
+    public boolean isPristineTurnBoundary() {
+        return awaitingAllocation && !playerAllocationSubmitted;
+    }
+
     public List<Ship> getAllocationQueue() {
         return Collections.unmodifiableList(allocationQueue);
     }
@@ -485,6 +518,9 @@ public class Game {
      * is submitted, automatically finalises all ships and advances to impulse 1.
      */
     public ActionResult submitAllocation(Ship ship, Energy allocation) {
+        // Recorded before anything else, so a form that arrives by any route closes the save
+        // window — including declareSelfDestruct(), which submits an empty one.
+        playerAllocationSubmitted = true;
         ship.allocateEnergy(allocation);
         // C10.11/C10.12: EM costs six hexes of movement for a normal ship, three for a
         // nimble one, on top of ordinary movement. Paying buys only the RIGHT to announce
@@ -2339,11 +2375,20 @@ public class Game {
      * and all of it is empty between turns. Saving mid-impulse would mean serialising that graph
      * faithfully; saving between turns means it simply is not there.
      *
-     * <h2>The hazard this cannot fix by itself</h2>
+     * <h2>The hazard this cannot fix by itself, and who does</h2>
      * Rebuilding from the scenario reads the ship JSON AT LOAD TIME, and this repo edits ship
-     * JSON constantly. Edit a hull between sessions and a restored ship quietly becomes a
-     * different ship. The answer is a fingerprint of each resolved {@code ShipSpec} stored beside
-     * the save and compared on load — not yet built, and nothing above this should forget it.
+     * JSON constantly. Edit a hull between sessions and a restored ship would quietly become a
+     * different ship. That is handled OUTSIDE this method, by {@code SavedGame.hullFingerprints}
+     * — a fingerprint of each resolved {@code ShipSpec} stored beside the state and compared on
+     * load, which warns by ship name rather than refusing. Nothing here needs to know about it;
+     * this note says where to look, because this comment claimed the guard was unbuilt long
+     * after it shipped.
+     *
+     * <h2>What this deliberately does NOT carry</h2>
+     * The allocation round: neither {@code awaitingAllocation} nor {@code allocationQueue} is
+     * written, because a save may only be taken before the round's first form (see
+     * {@link #isPristineTurnBoundary()}, which exists because the gate used to allow halfway
+     * through and silently discarded the forms already in).
      */
     public Map<String, Object> exportState() {
         Map<String, Object> state = new java.util.LinkedHashMap<>();

@@ -1156,6 +1156,11 @@ public class GameStateDto {
     public List<String> movableNow;
     public List<String> myShips; // ships owned by the requesting player (null = all ships)
     public boolean awaitingAllocation;
+    // True only before the FIRST form of the round is in, which is the only state a save can be
+    // taken from (Game.isPristineTurnBoundary). awaitingAllocation stays true through the whole
+    // round, so a Save button gated on that one offers a save that loses the forms already
+    // submitted. Primitive on purpose: it applies to every game, in every phase.
+    public boolean pristineTurnBoundary;
     public List<String> pendingAllocation; // ship names not yet allocated this turn
     public List<String> pendingAccelDisengage; // ship names awaiting player YES/NO for C7.1 accel disengage
     public List<MapObjectDto> mapObjects;
@@ -1362,6 +1367,7 @@ public class GameStateDto {
             movableNow.add(s.getName());
 
         this.awaitingAllocation = game.isAwaitingAllocation();
+        this.pristineTurnBoundary = game.isPristineTurnBoundary();
         this.pendingAllocation = new ArrayList<>();
         if (game.isAwaitingAllocation()) {
             for (Ship s : game.getAllocationQueue())

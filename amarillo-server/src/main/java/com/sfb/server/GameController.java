@@ -1195,10 +1195,18 @@ public class GameController {
                         "error", "This game has no scenario to save with"));
 
             com.sfb.Game game = session.getGame();
-            if (!game.isAwaitingAllocation())
+            // Not isAwaitingAllocation(): that stays true from the first Energy Allocation Form
+            // of the round to the last, and the snapshot carries no half-finished round. A save
+            // taken partway through reloaded with every ship queued again and the forms already
+            // submitted silently thrown away. See Game.isPristineTurnBoundary().
+            if (!game.isPristineTurnBoundary())
                 return ResponseEntity.badRequest().body(Map.of(
-                        "error", "A game can only be saved between turns, during energy "
-                                + "allocation — finish the turn and save then"));
+                        "error", game.isAwaitingAllocation()
+                                ? "A game can only be saved before the first Energy Allocation "
+                                        + "Form of the turn is submitted — a save taken now would "
+                                        + "lose the forms already in"
+                                : "A game can only be saved between turns, during energy "
+                                        + "allocation — finish the turn and save then"));
 
             Map<String, String> input = body == null ? Map.of() : body;
             String saveId = input.get("id");
@@ -1233,35 +1241,27 @@ public class GameController {
     }
 
     /*
-     * LOADING A SAVE BACK INTO A SESSION IS NOT HERE, AND THAT IS DELIBERATE.
+     * LOADING A SAVE BACK INTO A SESSION IS BUILT — see openSave() below.
      *
-     * Taking a save is a read: it cannot hurt the game it snapshots, and the format
-     * is proven by
-     * SavedGameJsonTest in core. Putting one BACK runs into three things that want
-     * deciding
-     * rather than plumbing:
+     * This comment used to say it was deliberately absent, and listed three things that wanted
+     * deciding first. All three were decided, and the answers are worth keeping because they
+     * are why openSave() has the shape it does:
      *
-     * - GameSession.game is final, and setupFromScenario APPENDS ships rather than
-     * clearing,
-     * so a restored battle cannot simply be poured into a session that already
-     * holds one —
-     * it would duplicate the fleet. A restored game wants a fresh session built
-     * around it.
-     * - a restored game is already STARTED, so the lobby's assignment, COI and
-     * deployment
-     * stages have all been passed. Those stages are what currently give a player
-     * their
-     * ships.
-     * - and the ships come back owned by a TEAM, not by a seat. Re-attaching the
-     * people is the
-     * account-and-seat question from the front-door work (slices A and B): a
-     * durable account
-     * is exactly what lets somebody prove they are the player who owned that fleet,
-     * which is
-     * the reason that work was put ahead of this.
+     * - GameSession.game is final and setupFromScenario APPENDS ships, so a restored battle
+     * cannot be poured into a session that already holds one — it would duplicate the fleet.
+     * Hence a restore builds a FRESH session around the restored game
+     * (GameSessionService.openSavedGame) rather than reusing the caller's.
+     * - a restored game is already STARTED, so the lobby's assignment, COI and deployment
+     * stages have all been passed — and those stages are what normally hand a player their
+     * ships. Hence the seats start EMPTY and the host hands ships out with the per-ship control
+     * or "Give side".
+     * - and the ships come back owned by a TEAM, not by a seat; tokens were per-session and
+     * were never in the file. So the teams offered are the ones that held each ship WHEN THE
+     * SAVE WAS TAKEN, not the sides the scenario started them on — offering the scenario's view
+     * would quietly hand every capture (D7.50) back.
      *
-     * So restoring is its own slice, and SavedGame.restore() already does the
-     * engine half of it.
+     * What is still open is narrower: proving a returning player is the one who owned that
+     * fleet, which is the account-and-seat question from the front-door work.
      */
 
     /**

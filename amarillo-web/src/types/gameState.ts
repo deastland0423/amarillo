@@ -764,6 +764,12 @@ export interface GameState {
   absoluteImpulse:    number;
   phase:              string;
   awaitingAllocation:    boolean;
+  /**
+   * True only before the FIRST Energy Allocation Form of the round is submitted — the one state
+   * a save can be taken from. `awaitingAllocation` stays true through the whole round, so gating
+   * the Save button on that offered a save that silently lost the forms already in.
+   */
+  pristineTurnBoundary:  boolean;
   pendingAllocation:     string[];
   pendingAccelDisengage: string[]; // ship names awaiting player YES/NO for C7.1
   movableNow:         string[];

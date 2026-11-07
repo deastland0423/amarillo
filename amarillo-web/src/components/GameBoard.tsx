@@ -27,6 +27,7 @@ import { Stepper } from './Stepper';
 import { channelLendCeiling } from './scoutLending';
 import { shipHasFreeBalcony } from './balcony';
 import { weaponTitleShort } from './weaponTitle';
+import { saveButtonState } from './saveButton';
 
 interface Props {
   session: LobbyResult;
@@ -4381,10 +4382,11 @@ export default function GameBoard({ session, onLeave }: Props) {
             <button
               className="secondary"
               onClick={handleSaveGame}
-              disabled={saving || !gameState?.awaitingAllocation}
-              title={gameState?.awaitingAllocation
-                ? 'Save this battle — it can be resumed later, by anybody'
-                : 'A battle can only be saved between turns, during energy allocation'}
+              {...saveButtonState({
+                saving,
+                pristineTurnBoundary: gameState?.pristineTurnBoundary,
+                awaitingAllocation: gameState?.awaitingAllocation,
+              })}
             >
               {saving ? 'Saving…' : 'Save'}
             </button>
