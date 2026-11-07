@@ -106,6 +106,10 @@ public class ScenarioSpec {
         // (G25.214) Cargo cannot normally be left in space and still exist; a scenario has
         // to grant it for a specific item. Default false is the rule, not a placeholder.
         public boolean      canBeLeftInSpace;
+        // (SH47.46) Starts face down: nobody knows it is there until a ship enters its hex.
+        // Default false — every scenario written before this put its objectives in plain
+        // sight, and a default of hidden would have made all of them vanish.
+        public boolean      hidden;
     }
 
     /** A planetary ring band: enterable asteroid-like hexes at [inner, outer] hex-distance from center. */

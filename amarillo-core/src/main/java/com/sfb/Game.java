@@ -1229,6 +1229,9 @@ public class Game {
                 // and the ranges have settled.
                 lastSeekerLog.addAll(seekerControl.sweepSelfGuidanceLeash());
                 lastSeekerLog.addAll(seekerControl.releaseOrphanedDrones());
+                // SH47.471: all movement for the impulse is in, so every ship is in the hex it
+                // entered — the moment to turn over any counter somebody has just arrived on.
+                lastSeekerLog.addAll(revealObjectivesUnderShips());
                 log.addAll(lastSeekerLog);
                 if (!pendingVolleys.isEmpty()) {
                     reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
@@ -4982,6 +4985,47 @@ public class Game {
     }
 
     /**
+     * Turn over any face-down counter a ship is now standing on (SH47.471).
+     *
+     * <h2>Once per impulse, not once per hex entered</h2>
+     * Swept at the end of MOVEMENT rather than hooked onto each hex entry, which is a deliberate
+     * choice and the safer one: there are roughly twenty places in the three movers that put a
+     * unit into a new hex, and {@code applyTerrainCollision}'s own comment records what happened
+     * the last time a per-entry hook had to be called from all of them — the shuttle and fighter
+     * paths silently had no collision at all, because "the compiler cannot object to a call that
+     * was never written". A sweep cannot be forgotten by a mover that does not know about it.
+     *
+     * <p>Movement is one hex per unit per impulse, so a sweep here sees every hex entered. It
+     * also covers a ship that simply STARTS the scenario on a counter, which is correct: it is
+     * in the hex.
+     *
+     * <h2>Ships only, on purpose</h2>
+     * SH47.471 is a unit entering the hex; SH47.472 gives a shuttle or fighter a 1-2 roll and
+     * only on impulse #32, because a craft must END its movement in the hex. That roll is not
+     * built, so craft reveal nothing yet rather than revealing automatically — the harsher
+     * reading, and the one that cannot accidentally hand over a box. Seeking weapons examine
+     * nothing at all: a drone has no crew to look.
+     *
+     * @return one line per counter turned over, for the impulse log
+     */
+    private List<String> revealObjectivesUnderShips() {
+        List<String> log = new ArrayList<>();
+        for (com.sfb.objects.Objective o : objectives) {
+            if (o.isRevealed() || o.getLocation() == null)
+                continue;
+            for (Ship ship : ships) {
+                if (ship.getLocation() == null || !ship.getLocation().equals(o.getLocation()))
+                    continue;
+                o.reveal();
+                log.add(ship.getName() + " examines the hex and finds " + o.getName()
+                        + " (SH47.471)");
+                break;
+            }
+        }
+        return log;
+    }
+
+    /**
      * Bring a free objective aboard a ship. Each method routes through the real
      * ship system it names, so it inherits that system's costs and limits:
      * <ul>
@@ -5007,7 +5051,12 @@ public class Game {
         com.sfb.objects.Objective obj = objectives.stream()
                 .filter(o -> o.getName().equalsIgnoreCase(objectiveName))
                 .findFirst().orElse(null);
-        if (obj == null)
+        // An unrevealed counter answers exactly as a non-existent one does, DELIBERATELY and
+        // with the same words (SH47.46). A distinct refusal — "you have not found it yet" —
+        // would let a player name hexes until the server confirmed which ones hold a box, which
+        // is the whole secret. The client cannot see it to name it; this is for anyone who
+        // guesses anyway.
+        if (obj == null || !obj.isRevealed())
             return ActionResult.fail("Objective not found: " + objectiveName);
         if (obj.isSecured())
             return ActionResult.fail(objectiveName + " has been carried off the map — out of play");

@@ -263,9 +263,14 @@ class TractorResolver {
             return ActionResult.fail("A tractor beam cannot hold a plasma torpedo");
         // SH35.452: a free probe canister may be caught in a tractor beam and
         // drawn aboard with the J1.621 rotation system — an inert Tractorable.
+        // isRevealed(): a face-down counter is not a legal target either (SH47.46). Folded into
+        // the SEARCH rather than refused afterwards, so the miss produces the ordinary "Target
+        // not found" below — a refusal of its own would confirm a box is in that hex, which is
+        // the one thing the counter is hiding.
         if (target == null)
             target = game.getObjectives().stream()
-                    .filter(o -> o.isFree() && o.getName().equalsIgnoreCase(targetName))
+                    .filter(o -> o.isFree() && o.isRevealed()
+                            && o.getName().equalsIgnoreCase(targetName))
                     .map(o -> (Tractorable) o).findFirst().orElse(null);
         if (target == null)
             return ActionResult.fail("Target not found: " + targetName);

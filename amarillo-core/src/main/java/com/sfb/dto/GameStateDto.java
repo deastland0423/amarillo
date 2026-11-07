@@ -1310,6 +1310,10 @@ public class GameStateDto {
      * secret until identified, drone types stay unknown until identified, and
      * enemy bay contents are not sent at all. Wild Weasels are public — their
      * interference announces them the moment they launch.
+     *
+     * <p>One secret here is not an enemy's: an unrevealed OBJECTIVE (SH47.46) is hidden from
+     * both players at once and is left out of {@code mapObjects} entirely, so it does not
+     * consult {@code viewerTeam} at all.
      */
     public GameStateDto(Game game, String viewerTeam) {
         this.mapCols = game.getMapCols();
@@ -1432,8 +1436,20 @@ public class GameStateDto {
         for (Terrain t : game.getTerrain())
             mapObjects.add(fromTerrain(t));
 
+        // Objectives, and the first use of OMISSION — an unrevealed one is not sent at all
+        // (SH47.46/.471). A masked ObjectiveDto would not do: the leak is not what the counter
+        // IS, it is that there is one here. Two of eighteen asteroid counters are Stasis Boxes
+        // and four were removed from the stack unseen, so a player who can see WHERE the boxes
+        // are has been handed the scenario whatever the fields say.
+        //
+        // No viewer test either, unlike every other secret in this builder: a face-down counter
+        // belongs to nobody and is unknown to both players at once, so hiddenFrom() has nothing
+        // to key on — it would return false for an ownerless thing and show the box to everybody.
+        // The omniscient snapshot (viewerTeam null) DOES see it, as it sees every other secret:
+        // it is the dev and solo view, documented as such on the constructor above.
         for (com.sfb.objects.Objective o : game.getObjectives())
-            mapObjects.add(fromObjective(o));
+            if (o.isRevealed() || viewerTeam == null)
+                mapObjects.add(fromObjective(o));
 
         // Aggregate volleys by (target, shieldNumber) so the reinforcement dialog
         // shows the combined incoming total per shield facing. EPT volleys

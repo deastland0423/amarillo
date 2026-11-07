@@ -47,8 +47,10 @@ import static org.junit.Assert.*;
  * Field reflection cannot see the other two ways this codebase hides things, so they are
  * asserted by hand in DtoRedactionTest instead: TYPE SUBSTITUTION, where an enemy's
  * suicide shuttle arrives as a plain ShuttleDto rather than a redacted SuicideShuttleDto,
- * and OMISSION, where an object is not sent at all (nothing today — pre-battle minefields
- * will be the first).
+ * and OMISSION, where an object is not sent at all. Objectives were the first use of that
+ * last one (2026-11-07): an unrevealed SH47 counter is left out of mapObjects entirely, because
+ * the secret is not what the counter IS but that there is one in this hex, and no amount of
+ * field redaction hides that. ObjectiveFogTest covers it.
  * <p>
  * The rulings are the ship owner's (2026-09-20).
  */
@@ -158,8 +160,13 @@ public class MapObjectPrivacyTest {
         rule(GameStateDto.TerrainDto.class, Visibility.PUBLIC,
             "terrainType", "radius", "tokenArt", "rings");
 
-        // ---- Objectives. Hidden objectives (a ship carrying an admiral, found by some
-        // specified means) are a scenario feature nobody has built; today these are public.
+        // ---- Objectives. Every field here is public, and as of 2026-11-07 that is a
+        // narrower statement than it reads: a HIDDEN objective (SH47.46) is not sent at all,
+        // so these rulings describe what a player may know about a counter already turned
+        // over. There is deliberately no `revealed` field to rule on — unlike MineDto, where a
+        // dummy tBomb IS on the map and `revealed` says it has been found out, an unrevealed
+        // objective never reaches the client, so every ObjectiveDto it holds is a revealed one
+        // and the flag would carry no information. Omission IS the mechanism here.
         // cargoSpaces is BULK, not contents: how big a thing is shows on any sensor, and it is
         // also what tells a player why the beam will refuse it (G25.211). canBeLeftInSpace is a
         // printed scenario rule (G25.214) that every player reads. The rule that will eventually

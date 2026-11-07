@@ -821,6 +821,8 @@ public class ScenarioLoader {
             obj.setPoints(setup.points);
             obj.setCargoSpaces(setup.cargoSpaces);
             obj.setCanBeLeftInSpace(setup.canBeLeftInSpace);
+            if (setup.hidden)
+                obj.hide();   // SH47.46: face down until a ship enters the hex
             List<String> methods = setup.retrieval != null && !setup.retrieval.isEmpty()
                     ? setup.retrieval
                     : List.of("TRANSPORTER"); // sensible default

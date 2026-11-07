@@ -50,6 +50,19 @@ public class Objective extends Marker implements Tractorable {
     private Unit tractoringUnit;          // the ship whose beam holds it, or null
     private boolean beingRecovered;       // J1.621 pull-in declared
 
+    // Fog of war (SH47.46/.471). A counter lies face down until somebody enters its hex, and
+    // DEFAULTS TO REVEALED: every scenario written before this existed put its objectives on the
+    // table in plain sight, and a default of hidden would have made all of them disappear.
+    //
+    // SYMMETRIC, unlike every other secret in this codebase. A drone's type is hidden from the
+    // ENEMY and known to its owner, which is what Game's hiddenFrom(viewerTeam, owner) expresses;
+    // a face-down counter belongs to nobody and is unknown to BOTH players. So this needs no
+    // viewer and no team: it is simply not sent until it is turned over.
+    //
+    // ONE-WAY, like SpaceMine.reveal(). SH47.473: "the counter remains face up" — once examined
+    // it stays examined, for everyone, including the player who did not do the examining.
+    private boolean revealed = true;
+
     public Objective() {}
 
     public Objective(String name, int x, int y) {
@@ -109,6 +122,26 @@ public class Objective extends Marker implements Tractorable {
     public boolean isBeingRecovered() { return beingRecovered; }
 
     public void setBeingRecovered(boolean beingRecovered) { this.beingRecovered = beingRecovered; }
+
+    // --- Fog of war (SH47.46/.471) ---
+
+    /** Whether this thing has been found. An unrevealed objective is not sent to anybody. */
+    public boolean isRevealed() { return revealed; }
+
+    /**
+     * Turn this counter face down. SCENARIO SETUP ONLY — there is no way back to hidden during
+     * play, because {@link #reveal()} is one-way (SH47.473). Separate from a plain setter for
+     * exactly that reason: a setter invites the reverse, and the reverse is not a thing that
+     * happens.
+     */
+    public void hide() { this.revealed = false; }
+
+    /**
+     * Somebody has examined this counter. One-way and GLOBAL: SH47.473 leaves it face up, so the
+     * player who did not do the examining learns what is there too. That is the rule, not a
+     * simplification — the counter is physically turned over on the table.
+     */
+    public void reveal() { this.revealed = true; }
 
     public boolean isFree() { return carrier == null && securedBy == null; }
 
@@ -192,6 +225,11 @@ public class Objective extends Marker implements Tractorable {
         state.put("securedByTeam", securedBy == null ? null : securedBy.getTeamName());
         state.put("tractoringUnit", tractoringUnit == null ? null : tractoringUnit.getName());
         state.put("beingRecovered", beingRecovered);
+        // Found or not (SH47.471). Saved as it stands, like a dummy mine's isReal: a save file
+        // lives on the server and is never a client's view, so restoring the truth is what lets
+        // a reloaded counter go on hiding exactly as far as it had. Without this a reload would
+        // hand back every box the players had spent turns examining.
+        state.put("revealed", revealed);
         return state;
     }
 
@@ -216,5 +254,10 @@ public class Objective extends Marker implements Tractorable {
         this.securedBy = securedBy;
         this.tractoringUnit = tractoringUnit;
         this.beingRecovered = com.sfb.systemgroups.StateIo.flag(state, "beingRecovered", false);
+        // Defaults to the value the SCENARIO just gave it, not to a constant, so a save written
+        // before fog existed leaves a hidden scenario's counters hidden and a plain scenario's
+        // counters visible. A hardcoded true would have quietly uncovered every box in an older
+        // SH47 save; a hardcoded false would have hidden every probe canister in an older SH35.
+        this.revealed = com.sfb.systemgroups.StateIo.flag(state, "revealed", this.revealed);
     }
 }

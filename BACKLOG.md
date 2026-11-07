@@ -1922,28 +1922,35 @@ Three things about it are worth keeping:
   explicitly. Worth deciding whether the DEFAULT is wrong rather than restating it per file.
 
 **What the subset leaves out — the fog layer, which is the scenario's whole point:**
-- **Hidden counter identity, with an unknown count.** Eighteen face-down counters of which two
-  are Stasis Boxes and two are nuclear space mines; four are removed unseen, so neither player
-  knows whether two boxes exist, one, or none. `Objective` has no `revealed` state at all, and
-  each counter is DUAL-FUNCTION: the same hex is an asteroid and maybe an objective.
-  `MapObjectPrivacyTest` names the OMISSION mechanism and says nothing uses it yet; this would
-  be its first real use. Until then the boxes are absent rather than visible — a visible box
-  loads, plays, and throws the scenario away.
+- **Hidden counters: the FOG is built, the random PLACEMENT is not.** As of 2026-11-07 an
+  `Objective` can be laid face down (`"hidden": true` in `ObjectiveSetup`), is omitted from
+  both players' DTOs entirely until found, is turned face up for everyone the moment a ship is
+  in its hex (SH47.471/.473), refuses pickup and tractor with the SAME words a non-existent
+  objective gets, and survives a save in either state. `ObjectiveFogTest` covers it; objectives
+  are the first use of the OMISSION mechanism `MapObjectPrivacyTest` had named and nothing used.
 
-  Two prerequisites, one now cleared. **Objectives are saved as of 2026-11-07** — until then
-  they were not in `exportState` at all, so a `revealed` flag would have been built on sand and
-  a reload would have re-hidden every counter the players had examined. What remains is that
-  `TerrainGenerator.standardField` computes each counter's rolled hex into a local and keeps
-  only the asteroid hexes, so SH47.471's "examine it by entering the hex" has no counter
-  positions to enter. The field layout is right; it just does not remember where the eighteen
-  counters went.
+  What is NOT built is SH47.46's placement, and it is the part that makes the scenario work.
+  Twenty-two counters — eighteen asteroid, two NSM, two Klingon pods — are shuffled, **four are
+  removed unseen**, and the remaining eighteen are laid out; so neither player knows whether
+  two boxes exist, one, or none, and the count is as much of the secret as the position.
+  `TerrainGenerator.standardField` rolls each counter's hex into a LOCAL and keeps only the
+  asteroid hexes it expands to, so there is nowhere to put a box even if the spec could ask.
+  That wants the generator to emit `ObjectiveSetup`s alongside its `TerrainSetup`s, which is a
+  new thing for it to do and the reason this is still open. Until then `sh47.json` carries no
+  boxes at all: absent rather than visible, because a visible box loads, plays and throws the
+  scenario away.
 
-  One piece of the design is settled: SH47's fog is SYMMETRIC — hidden from both players at
-  once — so it needs no viewer context and none of the per-player redaction machinery. The
-  existing secrets are all OWNER-keyed through `hiddenFrom(viewerTeam, owner)`, which returns
-  false for an ownerless thing and would show a counter to everybody. The REVEAL half
-  transfers exactly: `Drone.isIdentified()` and `SpaceMine.reveal()` are already one-way global
-  flags, which is what SH47.473's "the counter stays face up" wants.
+  Two things worth keeping from the fog work. **The refusals must be word-for-word identical**
+  to the not-found ones, or naming a hex and reading the error back is a free sensor sweep —
+  that is asserted, not just commented. And the reveal is a **sweep at the end of MOVEMENT**,
+  not a hook on hex entry: there are about twenty places in the three movers that put a unit in
+  a new hex, and `applyTerrainCollision`'s own comment records what happened last time a
+  per-entry hook had to be called from all of them.
+
+  Also still open, and separate: a counter is DUAL-FUNCTION — the same hex is an asteroid and
+  maybe an objective — and SH47.472's shuttle/fighter examination (a 1-2 roll, only on impulse
+  #32, because a craft must END its movement there). Craft reveal nothing today, which is the
+  harsher reading and the one that cannot accidentally hand over a box.
 - **Scenario-placed free-standing mines.** NSM exists as a mine type with an M2.1 bay drop, but
   `ScenarioSpec` has no `mines` field: nothing can pre-place one. SH47.48 then adds its own
   clauses — armed only AFTER being revealed, triggering on size class 6 or larger, detonating
