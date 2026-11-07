@@ -68,6 +68,24 @@ public class SpaceMine extends Marker {
     private boolean active = false;
     private boolean revealed = false; // true once a dummy has been exposed
 
+    /**
+     * (M2.14) Which size classes (R0.6) this mine will accept as a target. EMPTY MEANS ALL,
+     * which M2.141 states outright: "If no classes are specified, it will accept all size
+     * classes." So every mine laid before this existed behaves exactly as it did.
+     *
+     * <p>The point of the setting, in the rule's own words, is to let a mine "ignore drones but
+     * accept ships, thereby preventing the enemy from clearing the mines without risk by
+     * detonating them with drones". A mine with settings is therefore MORE dangerous to ships
+     * than one without, not less.
+     *
+     * <p>Secret by M2.141 — "the player laying it secretly records in writing the size classes"
+     * — and kept secret the way the dummy flag is: never put in {@code MineDto}. Nothing lets a
+     * player record settings yet, so the only user today is a scenario (SH47.48). The need not
+     * be contiguous (M2.144: "a setting of 1-3 and 5-7 is acceptable"), which is why this is a
+     * set of classes rather than a threshold.
+     */
+    private final java.util.Set<Integer> acceptedSizeClasses = new java.util.LinkedHashSet<>();
+
     /** Minimal instance for client-side rendering only — no game logic. */
     public static SpaceMine forRendering() {
         return new SpaceMine(MineType.T_BOMB, PlacementMethod.TRANSPORTER, null, 0, true, false);
@@ -89,6 +107,20 @@ public class SpaceMine extends Marker {
     // -------------------------------------------------------------------------
 
     public boolean isActive() { return active; }
+
+    /** (M2.14) The size classes this mine accepts; empty means all of them (M2.141). */
+    public java.util.Set<Integer> getAcceptedSizeClasses() { return acceptedSizeClasses; }
+
+    /**
+     * (M2.14) Whether this mine will accept a unit of {@code sizeClass} as a target.
+     *
+     * <p>Note which way the numbers run: in SFB a LARGER size class is a SMALLER unit, so
+     * SH47.48's "size class 6 or larger" is the set {1..6} and excludes 7 and up. Getting that
+     * backwards would build a mine that ignored every ship and went off on drones.
+     */
+    public boolean accepts(int sizeClass) {
+        return acceptedSizeClasses.isEmpty() || acceptedSizeClasses.contains(sizeClass);
+    }
 
     public PlacementMethod getPlacementMethod() { return placementMethod; }
 
@@ -197,6 +229,32 @@ public class SpaceMine extends Marker {
         return new SpaceMine(MineType.NSM, PlacementMethod.DROPPED, layingShip, placedOnImpulse, true, false);
     }
 
+    /**
+     * An NSM that was already in place before the battle — SH47.48's, hidden under a counter
+     * and found by searching it.
+     *
+     * <h2>No laying ship, and that is what arms it</h2>
+     * It needs no new creation path and no "armed" flag. A DROPPED mine arms by M2.34 as soon
+     * as the laying ship is more than one hex away, and {@code MineResolver} already reads a
+     * null layer as a range of {@code Integer.MAX_VALUE} — "the layer is not nearby", which is
+     * the right answer for a mine somebody left here a month ago. So it arms on the first sweep
+     * after it reaches the map, which is exactly SH47.48: "the mines only roll for triggering
+     * AFTER they have been revealed".
+     *
+     * <p>That one-impulse gap is the rule, not a rounding error. SH47.48 goes on: "a unit might
+     * uncover a mine after moving into the hex and then use a emergency deceleration to cancel
+     * further movement after that point and thereby avoid triggering the mine." The escape only
+     * exists because the move that uncovers it does not itself set it off.
+     */
+    public static SpaceMine createPrePlacedNSM(com.sfb.properties.Location where,
+                                               java.util.Collection<Integer> sizeClasses) {
+        SpaceMine mine = new SpaceMine(MineType.NSM, PlacementMethod.DROPPED, null, 0, true, false);
+        mine.setLocation(where);
+        if (sizeClasses != null)
+            mine.acceptedSizeClasses.addAll(sizeClasses);
+        return mine;
+    }
+
     // -------------------------------------------------------------------------
     // Saved game
     // -------------------------------------------------------------------------
@@ -234,6 +292,11 @@ public class SpaceMine extends Marker {
         state.put("placedAdjacent", placedAdjacent);
         state.put("active", active);
         state.put("revealed", revealed);
+        // (M2.14) Secret like isReal, and saved like it: the file is server-side and MineDto
+        // never carries it. An absent key restores an empty set, which M2.141 defines as
+        // "accepts all size classes" — so an older save reads correctly rather than producing
+        // a mine that ignores everything.
+        state.put("acceptedSizeClasses", new java.util.ArrayList<>(acceptedSizeClasses));
         state.put("layingShip", layingShip == null ? null : layingShip.getName());
         if (getLocation() != null) {
             state.put("x", getLocation().getX());
@@ -270,6 +333,10 @@ public class SpaceMine extends Marker {
                 com.sfb.systemgroups.StateIo.flag(state, "placedAdjacent", false));
         mine.active   = com.sfb.systemgroups.StateIo.flag(state, "active", false);
         mine.revealed = com.sfb.systemgroups.StateIo.flag(state, "revealed", false);
+        if (state.get("acceptedSizeClasses") instanceof java.util.List<?> classes)
+            for (Object c : classes)
+                if (c instanceof Number n)
+                    mine.acceptedSizeClasses.add(n.intValue());
         if (state.get("x") instanceof Number x && state.get("y") instanceof Number y)
             mine.setLocation(new com.sfb.properties.Location(x.intValue(), y.intValue()));
         return mine;

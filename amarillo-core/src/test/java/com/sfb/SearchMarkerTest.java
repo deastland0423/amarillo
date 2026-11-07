@@ -233,6 +233,239 @@ public class SearchMarkerTest {
         assertSame(fed, game.getObjectives().get(0).getCarrier());
     }
 
+    // ------------------------------------------------------------------ mines (SH47.48)
+
+    /**
+     * A revealed NSM counter puts a live mine in its hex.
+     *
+     * <p>It needed no new creation path: a dropped mine arms by M2.34 once its layer is more
+     * than a hex away, and a mine with NO layer reads as "the layer is not nearby" — which is
+     * the right answer for something somebody left here a month ago, and happens to be exactly
+     * SH47.48's "the mines only roll for triggering AFTER they have been revealed".
+     */
+    @Test
+    public void aRevealedMineCounterPutsALiveMineInTheHex() {
+        Game game = runningGame();
+        game.addSearchMarker(SearchMarker.mined(new Location(10, 10),
+                com.sfb.objects.SpaceMine.createPrePlacedNSM(new Location(10, 10),
+                        List.of(1, 2, 3, 4, 5, 6))));
+
+        advancePastMovement(game);
+
+        assertTrue("the counter is spent", game.getSearchMarkers().isEmpty());
+        assertEquals("and a mine is on the map", 1, game.getMines().size());
+        assertEquals(new Location(10, 10), game.getMines().get(0).getLocation());
+        assertEquals(com.sfb.objects.SpaceMine.MineType.NSM,
+                game.getMines().get(0).getMineType());
+        assertTrue("the log should say it is live: " + game.getLastSeekerLog(),
+                game.getLastSeekerLog().stream().anyMatch(l -> l.contains("nuclear space mine")));
+    }
+
+    /**
+     * And the move that UNCOVERS it does not set it off.
+     *
+     * <p>SH47.48 spells out why this matters: "a unit might uncover a mine after moving into the
+     * hex and then use a emergency deceleration to cancel further movement after that point and
+     * thereby avoid triggering the mine." That escape exists only if the uncovering move is
+     * free, so a mine that detonated on reveal would quietly delete a documented tactic.
+     */
+    @Test
+    public void theMoveThatUncoversAMineDoesNotTriggerIt() {
+        Game game = runningGame();
+        game.addSearchMarker(SearchMarker.mined(new Location(10, 10),
+                com.sfb.objects.SpaceMine.createPrePlacedNSM(new Location(10, 10), null)));
+
+        advancePastMovement(game);
+
+        assertEquals("still there, unexploded", 1, game.getMines().size());
+        assertFalse("nothing detonated on the uncovering move: " + game.getLastSeekerLog(),
+                game.getLastSeekerLog().stream().anyMatch(l -> l.contains("DETONATED")));
+        Ship fed = shipNamed(game, "USS Enterprise");
+        for (int shield = 1; shield <= 6; shield++)
+            assertEquals("shield #" + shield + " untouched",
+                    fed.getShields().getMaxShieldStrength(shield),
+                    fed.getShields().getShieldStrength(shield));
+    }
+
+    /**
+     * (M2.14) The size-class setting, whose stated purpose is to stop an enemy sweeping a
+     * minefield with drones. Note which way the numbers run — in SFB a LARGER size class is a
+     * SMALLER unit, so SH47.48's "size class 6 or larger" is the set 1..6.
+     */
+    @Test
+    public void aMineIgnoresSizeClassesItWasNotSetFor() {
+        com.sfb.objects.SpaceMine mine = com.sfb.objects.SpaceMine.createPrePlacedNSM(
+                new Location(5, 5), List.of(1, 2, 3, 4, 5, 6));
+
+        assertTrue("a cruiser is size class 2", mine.accepts(2));
+        assertTrue("a fighter is size class 6 and still accepted", mine.accepts(6));
+        assertFalse("a drone is 7 and ignored — that is the point of the setting",
+                mine.accepts(7));
+        assertFalse(mine.accepts(8));
+    }
+
+    /** (M2.141) No settings means ALL classes, so every mine laid in play is unaffected. */
+    @Test
+    public void aMineWithNoSettingsAcceptsEverything() {
+        com.sfb.objects.SpaceMine mine =
+                com.sfb.objects.SpaceMine.createPrePlacedNSM(new Location(5, 5), null);
+        for (int sc = 1; sc <= 8; sc++)
+            assertTrue("size class " + sc, mine.accepts(sc));
+    }
+
+    /** (M2.144) "The sizes set need not be continuous" — 1-3 and 5-7 is a legal setting. */
+    @Test
+    public void sizeSettingsNeedNotBeContinuous() {
+        com.sfb.objects.SpaceMine mine = com.sfb.objects.SpaceMine.createPrePlacedNSM(
+                new Location(5, 5), List.of(1, 2, 3, 5, 6, 7));
+        assertTrue(mine.accepts(3));
+        assertFalse("the gap is real", mine.accepts(4));
+        assertTrue(mine.accepts(5));
+    }
+
+    /** A dealt mine is in no list until it is found, exactly like a box. */
+    @Test
+    public void aHiddenMineIsNotOnTheMapEither() {
+        Game game = runningGame();
+        game.addSearchMarker(SearchMarker.mined(new Location(15, 15),
+                com.sfb.objects.SpaceMine.createPrePlacedNSM(new Location(15, 15), null)));
+
+        assertTrue("no mine exists to be seen, swept or triggered", game.getMines().isEmpty());
+        for (GameStateDto.MapObjectDto o : new GameStateDto(game, "Klingons").mapObjects)
+            assertFalse("and no MineDto reaches a client",
+                    o instanceof GameStateDto.MineDto);
+    }
+
+    /** The bag deals mines alongside boxes, and never more than it held. */
+    @Test
+    public void theBagDealsMinesToo() {
+        boolean sawMine = false;
+        for (int run = 0; run < 200 && !sawMine; run++) {
+            Game game = new Game();
+            game.setupFromScenario(minedSpec());
+            long mines = game.getSearchMarkers().stream()
+                    .filter(m -> m.getKind() == SearchMarker.PayloadKind.MINE).count();
+            assertTrue("never more than the bag held: " + mines, mines <= 2);
+            if (mines > 0) sawMine = true;
+        }
+        assertTrue("two mines in a bag of eighteen should turn up", sawMine);
+    }
+
+    /** A dealt mine keeps its M2.14 setting across a save, or it starts sweeping on drones. */
+    @Test
+    public void aSavedMineCounterKeepsItsSizeSetting() {
+        Game before = new Game();
+        before.addSearchMarker(SearchMarker.mined(new Location(9, 9),
+                com.sfb.objects.SpaceMine.createPrePlacedNSM(new Location(9, 9),
+                        List.of(1, 2, 3, 4, 5, 6))));
+
+        ScenarioSpec bare = new ScenarioSpec();
+        bare.sides = new ArrayList<>();
+        Game after = reload(before, bare);
+
+        assertEquals(1, after.getSearchMarkers().size());
+        SearchMarker m = after.getSearchMarkers().get(0);
+        assertEquals(SearchMarker.PayloadKind.MINE, m.getKind());
+        assertTrue(m.getMine().accepts(2));
+        assertFalse("the setting must survive, or drones can sweep it", m.getMine().accepts(7));
+    }
+
+    /**
+     * (M2.14) The setting has to bite in the RESOLVER, not just in the predicate.
+     *
+     * <h2>Why this test exists at all</h2>
+     * The first four size-class tests above call {@code accepts()} directly, and deleting the
+     * filter from {@code MineResolver} left every one of them green — the predicate was tested
+     * and the behaviour was not. This drives a real drone past a real mine.
+     *
+     * <h2>How it is made deterministic</h2>
+     * No dice are seeded. {@code detectsUnit} triggers UNCONDITIONALLY at effective speed six
+     * or more, and a drone flies far faster than that, so an accepted drone always sets the
+     * mine off and an ignored one never does. The Klingon sits at speed zero in the mine's own
+     * hex: a unit that did not move does not trigger, so the only thing moving in range is the
+     * drone.
+     */
+    @Test
+    public void aDroneCannotSweepAMineSetAgainstShips() {
+        Game game = minefieldWithDrone(List.of(1, 2, 3, 4, 5, 6));
+
+        assertEquals("the drone must not set it off — M2.141's whole purpose",
+                1, game.getMines().size());
+    }
+
+    /** And with no setting the same drone DOES sweep it, which is what pins the cause. */
+    @Test
+    public void aDroneSweepsAMineWithNoSizeSetting() {
+        Game game = minefieldWithDrone(null);
+
+        assertTrue("an unset mine accepts all classes (M2.141), so the drone triggers it",
+                game.getMines().isEmpty());
+    }
+
+    /**
+     * A mine, armed, in the hex a drone is launched from, with nothing else moving near it.
+     *
+     * @param sizeClasses the mine's M2.14 setting, or null for none
+     */
+    private static Game minefieldWithDrone(List<Integer> sizeClasses) {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("../data/factions");
+        Game game = new Game();
+
+        Player fedPlayer = new Player();
+        fedPlayer.setName("Captain Dan");
+        fedPlayer.setTeamName("Federation");
+        Player kliPlayer = new Player();
+        kliPlayer.setName("Captain Dave");
+        kliPlayer.setTeamName("Klingons");
+        game.getPlayers().add(fedPlayer);
+        game.getPlayers().add(kliPlayer);
+
+        // Far apart, so the Federation ship is nowhere near the mine.
+        Ship fed = ship(FederationShips.getFedCa(), "USS Enterprise", 40, 5, fedPlayer);
+        Ship blade = ship(KlingonShips.getD7(), "IKV Blade", 20, 20, kliPlayer);
+        game.getShips().add(fed);
+        game.getShips().add(blade);
+
+        game.startTurn();
+        for (Ship s : game.getShips()) {
+            Energy e = new Energy();
+            e.setLifeSupport(s.getLifeSupportCost());
+            e.setFireControl(s.getFireControlCost());
+            e.setActivateShields(s.getActiveShieldCost());
+            game.submitAllocation(s, e);     // no warp power: both ships stay at speed 0
+        }
+
+        // The mine sits in the Klingon's hex. It arms on the first sweep (null layer reads as
+        // "the layer is not nearby", M2.34) and the Klingon never moves, so it cannot be the
+        // thing that triggers it.
+        game.getMines().add(com.sfb.objects.SpaceMine.createPrePlacedNSM(
+                new Location(20, 20), sizeClasses));
+
+        advancePastMovement(game);           // impulse 1: the mine arms
+        assertTrue("fixture: the mine must be armed before the drone moves",
+                game.getMines().get(0).isActive());
+
+        while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            game.advancePhase();
+        com.sfb.weapons.DroneRack rack = blade.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.DroneRack)
+                .map(w -> (com.sfb.weapons.DroneRack) w)
+                .findFirst().orElseThrow(() -> new AssertionError("fixture: the D7 has racks"));
+        blade.setActiveFireControl(true);
+        blade.addLockOn(fed);
+        Game.ActionResult launched = game.launchDrone(blade, fed, rack);
+        assertTrue("fixture: the drone must get away — " + launched.getMessage(),
+                launched.isSuccess());
+
+        // Impulse 2 onwards: the drone moves out of the mine's hex and through its detection
+        // radius. A few impulses, because the drone's first move is what matters and one is
+        // enough, but the margin costs nothing.
+        for (int i = 0; i < 12; i++)
+            game.advancePhase();
+
+        return game;
+    }
+
     // ------------------------------------------------------------------ across a save
 
     /**
@@ -386,6 +619,14 @@ public class SearchMarkerTest {
             template.cargoSpaces = 2.0;
             spec.searchBag.objectiveTemplate = template;
         }
+        return spec;
+    }
+
+    /** The same, with two NSM counters in the bag as SH47.46 deals them. */
+    private static ScenarioSpec minedSpec() {
+        ScenarioSpec spec = searchSpec(2, 4);
+        spec.searchBag.mines = 2;
+        spec.searchBag.mineSizeClasses = new ArrayList<>(List.of(1, 2, 3, 4, 5, 6));
         return spec;
     }
 

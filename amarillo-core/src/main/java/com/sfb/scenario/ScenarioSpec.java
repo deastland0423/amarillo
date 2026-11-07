@@ -130,10 +130,19 @@ public class ScenarioSpec {
     public static class SearchBag {
         /** How many counters hide a capturable object. */
         public int          objectives;
+        /** How many hide a nuclear space mine (SH47.48). */
+        public int          mines;
         /** Counters set aside face down before any are placed, never looked at. */
         public int          withdrawUnseen;
         /** What each hidden object is; its hex is whichever counter draws it. */
         public ObjectiveSetup objectiveTemplate;
+        /**
+         * (M2.14) Size classes a dealt mine will accept, or empty/absent for all of them
+         * (M2.141). SH47.48 sets "size class 6 or larger", which is 1-6: in SFB a LARGER size
+         * class is a SMALLER unit, so this keeps the mine from being swept by drones — which
+         * M2.141 names as the whole point of the setting.
+         */
+        public List<Integer> mineSizeClasses;
     }
 
     /**

@@ -859,33 +859,50 @@ public class ScenarioLoader {
             return result;
         }
 
-        // One slot per position, plus the ones that will be withdrawn. Boolean rather than an
-        // enum because there is one kind of payload today; see SearchMarker.PayloadKind for
-        // why the NSM counters are not here yet.
+        // One slot per position, plus the ones that will be withdrawn — eighteen counters and
+        // four set aside is a stack of twenty-two, which is what SH47.46 shuffles.
         int slots = positions.size() + Math.max(0, bag.withdrawUnseen);
-        List<Boolean> stack = new ArrayList<>();
+        List<com.sfb.objects.SearchMarker.PayloadKind> stack = new ArrayList<>();
         for (int i = 0; i < Math.max(0, bag.objectives); i++)
-            stack.add(Boolean.TRUE);
+            stack.add(com.sfb.objects.SearchMarker.PayloadKind.OBJECTIVE);
+        for (int i = 0; i < Math.max(0, bag.mines); i++)
+            stack.add(com.sfb.objects.SearchMarker.PayloadKind.MINE);
         while (stack.size() < slots)
-            stack.add(Boolean.FALSE);
+            stack.add(com.sfb.objects.SearchMarker.PayloadKind.NOTHING);
 
         java.util.Collections.shuffle(stack);
         // "Remove four of the counters and set them aside face down without looking at them."
-        // Taken off the shuffled stack, so what goes is whatever happens to be on top.
+        // Taken off the shuffled stack, so what goes is whatever happens to be on top — which
+        // is what leaves the players unable to count what is left.
         for (int i = 0; i < Math.max(0, bag.withdrawUnseen) && !stack.isEmpty(); i++)
             stack.remove(stack.size() - 1);
 
         int boxNumber = 0;
         for (int i = 0; i < positions.size(); i++) {
             Location loc = positions.get(i);
-            boolean hidesSomething = i < stack.size() && stack.get(i);
-            if (!hidesSomething || bag.objectiveTemplate == null) {
-                result.add(com.sfb.objects.SearchMarker.empty(loc));
-                continue;
+            com.sfb.objects.SearchMarker.PayloadKind kind = i < stack.size()
+                    ? stack.get(i)
+                    : com.sfb.objects.SearchMarker.PayloadKind.NOTHING;
+            switch (kind) {
+                case OBJECTIVE -> {
+                    if (bag.objectiveTemplate == null) {
+                        // A bag that asks for boxes without saying what one is. Dealt as an
+                        // ordinary counter rather than as a nameless object, and said out loud
+                        // rather than left as a silently emptier field.
+                        System.err.println("ScenarioLoader: searchBag.objectives is "
+                                + bag.objectives + " but no objectiveTemplate was given — that"
+                                + " counter holds nothing");
+                        result.add(com.sfb.objects.SearchMarker.empty(loc));
+                    } else {
+                        boxNumber++;
+                        result.add(com.sfb.objects.SearchMarker.hiding(loc,
+                                buildTemplateObjective(bag.objectiveTemplate, boxNumber, loc)));
+                    }
+                }
+                case MINE -> result.add(com.sfb.objects.SearchMarker.mined(loc,
+                        com.sfb.objects.SpaceMine.createPrePlacedNSM(loc, bag.mineSizeClasses)));
+                case NOTHING -> result.add(com.sfb.objects.SearchMarker.empty(loc));
             }
-            boxNumber++;
-            result.add(com.sfb.objects.SearchMarker.hiding(loc,
-                    buildTemplateObjective(bag.objectiveTemplate, boxNumber, loc)));
         }
         return result;
     }

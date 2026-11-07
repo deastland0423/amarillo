@@ -5080,6 +5080,18 @@ public class Game {
                     log.add(finder.getName() + " examines the counter and finds "
                             + found.getName() + " (SH47.471)");
                 }
+                case MINE -> {
+                    // SH47.48. It takes the counter's hex and arms on the NEXT sweep, because
+                    // processMines() has already run this impulse — which is the rule rather
+                    // than an accident of ordering: "a unit might uncover a mine after moving
+                    // into the hex and then use a emergency deceleration to cancel further
+                    // movement after that point and thereby avoid triggering the mine." That
+                    // escape exists only because the move that uncovers it does not set it off.
+                    com.sfb.objects.SpaceMine found = marker.getMine();
+                    mines.add(found);
+                    log.add(finder.getName() + " examines the counter — a nuclear space mine,"
+                            + " and it is live (SH47.48)");
+                }
                 case NOTHING -> log.add(finder.getName()
                         + " examines the counter — nothing but rocks (SH47.471)");
             }

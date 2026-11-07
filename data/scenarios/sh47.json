@@ -4,7 +4,7 @@
   "year": 152,
   "numPlayers": 2,
   "description": "In Y152 the Federation destroyer Xerxes, surveying an asteroid field in disputed territory, detected the sensor readings of a Stasis Box — and found the Kzinti light cruiser Mystic looking for the same box.",
-  "_subsetComment": "TRAINING SUBSET. The scenario's own box hunt (SH47.47) is NOT in this file, because the engine has no hidden-identity counters: the eighteen counters of the field are laid out as plain asteroids, so no Stasis Box and no NSM is in play. Everything else is the printed scenario. That makes this the gentle two-ship introduction it was written to be - a Fed DD and a Kzinti CL at opposite corners of a standard asteroid field - and the box layer grows into this same file once hidden objectives, scenario-placed mines and the two-turn study exist. Putting the boxes in as VISIBLE objectives would work mechanically and ruin the scenario, so they are left out rather than faked.",
+  "_subsetComment": "SH47.46/.47/.48's counter hunt is BUILT as of 2026-11-07: eighteen face-down counters, two Stasis Boxes and two NSMs among them, four withdrawn unseen. Still NOT in this file: SH47.474's two complete turns of study before the box may be beamed aboard (the beam works as soon as the counter is turned over), SH47.472's shuttle/fighter examination roll on impulse #32, SH47.476's guarded box, and SH47.5's internal-hits tiebreaker when no boxes exist. PREVIOUSLY SAID: \"TRAINING SUBSET. The scenario's own box hunt (SH47.47) is NOT in this file, because the engine has no hidden-identity co...\"",
   "mapType": "STANDARD",
   "mapCols": 42,
   "mapRows": 30,
@@ -93,7 +93,16 @@
   },
   "searchBag": {
     "objectives": 2,
+    "mines": 2,
     "withdrawUnseen": 4,
+    "mineSizeClasses": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
     "objectiveTemplate": {
       "name": "Stasis Box",
       "retrieval": [
@@ -103,8 +112,9 @@
       "survivesDestruction": true,
       "points": 0
     },
-    "_comment": "SH47.46: 18 asteroid counters, 2 NSM and 2 Klingon pod counters (the Stasis Boxes), shuffled face down, FOUR REMOVED UNSEEN, and the rest laid out by P3.1. Withdrawing before dealing is what hides the COUNT as well as the position - it works out at about 66% two boxes, 31% one, 2.6% none, which is why SH47.8 tells both captains to play as though one exists. Twenty-two less four is eighteen, so every counter position is filled and the asteroid field is the same whatever the draw does; SH47.46 says exactly that when it notes the asteroids stay behind when a box is removed.",
-    "_nsmComment": "NOT IN THIS FILE: the 2 NSM counters. Nothing can pre-place a mine yet (ScenarioSpec has no mines field) and SH47.48 adds clauses of its own - armed only once revealed, triggering on size class 6 or larger, detonating off the shield the ship entered behind. The bag therefore deals 2 boxes among 18 counters rather than 2 boxes and 2 mines among 18, so the field is a little safer than the scenario intends. See BACKLOG.",
+    "_comment": "SH47.46: 18 asteroid counters, 2 NSM and 2 Klingon pod counters (the Stasis Boxes), shuffled face down, FOUR REMOVED UNSEEN, and the rest laid out by P3.1. That is a stack of 22 for 18 positions. Withdrawing before dealing is what hides the COUNT as well as the position - about 66% of games have two boxes, 31% one, 2.6% none, which is why SH47.8 tells both captains to play as though one exists. Twenty-two less four is eighteen, so every counter position is filled and the asteroid field is the same whatever the draw does; SH47.46 says exactly that when it notes the asteroids stay behind when a box is removed or a mine detonates.",
+    "_mineComment": "SH47.48: the NSM counters 'function as mines (M2.0) ... and as asteroid counters', and 'only roll for triggering AFTER they have been revealed'. A revealed counter puts a real NSM in its hex with NO LAYING SHIP, which is also what arms it: M2.34 arms a dropped mine once the layer is more than a hex away, and a null layer reads as 'not nearby'. From then on the normal M2.x detection and detonation rules apply, including the escape SH47.48 points out - a unit can uncover a mine and then emergency-decelerate to avoid triggering it, which works precisely because the move that uncovers it does not set it off.",
+    "_mineSizeComment": "mineSizeClasses 1-6 is SH47.48's 'first target of size class 6 or larger'. Note which way the numbers run: in SFB (R0.6) a LARGER size class is a SMALLER unit, so 'class 6 or larger' is the set 1..6 and excludes 7 and up. That is M2.14's setting, whose stated purpose is to stop an enemy sweeping a minefield with drones - get it backwards and the mine ignores every ship and goes off on a drone.",
     "_survivesComment": "survivesDestruction true is SH47.475: 'If a ship carrying a Stasis Box is destroyed, the box is undamaged and remains in the hex where the ship exploded.' Note this is the OPPOSITE of SH35.454, which annihilates its canister - the field exists because the two scenarios disagree.",
     "_pointsComment": "points 0 on purpose. SH47.5 is not scored in victory points: 'the player who successfully disengages with a Stasis Box wins the game', which victoryConditions SPECIAL carries. A point value here would quietly add a second, contradictory way to win.",
     "_retrievalComment": "TRANSPORTER only. SH47.474 has the ship drop one shield and beam the box aboard after two complete turns of study; the two-turn wait is not built yet, so today the beam works as soon as the counter is turned over. TRACTOR is deliberately absent - SH47 never offers the J1.621 rotation procedure that SH35.452 does."

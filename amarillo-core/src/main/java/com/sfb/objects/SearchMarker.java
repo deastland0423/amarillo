@@ -53,54 +53,66 @@ import com.sfb.systemgroups.StateIo;
 public class SearchMarker extends Marker {
 
     /**
-     * What a counter turns out to be.
+     * What a counter turns out to be — the three things SH47.46 deals.
      *
-     * <p>Two kinds, not three. SH47.46 also deals two NSM counters, and the obvious move was to
-     * add a MINE constant here — but nothing can pre-place a mine today ({@code ScenarioSpec}
-     * has no mines field at all) and SH47.48 carries its own clauses on top: armed only once
-     * revealed, triggering on size class 6 or larger, detonating off the shield the ship entered
-     * behind. A constant the materialiser could not honour would be worse than no constant. It
-     * is one enum entry and one case when that work is done, which is what a seam is for.
-     *
-     * <p>Worth recording for whoever does it: SH47.48's "the mines only roll for triggering
-     * AFTER they have been revealed" needs no flag in this model. An unexamined mine does not
-     * exist, so it cannot trigger.
+     * <p>Adding a kind means writing a materialiser and nothing else, which is what the seam
+     * was for. MINE arrived a few hours after the first two, and needed no new creation path at
+     * all: see {@link SpaceMine#createPrePlacedNSM}.
      */
     public enum PayloadKind {
         /** An ordinary asteroid counter. The hex keeps its terrain; the counter simply goes. */
         NOTHING,
         /** A Stasis Box or other capturable object (SH47.47). */
-        OBJECTIVE
+        OBJECTIVE,
+        /** A nuclear space mine somebody left here (SH47.48). */
+        MINE
     }
 
     private final PayloadKind kind;
 
-    /** The object underneath, already built and waiting. Null for {@link PayloadKind#NOTHING}. */
+    /** The object underneath, already built and waiting. Null unless OBJECTIVE. */
     private final Objective objective;
 
-    private SearchMarker(Location location, PayloadKind kind, Objective objective) {
+    /** The mine underneath, already built and waiting. Null unless MINE. */
+    private final SpaceMine mine;
+
+    private SearchMarker(Location location, PayloadKind kind, Objective objective, SpaceMine mine) {
         setLocation(location);
         this.kind = kind;
         this.objective = objective;
+        this.mine = mine;
         setName("Counter " + (location == null ? "?" : location.toString()));
     }
 
     /** An ordinary asteroid counter: something to search, with nothing behind it. */
     public static SearchMarker empty(Location location) {
-        return new SearchMarker(location, PayloadKind.NOTHING, null);
+        return new SearchMarker(location, PayloadKind.NOTHING, null, null);
     }
 
     /** A counter hiding a capturable object, which takes the counter's hex when found. */
     public static SearchMarker hiding(Location location, Objective objective) {
         if (objective != null)
             objective.setLocation(location);
-        return new SearchMarker(location, PayloadKind.OBJECTIVE, objective);
+        return new SearchMarker(location, PayloadKind.OBJECTIVE, objective, null);
+    }
+
+    /**
+     * A counter hiding a nuclear space mine (SH47.48), which takes the counter's hex when found
+     * and is live from the next sweep.
+     */
+    public static SearchMarker mined(Location location, SpaceMine mine) {
+        if (mine != null)
+            mine.setLocation(location);
+        return new SearchMarker(location, PayloadKind.MINE, null, mine);
     }
 
     public PayloadKind getKind() { return kind; }
 
     /** The object this counter hides, or null. Server-side only — never reaches a client. */
     public Objective getObjective() { return objective; }
+
+    /** The mine this counter hides, or null. Server-side only — never reaches a client. */
+    public SpaceMine getMine() { return mine; }
 
     // -------------------------------------------------------------------------
     // Save/load
@@ -139,6 +151,10 @@ public class SearchMarker extends Marker {
             payload.put("retrieval", retrieval);
             state.put("payload", payload);
         }
+        if (mine != null)
+            // A mine already describes itself in full — type, placement, warhead settings and
+            // all — so this reuses that rather than writing a second account of the same thing.
+            state.put("payload", mine.exportState());
         return state;
     }
 
@@ -168,6 +184,12 @@ public class SearchMarker extends Marker {
             return null;
         @SuppressWarnings("unchecked")
         Map<String, Object> payload = (Map<String, Object>) raw;
+
+        if (kind == PayloadKind.MINE) {
+            // Null layer on purpose, which is also how it arms — see createPrePlacedNSM.
+            SpaceMine restored = SpaceMine.fromState(payload, null);
+            return restored == null ? null : mined(loc, restored);
+        }
 
         Objective obj = new Objective();
         obj.setName(StateIo.text(payload, "name"));

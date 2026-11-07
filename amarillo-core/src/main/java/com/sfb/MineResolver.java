@@ -256,10 +256,19 @@ class MineResolver {
                 continue; // cannot trigger until the next impulse
             }
 
-            // Find units within range 1
+            // Find units within range 1 that this mine will even look at.
+            //
+            // (M2.14) A mine with size-class settings ignores every other class outright — the
+            // rule's own example is a mine "set to ignore drones but accept ships, thereby
+            // preventing the enemy from clearing the mines without risk by detonating them with
+            // drones". So the filter belongs HERE, before the detection roll: an ignored unit
+            // does not get a roll it could fail, and must not consume the trigger either.
+            // Empty settings accept everything (M2.141), which is every mine laid in play.
             List<Unit> inRange = new ArrayList<>();
             for (Unit unit : allUnits) {
                 if (unit.getLocation() == null)
+                    continue;
+                if (!mine.accepts(unit.getSizeClass()))
                     continue;
                 if (MapUtils.getRange(mine, unit) <= 1)
                     inRange.add(unit);
