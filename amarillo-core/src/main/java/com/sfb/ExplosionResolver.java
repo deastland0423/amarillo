@@ -49,8 +49,14 @@ import com.sfb.utilities.MapUtils;
  * nobody reads it as a bug and 'fixes' it into a half-combined state.
  *
  * <p>Still open, and these are real gaps rather than decisions: (D5.2)'s docked-unit addition,
- * (D5.14)'s separated section, (D5.55)'s planets and webs, and the whole of (D5.1)/(D5.5)
- * self-destruction as a player action. See BACKLOG.md.
+ * (D5.14)'s separated section, (D5.55)'s planets and webs, and (D5.11)'s interruption of a
+ * declared destruction. See BACKLOG.md.
+ *
+ * <p>(D5.1)/(D5.5) self-destruction as a player action IS built — {@code Game.declareSelfDestruct}
+ * with (D5.51)'s crew restriction and (G15.1)'s Orion exemption, resolved in the Self-Destruction
+ * Phase at the top of {@code beginImpulses()}. This comment said it was unbuilt until 2026-11-06,
+ * on the same day the backlog recorded it as done, and an outside reviewer read the comment and
+ * believed it. A doc claim about what exists is worth no more than the last time somebody checked.
  */
 class ExplosionResolver {
 

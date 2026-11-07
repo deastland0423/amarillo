@@ -25,12 +25,15 @@ import com.sfb.Game;
  * be copied to another machine, or kept after the scenario it came from is edited, and still
  * describe the battle it was.
  *
- * <h2>What is still not self-contained, and the hazard that leaves</h2>
+ * <h2>What is not self-contained, and how that hazard is handled</h2>
  * The spec names HULLS, and the hulls are read from {@code data/factions} at load time. This repo
- * edits ship JSON constantly, so a hull changed between sessions quietly restores as a different
- * ship — same name, different weapon. The answer is a fingerprint of each resolved
- * {@code ShipSpec} stored here and compared on load; it is not built yet, and this comment is
- * where it belongs when it is.
+ * edits ship JSON constantly, so a hull changed between sessions would quietly restore as a
+ * different ship — same name, different weapon. So {@link #hullFingerprints} stores a fingerprint
+ * of each resolved {@code ShipSpec} beside the save and {@link #changedHulls()} compares them on
+ * load, BEFORE the game is built, turning a silent substitution into a sentence the player reads.
+ *
+ * <p>Note that this is a WARNING, not a refusal: the battle still loads. A changed hull is
+ * usually a deliberate data fix, and refusing the save would strand it.
  *
  * <h2>The load order is the format</h2>
  * <pre>

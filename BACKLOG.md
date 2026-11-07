@@ -616,7 +616,7 @@ groundwork already in place.
 - **G21.1/G21.2 crew quality adjustments.** The declaration is built and `crewQuality` is on
   `ShipSpec`; the adjustment lists are not. The ±3 natural EW is the first slice.
 
-## Ship explosions (D5.0) — destruction-in-combat BUILT in core; (D5.31) and self-destruction open
+## Ship explosions (D5.0) — destruction in combat BUILT; self-destruction BUILT but with no UI; (D5.31) a decided non-goal
 
 A destroyed ship blows up and damages what is near it. Raised by the owner on 2026-11-05 off
 Annex #1's unread explosion-strength column; the data landed the same day and the mechanism on
