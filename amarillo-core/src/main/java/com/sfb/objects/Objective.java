@@ -150,4 +150,71 @@ public class Objective extends Marker implements Tractorable {
     public com.sfb.properties.Location getEffectiveLocation() {
         return carrier != null ? carrier.getLocation() : getLocation();
     }
+
+    // -------------------------------------------------------------------------
+    // Save/load
+    // -------------------------------------------------------------------------
+
+    /**
+     * What the battle did to this objective (save slice).
+     *
+     * <h2>Overlaid, not constructed — unlike a mine or a seeker</h2>
+     * An objective is built by the SCENARIO, so everything that identifies one is already there
+     * when a save is loaded and must not be written here: its retrieval methods, points,
+     * {@code cargoSpaces}, {@code canBeLeftInSpace}, {@code survivesCarrierDestruction} and
+     * {@code side} are all facts about what the scenario put on the map, and a save that carried
+     * them would quietly overrule an edited scenario. What travels is only what possession and
+     * the battle can change.
+     *
+     * <h2>Why the whole objective had to start being saved</h2>
+     * Until 2026-11-07 the save had no {@code objectives} key at all, so a stasis box carried
+     * aboard a ship came back FREE in the hex the scenario first put it in, with no problem
+     * reported — the battle's entire object of play handed back to the map. Nothing caught it
+     * because the round-trip fixture had no objective in it, and a whole-DTO comparison only
+     * detects losses in state the fixture actually changes.
+     *
+     * <h2>null location is a VALUE here</h2>
+     * A mine omits x/y when it has no location; an objective cannot, because a null location is
+     * the meaningful difference between free in a hex and aboard a ship (or secured and out of
+     * play). So both keys are always written, null and all, and the reader treats "not two
+     * numbers" as a deliberate null rather than as a missing key.
+     *
+     * <p>References — the carrier, the beam holding it, and the player who secured it — are
+     * written as NAMES like every other saved reference, and resolved by {@code Game} once every
+     * unit exists.
+     */
+    public java.util.Map<String, Object> exportState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        state.put("name", getName());
+        state.put("x", getLocation() == null ? null : getLocation().getX());
+        state.put("y", getLocation() == null ? null : getLocation().getY());
+        state.put("carrier", carrier == null ? null : carrier.getName());
+        state.put("securedByTeam", securedBy == null ? null : securedBy.getTeamName());
+        state.put("tractoringUnit", tractoringUnit == null ? null : tractoringUnit.getName());
+        state.put("beingRecovered", beingRecovered);
+        return state;
+    }
+
+    /**
+     * Put this objective back where the battle had got it to, with its references already
+     * resolved by the caller (see {@link #exportState()} for what is deliberately absent).
+     *
+     * <p>A reference that did not resolve arrives as null and is accepted as null, because every
+     * one of them legitimately goes missing: a carrier can be destroyed, a tractor link broken,
+     * and an objective secured by a player whose team the scenario no longer has is still out of
+     * play. The carrier is the one worth a word to the player, and {@code Game} says it there
+     * where it can tell the difference between "not in this save" and "did not resolve".
+     */
+    public void applyState(java.util.Map<String, Object> state, Ship carrier,
+                           com.sfb.Player securedBy, Unit tractoringUnit) {
+        if (state == null)
+            return;
+        setLocation(state.get("x") instanceof Number x && state.get("y") instanceof Number y
+                ? new com.sfb.properties.Location(x.intValue(), y.intValue())
+                : null);
+        this.carrier = carrier;
+        this.securedBy = securedBy;
+        this.tractoringUnit = tractoringUnit;
+        this.beingRecovered = com.sfb.systemgroups.StateIo.flag(state, "beingRecovered", false);
+    }
 }

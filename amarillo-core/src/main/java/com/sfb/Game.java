@@ -2475,14 +2475,23 @@ public class Game {
             craftStates.add(craft.exportState());
         state.put("activeShuttles", craftStates);
 
-        // Mines already laid. Created during the battle like the two above, and the last thing
-        // in this format that could be lost in SILENCE: a minefield never reached the save at
-        // all, so a player came back to open space with nothing said and the enemy sailed
-        // through where they had spent the energy and the impulses.
+        // Mines already laid. Created during the battle like the two above, and one of two
+        // things in this format that could be lost in SILENCE: a minefield never reached the
+        // save at all, so a player came back to open space with nothing said and the enemy
+        // sailed through where they had spent the energy and the impulses.
         List<Map<String, Object>> mineStates = new ArrayList<>();
         for (com.sfb.objects.SpaceMine mine : mines)
             mineStates.add(mine.exportState());
         state.put("mines", mineStates);
+
+        // Objectives — and this was the OTHER silent loss, found 2026-11-07. The scenario
+        // rebuilds them, so a load without this key produced no error and no gap: every stasis
+        // box simply went back to its starting hex, out of whichever hold had been fought over
+        // to get it there. Overlaid rather than created, so only possession travels.
+        List<Map<String, Object>> objectiveStates = new ArrayList<>();
+        for (com.sfb.objects.Objective o : objectives)
+            objectiveStates.add(o.exportState());
+        state.put("objectives", objectiveStates);
 
         state.put("players", playerStates);
 
@@ -2584,6 +2593,7 @@ public class Game {
         problems.addAll(reviveSavedCraft(state));
         problems.addAll(reviveSavedSeekers(state));
         problems.addAll(reviveSavedMines(state));
+        problems.addAll(restoreSavedObjectives(state));
         resolveSavedCraftReferences(state);
         resolveSavedShipControl(state);
         resolveSavedLockOns(state);
@@ -2760,6 +2770,80 @@ public class Game {
             }
             mines.add(mine);
         }
+        return problems;
+    }
+
+    /**
+     * Give each scenario objective back the possession the battle had reached.
+     *
+     * <h2>OVERLAID by name, like a ship — not created, like a mine</h2>
+     * The scenario has already put every objective on the map by the time this runs, so this
+     * only moves them: into a hold, into a different hold, off the map, or nowhere at all. See
+     * {@link com.sfb.objects.Objective#exportState()} for what the save deliberately does not
+     * carry.
+     *
+     * <h2>An objective missing from the save was ANNIHILATED, not forgotten</h2>
+     * {@link #dropObjectivesFrom} removes an objective outright when its carrier dies and it
+     * does not survive (SH35.454), so a thing the scenario builds and the save does not name is
+     * gone for good and is removed here rather than reported. That makes the key's ABSENCE the
+     * dangerous case — a save written before objectives were saved at all would read as "every
+     * objective was annihilated" and wipe them. So an absent key overlays nothing, and only a
+     * present one is authoritative. The two cases are a missing key and an empty list, and they
+     * mean opposite things.
+     *
+     * <h2>What is reported</h2>
+     * Only a name in the save that the scenario does not build, which means the scenario was
+     * edited under the save and that objective's whereabouts are lost. A carrier that does not
+     * resolve is reported too, because an objective quietly dropping out of a hold back into
+     * free space is the kind of change a player must not discover by losing it.
+     */
+    private List<String> restoreSavedObjectives(Map<String, Object> state) {
+        List<String> problems = new ArrayList<>();
+        if (!(state.get("objectives") instanceof List<?> list))
+            return problems; // pre-objectives save: leave the scenario's own placement alone
+
+        Map<String, Unit> units = unitsByName();
+        Map<String, Map<String, Object>> byName = new java.util.LinkedHashMap<>();
+        for (Object entry : list) {
+            if (!(entry instanceof Map<?, ?> raw))
+                continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> saved = (Map<String, Object>) raw;
+            String name = com.sfb.systemgroups.StateIo.text(saved, "name");
+            if (name != null)
+                byName.put(name, saved);
+        }
+
+        for (com.sfb.objects.Objective o : new ArrayList<>(objectives)) {
+            Map<String, Object> saved = byName.remove(o.getName());
+            if (saved == null) {
+                // Destroyed with its carrier and did not survive it. Nothing to tell the
+                // player: the battle already told them when it happened.
+                objectives.remove(o);
+                continue;
+            }
+
+            String carrierName = com.sfb.systemgroups.StateIo.text(saved, "carrier");
+            Ship carrier = units.get(carrierName) instanceof Ship ship ? ship : null;
+            if (carrierName != null && carrier == null)
+                problems.add(o.getName() + " was aboard " + carrierName
+                        + ", which is not in this scenario — it is free in space again");
+
+            String team = com.sfb.systemgroups.StateIo.text(saved, "securedByTeam");
+            Player securedBy = null;
+            if (team != null)
+                for (Player candidate : players)
+                    if (team.equals(candidate.getTeamName()))
+                        securedBy = candidate;
+
+            String holderName = com.sfb.systemgroups.StateIo.text(saved, "tractoringUnit");
+            Unit holder = units.get(holderName);
+
+            o.applyState(saved, carrier, securedBy, holder);
+        }
+        for (String missing : byName.keySet())
+            problems.add(missing + " is in the save but not in the scenario");
+
         return problems;
     }
 
@@ -3062,6 +3146,27 @@ public class Game {
      * about whether they are attached — the holder still showing a beam in use, the held unit
      * free to move away.
      */
+    /**
+     * What a saved tractor beam was holding, by name.
+     *
+     * <p>Not just {@link #unitsByName()}, because a beam holds a {@code Tractorable} and an
+     * OBJECTIVE is not a {@code Unit} — it is a {@code Marker} that implements the interface. So
+     * a beam drawing a stasis box in by the J1.621 rotation procedure resolved to nothing and
+     * came back empty, with the box left adrift in the hex it had been caught in. The objectives
+     * are searched second, after the units, so nothing about existing saves changes.
+     */
+    private com.sfb.objects.Tractorable savedTractorableByName(Map<String, Unit> units,
+                                                               String name) {
+        if (name == null)
+            return null;
+        if (units.get(name) instanceof com.sfb.objects.Tractorable tractorable)
+            return tractorable;
+        for (com.sfb.objects.Objective o : objectives)
+            if (name.equals(o.getName()))
+                return o;
+        return null;
+    }
+
     private void resolveSavedTractors(Map<String, Object> state) {
         Object rawShips = state.get("ships");
         if (!(rawShips instanceof List<?> list))
@@ -3090,9 +3195,9 @@ public class Game {
             for (int i = 0; i < Math.min(beams.size(), live.size()); i++) {
                 String heldName =
                         com.sfb.systemgroups.TractorBeam.savedHeldUnitName(beams.get(i));
-                Unit held = heldName == null ? null : units.get(heldName);
-                if (held instanceof com.sfb.objects.Tractorable tractorable)
-                    live.get(i).restoreHeldUnit(tractorable);
+                com.sfb.objects.Tractorable held = savedTractorableByName(units, heldName);
+                if (held != null)
+                    live.get(i).restoreHeldUnit(held);
             }
         }
     }

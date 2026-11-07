@@ -1929,6 +1929,21 @@ Three things about it are worth keeping:
   `MapObjectPrivacyTest` names the OMISSION mechanism and says nothing uses it yet; this would
   be its first real use. Until then the boxes are absent rather than visible — a visible box
   loads, plays, and throws the scenario away.
+
+  Two prerequisites, one now cleared. **Objectives are saved as of 2026-11-07** — until then
+  they were not in `exportState` at all, so a `revealed` flag would have been built on sand and
+  a reload would have re-hidden every counter the players had examined. What remains is that
+  `TerrainGenerator.standardField` computes each counter's rolled hex into a local and keeps
+  only the asteroid hexes, so SH47.471's "examine it by entering the hex" has no counter
+  positions to enter. The field layout is right; it just does not remember where the eighteen
+  counters went.
+
+  One piece of the design is settled: SH47's fog is SYMMETRIC — hidden from both players at
+  once — so it needs no viewer context and none of the per-player redaction machinery. The
+  existing secrets are all OWNER-keyed through `hiddenFrom(viewerTeam, owner)`, which returns
+  false for an ownerless thing and would show a counter to everybody. The REVEAL half
+  transfers exactly: `Drone.isIdentified()` and `SpaceMine.reveal()` are already one-way global
+  flags, which is what SH47.473's "the counter stays face up" wants.
 - **Scenario-placed free-standing mines.** NSM exists as a mine type with an M2.1 bay drop, but
   `ScenarioSpec` has no `mines` field: nothing can pre-place one. SH47.48 then adds its own
   clauses — armed only AFTER being revealed, triggering on size class 6 or larger, detonating

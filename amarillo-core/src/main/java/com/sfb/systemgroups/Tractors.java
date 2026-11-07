@@ -336,6 +336,12 @@ public class Tractors implements Systems {
 	 * and anonymous, rebuilt in a fixed number from the hull, with nothing to key on. What each
 	 * one is HOLDING is written as a name and resolved by {@code Game.applyState} in its second
 	 * pass, once every unit it might point at exists.
+	 *
+	 * <p>The ENERGY POOL travels too. It looks like allocation state, which a save deliberately
+	 * does not carry, but it is not: {@code negativeTractorAccumulated} is what has been SPENT
+	 * resisting this turn (G7.35) and persists across impulses by design, and the remaining pool
+	 * is what a link still has to be maintained with (G7.42). Leaving them out put a ship back
+	 * into a tug of war with its resistance forgotten and its beam unfunded.
 	 */
 	@Override
 	public Map<String, Object> exportState() {
@@ -344,12 +350,22 @@ public class Tractors implements Systems {
 		for (TractorBeam beam : beams)
 			beamStates.add(beam.exportState());
 		state.put("beams", beamStates);
+		state.put("totalTractorEnergy", totalTractorEnergy);
+		state.put("remainingTractorEnergy", remainingTractorEnergy);
+		state.put("negativeTractorAccumulated", negativeTractorAccumulated);
 		return state;
 	}
 
 	@Override
 	public void applyState(Map<String, Object> state) {
-		if (state == null || !(state.get("beams") instanceof java.util.List<?> list))
+		if (state == null)
+			return;
+		totalTractorEnergy = StateIo.integer(state, "totalTractorEnergy", totalTractorEnergy);
+		remainingTractorEnergy =
+				StateIo.integer(state, "remainingTractorEnergy", remainingTractorEnergy);
+		negativeTractorAccumulated =
+				StateIo.integer(state, "negativeTractorAccumulated", negativeTractorAccumulated);
+		if (!(state.get("beams") instanceof java.util.List<?> list))
 			return;
 		for (int i = 0; i < Math.min(list.size(), beams.size()); i++)
 			if (list.get(i) instanceof Map<?, ?> raw) {

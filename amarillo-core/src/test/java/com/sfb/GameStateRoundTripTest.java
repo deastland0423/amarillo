@@ -11,6 +11,7 @@ import org.junit.Test;
 import com.sfb.dto.GameStateDto;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
+import com.sfb.properties.RetrievalMethod;
 import com.sfb.scenario.ScenarioSpec;
 
 /**
@@ -1194,8 +1195,28 @@ public class GameStateRoundTripTest {
         klingon.name = "Empire";
         klingon.ships = new ArrayList<>(List.of(ship("Klingon", "D7", "IKV Blade", "1016")));
 
+        // Three objectives, because possession is the whole point of one and each of its three
+        // states is carried by a different field. Until 2026-11-07 there were NONE here, and
+        // that absence is why the save had no objectives key at all for as long as it did: the
+        // net below compares the whole DTO graph, so it LOOKED as if objectives were covered,
+        // and a comparison only detects losses in state the fixture actually changes.
+        spec.objectives = new ArrayList<>(List.of(
+                objective("Stasis Box Alpha", "1012"),   // beamed aboard the Hood (at 1010) below
+                objective("Stasis Box Beta", "1013"),    // left free on the map
+                objective("Stasis Box Gamma", "1015"))); // caught in the Blade's beam below
+
         spec.sides = new ArrayList<>(List.of(federation, klingon));
         return spec;
+    }
+
+    private static ScenarioSpec.ObjectiveSetup objective(String name, String hex) {
+        ScenarioSpec.ObjectiveSetup setup = new ScenarioSpec.ObjectiveSetup();
+        setup.name = name;
+        setup.hex = hex;
+        setup.retrieval = new ArrayList<>(List.of("TRANSPORTER", "TRACTOR"));
+        setup.points = 10;
+        setup.cargoSpaces = 2.0;   // Annex #7K: a probe canister
+        return setup;
     }
 
     private static ScenarioSpec.ShipSetup ship(String faction, String type, String name,
@@ -1270,10 +1291,231 @@ public class GameStateRoundTripTest {
                 + laid.getMessage(), laid.isSuccess());
         assertEquals("fixture: there should be a mine on the map", 1, game.getMines().size());
 
+        // One objective in a hold and one in a beam, both reached through the real actions so
+        // the fixture cannot quietly create a possession the game itself cannot. The third is
+        // left where the scenario put it, which is the state that USED to come back for all
+        // three — a reload returned every stasis box to its starting hex and said nothing.
+        hood.getTransporters().bankEnergy(1.0);
+        hood.setActiveFireControl(true);
+        Game.ActionResult beamed =
+                game.pickUpObjective(hood, "Stasis Box Alpha", RetrievalMethod.TRANSPORTER);
+        assertTrue("fixture: the box must actually come aboard, or the carried state is never"
+                + " exercised — " + beamed.getMessage(), beamed.isSuccess());
+
+        // An inert canister needs no lock-on (D6.38), but the beam still needs fire control
+        // and energy, and Gamma sits two hexes off the Blade at 1016.
+        blade.getTractors().initForTurn(4, game.getAbsoluteImpulse());
+        Game.ActionResult caught = game.establishTractor(blade, "Stasis Box Gamma", 1);
+        assertTrue("fixture: the beam must actually catch the box, or a tractored objective is"
+                + " never exercised — " + caught.getMessage(), caught.isSuccess());
+
         return game;
     }
 
     /** Stand in for the server's ship assignment, which is what creates ownership. */
+    // ---------------------------------------------------------------- objectives
+
+    /**
+     * Possession, which is the whole point of an objective and was not saved at all until
+     * 2026-11-07.
+     *
+     * <p>The broad net above catches this now that the fixture carries one, but it catches it as
+     * {@code mapObjects[4].carrierName}, which says nothing about what was lost. These say it in
+     * words — and they pin the three states separately, because each one is a different field
+     * and a save could carry one and drop another.
+     */
+    @Test
+    public void aCarriedObjectiveStaysAboardItsShip() {
+        Game after = roundTrip(battleInProgress());
+
+        com.sfb.objects.Objective alpha = objectiveNamed(after, "Stasis Box Alpha");
+        Ship hood = shipNamed(after, "USS Hood");
+        assertSame("the box must come back aboard the RESTORED Hood, not the saved one",
+                hood, alpha.getCarrier());
+        assertTrue("and therefore carried, not free", alpha.isCarried());
+        assertNull("a carried objective has no free location of its own", alpha.getLocation());
+        assertEquals("its hex derives from the ship holding it",
+                hood.getLocation(), alpha.getEffectiveLocation());
+    }
+
+    /** And one nobody picked up stays exactly where the scenario put it. */
+    @Test
+    public void afreeObjectiveStaysFreeInItsHex() {
+        Game before = battleInProgress();
+        com.sfb.objects.Objective beta = objectiveNamed(roundTrip(before), "Stasis Box Beta");
+
+        assertTrue("nothing picked Beta up, so it is still free", beta.isFree());
+        assertEquals(objectiveNamed(before, "Stasis Box Beta").getLocation(), beta.getLocation());
+    }
+
+    /**
+     * A beam holding an objective, from BOTH ends.
+     *
+     * <h2>Why both ends, separately</h2>
+     * The link is two references that have to agree, and they were restored by two different
+     * pieces of code — the objective's own {@code tractoringUnit} by the objective slice, and
+     * the beam's {@code heldUnit} by {@code resolveSavedTractors}. That second one resolved
+     * through {@code unitsByName()}, and an {@code Objective} is not a {@code Unit}: it is a
+     * {@code Marker} that implements {@code Tractorable}. So the beam came back EMPTY while the
+     * objective still believed it was held — a half link, which is worse than no link, and
+     * invisible to anything that only checked one side.
+     */
+    @Test
+    public void anObjectiveInATractorBeamComesBackHeldAtBothEnds() {
+        Game after = roundTrip(battleInProgress());
+
+        com.sfb.objects.Objective gamma = objectiveNamed(after, "Stasis Box Gamma");
+        Ship blade = shipNamed(after, "IKV Blade");
+
+        assertSame("the objective's own back-reference must point at the restored Blade",
+                blade, gamma.getTractoringUnit());
+
+        com.sfb.objects.Tractorable held = null;
+        for (com.sfb.systemgroups.TractorBeam beam : blade.getTractors().getBeams())
+            if (beam.getHeldUnit() != null)
+                held = beam.getHeldUnit();
+        assertSame("and the BEAM must hold the same objective, or the link is half restored",
+                gamma, held);
+    }
+
+    /**
+     * Secured is permanent and out of play (SH35.5), so it must survive a reload as such — the
+     * one state where coming back "free on the map" would hand a won objective back to the
+     * battle.
+     */
+    @Test
+    public void aSecuredObjectiveStaysOutOfPlay() {
+        Game before = battleInProgress();
+        com.sfb.objects.Objective alpha = objectiveNamed(before, "Stasis Box Alpha");
+        alpha.setSecuredBy(shipNamed(before, "USS Hood").getOwner());
+        alpha.setCarrier(null);
+        alpha.setLocation(null);
+
+        com.sfb.objects.Objective restored = objectiveNamed(roundTrip(before), "Stasis Box Alpha");
+        assertTrue("it was carried off the map; it cannot come back", restored.isSecured());
+        assertEquals("and to the same side", "Starfleet", restored.getSecuredBy().getTeamName());
+        assertNull("secured means no hex", restored.getLocation());
+        assertNull("and no carrier", restored.getCarrier());
+    }
+
+    /**
+     * An objective the scenario builds and the save does not name was ANNIHILATED with its
+     * carrier (SH35.454), so it must not be rebuilt. This is the case that makes the key's
+     * absence dangerous, which the next test covers.
+     */
+    @Test
+    public void anObjectiveDestroyedWithItsCarrierDoesNotComeBack() {
+        Game before = battleInProgress();
+        com.sfb.objects.Objective beta = objectiveNamed(before, "Stasis Box Beta");
+        before.getObjectives().remove(beta);
+
+        Game after = roundTrip(before);
+        assertTrue("the save did not name it, so it is gone for good",
+                after.getObjectives().stream().noneMatch(o -> "Stasis Box Beta".equals(o.getName())));
+        assertEquals("and only that one", 2, after.getObjectives().size());
+    }
+
+    /**
+     * The flip side, and the trap: a save written BEFORE objectives were saved has no
+     * {@code objectives} key, and reading an absent key as "every objective was annihilated"
+     * would wipe the scenario's own placement. A missing key overlays nothing; an empty list
+     * means they are all gone. The two look alike and mean opposite things.
+     */
+    @Test
+    public void aSaveWithNoObjectivesKeyLeavesTheScenariosPlacementAlone() {
+        Map<String, Object> saved = battleInProgress().exportState();
+        saved.remove("objectives");
+
+        Game rebuilt = new Game();
+        rebuilt.setupFromScenario(spec());
+        rebuilt.applyState(saved);
+
+        assertEquals("an older save must not read as 'they were all destroyed'",
+                3, rebuilt.getObjectives().size());
+    }
+
+    /** An empty list, by contrast, says so. */
+    @Test
+    public void anEmptyObjectivesListMeansTheyAreAllGone() {
+        Map<String, Object> saved = battleInProgress().exportState();
+        saved.put("objectives", new ArrayList<>());
+
+        Game rebuilt = new Game();
+        rebuilt.setupFromScenario(spec());
+        rebuilt.applyState(saved);
+
+        assertTrue("an empty list is authoritative", rebuilt.getObjectives().isEmpty());
+    }
+
+    /** A name in the save the scenario no longer builds is reported — its whereabouts are lost. */
+    @Test
+    public void anObjectiveInTheSaveButNotTheScenarioIsReported() {
+        Map<String, Object> saved = battleInProgress().exportState();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> list = (List<Map<String, Object>>) saved.get("objectives");
+        Map<String, Object> ghost = new java.util.LinkedHashMap<>();
+        ghost.put("name", "Stasis Box Omega");
+        list.add(ghost);
+
+        Game rebuilt = new Game();
+        rebuilt.setupFromScenario(spec());
+        List<String> problems = rebuilt.applyState(saved);
+
+        assertTrue("the player must be told: " + problems,
+                problems.stream().anyMatch(p -> p.contains("Stasis Box Omega")
+                        && p.contains("not in the scenario")));
+    }
+
+    /**
+     * And a carrier the scenario no longer has is reported too, because an objective quietly
+     * dropping out of a hold into free space is not something a player should find out by
+     * losing it.
+     */
+    @Test
+    public void aCarriedObjectiveWhoseShipIsGoneIsReported() {
+        Map<String, Object> saved = battleInProgress().exportState();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> list = (List<Map<String, Object>>) saved.get("objectives");
+        for (Map<String, Object> entry : list)
+            if ("Stasis Box Alpha".equals(entry.get("name")))
+                entry.put("carrier", "USS Nowhere");
+
+        Game rebuilt = new Game();
+        rebuilt.setupFromScenario(spec());
+        List<String> problems = rebuilt.applyState(saved);
+
+        assertTrue("the player must be told: " + problems,
+                problems.stream().anyMatch(p -> p.contains("Stasis Box Alpha")
+                        && p.contains("USS Nowhere")));
+        assertTrue("and it really is free again",
+                objectiveNamed(rebuilt, "Stasis Box Alpha").isFree());
+    }
+
+    /**
+     * What the save must NOT carry: the scenario's own description of the objective. A save that
+     * wrote these back would overrule an edited scenario, silently, with whatever the retrieval
+     * rules and the point value had been on the day it was taken.
+     */
+    @Test
+    public void theScenarioStillOwnsWhatAnObjectiveIS() {
+        Map<String, Object> saved = battleInProgress().exportState();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> list = (List<Map<String, Object>>) saved.get("objectives");
+        for (Map<String, Object> entry : list) {
+            assertFalse("points belong to the scenario", entry.containsKey("points"));
+            assertFalse("so do the retrieval methods", entry.containsKey("retrieval"));
+            assertFalse("and the cargo size", entry.containsKey("cargoSpaces"));
+        }
+    }
+
+    private static com.sfb.objects.Objective objectiveNamed(Game game, String name) {
+        for (com.sfb.objects.Objective o : game.getObjectives())
+            if (name.equals(o.getName()))
+                return o;
+        throw new AssertionError("no objective called " + name + " in "
+                + game.getObjectives().stream().map(com.sfb.objects.Objective::getName).toList());
+    }
+
     private static void own(Game game, String team, String name,
             com.sfb.properties.Faction faction, Ship... owned) {
         Player player = new Player();
