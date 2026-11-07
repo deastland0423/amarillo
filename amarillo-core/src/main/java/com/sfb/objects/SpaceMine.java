@@ -40,9 +40,22 @@ package com.sfb.objects;
  */
 public class SpaceMine extends Marker {
 
+    /**
+     * The two sizes (M4.1) and what each one does to the shield facing it.
+     *
+     * <p>(M2.501) "A large explosive mine causes 35 POINTS OF DAMAGE to the shield facing the
+     * mine hex." The NSM carried 25 here until 2026-11-07, which is not a number in the rule —
+     * a large mine was doing under three-quarters of its warhead, and the ships that carry one
+     * (M2.7: the Romulan sublights, the Eagles, the Q-ships) carry exactly one.
+     *
+     * <p>(M3.31) "A T-bomb operates as an (M2.0) large mine, with the exception that the
+     * explosion is equal to TEN damage points." So the small mine's ten is right, and the two
+     * values come from different rules rather than one table — which is how one of them stayed
+     * wrong while the other was correct.
+     */
     public enum MineType {
-        T_BOMB("tBomb", 10),
-        NSM("NSM", 25);
+        T_BOMB("tBomb", 10),   // M3.31
+        NSM("NSM", 35);        // M2.501
 
         public final String label;
         public final int damage;

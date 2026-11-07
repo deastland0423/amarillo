@@ -64,10 +64,18 @@ public class SpaceMineTest {
         assertFalse(mine.isRevealed());
     }
 
+    /**
+     * The warheads, each quoted from the rule that states it — they come from DIFFERENT rules
+     * rather than one table, which is how the NSM sat at 25 while the T-bomb's ten was right.
+     *
+     * <p>(M2.501) "A large explosive mine causes 35 points of damage to the shield facing the
+     * mine hex." (M3.31) "A T-bomb operates as an (M2.0) large mine, with the exception that
+     * the explosion is equal to ten damage points."
+     */
     @Test
     public void mineType_damageValues() {
-        assertEquals(10, MineType.T_BOMB.damage);
-        assertEquals(25, MineType.NSM.damage);
+        assertEquals("M3.31: a transporter bomb is ten", 10, MineType.T_BOMB.damage);
+        assertEquals("M2.501: a large mine is thirty-five", 35, MineType.NSM.damage);
     }
 
     // -------------------------------------------------------------------------
