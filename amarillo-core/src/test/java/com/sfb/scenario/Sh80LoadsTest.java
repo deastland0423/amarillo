@@ -59,9 +59,16 @@ public class Sh80LoadsTest {
         Ship dictator  = bySide.get(1).get(0);
         Ship centaurii = bySide.get(2).get(0);
 
-        assertEquals("Lexington", lexington.getName());
-        assertEquals("Dictator", dictator.getName());
-        assertEquals("Centaurii", centaurii.getName());
+        // The printed name has to be in there; the registry prefix is the file's business —
+        // see the same note in Sh47LoadsTest, where this assertion failed the build the moment
+        // the scenario was brought into line with the rest of data/scenarios. ADB writes ship
+        // names without a prefix and "USS Lexington" is the same cruiser.
+        assertTrue("SH80 names her Lexington: " + lexington.getName(),
+                lexington.getName().contains("Lexington"));
+        assertTrue("SH80 names her Dictator: " + dictator.getName(),
+                dictator.getName().contains("Dictator"));
+        assertTrue("SH80 names her Centaurii: " + centaurii.getName(),
+                centaurii.getName().contains("Centaurii"));
 
         for (Ship s : new Ship[] {lexington, dictator, centaurii})
             assertNotNull(s.getName() + " should be placed on the map", s.getLocation());
