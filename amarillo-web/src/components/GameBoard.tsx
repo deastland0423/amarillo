@@ -954,6 +954,30 @@ function ShipSidebar({
       {isMine && (
         <div className="sidebar-action-strip">
 
+          {/*
+            PLAYER AID, outside every phase gate on purpose.
+            This first shipped inside the Activity row, which was the wrong place and a
+            placement I did not check: the chart exists to help choose a SPEED, and speed is
+            chosen during Energy Allocation, where that row does not render. A reference table
+            is not a phase action — it is the Annex, and the Annex is on the desk all game.
+          */}
+          <div className="action-btn-row">
+            <button
+              className={`action-strip-btn${playerAidOpen ? ' active' : ''}`}
+              onClick={onTogglePlayerAid}
+              title="Terrain collision charts (P3.2, P2.223), with this ship's row and column marked"
+            >
+              Charts
+            </button>
+          </div>
+          {playerAidOpen && (
+            <PlayerAidPanel
+              gameId={gameId}
+              shipName={ship.name}
+              onClose={onTogglePlayerAid}
+            />
+          )}
+
           {/* Movement phase: compact move grid */}
           {phase === 'Movement' && (
             <>
@@ -1208,13 +1232,6 @@ function ShipSidebar({
                     Transporters
                   </button>
                 )}
-                <button
-                  className={`action-strip-btn${playerAidOpen ? ' active' : ''}`}
-                  onClick={onTogglePlayerAid}
-                  title="Terrain collision charts (P3.2, P2.223), with this ship's row and column marked"
-                >
-                  Charts
-                </button>
                 {canDropMine && (
                   <button
                     className={`action-strip-btn${dropMineMode ? ' active' : ''}`}
@@ -1663,13 +1680,6 @@ function ShipSidebar({
                 </div>
               )}
 
-              {playerAidOpen && (
-                <PlayerAidPanel
-                  gameId={gameId}
-                  shipName={ship.name}
-                  onClose={onTogglePlayerAid}
-                />
-              )}
               {transportersOpen && (
                 <div className="transporter-submenu">
                   <button
