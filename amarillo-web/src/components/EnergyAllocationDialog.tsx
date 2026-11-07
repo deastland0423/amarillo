@@ -480,10 +480,23 @@ export default function EnergyAllocationDialog({
     && (ship.phaserCapacitor ?? 0) >= (ship.phaserCapacitorMax ?? 0);
 
   const { spent, total, doublingBonus } = calcBudget(ship, alloc);
-  // ONE reading of the number, for both the verdict and the display. Read two ways it said
-  // "23.0 / 23" and OVER BUDGET at the same time, because movement cost is a truncated decimal
-  // (0.6666667 standing in for 2/3) and speed 3 therefore costs 2.0000001. See energyBudget.ts.
-  const { shown: spentShown, overBudget } = budgetState(spent, total);
+  /*
+   * ONE reading of the number, computed once and passed wherever it is needed.
+   *
+   * Read two ways it said "23.0 / 23" and OVER BUDGET at the same time, because movement cost
+   * is a truncated decimal — 0.6666667 standing in for two thirds — so speed 3 costs 2.0000001.
+   * See energyBudget.ts.
+   *
+   * The first fix changed the bar and left three other copies of the same comparison behind,
+   * written out under different names: `sp > tot` in the Submit All gate, an inline
+   * `calcBudget(s, a).spent > calcBudget(s, a).total` on the ship tabs, and `spent > total`
+   * again inside HangarDrawer — which is handed these very numbers. So the bar stopped
+   * complaining while Submit All stayed greyed out. The state is the shared thing now; the two
+   * RENDERINGS stay different on purpose, since one is a headline bar and the other a compact
+   * figure in a row of pinned totals.
+   */
+  const budget = budgetState(spent, total);
+  const { shown: spentShown, overBudget } = budget;
 
   /**
    * J4.961's total for one fighter: twice its pod count. Looked up across every ship's bays
@@ -506,7 +519,11 @@ export default function EnergyAllocationDialog({
     const a = allocMap[name];
     if (!s || !a) return false;
     const { spent: sp, total: tot } = calcBudget(s, a);
-    if (sp > tot) return true;
+    // Through budgetState, like the bar above. This read `sp > tot` directly and so kept
+    // greying out Submit All after the bar had stopped claiming an overspend — the same
+    // truncated-decimal artefact (0.6666667 for two thirds), caught in one place and not the
+    // other because this copy named the values sp and tot. Two readings of one number again.
+    if (budgetState(sp, tot).overBudget) return true;
     // Each rack may reload at most 2 spaces per turn (FD2.421) — no deck crew cost
     const anyRackOverLimit = Object.entries(a.droneReloads).some(([rackName, sel]) => {
       const rack = (s.droneRacks ?? []).find(dr => dr.name === rackName);
@@ -669,7 +686,9 @@ export default function EnergyAllocationDialog({
           {myPending.map(name => {
             const s = allShips.find(sh => sh.name === name);
             const a = allocMap[name];
-            const isOver = s && a ? calcBudget(s, a).spent > calcBudget(s, a).total : false;
+            const tabBudget = s && a ? calcBudget(s, a) : null;
+            const isOver = tabBudget
+                ? budgetState(tabBudget.spent, tabBudget.total).overBudget : false;
             return (
               <button
                 key={name}
@@ -1559,8 +1578,7 @@ export default function EnergyAllocationDialog({
         setAlloc(a => ({ ...a, suicideArming: arming, suicideHold: hold }))}
       wwCharge={alloc.wwCharge}
       onWwCharge={next => setAlloc(a => ({ ...a, wwCharge: next }))}
-      spent={spent}
-      total={total}
+      budget={budget}
     />
     </>
   );

@@ -52,6 +52,19 @@ describe('budgetState', () => {
     expect(budgetState(23 + 0.2, 23).overBudget).toBe(true);
   });
 
+  /**
+   * The budget travels with the verdict, so a consumer can render "shown / total" without
+   * being handed the raw pair too. That is how the Hangar drawer ended up re-doing the
+   * comparison itself and then disagreeing with the bar directly above it: it took spent and
+   * total, and when the dialog learned to ignore float noise, the drawer did not.
+   */
+  it('carries the budget it judged against', () => {
+    const state = budgetState(3 * 0.6666667, 23);
+    expect(state.total).toBe(23);
+    expect(state.shown).toBe(2);
+    expect(state.overBudget).toBe(false);
+  });
+
   /** Exactly on budget is not over it. */
   it('treats an exact spend as within budget', () => {
     expect(budgetState(23, 23).overBudget).toBe(false);

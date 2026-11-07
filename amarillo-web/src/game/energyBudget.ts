@@ -27,13 +27,19 @@
 const PRECISION = 1e4;
 
 export interface BudgetState {
-  /** The total to display, with float noise removed. */
+  /** The spend to display, with float noise removed. */
   shown: number;
+  /**
+   * The budget it was judged against, carried along so a consumer can render "shown / total"
+   * without being handed the raw pair as well — which is how the Hangar drawer came to re-do
+   * the comparison itself and then disagree with the bar above it.
+   */
+  total: number;
   /** Whether it genuinely exceeds the budget. */
   overBudget: boolean;
 }
 
 export function budgetState(spent: number, total: number): BudgetState {
   const shown = Math.round(spent * PRECISION) / PRECISION;
-  return { shown, overBudget: shown > total };
+  return { shown, total, overBudget: shown > total };
 }

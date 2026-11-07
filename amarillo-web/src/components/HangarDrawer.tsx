@@ -145,7 +145,7 @@ function Section({ title, colour, summary, storageKey, startOpen = false, childr
 export function HangarDrawer({
   ship, anchor, capsByBox, onCapsByBox, crewPostings, onCrewPostings,
   packLoading, onPackLoading, suicideArming, suicideHold, onSuicide,
-  wwCharge, onWwCharge, spent, total,
+  wwCharge, onWwCharge, budget,
 }: {
   ship: ShipObject;
   anchor: { left: number; top: number };
@@ -160,8 +160,14 @@ export function HangarDrawer({
   onSuicide: (arming: Record<string, number>, hold: Record<string, boolean>) => void;
   wwCharge: Set<string>;
   onWwCharge: (next: Set<string>) => void;
-  spent: number;
-  total: number;
+  /**
+   * The energy budget, ALREADY EVALUATED by the allocation dialog that owns it.
+   *
+   * Not a raw spent/total pair, which is what this took before: it then re-did the comparison
+   * with its own `spent > total`, and when the dialog's copy learned to ignore float noise this
+   * one did not. One evaluation, passed down, cannot drift from the bar at the top of the form.
+   */
+  budget: import('../game/energyBudget').BudgetState;
 }) {
   const [collapsed, setCollapsed] = useStickyCollapse('hangar-drawer-collapsed');
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -412,7 +418,9 @@ export function HangarDrawer({
                 </span>
               </>)}
               <span className="ea-note-dim"> · </span>
-              <span className={spent > total ? 'over' : ''}>{spent.toFixed(1)}/{total}</span>
+              <span className={budget.overBudget ? 'over' : ''}>
+                {budget.shown.toFixed(1)}/{budget.total}
+              </span>
             </span>
           </div>
 
