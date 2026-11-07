@@ -53,6 +53,77 @@ public class RefitDataGuardTest {
     }
 
     /**
+     * A refit or variant key the spec does not declare does NOTHING, silently — and this is the
+     * guard that tells you to move it into {@code set}.
+     *
+     * <h2>Why a guard and not a rule to remember</h2>
+     * {@code RefitSpec} declares first-class fields for what refits commonly change — bpv,
+     * shields, power, auxiliary, control, the weapon lists — and {@code set} is the escape hatch
+     * for every OTHER field of the hull. That split is historical rather than principled: the
+     * first-class list is "what refits had needed so far". So "does this key need set?" is a
+     * list to memorise, and getting it wrong is invisible, because both specs carry
+     * {@code @JsonIgnoreProperties(ignoreUnknown = true)} and Jackson drops the key without a
+     * word.
+     *
+     * <p>It has cost real work twice. The Federation GSC's carrier conversion lost its crew, its
+     * shuttle bays and the two flags that make it a carrier at all, which the migration's
+     * equivalence check caught. And the Kzinti CS-to-CA refit nearly shipped with the CA's
+     * explosion strength left at the CS's 19 instead of the 20 cross-checked against Annex #1 —
+     * a difference nothing else would have reported, since the ship loads and plays either way.
+     *
+     * <p>So the build now says it. Keys beginning with an underscore are left alone: the files
+     * use {@code _note} and {@code _comment} to carry the reasoning, which is a convention worth
+     * more than this check.
+     */
+    @Test
+    public void everyRefitAndVariantKeyIsOneTheSpecReads() throws Exception {
+        assumeTrue(FACTIONS.isDirectory());
+        Set<String> refitFields = declaredFields(ShipSpec.RefitSpec.class);
+        Set<String> variantFields = declaredFields(ShipSpec.VariantSpec.class);
+        List<String> wrong = new ArrayList<>();
+
+        File[] factions = FACTIONS.listFiles(File::isDirectory);
+        for (File faction : factions == null ? new File[0] : factions)
+            for (File f : faction.listFiles(n -> n.getName().endsWith(".json"))) {
+                com.fasterxml.jackson.databind.JsonNode root = MAPPER.readTree(f);
+                String where = faction.getName() + "/" + f.getName();
+                checkKeys(root.get("refits"), refitFields, where, "refit", wrong);
+                checkKeys(root.get("variants"), variantFields, where, "variant", wrong);
+            }
+
+        report(wrong, "Refit/variant key(s) the spec does not read, so Jackson drops them in"
+                + " silence. Move each into the refit's \"set\" block, which replaces any other"
+                + " field of the hull by name");
+    }
+
+    private static void checkKeys(com.fasterxml.jackson.databind.JsonNode list,
+                                  Set<String> declared, String where, String kind,
+                                  List<String> wrong) {
+        if (list == null || !list.isArray())
+            return;
+        for (com.fasterxml.jackson.databind.JsonNode entry : list) {
+            String code = entry.hasNonNull("code") ? entry.get("code").asText()
+                    : entry.hasNonNull("type") ? entry.get("type").asText() : "?";
+            java.util.Iterator<String> names = entry.fieldNames();
+            while (names.hasNext()) {
+                String name = names.next();
+                if (name.startsWith("_") || declared.contains(name))
+                    continue;
+                wrong.add(where + " " + kind + " \"" + code + "\": \"" + name + "\"");
+            }
+        }
+    }
+
+    /** The public field names Jackson will actually bind, read off the class itself. */
+    private static Set<String> declaredFields(Class<?> type) {
+        Set<String> out = new LinkedHashSet<>();
+        for (java.lang.reflect.Field f : type.getFields())
+            if (!java.lang.reflect.Modifier.isStatic(f.getModifiers()))
+                out.add(f.getName());
+        return out;
+    }
+
+    /**
      * A {@code requires} naming a refit the hull does not declare does NOTHING, silently.
      * <p>
      * {@link RefitResolver#withRequirements} looks the code up, finds nothing and moves on — so a
