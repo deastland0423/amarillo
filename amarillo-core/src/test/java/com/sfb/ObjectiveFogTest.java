@@ -126,6 +126,40 @@ public class ObjectiveFogTest {
                 objectiveIn(game, null));
     }
 
+    /**
+     * The SECOND channel, and the one that nearly gave the scenario away: the live scoreboard
+     * lists every objective by name with its state. Omitting a counter from {@code mapObjects}
+     * is worth nothing while a standings panel is still counting the boxes.
+     *
+     * <p>The COUNT is half the secret, not a detail of it — SH47.46 removes four counters
+     * unseen so that neither player knows whether two boxes exist, one, or none, and SH47.8
+     * tells each captain to play on the assumption that one does. A row cannot be redacted into
+     * safety here either: the row existing IS the leak.
+     */
+    @Test
+    public void anUnrevealedCounterIsNotInTheScoreboardEither() {
+        Game game = twoShipGame();
+        hiddenBoxAt(game, 14, 14);
+
+        assertTrue("the standings must not count a box nobody has found",
+                new GameStateDto(game, "Federation").scoreboard.objectives.isEmpty());
+        assertTrue("for either player",
+                new GameStateDto(game, "Klingons").scoreboard.objectives.isEmpty());
+    }
+
+    /** Found, and it takes its place in the standings like anything else. */
+    @Test
+    public void aRevealedCounterIsInTheScoreboard() {
+        Game game = twoShipGame();
+        hiddenBoxAt(game, 14, 14).reveal();
+
+        List<GameStateDto.ObjectiveStandingDto> standings =
+                new GameStateDto(game, "Federation").scoreboard.objectives;
+        assertEquals(1, standings.size());
+        assertEquals("Stasis Box", standings.get(0).name);
+        assertEquals("FREE", standings.get(0).state);
+    }
+
     // ------------------------------------------------------------------ the reveal
 
     /**

@@ -1348,7 +1348,20 @@ public class GameStateDto {
                 dto.teams.add(t);
             }
             // Objective control + point value (the controller scores `points` at end)
+            //
+            // SECOND CHANNEL, and the one that very nearly gave SH47 away. Leaving an
+            // unrevealed objective out of mapObjects is no use at all while the live
+            // scoreboard lists it by name with state FREE: that does not give the hex, but it
+            // gives the COUNT, and SH47.46 removes four counters unseen precisely so that
+            // "whether two boxes exist, one, or none" is half of what is being kept back. A
+            // player who can count the boxes knows whether to go looking.
+            //
+            // So the filter has to be the same here as there, for the same reason it had to be
+            // omission there: the standing cannot be redacted into safety, because a row
+            // existing is the leak.
             for (com.sfb.objects.Objective o : game.getObjectives()) {
+                if (!o.isRevealed() && viewerTeam != null)
+                    continue;
                 ObjectiveStandingDto os = new ObjectiveStandingDto();
                 os.name = o.getName();
                 com.sfb.Player owner = o.getCurrentOwner();
