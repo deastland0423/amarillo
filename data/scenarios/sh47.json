@@ -34,7 +34,7 @@
       "ships": [
         {
           "type": "DD",
-          "shipName": "Xerxes",
+          "shipName": "USS Xerxes",
           "startHex": "4230",
           "startHeading": "F",
           "startSpeed": 4,
@@ -57,7 +57,7 @@
       "ships": [
         {
           "type": "CL",
-          "shipName": "Mystic",
+          "shipName": "KHS Mystic",
           "startHex": "0101",
           "startHeading": "C",
           "startSpeed": 4,

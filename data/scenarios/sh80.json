@@ -20,7 +20,7 @@
       "ships": [
         {
           "type": "CCa+",
-          "shipName": "Lexington",
+          "shipName": "USS Lexington",
           "startHex": "1712",
           "startHeading": "C",
           "startSpeed": 16,
@@ -48,7 +48,7 @@
       "ships": [
         {
           "type": "D7N",
-          "shipName": "Dictator",
+          "shipName": "IKV Dictator",
           "startHex": "0126",
           "startHeading": "B",
           "startSpeed": 5,
@@ -67,7 +67,7 @@
       "ships": [
         {
           "type": "K5RB",
-          "shipName": "Centaurii",
+          "shipName": "RIS Centaurii",
           "startHex": "4222",
           "startHeading": "F",
           "startSpeed": 5,

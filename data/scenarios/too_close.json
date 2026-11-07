@@ -1,0 +1,40 @@
+{
+  "id": "TOO_CLOSE",
+  "name": "Too Close!",
+  "year": 175,
+  "description": "Test scenario that places ships very close for immmediate short range fire.",
+  "lengthCondition": "STANDARD",
+  "sides": [
+    {
+      "name": "United Federation of Planets",
+      "faction": "Federation",
+      "ships": [
+        {
+          "type": "CA+",
+          "shipName": "USS Enterprise",
+          "startHex": "0101",
+          "startHeading": "C",
+          "startSpeed": 16,
+          "weaponStatus": 3
+        }
+      ]
+    },
+    {
+      "name": "Kzinti Hegemony",
+      "faction": "Kzinti",
+      "ships": [
+        {
+          "type": "df",
+          "shipName": "KHS Pewpew",
+          "startHex": "0404",
+          "startHeading": "F",
+          "startSpeed": 16,
+          "weaponStatus": 3
+        }
+      ]
+    }
+  ],
+  "victoryConditions": {
+    "type": "STANDARD"
+  }
+}
