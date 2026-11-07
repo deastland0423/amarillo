@@ -82,5 +82,34 @@
     { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]}
 
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "C-14 Refit",
+        "year": 138,
+        "bpv": 10,
+        "set": { "explosionStrength": 20 },
+        "auxiliary": { "derfacs": true },
+        "addWeapons": [
+          {"type": "Disruptor", "designator": "C", "range": 30, "arcs": ["LF", "L"]},
+          {"type": "Disruptor", "designator": "D", "range": 30, "arcs": ["RF", "R"]}
+        ],
+        "replaceWeapons": [
+          {"from": "Phaser3", "to": "Phaser1", "designators": ["7", "8"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "CA",
+        "name": "KHS Eclipse",
+        "typeName": "Heavy Cruiser",
+        "tokenArt": "kzinti/ca.png",
+        "serviceYear": 138
+      }
+    ]
 }
