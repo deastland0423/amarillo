@@ -67,9 +67,18 @@ export interface SavedBattle {
   savedAt?: string;
   turn?: number;
   scenario?: string;
-  /** False when this build could not parse the file; `error` says why. */
+  /**
+   * False when this build cannot OPEN the file — it would not parse, or a newer build wrote it.
+   * `error` says which. A newer-format save parses perfectly and would load as a battle with
+   * everything this build does not know silently missing, so it is refused too.
+   */
   readable: boolean;
   error?: string;
+  /**
+   * True when the refusal is only about the format version, so the player may overrule it and
+   * accept an approximate battle. Absent or false means there is nothing to offer.
+   */
+  canIgnoreFormatVersion?: boolean;
 }
 
 export interface OpenedSave {
@@ -1141,10 +1150,19 @@ export const gameApi = {
    * which person, so whoever is in the room gets assigned to them. That is what lets a battle be
    * continued by different players than fought it.
    */
-  openSave(saveId: string, hostName: string): Promise<OpenedSave> {
+  /**
+   * @param ignoreFormatVersion open a save a NEWER build wrote, accepting that anything this
+   *   build does not understand is lost. Only ever set from the player saying so.
+   */
+  openSave(saveId: string, hostName: string,
+           ignoreFormatVersion = false): Promise<OpenedSave> {
     return request(`/api/games/saves/${saveId}/open`, {
       method: 'POST',
-      body: JSON.stringify({ name: hostName, accountId: accountId() }),
+      body: JSON.stringify({
+        name: hostName,
+        accountId: accountId(),
+        ...(ignoreFormatVersion ? { ignoreFormatVersion: 'true' } : {}),
+      }),
     });
   },
 

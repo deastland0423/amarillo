@@ -309,17 +309,25 @@ public class SavedGameJsonTest {
         assertFalse(restored.problems().isEmpty());
     }
 
-    /** A save from a future build is reported rather than half-applied. */
+    /**
+     * A save from a future build is REFUSED, not half-applied.
+     *
+     * <p>This used to assert only that it was "reported", and it loaded anyway. That was the
+     * wrong call: the reader takes the keys it knows and ignores the rest, so the battle came
+     * back complete and plausible with everything this build had never heard of silently
+     * missing. See {@code NewerFormatRefusalTest} for the whole of it, including the override.
+     */
     @Test
-    public void aFutureEnvelopeIsReported() throws Exception {
+    public void aFutureEnvelopeIsRefused() throws Exception {
         Game before = battleInProgress();
         SavedGame saved = SavedGame.of(before, spec(), "from the future");
         saved.envelopeVersion = SavedGame.ENVELOPE_VERSION + 1;
 
-        List<String> problems = SavedGame.fromJsonString(saved.toJsonString())
-                .restore().problems();
+        SavedGame.Restored restored = SavedGame.fromJsonString(saved.toJsonString()).restore();
 
-        assertTrue(problems.toString(), problems.stream().anyMatch(p -> p.contains("newer")));
+        assertNull("nothing should be rebuilt from it", restored.game());
+        assertTrue(restored.problems().toString(),
+                restored.problems().stream().anyMatch(p -> p.contains("newer")));
     }
 
     /** Taking a save must not disturb the game being saved. */

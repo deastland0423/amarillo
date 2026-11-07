@@ -48,6 +48,9 @@ export default function Lobby({ onJoined, onBuildFleet, savedSession, onResume,
   // Which save is awaiting a "really delete it?" answer. Deleting a battle is irreversible and
   // the button sits next to Resume, so it asks in place rather than acting on one click.
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  /* Which save the player has been warned about opening anyway — see the Resume anyway button.
+     Confirmed in place, like Delete: the row says which file, so a modal would only restate it. */
+  const [confirmForce, setConfirmForce] = useState<string | null>(null);
 
   // Fetched when the saves door is opened rather than on mount: most visits never look at it,
   // and a landing page should not wait on a directory listing to render.
@@ -78,11 +81,11 @@ export default function Lobby({ onJoined, onBuildFleet, savedSession, onResume,
     }
   }
 
-  async function handleOpenSave(saveId: string) {
+  async function handleOpenSave(saveId: string, ignoreFormatVersion = false) {
     if (!name.trim()) { setError('Enter your name first.'); return; }
     setBusy(true); setError('');
     try {
-      const res = await gameApi.openSave(saveId, name.trim());
+      const res = await gameApi.openSave(saveId, name.trim(), ignoreFormatVersion);
       // Problems are not failures: a battle can load usefully while still having lost a craft in
       // flight, or with a hull that has been edited since. Show them and continue.
       if (res.problems.length > 0)
@@ -262,6 +265,32 @@ export default function Lobby({ onJoined, onBuildFleet, savedSession, onResume,
               >
                 {busy ? 'Opening…' : 'Resume'}
               </button>
+              {/* The escape hatch, offered only when the refusal is one the player can
+                  overrule — a newer build wrote the file, and there is a scenario inside to
+                  rebuild from. A file that will not parse gets no button, because pressing it
+                  would fail again. */}
+              {!save.readable && save.canIgnoreFormatVersion && (
+                confirmForce === save.id ? (
+                  <button
+                    className="secondary"
+                    onClick={() => { setConfirmForce(null); handleOpenSave(save.id, true); }}
+                    disabled={busy}
+                    style={{ borderColor: '#d29922', color: '#d29922' }}
+                    title="Rebuild what this build understands and lose the rest"
+                  >
+                    {busy ? 'Opening…' : 'Lose the rest, open it'}
+                  </button>
+                ) : (
+                  <button
+                    className="secondary"
+                    onClick={() => { setError(''); setConfirmForce(save.id); }}
+                    disabled={busy || confirmDelete === save.id}
+                    title="A newer version of the game wrote this save"
+                  >
+                    Resume anyway
+                  </button>
+                )
+              )}
             </div>
           ))}
           {error && <p className="error">{error}</p>}

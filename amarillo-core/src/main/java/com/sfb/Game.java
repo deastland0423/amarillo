@@ -2354,6 +2354,22 @@ public class Game {
     /** Bumped when the format changes in a way a reader has to know about. */
     public static final int SAVE_FORMAT_VERSION = 1;
 
+    /** The format version written inside a saved state map, or 0 if it does not say. */
+    public static int stateFormatVersion(Map<String, Object> state) {
+        return state == null ? 0 : com.sfb.systemgroups.StateIo.integer(state, "formatVersion", 0);
+    }
+
+    /**
+     * How an unreadable state version reads to a player.
+     *
+     * <p>Shared with {@code SavedGame.formatProblems()} on purpose: both layers report the same
+     * fact, and two wordings of it would show up twice in the same list on a forced load.
+     */
+    public static String newerFormatMessage(int savedVersion) {
+        return "this save was written by a newer version of the game (format " + savedVersion
+                + ", this build reads " + SAVE_FORMAT_VERSION + ")";
+    }
+
     /**
      * The whole battle as a turn-boundary snapshot.
      *
@@ -2486,10 +2502,12 @@ public class Game {
             return problems;
         }
 
-        int version = com.sfb.systemgroups.StateIo.integer(state, "formatVersion", 0);
+        // Reported here, but DECIDED by SavedGame.restore(), which refuses rather than loading a
+        // file it may not understand — the decision has to be made before a game is built from
+        // it. This stays for a direct caller of applyState, which in practice means a test.
+        int version = stateFormatVersion(state);
         if (version > SAVE_FORMAT_VERSION)
-            problems.add("this save was written by a newer version of the game (format "
-                    + version + ", this build reads " + SAVE_FORMAT_VERSION + ")");
+            problems.add(newerFormatMessage(version));
 
         mapCols  = com.sfb.systemgroups.StateIo.integer(state, "mapCols", mapCols);
         mapRows  = com.sfb.systemgroups.StateIo.integer(state, "mapRows", mapRows);

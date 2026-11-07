@@ -1140,7 +1140,18 @@ public class GameController {
                     row.put("savedAt", saved.savedAt);
                     row.put("turn", saved.turn);
                     row.put("scenario", saved.scenario == null ? null : saved.scenario.name);
-                    row.put("readable", true);
+                    // "readable" means what the player cares about: can this build OPEN it.
+                    // Parsing is not enough — a save from a newer build parses perfectly and
+                    // then loads as a battle with everything this build does not know silently
+                    // missing, so it is refused. The Resume button already reads this flag.
+                    boolean openable = saved.isReadableByThisBuild();
+                    row.put("readable", openable);
+                    if (!openable) {
+                        row.put("error", String.join("; ", saved.formatProblems()));
+                        // A version refusal is the ONE kind a player can overrule, and only if
+                        // there is a scenario in the file to rebuild from.
+                        row.put("canIgnoreFormatVersion", saved.scenario != null);
+                    }
                 } catch (IOException e) {
                     // A save this build cannot parse is still LISTED, with the reason. Hiding it
                     // would leave a player staring at a file they can see on disk and no
@@ -1335,11 +1346,25 @@ public class GameController {
         }
 
         Map<String, String> input = body == null ? Map.of() : body;
+        // A save from a newer build is REFUSED unless the caller says otherwise: the reader
+        // drops keys it does not know, so loading one quietly produces a plausible battle that
+        // is not the one that was saved. The client sends this only after telling the player
+        // what is lost, which is why the flag is theirs to set and not a default.
+        boolean ignoreFormatVersion = "true".equalsIgnoreCase(input.get("ignoreFormatVersion"));
         GameSessionService.SessionFromSave opened = sessionService.openSavedGame(
-                input.getOrDefault("name", "Host"), input.get("accountId"), saved);
-        if (opened.session() == null)
-            return ResponseEntity.badRequest().body(Map.of(
-                    "error", "That save could not be rebuilt", "problems", opened.problems()));
+                input.getOrDefault("name", "Host"), input.get("accountId"), saved,
+                ignoreFormatVersion);
+        if (opened.session() == null) {
+            Map<String, Object> refusal = new java.util.LinkedHashMap<>();
+            refusal.put("error", "That save could not be rebuilt");
+            refusal.put("problems", opened.problems());
+            // Says whether there is anything the player could choose to do about it. A newer
+            // format can be forced; a save with no scenario in it cannot be rebuilt at all, and
+            // offering a button that will fail again would be worse than offering none.
+            refusal.put("canIgnoreFormatVersion",
+                    !saved.isReadableByThisBuild() && saved.scenario != null);
+            return ResponseEntity.badRequest().body(refusal);
+        }
 
         GameSession session = opened.session();
         broadcastLobby(session);

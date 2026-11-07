@@ -217,6 +217,56 @@ class ResumeSavedGameTest {
     private record Game2(com.sfb.Game game, ScenarioSpec spec) {
     }
 
+    // ---------------------------------------------------------------- a save from a newer build
+
+    /**
+     * (The refusal, at the layer that opens a session.)
+     *
+     * <p>A save a NEWER build wrote parses perfectly and then loads as a battle with everything
+     * this build has never heard of silently missing -- so the service refuses it and no session
+     * is created. Asserted here and not only in core because this is the door a player comes
+     * through: core being right is no use if the service does not ask.
+     */
+    @Test
+    void aSaveFromANewerBuildOpensNoSession() {
+        GameSessionService.SessionFromSave opened = openBattle(saveFromTheFuture(), false);
+
+        assertNull(opened.session(), "no session for a file we may not understand");
+        assertTrue(opened.problems().stream().anyMatch(p -> p.contains("newer version")),
+                opened.problems().toString());
+        assertTrue(opened.problems().stream().anyMatch(p -> p.contains("refusing to load it")),
+                "the refusal must say what the player can do: " + opened.problems());
+    }
+
+    /** And the player may overrule it, which is the only way that flag is ever set. */
+    @Test
+    void thePlayerCanOpenANewerSaveAnyway() {
+        GameSessionService.SessionFromSave opened = openBattle(saveFromTheFuture(), true);
+
+        assertNotNull(opened.session(), "forcing should rebuild what it can");
+        assertEquals(2, opened.session().getGame().getShips().size());
+        assertTrue(opened.problems().stream().anyMatch(p -> p.contains("newer version")),
+                "and still say what was risked: " + opened.problems());
+    }
+
+    private SavedGame saveFromTheFuture() {
+        try {
+            Game2 built = battle();
+            SavedGame saved = SavedGame.of(built.game, built.spec, "from the future");
+            saved.envelopeVersion = SavedGame.ENVELOPE_VERSION + 1;
+            // Through a real round trip, because that is how a save reaches the service -- and
+            // the envelope version has to survive it for the check to see anything.
+            return SavedGame.fromJsonString(saved.toJsonString());
+        } catch (Exception e) {
+            throw new AssertionError("fixture", e);
+        }
+    }
+
+    private GameSessionService.SessionFromSave openBattle(SavedGame saved,
+            boolean ignoreFormatVersion) {
+        return service.openSavedGame("Dan", "account-dan", saved, ignoreFormatVersion);
+    }
+
     private GameSessionService.SessionFromSave openBattle() {
         try {
             Game2 built = battle();

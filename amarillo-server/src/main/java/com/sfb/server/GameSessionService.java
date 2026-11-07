@@ -152,7 +152,19 @@ public class GameSessionService {
      */
     public SessionFromSave openSavedGame(String hostName, String accountId,
             com.sfb.scenario.SavedGame saved) {
-        com.sfb.scenario.SavedGame.Restored restored = saved.restore();
+        return openSavedGame(hostName, accountId, saved, false);
+    }
+
+    /**
+     * @param ignoreFormatVersion open it even though a newer build wrote it, accepting that
+     *                            whatever this build does not understand is lost. The player has
+     *                            to ask for this; nothing sets it by default.
+     */
+    public SessionFromSave openSavedGame(String hostName, String accountId,
+            com.sfb.scenario.SavedGame saved, boolean ignoreFormatVersion) {
+        com.sfb.scenario.SavedGame.Restored restored = ignoreFormatVersion
+                ? saved.restoreIgnoringFormatVersion()
+                : saved.restore();
         if (restored.game() == null)
             return new SessionFromSave(null, restored.problems());
 

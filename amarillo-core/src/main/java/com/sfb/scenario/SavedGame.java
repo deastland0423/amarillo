@@ -115,14 +115,44 @@ public class SavedGame {
     /**
      * Rebuild the battle: construct from the scenario, then overlay the state.
      *
-     * A save with no scenario cannot be rebuilt at all, and says so rather than handing back an
-     * empty game that looks like a battle nobody is fighting.
+     * <p>A save with no scenario cannot be rebuilt at all, and says so rather than handing back
+     * an empty game that looks like a battle nobody is fighting.
+     *
+     * <h2>A save from a NEWER build is refused</h2>
+     * This used to warn and load it anyway, which is the worst of the three options. The reader
+     * takes the keys it knows and ignores the rest, so a save holding systems this build has
+     * never heard of came back as a battle with those systems SILENTLY ABSENT — a plausible
+     * game, quietly not the one that was saved. A warning does not help, because by the time it
+     * is read the wrong battle is already on screen.
+     *
+     * <p>So the default refuses, and {@link #restoreIgnoringFormatVersion()} is the explicit way
+     * to try anyway. The named method rather than a flag is deliberate: it says which guard is
+     * being waived, so a guard added later is not waived along with it by accident.
      */
     public Restored restore() {
-        List<String> problems = new ArrayList<>();
-        if (envelopeVersion > ENVELOPE_VERSION)
-            problems.add("this save file was written by a newer version of the game (envelope "
-                    + envelopeVersion + ", this build reads " + ENVELOPE_VERSION + ")");
+        return restore(false);
+    }
+
+    /**
+     * Rebuild the battle even though the save was written by a newer build, accepting that
+     * anything this build does not understand is lost.
+     *
+     * <p>For a player who would rather have an approximation of their battle than nothing —
+     * which is a real preference, and theirs to express. The version problems are still reported,
+     * so whatever shows them says what was risked.
+     */
+    public Restored restoreIgnoringFormatVersion() {
+        return restore(true);
+    }
+
+    private Restored restore(boolean ignoreFormatVersion) {
+        List<String> problems = new ArrayList<>(formatProblems());
+        if (!problems.isEmpty() && !ignoreFormatVersion) {
+            problems.add("refusing to load it: anything this build does not understand would be"
+                    + " dropped without saying so. Load it anyway only if an approximate battle"
+                    + " is better than none, or play it on the build that wrote it.");
+            return new Restored(null, problems);
+        }
         if (scenario == null) {
             problems.add("this save has no scenario in it and cannot be rebuilt");
             return new Restored(null, problems);
@@ -135,7 +165,49 @@ public class SavedGame {
         Game game = new Game();
         game.setupFromScenario(scenario);
         problems.addAll(game.applyState(state));
-        return new Restored(game, problems);
+        // Deduplicated, order kept: on a forced load applyState repeats the version fact this
+        // method already reported, and a player should not read the same sentence twice.
+        return new Restored(game, List.copyOf(new java.util.LinkedHashSet<>(problems)));
+    }
+
+    /**
+     * Why this build cannot be sure it understands this file, empty when it can.
+     *
+     * <p>Both versions are checked, and they are genuinely two: the ENVELOPE is this class — the
+     * scenario, the fingerprints, the label — and the STATE is what {@code Game.exportState}
+     * writes inside it. They move independently, so a reader has to say which one it cannot
+     * read. Checked here rather than inside {@code applyState} because the answer is needed
+     * BEFORE a game is built from a file that should not be loaded at all.
+     */
+    public List<String> formatProblems() {
+        List<String> problems = new ArrayList<>();
+        if (envelopeVersion > ENVELOPE_VERSION)
+            problems.add("this save file was written by a newer version of the game (envelope "
+                    + envelopeVersion + ", this build reads " + ENVELOPE_VERSION + ")");
+        int stateVersion = Game.stateFormatVersion(state);
+        if (stateVersion > Game.SAVE_FORMAT_VERSION)
+            // Game's own wording, not a second one: applyState reports the same fact, and on a
+            // forced load both run. One sentence, said once.
+            problems.add(Game.newerFormatMessage(stateVersion));
+        return problems;
+    }
+
+    /**
+     * True when this build can read both halves of the file.
+     *
+     * <p>{@code @JsonIgnore} is load-bearing, not tidiness: this is bean-shaped, so without it
+     * Jackson writes a {@code readableByThisBuild} field INTO every save — and then refuses to
+     * read any of them back, because this class deliberately does not ignore unknown properties.
+     * Adding it broke sixteen tests at once, which is the only reason it was noticed.
+     *
+     * <p>That strictness is itself deliberate and must stay: a save carrying an envelope field
+     * this build has never heard of SHOULD fail rather than quietly drop it, for exactly the
+     * reason {@link #restore()} refuses a newer version. So any future accessor on this class
+     * needs the same annotation.
+     */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public boolean isReadableByThisBuild() {
+        return formatProblems().isEmpty();
     }
 
     // -------------------------------------------------------------------------

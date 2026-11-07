@@ -1147,7 +1147,15 @@ public class GameStateRoundTripTest {
                         && problems.stream().anyMatch(p -> p.contains("not in the save")));
     }
 
-    /** A save from a newer build is reported, not silently half-applied. */
+    /**
+     * A save from a newer build is reported here, at the overlay.
+     *
+     * <p>Reported, not refused, and the distinction is deliberate: {@code applyState} is the
+     * low-level overlay and a direct caller deserves to be told. The REFUSAL lives in
+     * {@code SavedGame.restore()}, which is where it has to be — the decision must be made
+     * before a game is built from a file that should not be loaded. See
+     * {@code NewerFormatRefusalTest}.
+     */
     @Test
     public void aSaveFromTheFutureIsReported() {
         Game before = battleInProgress();
