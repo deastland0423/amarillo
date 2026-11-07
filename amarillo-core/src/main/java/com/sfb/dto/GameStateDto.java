@@ -1312,6 +1312,13 @@ public class GameStateDto {
         public int vpAgainst;
         public String levelOfVictory;
         public int coiForfeited; // total COI this side handed to the enemy (S2.20 B)
+        /**
+         * (D3.21) Internal damage points this side has put into the ENEMY's ships, armor
+         * absorption excluded per D3.21's exception. Public to both players: a captain knows
+         * what their own guns did, and the opposing captain is the one counting the holes.
+         * SH47.5 decides a scenario on it.
+         */
+        public int internalsScored;
     }
 
     /**
@@ -1387,6 +1394,7 @@ public class GameStateDto {
                 t.vpAgainst = ts.vpAgainst();
                 t.levelOfVictory = ts.levelOfVictory();
                 t.coiForfeited = ts.coiForfeited();
+                t.internalsScored = ts.internalsScored();
                 dto.teams.add(t);
             }
             // Objective control + point value (the controller scores `points` at end)

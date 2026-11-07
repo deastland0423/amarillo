@@ -2221,11 +2221,47 @@ public class Game {
     }
 
     public record TeamScore(String teamName, int vpScored, int vpAgainst, String levelOfVictory,
-                            int coiForfeited // total COI this side handed to the enemy (S2.20 B)
+                            int coiForfeited, // total COI this side handed to the enemy (S2.20 B)
+                            int internalsScored // (D3.21) internals this side put into the enemy
     ) {
     }
 
     public record Scoreboard(java.util.List<ShipVpRow> rows, java.util.List<TeamScore> teams) {
+    }
+
+    /**
+     * (D3.21) Internal damage points this team has put into the OTHER side's ships.
+     *
+     * <h2>Why it is summed from the victims and not kept on the shooter</h2>
+     * Every ship records who scored internals on it, and this adds up the ones belonging to
+     * somebody else. Destroyed hulls are included deliberately — the hits that killed a ship are
+     * the ones most worth counting, and a tally kept on the attacker would lose them the moment
+     * its own ship blew up, or carry them to the wrong side when a ship is captured and changes
+     * owner mid-battle.
+     *
+     * <h2>Hits on your own ships do not count</h2>
+     * SH47.5 asks for "internal hits on the other", so a ship caught in its own side's blast, or
+     * shot by a captured hull that used to be a friend, is not scoring for anybody here. The
+     * per-ship records keep everything, so the filter lives at the point of asking rather than
+     * at the point of recording — which leaves the raw data able to answer the other question
+     * too, if a scenario ever wants it.
+     *
+     * <p>This is a live number, not an end-of-game one: SH47.5 needs it, and it is the figure
+     * players argue about after a pass, so the scoreboard carries it in every broadcast.
+     */
+    public int internalsScoredBy(String team) {
+        if (team == null)
+            return 0;
+        int total = 0;
+        List<Ship> everyHull = new ArrayList<>(ships);
+        everyHull.addAll(destroyedShips);
+        for (Ship hull : everyHull) {
+            String owner = hull.getOwner() == null ? null : hull.getOwner().getTeamName();
+            if (team.equals(owner))
+                continue;   // its own side's hits on it are not "on the other"
+            total += hull.getInternalsTakenByTeam().getOrDefault(team, 0);
+        }
+        return total;
     }
 
     /**
@@ -2360,7 +2396,8 @@ public class Game {
                     .mapToInt(vpByTeam::get).sum();
             teams.add(new TeamScore(team, myScore, theirScore,
                     VictoryCalculator.victoryLevel(myScore, theirScore).getLabel(),
-                    VictoryCalculator.round(coiByTeam.getOrDefault(team, 0.0))));
+                    VictoryCalculator.round(coiByTeam.getOrDefault(team, 0.0)),
+                    internalsScoredBy(team)));
         }
 
         return new Scoreboard(rows, teams);

@@ -190,6 +190,28 @@ public class Ship extends Unit implements DroneController {
 
 	// Internal damage crew/BP casualty tracking (G9.21, D7.21)
 	private int internalDamagePointsTotal = 0; // cumulative internal damage points scored on this ship
+
+	/**
+	 * (D3.21) Internal damage points scored ON THIS SHIP, by the TEAM that scored them.
+	 *
+	 * <h2>Recorded on the victim, summed by the scoreboard</h2>
+	 * SH47.5 asks "the player who scored the most internal hits on the other", and a per-side
+	 * total is the sum of these across every ship — including the destroyed ones, which is why it
+	 * lives here rather than in a counter on the attacker: a ship that blows up takes its own
+	 * damage history with it onto the destroyed list, where the scoreboard can still read it,
+	 * whereas a tally on the shooter would quietly include hits the shooter scored before being
+	 * captured and changing sides.
+	 *
+	 * <h2>Post-armor, and that is the rule</h2>
+	 * This counts beside {@code internalDamagePointsTotal}, which increments only after armor has
+	 * absorbed what it can — D3.21's exception: "in the case of ships with armor (D4.12), damage
+	 * which penetrates the shields must ALSO PENETRATE THE ARMOR before it is considered
+	 * 'internal' damage." So armor boxes shot off are not internals and are not counted.
+	 *
+	 * <p>Unattributed damage is not recorded at all. A mine, an asteroid or an exploding wreck
+	 * has no team, and nobody "scored" those — which is what SH47.5 is asking about.
+	 */
+	private final Map<String, Integer> internalsTakenByTeam = new java.util.LinkedHashMap<>();
 	private int crewKilledByInternalDamage = 0; // crew kill events already applied
 	private int bpCasualtiesProcessed = 0; // BP casualty events already processed (after 4-event grace)
 
@@ -2825,6 +2847,22 @@ public class Ship extends Unit implements DroneController {
 		state.put("tBombs", tBombs);
 		state.put("dummyTBombs", dummyTBombs);
 
+		// THE INTERNAL-DAMAGE HISTORY, none of which was saved before 2026-11-07.
+		//
+		// The running total is not a statistic: G9.21 kills a crew unit on every TENTH point
+		// and D7.21 takes a boarding party the same way, both measured against this cumulative
+		// figure. Losing it reset the odometer, so a ship that had taken nine internals needed
+		// ten more for its next casualty instead of one — and crewKilledByInternalDamage is the
+		// high-water mark that stops those kills being applied twice, so dropping that one
+		// alone would have killed the crew all over again on the first point after a reload.
+		//
+		// It was invisible for the usual reason: neither number reaches the DTO, so the
+		// whole-graph round-trip comparison cannot see either of them. Found while adding the
+		// per-team tally below, which needed somewhere to live.
+		state.put("internalDamagePointsTotal", internalDamagePointsTotal);
+		state.put("crewKilledByInternalDamage", crewKilledByInternalDamage);
+		state.put("internalsTakenByTeam", new java.util.LinkedHashMap<>(internalsTakenByTeam));
+
 		state.put("shields", shields.exportState());
 		state.put("hullBoxes", hullBoxes.exportState());
 		state.put("powerSystems", powerSystems.exportState());
@@ -2934,6 +2972,19 @@ public class Ship extends Unit implements DroneController {
 			planetFace = face.intValue();
 		tBombs = com.sfb.systemgroups.StateIo.integer(state, "tBombs", tBombs);
 		dummyTBombs = com.sfb.systemgroups.StateIo.integer(state, "dummyTBombs", dummyTBombs);
+
+		// Defaults are the CURRENT values, not zero, so a save written before these were
+		// carried leaves a freshly built hull's zeroes alone instead of claiming it had taken
+		// nine internals.
+		internalDamagePointsTotal = com.sfb.systemgroups.StateIo.integer(
+				state, "internalDamagePointsTotal", internalDamagePointsTotal);
+		crewKilledByInternalDamage = com.sfb.systemgroups.StateIo.integer(
+				state, "crewKilledByInternalDamage", crewKilledByInternalDamage);
+		internalsTakenByTeam.clear();
+		if (state.get("internalsTakenByTeam") instanceof Map<?, ?> saved)
+			for (Map.Entry<?, ?> e : saved.entrySet())
+				if (e.getValue() instanceof Number n)
+					internalsTakenByTeam.put(String.valueOf(e.getKey()), n.intValue());
 
 		activeFireControl = StateIo.flag(state, "activeFireControl", activeFireControl);
 		lifeSupportActive = StateIo.flag(state, "lifeSupportActive", lifeSupportActive);
@@ -4282,6 +4333,14 @@ public class Ship extends Unit implements DroneController {
 
 		for (int i = 0; i < bleedThrough; i++) {
 			internalDamagePointsTotal++;
+			// Beside the total, and for the same reason it is here: this is the one place a
+			// point becomes an internal. The DAC-choice pause does not re-count — the point
+			// that triggered the choice was counted on the way in, and applyDacChoiceHit
+			// applies the chosen box without coming back through this loop.
+			String scoringTeam = attacker == null || attacker.getOwner() == null ? null
+					: attacker.getOwner().getTeamName();
+			if (scoringTeam != null)
+				internalsTakenByTeam.merge(scoringTeam, 1, Integer::sum);
 
 			// G9.21: every 10th internal damage point kills 1 crew unit
 			int killThreshold = internalDamagePointsTotal / 10;
@@ -4557,6 +4616,11 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public boolean isDamaged() {
 		return internalDamagePointsTotal > 0;
+	}
+
+	/** (D3.21) Internals scored on this ship, by the team that scored them. */
+	public Map<String, Integer> getInternalsTakenByTeam() {
+		return internalsTakenByTeam;
 	}
 
 	public boolean movesThisImpulse(int impulse) {

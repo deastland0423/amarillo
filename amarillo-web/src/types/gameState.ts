@@ -744,6 +744,8 @@ export interface TeamScore {
   vpAgainst:      number;
   levelOfVictory: string;
   coiForfeited:   number; // total COI this side handed to the enemy (S2.20 B)
+  // (D3.21) Internals this side scored on the enemy, armor absorption excluded.
+  internalsScored: number;
 }
 
 export interface ObjectiveStanding {
