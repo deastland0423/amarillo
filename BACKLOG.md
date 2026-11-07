@@ -1892,7 +1892,7 @@ region first (MapRegion is there), then the floating map, then alliances. Victor
 and named characters are their own projects. SH47's training subset needed none of the four
 and has been built — see the next section.
 
-## SH47 "The Stasis Box" — training subset BUILT 2026-11-06
+## SH47 "The Stasis Box" — BUILT 2026-11-07, bar two clauses
 
 `data/scenarios/sh47.json`, guarded by `Sh47LoadsTest`. The first published scenario in this
 repo meant to be PLAYED rather than measured: Fed DD *Xerxes* at 4230 and Kzinti CL *Mystic* at
@@ -1922,7 +1922,7 @@ Three things about it are worth keeping:
   explicitly. Worth deciding whether the DEFAULT is wrong rather than restating it per file.
 
 **What the subset leaves out — the fog layer, which is the scenario's whole point:**
-- **Hidden counters BUILT 2026-11-07, except the NSMs.** SH47.46's box hunt works: eighteen
+- **Hidden counters BUILT 2026-11-07, NSMs and all.** SH47.46's box hunt works: eighteen
   face-down counters on the map, two Stasis Boxes among them, four withdrawn from the stack
   unseen so neither player knows whether two exist, one, or none (~66/31/2.6%). A ship searches
   one by entering its hex; the counter goes and what it held takes its place. `SearchMarkerTest`
@@ -1957,25 +1957,59 @@ Three things about it are worth keeping:
   every counter position is filled whatever the draw does. `keepingTheCountersChangesNoTerrain`
   pins it.
 
-  Still open here: **`Objective.revealed` now has no user.** The hidden-objective path still
-  works and the sweep still handles it — it is one rule, "a ship in the hex finds what is in the
-  hex" — but SH47 uses counters instead. Give it one more scenario; if nothing claims it, cut
-  it, the DTO omission and the scoreboard filter along with it.
-
-- **Scenario-placed free-standing mines.** NSM exists as a mine type with an M2.1 bay drop, but
-  `ScenarioSpec` has no `mines` field: nothing can pre-place one. SH47.48 then adds its own
-  clauses — armed only AFTER being revealed, triggering on size class 6 or larger, detonating
-  off the shield behind which the ship entered the hex.
-- **SH47.474's two-turn study.** Two complete turns in the hex before the shield comes down and
-  the box is beamed aboard. The `pickUpObjective` javadoc already names this as deferred; the
-  beam itself is built (`retrieveObjectByTransporter`, shields-down and all).
+- **The NSM counters BUILT (SH47.48).** Two of the twenty-two are nuclear space mines, and
+  finding one puts a live mine in its hex. It needed no new placement path: a DROPPED mine arms
+  by M2.34 once its layer is more than a hex away, and `MineResolver` reads a NULL layer as
+  `Integer.MAX_VALUE` — "not nearby" — which is the right answer for something left there a
+  month ago, and is exactly SH47.48's "the mines only roll for triggering AFTER they have been
+  revealed". The one-impulse gap before its first roll is the rule, not an ordering accident:
+  SH47.48 says a unit "might uncover a mine ... and then use a emergency deceleration ... and
+  thereby avoid triggering the mine", an escape that exists only because the uncovering move is
+  free. M2.14 size-class settings came with it, generally — a set on the mine, empty meaning
+  all (M2.141), non-contiguous allowed (M2.144). SH47 sets 1-6, and note the direction: a LARGER
+  size class is a SMALLER unit, so "size class 6 or larger" excludes drones at 7.
+- **SH47.474's two-turn study BUILT.** One accumulator, two accrual rules declared in the
+  scenario: `TURNS` (a complete turn in the hex, which is SH47) or `RESEARCH_POINTS` (the G4.11
+  chart at range 0, so lab boxes set the pace — and the first production caller
+  `calculateResearchPoints` has ever had). SH47 uses TURNS because its own balance section
+  forbids the alternative: a Fed DD has EIGHT labs to the Kzinti CL's four, and SH47.71 swaps
+  the CL for a Kzinti DD with TWO, so paying study out of labs would turn the lever meant to
+  help the weaker player into its opposite. Progress is per ship and WIPED on breaking off,
+  which is what makes SH47.8's weasel advice worth following.
+- **SH47.476 BOTH HALVES BUILT.** Guarding: D7.83 reads "specific individuals or objects", so a
+  carried objective is a guard target via an `OBJECTIVE:<name>` code through the ordinary
+  `assignGuard` — Energy-Allocation timing, the roster, D7.833's one-per-object, D7.834's
+  release on capture and D7.831's harsher chart all for free. A post cannot be put on something
+  the ship is not carrying, and cannot outlive its charge (one sweep at the turn boundary, not
+  a release call on each of the four ways a box leaves a hold). Raiding: D7.824 re-reads the
+  D7.81 chart — "'System destroyed and BP returned safely' is read 'target captured'" while
+  "'System and BP destroyed' is applied as stated". D7.825 makes the permission a scenario grant
+  (`raidCapture`/`raidDestroy`, both default false), and D7.85 is why they are TWO flags: "hit
+  and run raids can destroy, but not capture, a cloaking device". Which permitted attempt is
+  made stays the raider's choice (D7.824/D7.827), so the list offers one row per attempt and the
+  server gates each one.
 - **SH47.472 examination by shuttle or fighter.** End movement in the hex and roll a 1 or 2 —
-  and because a shuttle must END its movement there, only on impulse #32 of a turn.
-- **SH47.476 guarding a carried box.** Guards post to SSD systems, not to a carried object.
-  Same shape as D7.838's individuals in a room, so it falls out of that work rather than
-  needing its own.
+  and because a craft must END its movement there, only on impulse #32 of any given turn. Ships
+  examine counters today; craft reveal nothing, which is the harsher reading and the one that
+  cannot accidentally hand over a box. The sweep that would need extending is
+  `Game.revealObjectivesUnderShips`, which deliberately walks ships only.
 - **SH47.5's incident tiebreaker.** "If no boxes exist, the player who scored the most internal
-  hits on the other LOSES." Nothing tallies internal hits SCORED per side.
+  hits on the other LOSES the scenario and ruins his career by provoking an incident." Nothing
+  tallies internal hits SCORED per side — damage is recorded on the ship that took it, not
+  against the side that dealt it — and `VictoryConditions` has no way to express a loss
+  condition that fires only when another condition is unreachable. The rest of SH47.5 is built:
+  disengaging with a box wins, and two boxes can mean both players win.
+- **`Objective.revealed` has no user.** The hidden-objective path (a box hidden in the open
+  rather than under a counter) still works, is still tested, and the reveal sweep still handles
+  it — it is one rule, "a ship in the hex finds what is in the hex". But SH47 hides its boxes
+  under counters instead, which is the stronger mechanism because an unexamined box does not
+  exist to be leaked. Give it one more scenario; if nothing claims it, cut it along with its DTO
+  omission and scoreboard filter. Raised by the owner's standing objection to single-use paths,
+  and it is mine.
+- **Never seen in a browser.** Everything in this section is server-side and well covered by
+  tests, and none of it — the "?" counters, the mine reveal, the study log, the guard post, the
+  raid rows — has been looked at on a real map. That is the state in which a rendering or wiring
+  mistake hides, and it is now the largest risk here by some distance.
 
 Already built and used by the file: SH47.475 (`survivesCarrierDestruction`, whose code comment
 cites the clause), disengage-with-the-box-wins (a safe-edge exit calls
