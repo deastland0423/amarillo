@@ -1470,8 +1470,12 @@ export default function EnergyAllocationDialog({
 
           const shortName = (s: ShuttleObject) =>
             s.name.startsWith(activeTab + '-') ? s.name.slice(activeTab.length + 1) : s.name;
+          // OPEN by default. The section only renders when this ship has craft already
+          // flying, so if it is on screen at all there is something here to set — and it was
+          // collapsed, which made the only place to set a shuttle's speed invisible. The owner
+          // went looking for it during a playtest and could not find it.
           return (
-            <Collapsible title="Shuttle Speeds" color="#f0c040" defaultOpen={false}>
+            <Collapsible title="Shuttle Speeds" color="#f0c040" defaultOpen>
 
               {/* What craft in the BAYS get — crews, charges, arming — is Hangar
                   Operations. What is left here is the speed of the ones already
