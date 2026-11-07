@@ -214,8 +214,12 @@ public class SavedGame {
         return MAPPER.readValue(file, SavedGame.class);
     }
 
+    /**
+     * Write this save to disk. Atomic: see {@link JsonFiles#writeAtomically} — a save overwrites
+     * the previous one, so a failure partway through used to destroy both.
+     */
     public void toJson(File file) throws IOException {
-        MAPPER.writeValue(file, this);
+        JsonFiles.writeAtomically(MAPPER, file, this, SavedGame.class);
     }
 
     /** Round-trip through the JSON encoder without touching disk — what the tests lean on. */

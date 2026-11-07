@@ -166,7 +166,12 @@ public class FleetSpec {
         return MAPPER.readValue(file, FleetSpec.class);
     }
 
+    /**
+     * Write this fleet to disk. Atomic: see {@link JsonFiles#writeAtomically}. A fleet is edited
+     * and re-saved repeatedly under the same name, so an interrupted write took the previous
+     * version with it — and these are the owner's own files, not something a rebuild regenerates.
+     */
     public void toJson(File file) throws IOException {
-        MAPPER.writeValue(file, this);
+        JsonFiles.writeAtomically(MAPPER, file, this, FleetSpec.class);
     }
 }
