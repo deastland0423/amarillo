@@ -291,24 +291,27 @@ class MineResolver {
                 /*
                  * C10.46/C2.451: a mine reacts to EFFECTIVE speed, which folds in the cost of
                  * Erratic Maneuvers. C10.461 then falls straight out of the arithmetic rather
-                 * than needing a rule of its own: SpaceMine.detectsUnit triggers unconditionally
-                 * at speed six or more, and a non-nimble ship under EM adds six — so it "will
-                 * always trigger a mine ... if its speed is greater than zero", exactly as the
-                 * rule says, "because the six points of EM movement energy are added to speed for
-                 * this purpose". A nimble ship adds three (C10.462) and a shuttle one (C10.463),
-                 * both of which merely shorten the odds.
+                 * than needing a rule of its own: a mine triggers on a roll BELOW the effective
+                 * speed (M2.40), so seven or more is automatic — and six is exactly what EM adds
+                 * to a non-nimble ship. At any practical speed above zero it therefore "will
+                 * always trigger a mine", exactly as the rule says, "because the six points of EM
+                 * movement energy are added to speed for this purpose". A nimble ship adds three
+                 * (C10.462) and a shuttle one (C10.463), both of which merely shorten the odds —
+                 * which is the rule's own point that "either nimbleness or cloaking may protect a
+                 * slow ship from detonating every mine".
                  *
                  * Speed zero needs no special case: a stationary unit never ENTERS a mine hex.
                  */
                 int speed = unit.effectiveSpeed();
                 if (mine.detectsUnit(speed, roll)) {
-                    log.add("  tBomb detection: " + unit.getName()
-                            + " (roll " + roll + " ≤ speed " + speed + ") — TRIGGERED");
+                    log.add("  " + mine.getMineType().label + " detection: " + unit.getName()
+                            + " (roll " + roll + " < speed " + speed + ") — TRIGGERED");
                     triggered = true;
                     break;
                 } else {
-                    log.add("  tBomb detection: " + unit.getName()
-                            + " (roll " + roll + " > speed " + speed + ") — no trigger");
+                    log.add("  " + mine.getMineType().label + " detection: " + unit.getName()
+                            + " (roll " + roll + " ≥ speed " + speed
+                            + ") — detected in time and avoided");
                 }
             }
 

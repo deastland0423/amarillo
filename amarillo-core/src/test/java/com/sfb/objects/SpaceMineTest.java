@@ -182,69 +182,111 @@ public class SpaceMineTest {
         assertFalse(mine.detectsUnit(8, 1));
     }
 
+    /**
+     * (M2.40) A LOW roll triggers. "If the result is LESS THAN the unit's effective speed
+     * (C2.451), the mine has triggered. If the result is GREATER THAN OR EQUAL TO the unit's
+     * speed, the mine has been detected in time and avoided."
+     *
+     * <p>These three tests used to assert the opposite, which is how a rules bug lived here
+     * from the first client/server commit until 2026-11-07: the code read
+     * {@code diceRoll > speed} and the tests agreed with it. Tests written from the code rather
+     * than the rule cannot catch the code being wrong — they only pin it in place.
+     */
     @Test
-    public void detectsUnit_autoDetects_whenSpeedAtLeast6() {
+    public void detectsUnit_rollBelowSpeed_triggers() {
         SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
 
-        assertTrue(mine.detectsUnit(6, 1));   // speed == 6, any roll
-        assertTrue(mine.detectsUnit(6, 6));
-        assertTrue(mine.detectsUnit(10, 3));  // speed > 6
+        // speed 5 → triggers on 1-4
+        assertTrue(mine.detectsUnit(5, 2));
+        assertTrue(mine.detectsUnit(5, 3));
+        assertTrue(mine.detectsUnit(5, 4));
     }
 
+    /** "Detected in time and avoided" — the roll that equals the speed is an ESCAPE. */
     @Test
-    public void detectsUnit_rollGreaterThanSpeed_detects() {
+    public void detectsUnit_rollEqualToOrAboveSpeed_isAvoided() {
         SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
 
-        // speed 3 → detected if roll > 3
-        assertTrue(mine.detectsUnit(3, 4));
-        assertTrue(mine.detectsUnit(3, 5));
-        assertTrue(mine.detectsUnit(3, 6));
+        assertFalse("roll 3 against speed 3 is avoided", mine.detectsUnit(3, 3));
+        assertFalse("and anything above it", mine.detectsUnit(3, 4));
+        assertFalse(mine.detectsUnit(3, 6));
     }
 
+    /**
+     * Creeping is SAFE, which is the whole point the inverted version got backwards: M2.40 notes
+     * that "either nimbleness or cloaking may protect a slow ship from detonating every mine".
+     * At speed two only a one gets through — and that one is (M2.42), not the speed comparison.
+     */
     @Test
-    public void detectsUnit_rollEqualToSpeed_notDetected() {
+    public void detectsUnit_aCreepingShipIsNearlySafe() {
         SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
 
-        // speed 3, roll 3 → not detected
-        assertFalse(mine.detectsUnit(3, 3));
+        assertTrue("M2.42: a one always triggers", mine.detectsUnit(2, 1));
+        for (int roll = 2; roll <= 6; roll++)
+            assertFalse("speed two escapes on a " + roll, mine.detectsUnit(2, roll));
     }
 
+    /**
+     * (M2.42) "A die roll result of 'one' always results in the triggering of an active mine,
+     * regardless of the speed of the triggering unit." Needed as its own case: nothing is less
+     * than one, so a unit at speed one would otherwise be untouchable.
+     */
     @Test
-    public void detectsUnit_rollLessThanSpeed_notDetected() {
+    public void detectsUnit_aRollOfOneAlwaysTriggers() {
         SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
 
-        // speed 4, roll 2 → not detected
-        assertFalse(mine.detectsUnit(4, 2));
+        assertTrue(mine.detectsUnit(1, 1));
+        assertTrue(mine.detectsUnit(2, 1));
+        assertTrue(mine.detectsUnit(5, 1));
     }
 
+    /**
+     * (M2.47) "At speeds of seven or more the die roll would have been automatic." SEVEN, not
+     * six — and it needs no special case, because every die roll is less than seven. The old
+     * code short-circuited at six, which made a six rolled against speed six a detonation when
+     * the rule makes it an escape.
+     */
     @Test
-    public void detectsUnit_stationary_rollOf1_notDetected() {
+    public void detectsUnit_sevenOrMoreIsAutomaticAndSixIsNot() {
         SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
 
-        // speed 0 → detected only on roll > 0, i.e. always detected!
-        // roll 1 > 0 → detected
-        assertTrue(mine.detectsUnit(0, 1));
+        for (int roll = 1; roll <= 6; roll++)
+            assertTrue("speed seven is automatic, roll " + roll, mine.detectsUnit(7, roll));
+        for (int roll = 1; roll <= 6; roll++)
+            assertTrue("and anything faster", mine.detectsUnit(12, roll));
+
+        assertFalse("but a six against speed six escapes", mine.detectsUnit(6, 6));
+        assertTrue("while a five does not", mine.detectsUnit(6, 5));
     }
 
+    /**
+     * (M2.43) A STATIONARY unit is not this method's problem, and that is why there is no test
+     * asserting what it answers for speed zero.
+     *
+     * <p>"Impulses in which a moving unit does not actually move (i.e., change hexes) do not
+     * require a die roll, unless the unit is conducting Erratic Maneuvers (C10.46)." So the
+     * guard lives in the CALLER — {@code MineResolver} only rolls for a unit that changed hex
+     * this impulse — and the four tests that used to sit here were all written from the
+     * inverted comparison rather than from M2.40. One of them was named
+     * {@code detectsUnit_stationary_rollOf1_notDetected} and asserted the opposite of its own
+     * name, with a comment explaining that speed zero meant "always detected". That is a fair
+     * description of what the code did and no description at all of the rule.
+     */
     @Test
-    public void detectsUnit_speed5_roll6_detects() {
+    public void aStationaryUnitIsTheCallersProblem() {
         SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
 
-        assertTrue(mine.detectsUnit(5, 6));
-    }
-
-    @Test
-    public void detectsUnit_speed5_roll5_notDetected() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
-        mine.tryActivate(12, 5);
-
-        assertFalse(mine.detectsUnit(5, 5));
+        // Asserted only so the claim above cannot rot: nothing is below zero, so the speed
+        // comparison can never trigger, and M2.42's one is the only way through.
+        for (int roll = 2; roll <= 6; roll++)
+            assertFalse("speed zero cannot be caught by the comparison, roll " + roll,
+                    mine.detectsUnit(0, roll));
     }
 
     // -------------------------------------------------------------------------

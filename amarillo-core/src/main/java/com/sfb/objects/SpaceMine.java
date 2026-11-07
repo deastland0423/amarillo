@@ -155,23 +155,49 @@ public class SpaceMine extends Marker {
     // -------------------------------------------------------------------------
 
     /**
-     * Check whether this active tBomb detects a unit moving at {@code speed}.
-     * Rolls 1d6 for slow units. Returns true if the unit is detected.
+     * (M2.40/M2.42) Whether this armed mine triggers on a unit that has just moved into its
+     * detection zone at {@code speed}.
      *
-     * <p>
-     * The caller is responsible for confirming the unit is within range 1
-     * before calling this method.
+     * <h2>A LOW roll triggers, and this was backwards until 2026-11-07</h2>
+     * M2.40: "roll a single die. If the result is LESS THAN the unit's effective speed
+     * (C2.451), the mine has triggered. If the result is GREATER THAN OR EQUAL TO the unit's
+     * speed, the mine has been detected in time and avoided; it does not trigger on that
+     * impulse."
      *
-     * @param speed    The speed of the unit being checked.
-     * @param diceRoll A pre-rolled 1d6 value (1–6). Ignored when speed &ge; 6.
-     * @return true if the tBomb detects the unit and should detonate.
+     * <p>The code read {@code diceRoll > speed}, which inverted the whole gradient: a ship
+     * creeping at speed one set a mine off five times in six while one at speed five escaped
+     * five times in six. It contradicted its own endpoint, since the same method then triggered
+     * unconditionally at high speed, and it contradicted the rule's note that "either
+     * nimbleness or cloaking may protect a SLOW ship from detonating every mine". It survived
+     * from the first client/server commit because the tests asserted the same misreading, and
+     * it was found in play by a Kzinti CL that ate a nuclear space mine at speed two on a roll
+     * of six — a log line that disagreed with itself ("roll 6 &le; speed 2").
+     *
+     * <h2>No auto-detect threshold any more</h2>
+     * There was a {@code speed >= 6} short circuit. It is gone, because with the comparison the
+     * right way round the automatic case falls out of the arithmetic at SEVEN and above — every
+     * die roll from one to six is less than seven. Seven is also what the rules say: the worked
+     * example in (M2.47) notes "at speeds of seven or more the die roll would have been
+     * automatic". The old constant made speed six automatic, which it is not: a six rolled
+     * against speed six is an escape.
+     *
+     * <p>(M2.42) is the one special case left: "a die roll result of 'one' always results in the
+     * triggering of an active mine, regardless of the speed of the triggering unit." Needed
+     * because a unit at speed one would otherwise be untouchable — nothing is less than one.
+     *
+     * <p>The caller confirms the unit is inside the detection zone, moved this impulse, and is
+     * an acceptable size class (M2.14) before calling this.
+     *
+     * @param speed    the unit's EFFECTIVE speed (C2.451), which folds in Erratic Maneuvers
+     * @param diceRoll a pre-rolled 1d6 value (1–6)
+     * @return true if the mine triggers
      */
     public boolean detectsUnit(int speed, int diceRoll) {
         if (!active)
             return false;
-        if (speed >= 6)
-            return true;
-        return diceRoll > speed;
+        if (diceRoll == 1)
+            return true;            // M2.42
+        return diceRoll < speed;    // M2.40
     }
 
     // -------------------------------------------------------------------------

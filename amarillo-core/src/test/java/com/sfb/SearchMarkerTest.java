@@ -379,9 +379,9 @@ public class SearchMarkerTest {
      * and the behaviour was not. This drives a real drone past a real mine.
      *
      * <h2>How it is made deterministic</h2>
-     * No dice are seeded. {@code detectsUnit} triggers UNCONDITIONALLY at effective speed six
-     * or more, and a drone flies far faster than that, so an accepted drone always sets the
-     * mine off and an ignored one never does. The Klingon sits at speed zero in the mine's own
+     * No dice are seeded. A mine triggers on a roll BELOW the effective speed (M2.40), so
+     * SEVEN or more is automatic — every die roll is below seven — and a drone flies far faster
+     * than that. So an accepted drone always sets the mine off and an ignored one never does. The Klingon sits at speed zero in the mine's own
      * hex: a unit that did not move does not trigger, so the only thing moving in range is the
      * drone.
      */

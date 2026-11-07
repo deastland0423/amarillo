@@ -139,8 +139,9 @@ public class EffectiveSpeedTest {
      * than zero (because the six points of EM movement energy are added to speed for this
      * purpose)."
      * <p>
-     * No rule of its own was needed: {@code SpaceMine.detectsUnit} already triggers
-     * unconditionally at six or more, and six is exactly what EM adds.
+     * No rule of its own was needed: a mine triggers on a roll BELOW the effective speed
+     * (M2.40), so seven or more is automatic, and six is exactly what EM adds to a non-nimble
+     * ship at any practical speed above zero.
      */
     @Test
     public void aShipUnderEmAlwaysTripsAMine() {
@@ -150,10 +151,14 @@ public class EffectiveSpeedTest {
         assertTrue("fixture: an unarmed mine detects nothing at all", mine.isActive());
         ship.setSpeed(1);
 
-        // M3.22 detects on a roll GREATER than the speed, so creeping is the dangerous thing:
-        // at a practical speed of one, only a roll of one gets the ship past.
-        assertFalse("a one saves it at practical speed one",
+        // (M2.40) A mine triggers on a roll BELOW the speed, so creeping is the SAFE thing and
+        // a ship at practical speed one escapes every roll but the one (M2.42) that always
+        // triggers. This assertion was the other way round while the comparison was inverted.
+        assertTrue("M2.42: a one triggers whatever the speed",
                 mine.detectsUnit(ship.effectiveSpeed(), 1));
+        for (int roll = 2; roll <= 6; roll++)
+            assertFalse("creeping at one escapes a " + roll,
+                    mine.detectsUnit(ship.effectiveSpeed(), roll));
 
         beginEm(ship);
 
@@ -167,10 +172,11 @@ public class EffectiveSpeedTest {
      * And the same thing through the engine, because the number is only worth having if the mine
      * sweep is the thing that reads it.
      * <p>
-     * The arithmetic is what makes this deterministic. At a practical speed of five a mine detects
-     * on a roll GREATER than five, so only a six trips it — one trial in six. Add EM's six points
-     * and the effective speed is eleven, past the auto-detection threshold, so nothing saves the
-     * ship. Every trial must detonate; reading practical speed instead would need a run of sixes.
+     * The arithmetic is what makes this deterministic. At a practical speed of five a mine
+     * triggers on a roll BELOW five (M2.40), so a five or a six gets the ship past — two trials
+     * in six. Add EM's six points and the effective speed is eleven, so every roll is below it
+     * and nothing saves the ship. Every trial must detonate; reading practical speed instead
+     * would let a third of the trials through.
      */
     @Test
     public void theMineSweepReadsEffectiveSpeed() {
