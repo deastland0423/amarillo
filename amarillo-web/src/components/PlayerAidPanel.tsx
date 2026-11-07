@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { gameApi } from '../api/gameApi';
+import { useDraggable } from '../hooks/useDraggable';
 import { readChart, riskSummary, type TerrainChartData } from '../game/terrainCharts';
 
 /**
@@ -26,6 +27,12 @@ export function PlayerAidPanel({ gameId, shipName, onClose }: {
   shipName: string | null;
   onClose: () => void;
 }) {
+  // FLOATING and draggable, like the Energy Allocation dialog and the Aegis pads — not a
+  // full-screen overlay like Score. A full-screen one would cover the EA dialog, and consulting
+  // the chart WHILE choosing a speed is the whole point of having it: the owner found it worked
+  // that way by luck when the button lived in the sidebar, and it would have been a regression
+  // to take it away by moving the button to the toolbar.
+  const drag = useDraggable({ left: 24, top: 120 });
   const [data, setData] = useState<TerrainChartData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,10 +47,13 @@ export function PlayerAidPanel({ gameId, shipName, onClose }: {
   }, [gameId, shipName]);
 
   return (
-    <div className="sidebar-section">
-      <div className="sidebar-section-title">
-        Player Aid: Terrain
-        <button className="secondary" style={{ float: 'right' }} onClick={onClose}>Close</button>
+    <div style={{ ...panelStyle, left: drag.position.left, top: drag.position.top }}>
+      <div style={headerStyle} {...drag.handleProps} title="Drag to move">
+        <span style={{ fontWeight: 700 }}>Terrain Charts</span>
+        <button className="secondary" style={{ padding: '0 8px' }}
+                title="Close" onClick={onClose}>
+          {String.fromCharCode(10005)}
+        </button>
       </div>
 
       {error && <div style={{ fontSize: '0.75rem', color: '#f85149' }}>{error}</div>}
@@ -93,3 +103,24 @@ export function PlayerAidPanel({ gameId, shipName, onClose }: {
     </div>
   );
 }
+
+const panelStyle: React.CSSProperties = {
+  position: 'fixed',
+  width: 320,
+  maxHeight: '80vh',
+  overflowY: 'auto',
+  zIndex: 45,                    // the same band as the Aegis pads
+  background: '#161b22',
+  border: '1px solid #f0c040',   // amber, like the allocation dialog it is usually read beside
+  borderRadius: 6,
+  padding: 10,
+  boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
+};
+
+const headerStyle: React.CSSProperties = {
+  cursor: 'grab',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: 8,
+};

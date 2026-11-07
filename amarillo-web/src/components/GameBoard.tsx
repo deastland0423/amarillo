@@ -790,8 +790,6 @@ interface SidebarProps {
   // Transporters submenu
   transportersOpen:    boolean;
   onToggleTransporters: () => void;
-  playerAidOpen: boolean;
-  onTogglePlayerAid: () => void;
   // Beam a free objective aboard by transporter (SH47) — objective-pick mode
   beamObjectMode:       boolean;
   canBeamObjectTargets: boolean;
@@ -860,7 +858,6 @@ function ShipSidebar({
   harMode, harTarget, harOptions, harParties, harError, harLoading,
   onStartHar, onCancelHar, onSetHarParties, onSubmitHar,
   transportersOpen, onToggleTransporters,
-  playerAidOpen, onTogglePlayerAid,
   beamObjectMode, canBeamObjectTargets, onStartBeamObject, onCancelBeamObject,
   crewMode, crewTarget, crewAmount, crewError,
   onStartCrew, onCancelCrew, onSetCrewAmount, onSubmitCrew,
@@ -953,30 +950,6 @@ function ShipSidebar({
       {/* ---- Action strip ---- */}
       {isMine && (
         <div className="sidebar-action-strip">
-
-          {/*
-            PLAYER AID, outside every phase gate on purpose.
-            This first shipped inside the Activity row, which was the wrong place and a
-            placement I did not check: the chart exists to help choose a SPEED, and speed is
-            chosen during Energy Allocation, where that row does not render. A reference table
-            is not a phase action — it is the Annex, and the Annex is on the desk all game.
-          */}
-          <div className="action-btn-row">
-            <button
-              className={`action-strip-btn${playerAidOpen ? ' active' : ''}`}
-              onClick={onTogglePlayerAid}
-              title="Terrain collision charts (P3.2, P2.223), with this ship's row and column marked"
-            >
-              Charts
-            </button>
-          </div>
-          {playerAidOpen && (
-            <PlayerAidPanel
-              gameId={gameId}
-              shipName={ship.name}
-              onClose={onTogglePlayerAid}
-            />
-          )}
 
           {/* Movement phase: compact move grid */}
           {phase === 'Movement' && (
@@ -2556,6 +2529,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   // permanent risk readout, which is both less interface and more information — see
   // PlayerAidPanel for why the table beats a forecast.
   const [playerAidOpen, setPlayerAidOpen] = useState(false);
+  const [exitMenuOpen, setExitMenuOpen] = useState(false);
   const [crewMode,    setCrewMode]    = useState(false);
   const [crewTarget,  setCrewTarget]  = useState<ShipObject | null>(null);
   const [crewAmount,  setCrewAmount]  = useState(1);
@@ -4386,30 +4360,56 @@ export default function GameBoard({ session, onLeave }: Props) {
             it sat next to Ready and was being hit instead of it. */}
         <div className="topbar-left">
           <span className="board-title">Amarillo</span>
-          {!gameState?.gameOver && (
+          {/*
+            ONE Exit button for the three ways out, which were three buttons crowding the
+            toolbar: Concede, Leave and End game. They are not interchangeable and the menu
+            says which is which — Leave keeps your seat, Concede destroys your ships, End takes
+            the game away from everybody — because "Leave" and "End game" sitting side by side
+            was the pair most easily confused.
+
+            Each still routes through the existing confirmExit dialog, so collapsing them took
+            no safety away and arguably added a click's worth.
+          */}
+          <div style={{ position: 'relative' }}>
             <button
               className="secondary"
-              style={{ borderColor: '#f85149', color: '#f85149' }}
-              onClick={() => setConfirmExit('concede')}
-              title="Concede — all your ships are destroyed"
+              onClick={() => setExitMenuOpen(o => !o)}
+              title="Leave, concede, or end the game"
             >
-              Concede
+              Exit {String.fromCharCode(9662)}
             </button>
-          )}
-          <button className="secondary" onClick={() => setConfirmExit('leave')}>Leave</button>
-          {/* Host only: a save is taken of the whole battle, so it is not a per-player action. */}
-          {/* Host only, and sitting beside Leave because the two are easy to confuse: Leave
-              keeps your seat, End takes the game away from everybody. */}
-          {session.isHost && (
-            <button
-              className="secondary"
-              style={{ borderColor: '#f85149', color: '#f85149' }}
-              onClick={() => setConfirmExit('end')}
-              title="End this game for every player and free it on the server"
-            >
-              End game
-            </button>
-          )}
+            {exitMenuOpen && (
+              <div className="topbar-menu">
+                <button
+                  className="secondary"
+                  onClick={() => { setExitMenuOpen(false); setConfirmExit('leave'); }}
+                  title="Leave the game but keep your seat — you can rejoin"
+                >
+                  Leave game
+                </button>
+                {!gameState?.gameOver && (
+                  <button
+                    className="secondary"
+                    style={{ borderColor: '#f85149', color: '#f85149' }}
+                    onClick={() => { setExitMenuOpen(false); setConfirmExit('concede'); }}
+                    title="Concede — all your ships are destroyed"
+                  >
+                    Concede
+                  </button>
+                )}
+                {session.isHost && (
+                  <button
+                    className="secondary"
+                    style={{ borderColor: '#f85149', color: '#f85149' }}
+                    onClick={() => { setExitMenuOpen(false); setConfirmExit('end'); }}
+                    title="End this game for every player and free it on the server"
+                  >
+                    End for everyone
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           {session.isHost && (
             <button
               className="secondary"
@@ -4439,6 +4439,16 @@ export default function GameBoard({ session, onLeave }: Props) {
           <button className="secondary" onClick={() => setShowScore(true)}
                   title="Current victory-point standings (S2.21)">
             Score
+          </button>
+          {/* A player aid belongs with Score rather than on a ship: it is the Annex, not a
+              ship action, and it is wanted in every phase — including Energy Allocation, where
+              the ship action strip does not render at all. */}
+          <button
+            className={`secondary${playerAidOpen ? ' active' : ''}`}
+            onClick={() => setPlayerAidOpen(o => !o)}
+            title="Terrain collision charts (P3.2, P2.223), with the selected ship's row and column marked"
+          >
+            Charts
           </button>
         </div>
         <span className="board-phase">
@@ -4695,8 +4705,6 @@ export default function GameBoard({ session, onLeave }: Props) {
             onSubmitHar={handleSubmitHar}
             transportersOpen={transportersOpen}
             onToggleTransporters={handleToggleTransporters}
-            playerAidOpen={playerAidOpen}
-            onTogglePlayerAid={() => setPlayerAidOpen(o => !o)}
             crewMode={crewMode}
             crewTarget={crewTarget}
             crewAmount={crewAmount}
@@ -5124,6 +5132,16 @@ export default function GameBoard({ session, onLeave }: Props) {
       )}
 
       {/* Energy allocation dialog — floating, draggable, no overlay */}
+      {/* Floating, so it can be read while the allocation dialog is open — which is exactly
+          when a player is choosing the speed the chart is about. */}
+      {playerAidOpen && (
+        <PlayerAidPanel
+          gameId={session.gameId}
+          shipName={liveShip?.name ?? null}
+          onClose={() => setPlayerAidOpen(false)}
+        />
+      )}
+
       {gameState?.awaitingAllocation && !eaDismissed && (
         <EnergyAllocationDialog
           gameId={session.gameId}

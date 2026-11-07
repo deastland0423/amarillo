@@ -3350,3 +3350,26 @@ h3 {
   color: #e6edf3;
   font-weight: 600;
 }
+
+/* Topbar dropdown (the Exit menu). Absolute under its button, above the map and the pads so a
+   half-open menu is never painted over. */
+.topbar-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 1001;
+  min-width: 11rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.topbar-menu button {
+  width: 100%;
+  text-align: left;
+}
