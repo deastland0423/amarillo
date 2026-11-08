@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { gameApi } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
 import { readChart, riskSummary, type TerrainChartData } from '../game/terrainCharts';
+import { edgeLabel, yourSide, type BriefingData } from '../game/briefing';
 
 /**
  * The printed charts, on screen, knowing which cell you are reading.
@@ -22,9 +23,19 @@ import { readChart, riskSummary, type TerrainChartData } from '../game/terrainCh
  * the server's answer for the selected ship, and every cell shows what THAT ship suffers on
  * THAT roll — the C11.21 nimble shift and the D6.628 passive penalty already folded in.
  */
-export function PlayerAidPanel({ gameId, shipName, onClose }: {
+/**
+ * The pad holds more than one aid, and the player chooses which — a MULTI-select, not tabs,
+ * because the two get read together: the briefing says which edge is yours and the charts say
+ * what the asteroids between you and it will cost. Asked for in play, 2026-11-07.
+ */
+type AidSection = 'briefing' | 'charts';
+
+export function PlayerAidPanel({ gameId, playerToken, shipName, mapCols, mapRows, onClose }: {
   gameId: string;
+  playerToken: string;
   shipName: string | null;
+  mapCols: number;
+  mapRows: number;
   onClose: () => void;
 }) {
   // FLOATING and draggable, like the Energy Allocation dialog and the Aegis pads — not a
@@ -35,6 +46,28 @@ export function PlayerAidPanel({ gameId, shipName, onClose }: {
   const drag = useDraggable({ left: 24, top: 120 });
   const [data, setData] = useState<TerrainChartData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Both open to begin with. The briefing is short and sits above the charts, so showing it
+  // costs the charts a line or two of scroll and answers "what am I doing here" without a
+  // click. Either can be shut off and the choice holds while the pad is open.
+  const [sections, setSections] = useState<AidSection[]>(['briefing', 'charts']);
+  const [briefing, setBriefing] = useState<BriefingData | null>(null);
+  const [briefingError, setBriefingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    gameApi.getBriefing(gameId, playerToken)
+      .then(b => { if (live) { setBriefing(b); setBriefingError(null); } })
+      .catch(e => {
+        if (live) setBriefingError(e instanceof Error ? e.message : 'Could not load the briefing');
+      });
+    return () => { live = false; };
+  }, [gameId, playerToken]);
+
+  function toggle(section: AidSection) {
+    setSections(open => open.includes(section)
+      ? open.filter(s => s !== section)
+      : [...open, section]);
+  }
 
   useEffect(() => {
     let live = true;
@@ -49,23 +82,104 @@ export function PlayerAidPanel({ gameId, shipName, onClose }: {
   return (
     <div style={{ ...panelStyle, left: drag.position.left, top: drag.position.top }}>
       <div style={headerStyle} {...drag.handleProps} title="Drag to move">
-        <span style={{ fontWeight: 700 }}>Terrain Charts</span>
+        <span style={{ fontWeight: 700 }}>Player Aid</span>
         <button className="secondary" style={{ padding: '0 8px' }}
                 title="Close" onClick={onClose}>
           {String.fromCharCode(10005)}
         </button>
       </div>
 
-      {error && <div style={{ fontSize: '0.75rem', color: '#f85149' }}>{error}</div>}
-      {!data && !error && <div>Loading charts…</div>}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+        {(['briefing', 'charts'] as AidSection[]).map(section => (
+          <button
+            key={section}
+            className={`secondary${sections.includes(section) ? ' active' : ''}`}
+            style={{ flex: 1, fontSize: '0.75rem', textTransform: 'capitalize' }}
+            onClick={() => toggle(section)}
+          >
+            {section}
+          </button>
+        ))}
+      </div>
 
-      {data?.you && (
+      {sections.includes('briefing') && (
+        <div style={{ marginBottom: sections.includes('charts') ? 16 : 0 }}>
+          {briefingError && (
+            <div style={{ fontSize: '0.75rem', color: '#f85149' }}>{briefingError}</div>
+          )}
+          {!briefing && !briefingError && <div>Loading briefing…</div>}
+          {briefing && (
+            <>
+              <div style={{ fontWeight: 600 }}>{briefing.name || 'Scenario'}</div>
+              {briefing.description && (
+                <div style={{ fontSize: 12, margin: '4px 0 8px', lineHeight: 1.45 }}>
+                  {briefing.description}
+                </div>
+              )}
+
+              {/* The line this panel was built for: a player carrying an objective needs to
+                  know which way out is his, and leaving by any other edge destroys the ship. */}
+              {(() => {
+                const side = yourSide(briefing);
+                if (!side) return null;
+                return (
+                  <div style={{
+                    border: '1px solid #3fb950', borderRadius: 4,
+                    padding: '6px 8px', margin: '0 0 8px', fontSize: 12,
+                  }}>
+                    <div style={{ color: '#3fb950', fontWeight: 600 }}>
+                      Your exit — {side.name}
+                    </div>
+                    <div>
+                      {side.exitEdges.length === 0
+                        ? 'No edge: this side cannot disengage off the map.'
+                        : `Disengage off the ${side.exitEdges
+                            .map(e => edgeLabel(e, mapCols, mapRows)).join(' or ')}.`}
+                    </div>
+                    {side.destructionEdges.length > 0 && (
+                      <div style={{ color: '#f85149', marginTop: 2 }}>
+                        Leaving by the {side.destructionEdges
+                          .map(e => edgeLabel(e, mapCols, mapRows)).join(', ')} destroys the ship.
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {briefing.victoryNotes && (
+                <div style={{ fontSize: 12, marginBottom: 8, lineHeight: 1.45 }}>
+                  <span style={{ fontWeight: 600 }}>Victory. </span>
+                  {briefing.victoryNotes}
+                </div>
+              )}
+
+              {briefing.specialRules.length > 0 && (
+                <div style={{ fontSize: 12, lineHeight: 1.45 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 2 }}>Special rules</div>
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>
+                    {briefing.specialRules.map((rule, i) => (
+                      <li key={i} style={{ marginBottom: 4 }}>{rule}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {sections.includes('charts') && error && (
+        <div style={{ fontSize: '0.75rem', color: '#f85149' }}>{error}</div>
+      )}
+      {sections.includes('charts') && !data && !error && <div>Loading charts…</div>}
+
+      {sections.includes('charts') && data?.you && (
         <div style={{ fontSize: 12, opacity: 0.85, margin: '4px 0 8px' }}>
           {data.you.modifiers.join(' · ')}
         </div>
       )}
 
-      {data?.charts.map(chart => {
+      {sections.includes('charts') && data?.charts.map(chart => {
         const cells = readChart(chart, data.you);
         return (
           <div key={chart.rule} style={{ marginBottom: 14 }}>
@@ -96,10 +210,16 @@ export function PlayerAidPanel({ gameId, shipName, onClose }: {
         );
       })}
 
-      <div style={{ fontSize: 11, opacity: 0.7 }}>
-        Damage is to the shield facing the hex entered. Speed columns read EFFECTIVE speed
-        (C2.451), so Erratic Maneuvers are already counted.
-      </div>
+      {sections.includes('charts') && (
+        <div style={{ fontSize: 11, opacity: 0.7 }}>
+          Damage is to the shield facing the hex entered. Speed columns read EFFECTIVE speed
+          (C2.451), so Erratic Maneuvers are already counted.
+        </div>
+      )}
+
+      {sections.length === 0 && (
+        <div style={{ fontSize: 12, opacity: 0.7 }}>Pick an aid above.</div>
+      )}
     </div>
   );
 }

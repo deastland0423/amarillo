@@ -4501,9 +4501,9 @@ export default function GameBoard({ session, onLeave }: Props) {
           <button
             className={`secondary${playerAidOpen ? ' active' : ''}`}
             onClick={() => setPlayerAidOpen(o => !o)}
-            title="Terrain collision charts (P3.2, P2.223), with the selected ship's row and column marked"
+            title="Scenario briefing and terrain collision charts (P3.2, P2.223)"
           >
-            Charts
+            Player Aid
           </button>
         </div>
         <span className="board-phase">
@@ -5196,7 +5196,10 @@ export default function GameBoard({ session, onLeave }: Props) {
       {playerAidOpen && (
         <PlayerAidPanel
           gameId={session.gameId}
+          playerToken={session.playerToken}
           shipName={liveShip?.name ?? null}
+          mapCols={gameState?.mapCols ?? 42}
+          mapRows={gameState?.mapRows ?? 30}
           onClose={() => setPlayerAidOpen(false)}
         />
       )}

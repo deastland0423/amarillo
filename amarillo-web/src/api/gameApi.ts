@@ -1313,6 +1313,20 @@ export const gameApi = {
     return request(`/api/games/${gameId}/player-aid/terrain${q}`);
   },
 
+  /**
+   * The scenario briefing. The token is optional and only decides which side is marked as
+   * yours — everything else is common knowledge, printed on the scenario page both captains
+   * read before play.
+   */
+  getBriefing(
+    gameId: string,
+    playerToken?: string | null,
+  ): Promise<import('../game/briefing').BriefingData> {
+    return request(`/api/games/${gameId}/player-aid/briefing`, {
+      headers: playerToken ? { 'X-Player-Token': playerToken } : undefined,
+    });
+  },
+
   getHarOptions(
     gameId: string,
     playerToken: string,

@@ -3338,6 +3338,91 @@ public class GameController {
         });
     }
 
+    /**
+     * The scenario briefing, as a player aid.
+     *
+     * <h2>Why this exists</h2>
+     * Everything here was already in the scenario file and none of it was reachable once the
+     * battle started: the description and special rules are shown by the pre-game picker and
+     * nowhere else, and the disengagement edges were read into {@code Game} and never left
+     * core at all. The owner, carrying a Stasis Box and needing to know which edge was his,
+     * had no way to look it up (2026-11-07).
+     *
+     * <h2>No secrets here</h2>
+     * A scenario is a printed page both captains read before play. The special rules, the
+     * victory conditions and BOTH sides' exit edges are common knowledge, so the only
+     * per-viewer part is which side is yours — {@code you}, so the panel can say "your edge"
+     * rather than making the player match a team name. Deliberately not redacted; if a later
+     * scenario carries something genuinely one-sided, it needs a field of its own rather than
+     * a filter here.
+     */
+    @GetMapping("/{id}/player-aid/briefing")
+    public ResponseEntity<?> getBriefing(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Player-Token", required = false) String token) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            com.sfb.scenario.ScenarioSpec spec = session.getLoadedSpec();
+            Map<String, Object> out = new java.util.LinkedHashMap<>();
+            if (spec == null) {
+                // A game started without a scenario (a straight duel) still answers, so the
+                // panel has one shape to render rather than two.
+                out.put("name", "");
+                out.put("description", "");
+                out.put("specialRules", List.of());
+                out.put("sides", List.of());
+                return ResponseEntity.ok(out);
+            }
+
+            out.put("name", spec.name != null ? spec.name : "");
+            out.put("description", spec.description != null ? spec.description : "");
+            out.put("specialRules", spec.specialRules != null ? spec.specialRules : List.of());
+            out.put("victoryType", spec.victoryConditions != null && spec.victoryConditions.type != null
+                    ? spec.victoryConditions.type : "STANDARD");
+            out.put("victoryNotes", spec.victoryConditions != null && spec.victoryConditions.notes != null
+                    ? spec.victoryConditions.notes : "");
+            out.put("maxTurns", session.getGame().getMaxTurns());
+
+            String yourTeam = null;
+            GameSession.PlayerInfo me = token == null ? null : session.getPlayers().get(token);
+            if (me != null && me.getCorePlayer() != null)
+                yourTeam = me.getCorePlayer().getTeamName();
+
+            List<Map<String, Object>> sides = new ArrayList<>();
+            if (spec.sides != null) {
+                for (com.sfb.scenario.ScenarioSpec.SideSpec side : spec.sides) {
+                    Map<String, Object> s = new java.util.LinkedHashMap<>();
+                    s.put("name", side.name != null ? side.name : "");
+                    s.put("faction", side.faction != null ? side.faction : "");
+                    s.put("yours", side.name != null && side.name.equals(yourTeam));
+                    // The edges a ship may LEAVE by, which is what a player actually wants —
+                    // the file states the opposite, the ones that destroy it. Both are sent:
+                    // "you may go out the right" and "the other three kill you" are different
+                    // sentences and the panel says both.
+                    java.util.Set<String> deadly = side.destructionEdges != null
+                            ? side.destructionEdges : java.util.Set.of();
+                    List<String> exits = new ArrayList<>();
+                    for (String edge : List.of("TOP", "BOTTOM", "LEFT", "RIGHT"))
+                        if (!deadly.contains(edge))
+                            exits.add(edge);
+                    s.put("exitEdges", exits);
+                    s.put("destructionEdges", new java.util.TreeSet<>(deadly));
+                    s.put("ships", side.ships == null ? List.of() : side.ships.stream()
+                            .map(sh -> sh.shipName != null && !sh.shipName.isBlank()
+                                    ? sh.shipName : sh.type)
+                            .toList());
+                    sides.add(s);
+                }
+            }
+            out.put("sides", sides);
+            return ResponseEntity.ok(out);
+        });
+    }
+
     private static Map<String, Object> chart(String name, String rule, int[][] rows) {
         Map<String, Object> m = new java.util.LinkedHashMap<>();
         m.put("name", name);
