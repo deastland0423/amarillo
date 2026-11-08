@@ -2,6 +2,7 @@ package com.sfb;
 
 import com.sfb.dto.GameStateDto;
 import com.sfb.objects.Objective;
+import com.sfb.objects.SearchMarker;
 import com.sfb.objects.Ship;
 import com.sfb.properties.Location;
 import com.sfb.properties.RetrievalMethod;
@@ -315,6 +316,58 @@ public class ObjectiveFogTest {
         assertTrue("the refusal should say how far along: " + result.getMessage(),
                 result.getMessage().contains("0 of 2"));
         assertNull("and it stays where it is", box.getCarrier());
+    }
+
+    /**
+     * (SH47.474) The turn the box is FOUND is not one of the two.
+     *
+     * <p>The rule starts the clock at the examination — "If the examined counter is a Stasis
+     * Box ... he must spend two complete turns in the hex studying the Stasis Box with his
+     * instruments" — and a turn the ship spent part of not knowing the box was there is not a
+     * complete turn of studying it.
+     *
+     * <p>Reported in play 2026-11-07: a Kzinti CL arrived on a counter on turn 1 impulse 32,
+     * spent all of turn 2 on it, and was told "2 of 2, ready to beam aboard" at the end of
+     * turn 2 — a whole turn early. A hidden box is in no list until it is found, so
+     * noteStudyPositions could not record a break for the 31 impulses before it existed, and
+     * the discovery turn reached the payout unbroken.
+     */
+    @Test
+    public void theTurnTheBoxIsFoundIsNotOneOfTheTwo() {
+        Game game = runningGame();      // the Federation CA is at 10|10
+        Objective hidden = new Objective("Stasis Box", 0, 0);
+        hidden.getAllowedRetrieval().add(RetrievalMethod.TRANSPORTER);
+        hidden.setStudy(Objective.StudyMode.TURNS, 2);
+        game.addSearchMarker(SearchMarker.hiding(new Location(10, 10), hidden));
+
+        endTurn(game);                  // turn 1: the counter is turned over during it
+        Objective box = game.getObjectives().get(0);
+        assertEquals("the turn of the find buys nothing",
+                0, box.studyProgressFor("USS Enterprise"));
+
+        endTurn(game);                  // turn 2: the first complete turn of study
+        assertEquals("one turn in", 1, box.studyProgressFor("USS Enterprise"));
+        assertFalse("and not ready to beam yet — this is the turn that was given away",
+                box.isStudiedBy("USS Enterprise"));
+
+        endTurn(game);                  // turn 3: the second
+        assertEquals(2, box.studyProgressFor("USS Enterprise"));
+        assertTrue(box.isStudiedBy("USS Enterprise"));
+    }
+
+    /**
+     * And a box the scenario placed face up is NOT affected: nothing was discovered, so the
+     * first turn in its hex is a complete turn like any other. The fix is about the moment of
+     * examination, not about objectives in general.
+     */
+    @Test
+    public void aBoxThatWasNeverHiddenStillCountsItsFirstTurn() {
+        Game game = runningGame();
+        Objective box = studyBoxAt(game, 10, 10, 2);
+
+        endTurn(game);
+
+        assertEquals("no find, no delay", 1, box.studyProgressFor("USS Enterprise"));
     }
 
     /** Two complete turns in the hex, and then it may be taken. */

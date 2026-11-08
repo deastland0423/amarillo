@@ -5224,6 +5224,7 @@ public class Game {
                 case OBJECTIVE -> {
                     com.sfb.objects.Objective found = marker.getObjective();
                     objectives.add(found);
+                    beginStudyAfterThisTurn(found);
                     log.add(examiner + " examines the counter and finds "
                             + found.getName() + " (SH47.471)");
                 }
@@ -5256,6 +5257,7 @@ public class Game {
             if (finder == null)
                 continue;
             o.reveal();
+            beginStudyAfterThisTurn(o);
             log.add(finder.getName() + " examines the hex and finds " + o.getName()
                     + " (SH47.471)");
         }
@@ -5324,6 +5326,32 @@ public class Game {
             if (ship.getLocation() != null && ship.getLocation().equals(hex))
                 return ship;
         return null;
+    }
+
+    /**
+     * (SH47.474) The turn an objective is FOUND never counts towards studying it.
+     *
+     * <p>The rule reads "If the examined counter is a Stasis Box … he must spend two complete
+     * turns in the hex studying the Stasis Box with his instruments", so the count starts after
+     * the examination: a turn the ship spent part of not knowing the box was there is not a
+     * complete turn of studying it.
+     *
+     * <h2>Why it needs saying at all</h2>
+     * A hidden box is in NO list until it is found — that is the fog mechanism, not an
+     * oversight — so {@link #noteStudyPositions} cannot see it and cannot record a break for
+     * the impulses before it existed. A counter turned over on impulse 32 therefore reached
+     * {@link #creditStudyAtTurnEnd} unbroken and was paid a whole turn's credit for one impulse
+     * of presence. Found in play 2026-11-07: a box discovered on turn 1 impulse 32 read
+     * "2 of 2, ready to beam aboard" at the end of turn 2, a full turn early.
+     *
+     * <p>Marking EVERY ship, not just the finder: the clock starts at the same moment for
+     * anyone sitting in that hex, and a second ship there is in exactly the same position.
+     */
+    private void beginStudyAfterThisTurn(com.sfb.objects.Objective found) {
+        if (!found.requiresStudy())
+            return;
+        for (Ship s : ships)
+            found.breakStudy(s.getName());
     }
 
     /**
