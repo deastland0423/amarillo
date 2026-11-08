@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef, Fragment } from 'react';
 import type { LobbyResult } from './Lobby';
 import { useGameSocket } from '../hooks/useGameSocket';
-import type { MapObject, ShipObject, ShuttleObject, DroneObject, ObjectiveObject, ShieldState, WeaponState, TerrainObject } from '../types/gameState';
+import type { MapObject, ShipObject, ShuttleObject, DroneObject, ObjectiveObject, ShieldState, WeaponState, DroneRackState, TerrainObject } from '../types/gameState';
 import { factionColor, parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import { bearsOn, hexRangeBetween as hexRange } from '../hex/geometry';
@@ -27,6 +27,7 @@ import { Stepper } from './Stepper';
 import { channelLendCeiling } from './scoutLending';
 import { shipHasFreeBalcony } from './balcony';
 import { weaponTitleShort } from './weaponTitle';
+import { isDroneRackRow, droneRackReadiness } from './weaponCondition';
 import { saveButtonState } from './saveButton';
 import { PlayerAidPanel } from './PlayerAidPanel';
 import { ConfirmDialog, type ConfirmRequest } from './ConfirmDialog';
@@ -286,10 +287,13 @@ function placeWeaponTable(row: HTMLElement) {
   table.style.left = `${left}px`;
 }
 
-function WeaponRow({ w }: { w: WeaponState }) {
+function WeaponRow({ w, rack }: { w: WeaponState; rack?: DroneRackState }) {
   let dotClass = 'weapon-dot';
   let statusText = '';
   let statusClass = '';
+  // Only the rack states set this: their labels are the cryptic ones, and a type-G's AD 0 is
+  // unguessable without it.
+  let statusTitle: string | undefined;
 
   // armed === null means the server did not disclose it: this is someone else's ship, and
   // whether a heavy weapon is armed is exactly what an opponent may not know. Everything
@@ -314,6 +318,15 @@ function WeaponRow({ w }: { w: WeaponState }) {
     dotClass   += ' idle';
     statusText  = w.armingTurn > 0 ? 'ARM' : 'UNARM';
     statusClass = '';
+  } else if (isDroneRackRow(w)) {
+    // A LAUNCHER, so readyToFire is not the question — see isDroneRackRow. This said COOL on a
+    // full type-A rack that had not fired all game. Without a rack entry (an enemy's ship,
+    // whose loadout is withheld) there is nothing public to say, so say nothing.
+    const state = rack ? droneRackReadiness(rack) : null;
+    dotClass   += state ? (state.tone === 'neutral' ? ' ready' : ' idle') : ' idle';
+    statusText  = state ? state.short : '';
+    statusClass = state && state.tone === 'neutral' ? 'ready' : '';
+    statusTitle = state ? state.title : undefined;
   } else if (!w.readyToFire) {
     // Armed (or non-heavy) but cooldown / shot limit reached
     dotClass   += ' cooldown';
@@ -346,7 +359,7 @@ function WeaponRow({ w }: { w: WeaponState }) {
       <span className="weapon-name">{weaponTitleShort(w)}</span>
       {w.arcLabel && <span className="weapon-arc">[{w.arcLabel}]</span>}
       {statusText && (
-        <span className={`weapon-status ${statusClass}`}>{statusText}</span>
+        <span className={`weapon-status ${statusClass}`} title={statusTitle}>{statusText}</span>
       )}
       <div className="weapon-row-table">
         <WeaponFullTable
@@ -2359,14 +2372,12 @@ function ShipSidebar({
             <div key={r.name} style={{ marginBottom: 6 }}>
               <div className="sidebar-stat-row">
                 <span className="sidebar-stat-label">{r.name}</span>
-                <span className={`sidebar-stat-value${r.functional ? '' : ' dmg'}`}>
-                  {/* "cooling" is about LAUNCHING. A type-G that has fired anti-drones
-                      cannot launch for the rest of the turn (FD3.71) and reporting that
-                      as a cooldown reads like a fault. Say what it is doing instead. */}
-                  {!r.functional ? 'dmg'
-                    : r.mode === 'ANTI_DRONE'
-                      ? (r.canFireAntiDrone ? 'anti-drone' : 'anti-drone · spent')
-                      : r.canFire ? 'ready' : 'cooling'}
+                <span className={`sidebar-stat-value${r.functional ? '' : ' dmg'}`}
+                      title={droneRackReadiness(r).title}>
+                  {/* This panel had the right vocabulary and the weapon row above it did not,
+                      which is how a rack could read "ready" here and "COOL" there in the same
+                      sidebar. Both now ask droneRackReadiness. */}
+                  {droneRackReadiness(r).text}
                 </span>
               </div>
               {isMine ? (
@@ -2419,7 +2430,15 @@ function ShipSidebar({
           </div>
           <div className="sidebar-divider" />
           <div className="weapon-list">
-            {ship.weapons.map(w => <WeaponRow key={w.name} w={w} />)}
+            {/* A drone rack rides in BOTH lists: `weapons` carries its arc, `droneRacks`
+                alone says what is on it and whether it may launch. */}
+            {ship.weapons.map(w => (
+              <WeaponRow
+                key={w.name}
+                w={w}
+                rack={ship.droneRacks?.find(r => r.name === w.name)}
+              />
+            ))}
           </div>
         </div>
       )}

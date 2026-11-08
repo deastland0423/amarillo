@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DroneRackState, WeaponState } from '../types/gameState';
-import { chipColour, weaponChips } from './weaponCondition';
+import { chipColour, droneRackReadiness, isDroneRackRow, weaponChips } from './weaponCondition';
 
 /**
  * The DAC choice dialog asks the player which working weapon is destroyed, and these chips are
@@ -246,5 +246,85 @@ describe('the two meanings of SPECIAL', () => {
     expect(titleOf(weapon({
       isHeavy: true, armed: true, armingType: 'SPECIAL', canSuicide: true,
     }))).toMatch(/Suicide/);
+  });
+});
+
+/**
+ * A rack is a LAUNCHER, and the gun questions give it the wrong answers.
+ *
+ * Reported in play: both of the Mystic's type-A racks read "COOL" in the sidebar before a shot
+ * had been fired all game. Nothing was wrong with the racks — `readyToFire` on a rack is the
+ * anti-drone question, which a type-A answers false to forever.
+ */
+describe('a drone rack is not a gun', () => {
+  const typeA = (over: Partial<WeaponState> = {}) =>
+    weapon({ name: 'Drone-Rack 1', rackType: 'TYPE_A', readyToFire: false, ...over });
+
+  it('does not call a loaded type-A rack cooled down', () => {
+    const loaded = rack({ drones: [{ droneType: 'TYPE_I', warheadDamage: 12, speed: 20, endurance: 20 }] });
+    expect(texts(typeA(), loaded)).not.toContain('cooldown');
+  });
+
+  it('still says what IS on it, which is the chip that answers the DAC question', () => {
+    const loaded = rack({ drones: [{ droneType: 'TYPE_I', warheadDamage: 12, speed: 20, endurance: 20 }] });
+    expect(texts(typeA(), loaded)).toContain('loaded: TYPE_I');
+  });
+
+  it('still calls an ordinary weapon in its impulse gap cooled down', () => {
+    expect(texts(weapon({ readyToFire: false }))).toContain('cooldown');
+  });
+
+  it('knows a rack row by its rackType, which is public even where the loadout is not', () => {
+    expect(isDroneRackRow(weapon({ rackType: 'TYPE_A' }))).toBe(true);
+    expect(isDroneRackRow(weapon())).toBe(false);
+  });
+});
+
+describe('what a rack is doing', () => {
+  const words = (over: Partial<DroneRackState>) => droneRackReadiness(rack(over));
+  const oneDrone = [{ droneType: 'TYPE_I', warheadDamage: 12, speed: 20, endurance: 20 }];
+
+  it('a loaded rack that may launch is ready', () => {
+    expect(words({ drones: oneDrone, canFire: true }).text).toBe('ready');
+    expect(words({ drones: oneDrone, canFire: true }).short).toBe('RDY');
+  });
+
+  it('an empty rack says empty rather than anything about firing', () => {
+    expect(words({ drones: [], canFire: false }).short).toBe('EMPTY');
+  });
+
+  /* FD3.71: the commitment is read BEFORE canFire, which it zeroes for the rest of the turn. */
+  it('a type-G committed to anti-drones is doing that, not failing to launch', () => {
+    const g = words({ mode: 'ANTI_DRONE', canFireAntiDrone: true, canFire: false, drones: oneDrone });
+    expect(g.text).toBe('anti-drone');
+    expect(g.tone).toBe('neutral');
+  });
+
+  it('and says so even once its rounds are gone', () => {
+    const g = words({ mode: 'ANTI_DRONE', canFireAntiDrone: false, canFire: false });
+    expect(g.short).toBe('AD 0');
+    expect(g.tone).toBe('spent');
+  });
+
+  /* FD2.421: a plotted reload is not a cooldown — the rack is out for the whole turn. */
+  it('a reloading rack says reloading', () => {
+    expect(words({ reloadingThisTurn: true, drones: oneDrone, canFire: false }).short).toBe('RLD');
+  });
+
+  it('a destroyed rack says so before anything else', () => {
+    expect(words({ functional: false, canFire: false }).short).toBe('DMG');
+  });
+
+  it('gives every state a tooltip, since the short forms are cryptic', () => {
+    for (const state of [
+      words({ drones: oneDrone, canFire: true }),
+      words({ drones: [] }),
+      words({ mode: 'ANTI_DRONE', canFireAntiDrone: false }),
+      words({ reloadingThisTurn: true, drones: oneDrone }),
+      words({ functional: false }),
+      words({ drones: oneDrone, canFire: false }),
+    ]) {
+      expect(state.title.length).toBeGreaterThan(0);
+    }
   });
 });

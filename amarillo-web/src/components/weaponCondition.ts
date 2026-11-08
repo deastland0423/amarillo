@@ -86,6 +86,73 @@ export const CHIP_COLOUR: Record<ChipTone, string> = {
   neutral:  '#8b949e',
 };
 
+/**
+ * A DRONE RACK IS A LAUNCHER, NOT A GUN, and asking it the gun question gets the wrong answer
+ * in the wrong words.
+ *
+ * `readyToFire` is DroneRack.readyToFireAtTarget(), which for a rack is canFireAntiDrone():
+ * whether it can SHOOT at something in the Direct Fire segment. A type-A never can — launching
+ * drones is the whole of what it does — so the flag is permanently false, and anything that
+ * renders !readyToFire as "cooldown" tells the owner of a full, untouched rack that it is
+ * cooling before a shot has been fired all game. That is what the owner saw in the sidebar.
+ * Core is right; the vocabulary was wrong.
+ *
+ * Whether a rack may LAUNCH is DroneRackState.canFire, which lives on the ship's droneRacks
+ * entry rather than on the weapon — see droneRackReadiness.
+ *
+ * rackType is the discriminator rather than the presence of that entry, because droneRacks is
+ * sent EMPTY for an enemy's ship (the loadout is a secret, FD2.421) while the weapons list is
+ * not. So an enemy's type-A said COOL too, where there is no rack entry to consult.
+ */
+export function isDroneRackRow(w: WeaponState): boolean {
+  return w.rackType != null;
+}
+
+/** What a rack is doing, in both lengths the two panels need. */
+export interface RackReadiness {
+  /** For the Drone Racks panel, which has room for words. */
+  text:  string;
+  /** For the weapon row's status column, which has room for about five characters. */
+  short: string;
+  tone:  ChipTone;
+  title: string;
+}
+
+/**
+ * What a rack is doing, said once for every panel that asks.
+ *
+ * The order matters: a type-G committed to anti-drones (FD3.71) IS a gun for the rest of the
+ * turn and answers canFire() false for the rest of it, so the mode has to be read before the
+ * launch readiness or the commitment looks like a fault.
+ */
+export function droneRackReadiness(rack: DroneRackState): RackReadiness {
+  if (!rack.functional) {
+    return { text: 'destroyed', short: 'DMG', tone: 'spent', title: 'Destroyed by damage' };
+  }
+  if (rack.mode === 'ANTI_DRONE') {
+    return rack.canFireAntiDrone
+      ? { text: 'anti-drone', short: 'AD', tone: 'neutral',
+          title: 'Committed to anti-drones for the turn (FD3.71) — a round may go this impulse' }
+      : { text: 'anti-drone \u00b7 spent', short: 'AD 0', tone: 'spent',
+          title: 'Committed to anti-drones (FD3.71), with none left to fire this impulse' };
+  }
+  if (rack.reloadingThisTurn) {
+    return { text: 'reloading', short: 'RLD', tone: 'spent',
+             title: 'Reloading — FD2.421 takes the rack out of service for the whole turn' };
+  }
+  if (rack.drones.length === 0) {
+    return { text: 'empty', short: 'EMPTY', tone: 'spent',
+             title: 'Nothing loaded. Reloads are plotted in Energy Allocation (FD2.421)' };
+  }
+  if (rack.canFire) {
+    const n = rack.drones.length;
+    return { text: 'ready', short: 'RDY', tone: 'neutral',
+             title: `${n} drone${n === 1 ? '' : 's'} on the rack, and one may launch now` };
+  }
+  return { text: 'holding', short: 'HOLD', tone: 'spent',
+           title: 'Loaded, but it may not launch this impulse' };
+}
+
 /** Java's Integer.MAX_VALUE, which is how core says "no per-turn shot limit". */
 const UNLIMITED_SHOTS = 2147483647;
 
@@ -180,8 +247,11 @@ export function weaponChips(w: WeaponState, rack?: DroneRackState | null): Weapo
       tone: 'spent',
       title: 'No shots left this turn',
     });
-  } else if (!w.readyToFire && (!w.isHeavy || w.armed === true)) {
+  } else if (!w.readyToFire && !isDroneRackRow(w) && (!w.isHeavy || w.armed === true)) {
     // Loaded (or needs no loading) and still not ready: the impulse gap has not elapsed.
+    // A drone rack is excluded: its readyToFire is the anti-drone question, so the DAC dialog
+    // called every type-A rack "cooldown" — see isDroneRackRow. What the rack is actually doing
+    // is said by the loaded/empty chips below, which it has had all along.
     chips.push({
       text: 'cooldown',
       tone: 'spent',
