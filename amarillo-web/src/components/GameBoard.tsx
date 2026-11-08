@@ -29,6 +29,7 @@ import { shipHasFreeBalcony } from './balcony';
 import { weaponTitleShort } from './weaponTitle';
 import { saveButtonState } from './saveButton';
 import { PlayerAidPanel } from './PlayerAidPanel';
+import { ConfirmDialog, type ConfirmRequest } from './ConfirmDialog';
 
 interface Props {
   session: LobbyResult;
@@ -2530,6 +2531,9 @@ export default function GameBoard({ session, onLeave }: Props) {
   // PlayerAidPanel for why the table beats a forecast.
   const [playerAidOpen, setPlayerAidOpen] = useState(false);
   const [exitMenuOpen, setExitMenuOpen] = useState(false);
+  // One confirmation mechanism for the whole board. Three of these used window.confirm, which
+  // is unstyled and announces itself as "localhost:5173 says" — see ConfirmDialog.
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
   const [crewMode,    setCrewMode]    = useState(false);
   const [crewTarget,  setCrewTarget]  = useState<ShipObject | null>(null);
   const [crewAmount,  setCrewAmount]  = useState(1);
@@ -3431,14 +3435,25 @@ export default function GameBoard({ session, onLeave }: Props) {
       if (dirs.length > 0) {
         const dir = String.fromCharCode(65 + Math.floor((ship.facing - 1) / 4));
         if (dirs.includes(dir)) {
-          if (!window.confirm(
-            `Warning: ${shipName} is facing direction ${dir}, which is a destruction zone for your side.\n\nDisengaging in this direction will result in destruction. Continue?`
-          )) return;
+          setConfirmRequest({
+            title: 'Disengage into a destruction zone?',
+            body: `${shipName} is facing direction ${dir}, which is a destruction zone for `
+                + 'your side. Disengaging this way destroys the ship.',
+            confirmLabel: 'Disengage anyway',
+            danger: true,
+            run: () => { void sendAccelDisengage(shipName, confirm); },
+          });
+          return;
         }
       }
     }
+    await sendAccelDisengage(shipName, confirm);
+  }
+
+  /** The submit itself, shared by the plain path and the destruction-zone confirmation. */
+  async function sendAccelDisengage(shipName: string, declare: boolean) {
     const res = await gameApi.submitAction(session.gameId, session.playerToken, {
-      type: 'CONFIRM_ACCEL_DISENGAGE', shipName, declare: confirm,
+      type: 'CONFIRM_ACCEL_DISENGAGE', shipName, declare,
     });
     if (res.success) addLog(res.message, 'combat');
     else addLog(`Accel disengage failed: ${res.message}`, 'error');
@@ -3453,14 +3468,21 @@ export default function GameBoard({ session, onLeave }: Props) {
     else addLog(`Disengage failed: ${res.message}`, 'error');
   }
 
-  async function handleEmergencyDecel() {
+  function handleEmergencyDecel() {
     if (!liveShip) return;
-    if (!window.confirm(
-      `Announce Emergency Deceleration for ${liveShip.name}?\n` +
-      `The ship will stop in 2 impulses, then be immobile for 16 impulses (C8.0).`
-    )) return;
+    const shipName = liveShip.name;
+    setConfirmRequest({
+      title: 'Emergency Deceleration?',
+      body: `${shipName} will stop in 2 impulses, then be immobile for 16 (C8.0).`,
+      confirmLabel: 'Announce',
+      danger: true,
+      run: () => { void doEmergencyDecel(shipName); },
+    });
+  }
+
+  async function doEmergencyDecel(shipName: string) {
     const res = await gameApi.submitAction(session.gameId, session.playerToken, {
-      type: 'EMERGENCY_DECEL', shipName: liveShip.name,
+      type: 'EMERGENCY_DECEL', shipName,
     });
     if (res.success) addLog(res.message, 'combat');
     else addLog(`Emergency decel failed: ${res.message}`, 'error');
@@ -3478,8 +3500,22 @@ export default function GameBoard({ session, onLeave }: Props) {
   async function handleGoActiveFc() {
     if (!liveShip) return;
     if (liveShip.wildWeaselActive) {
-      if (!window.confirm('Activating fire control will VOID the Wild Weasel. Continue?')) return;
+      setConfirmRequest({
+        title: 'Void the Wild Weasel?',
+        body: 'Activating fire control voids the weasel (J3.22), and it stops protecting this '
+            + 'ship from the seeking weapons it was launched against.',
+        confirmLabel: 'Activate anyway',
+        danger: true,
+        run: () => { void doGoActiveFc(); },
+      });
+      return;
     }
+    await doGoActiveFc();
+  }
+
+  /** The submit itself, shared by the plain path and the weasel confirmation. */
+  async function doGoActiveFc() {
+    if (!liveShip) return;
     const res = await gameApi.submitAction(session.gameId, session.playerToken, {
       type: 'FC_GO_ACTIVE', shipName: liveShip.name,
     });
@@ -5132,6 +5168,10 @@ export default function GameBoard({ session, onLeave }: Props) {
       )}
 
       {/* Energy allocation dialog — floating, draggable, no overlay */}
+      {confirmRequest && (
+        <ConfirmDialog request={confirmRequest} onClose={() => setConfirmRequest(null)} />
+      )}
+
       {/* Floating, so it can be read while the allocation dialog is open — which is exactly
           when a player is choosing the speed the chart is about. */}
       {playerAidOpen && (
