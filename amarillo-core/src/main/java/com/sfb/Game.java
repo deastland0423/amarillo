@@ -1320,10 +1320,13 @@ public class Game {
                 // the only thing that changes where anything is.
                 noteStudyPositions();
                 log.addAll(lastSeekerLog);
-                if (!pendingVolleys.isEmpty()) {
+                if (anyVolleyNeedsReinforcement()) {
                     reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
                     currentPhase = ImpulsePhase.REINFORCEMENT;
                 } else {
+                    // Volleys that need no decision still have to LAND — see
+                    // anyVolleyNeedsReinforcement.
+                    log.addAll(damageResolver.applyPendingVolleys());
                     dacChoiceReturnPhase = ImpulsePhase.ACTIVITY;
                     lastInternalDamageLog = new ArrayList<>();
                     damageResolver.resolveInternalDamage();
@@ -1338,11 +1341,14 @@ public class Game {
                 log.addAll(ppdResolver.pulseActiveRuns());
                 break;
             case DIRECT_FIRE:
-                if (!pendingVolleys.isEmpty()) {
+                if (anyVolleyNeedsReinforcement()) {
                     // Defenders need a chance to spend reserve power before damage lands
                     reinforcementReturnPhase = ImpulsePhase.END_OF_IMPULSE;
                     currentPhase = ImpulsePhase.REINFORCEMENT;
                 } else {
+                    // A volley that asks nothing still lands here — see
+                    // anyVolleyNeedsReinforcement.
+                    log.addAll(damageResolver.applyPendingVolleys());
                     firedPairsThisPhase.clear();
                     dacChoiceReturnPhase = ImpulsePhase.END_OF_IMPULSE;
                     lastInternalDamageLog = new ArrayList<>();
@@ -5422,6 +5428,41 @@ public class Game {
             }
         }
         return log;
+    }
+
+    /**
+     * Whether any queued volley actually asks the defender a question.
+     *
+     * <h2>A miss used to stop the game and ask about it</h2>
+     * The Reinforcement phase opened whenever the volley queue was non-empty, and a volley is
+     * queued for every shot at a ship including one that scored NOTHING. So a clean miss
+     * interrupted the impulse to ask both players whether they wished to spend reserve power
+     * defending against zero damage — a prompt with one possible answer, and one more thing to
+     * dismiss in a game that already asks plenty.
+     *
+     * <p>(D3.34) Reinforcement adds energy to a shield to soak incoming damage. With no damage
+     * incoming there is nothing to soak, so the decision does not exist.
+     *
+     * <h2>Not the same as "do not queue it"</h2>
+     * The volley still has to be queued and still has to LAND, because it carries more than its
+     * damage: (E4.43) overload feedback owed to the FIRING ship, fusion suicide self-damage
+     * (E7.421), and the combat log line that tells both players the shot was taken and missed.
+     * Dropping it would silently swallow all three. So the phase is skipped and
+     * {@code applyPendingVolleys} is called directly on the way past.
+     *
+     * <p>Enveloping damage and a PPD's splash across several shields (E11.35) count as damage
+     * here, since a defender may want to reinforce against either.
+     */
+    private boolean anyVolleyNeedsReinforcement() {
+        for (PendingVolley volley : pendingVolleys) {
+            if (volley.totalDamage > 0 || volley.envelopingHellboreDamage > 0)
+                return true;
+            if (volley.shieldDamage != null)
+                for (Integer points : volley.shieldDamage.values())
+                    if (points != null && points > 0)
+                        return true;
+        }
+        return false;
     }
 
     /** Face-down counters still unsearched (SH47.46). */
