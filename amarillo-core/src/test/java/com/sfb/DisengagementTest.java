@@ -182,9 +182,11 @@ public class DisengagementTest {
         game.submitAllocation(freighter, makeAllocation(freighter, 30.0));
         makeFedEligibleAndEndTurn();
 
+        // The ceiling that applied to the turn just flown, which is what the C7.1 check reads.
+        // getMaxAccelerationSpeed() has already rolled over to next turn's by this point.
         assertEquals("fixture: and it IS at its acceleration ceiling, so only the sheet's"
                 + " prohibition can be keeping it out of the queue",
-                freighter.getMaxAccelerationSpeed(), freighter.getSpeed());
+                freighter.getAccelerationCeilingThisTurn(), freighter.getSpeed());
         assertFalse("a freighter must never be offered C7.1",
                 game.getPendingAccelDisengage().contains(freighter));
         assertTrue("while the warship beside it still is",

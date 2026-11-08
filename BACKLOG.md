@@ -389,6 +389,40 @@ up to 180°, by the same clause.
 
 Both are in the rulebook text at C5.1–C5.3; read it rather than this summary before building.
 
+## C7.11 asks about WARP POWER, and we test the acceleration ceiling (found 2026-11-07)
+
+`DisengagementResolver.queueAccelDisengageCandidates` offers C7.1 to a ship that ran at its
+C2.21 acceleration ceiling. The rule asks for something else: "the starship wishing to
+disengage by acceleration must move (for the entire turn) at the maximum possible practical
+speed which it can, as restricted by available warp engine power (which may have been reduced
+by combat) and the game imposed speed limit of 31."
+
+So the test should be `speed >= min(31, hexes its available warp power can buy)`, with
+C7.124's exclusion — "the first sentence of (C7.11) does not include any energy spent for life
+support, shields (not reinforcement), or fire control. The ship may make these expenditures and
+then calculate its maximum speed based on the remaining energy." The acceleration ceiling is a
+real restriction too, so the honest expression is the minimum of the two.
+
+Today's test is NARROWER than the rule: a ship with power to spare but no acceleration headroom
+qualifies under C7.11 and is not offered. Longstanding, and not introduced by the 2026-11-07
+acceleration fix — but that fix is what made it visible, because correcting the cap meant the
+post-cleanUp value could never be reached and C7.1 stopped firing altogether until the check
+was pointed at `Ship.accelerationCeilingThisTurn` instead.
+
+Note for whoever builds it: four DisengagementTest cases and one in CloakRetentionTest depend
+on the current behaviour, and the cloak one depends on it in a way worth reading — a ship at
+its ceiling is offered C7.1 every turn, and a fixture that does not answer hangs rather than
+fails.
+
+## C12.33's within-turn minimum is not tracked (found 2026-11-07)
+
+"The lowest speed during the previous 32 impulses determines the maximum speed to which the
+ship can accelerate." `Ship.speedPreviousTurn` is the speed at the turn's END, not the lowest
+held during it. Exact today, because plotted mid-turn speed changes (C12.31) are not built and
+the drops that do happen — emergency deceleration, a tractor — leave the ship at the lower
+speed when the turn ends. It stops being exact the day C12.0 arrives, and the fix then is a
+running minimum updated wherever speed changes mid-turn, rolled into the history at cleanUp.
+
 ## Ready to start
 
 Each of these was named by an earlier session as the next sensible slice in its area, with the

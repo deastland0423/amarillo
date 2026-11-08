@@ -85,10 +85,28 @@ public class CloakRetentionTest {
         assertEquals(CloakState.FULLY_CLOAKED, rom.getCloakingDevice().getState());
     }
 
+    /**
+     * Round to the next allocation, DECLINING any C7.1 offer on the way.
+     *
+     * The cloaked Romulan runs at its acceleration ceiling every turn, which is exactly what
+     * C7.11 asks of a ship disengaging by acceleration, so the game stops at each turn end to
+     * ask whether it means to leave. Next turn's allocation is deferred until that is answered,
+     * so a fixture that ignores the question hangs here rather than failing anywhere near the
+     * cause. This test is about re-acquiring a cloaked ship, not about letting it go.
+     */
     private void advanceToTurnEnd() {
-        for (int guard = 0; guard < 600 && !game.isAwaitingAllocation(); guard++)
+        for (int guard = 0; guard < 600 && !game.isAwaitingAllocation(); guard++) {
+            if (!game.getPendingAccelDisengage().isEmpty()) {
+                game.confirmAccelDisengage(game.getPendingAccelDisengage().get(0), false);
+                continue;
+            }
             game.advancePhase();
-        assertTrue(game.isAwaitingAllocation());
+        }
+        assertTrue("stuck at turn " + game.getCurrentTurn()
+                + " impulse " + game.getCurrentImpulse()
+                + " phase " + game.getCurrentPhase()
+                + "; pending accel disengage " + game.getPendingAccelDisengage().size(),
+                game.isAwaitingAllocation());
     }
 
     // -------------------------------------------------------------------------

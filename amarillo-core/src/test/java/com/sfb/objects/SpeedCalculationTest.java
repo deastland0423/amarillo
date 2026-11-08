@@ -164,14 +164,21 @@ public class SpeedCalculationTest {
         assertEquals(31, ship.getMaxAccelerationSpeed());
     }
 
+    /**
+     * C2.21 measures against the PREVIOUS turn, and C12.33's window is 32 impulses — one turn.
+     * A slower turn before that one is outside the window and does not hold the ship back.
+     *
+     * <p>This test used to assert the opposite (15, from the lowest of the last two turns),
+     * which is what put a destroyer that had just run at fourteen on a cap of sixteen.
+     */
     @Test
-    public void accelCap_usesLowestOfTwoTurns() {
-        // speedPreviousTurn=20, speedTwoTurnsAgo=5 → lowest=5 → max(15,10)=15
+    public void accelCap_usesThePreviousTurnOnly() {
         Ship ship = new Ship();
         ship.init(spec(15, 15, 0, 1.0));
         ship.setSpeedPreviousTurn(20);
         ship.setSpeedTwoTurnsAgo(5);
-        assertEquals(15, ship.getMaxAccelerationSpeed());
+        assertEquals("twenty doubled, held to 31 by C2.16",
+                31, ship.getMaxAccelerationSpeed());
     }
 
     @Test

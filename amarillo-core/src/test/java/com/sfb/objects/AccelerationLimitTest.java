@@ -99,17 +99,58 @@ public class AccelerationLimitTest {
         assertEquals(31, ship.getMaxAccelerationSpeed());
     }
 
-    /** C12.33: the LOWEST speed of the last two turns governs, not the latest. */
+    /** A ship that slowed down last turn accelerates from THAT speed, not from its old one. */
     @Test
-    public void aMidBattleDipHoldsTheShipToTheDip() {
+    public void slowingDownLastTurnHoldsTheShipToTheSlowerSpeed() {
         Ship ship = warship();
         ship.setSpeed(20);
         ship.cleanUp();
         ship.setSpeed(4);       // dropped last turn
         ship.cleanUp();
 
-        assertEquals("C12.33: the dip governs, so four plus ten rather than twenty doubled",
+        assertEquals("four plus ten, rather than twenty doubled",
                 14, ship.getMaxAccelerationSpeed());
+    }
+
+    /**
+     * THE OTHER DIRECTION, which is where this was wrong: a slow turn stops counting once the
+     * ship has recovered from it.
+     *
+     * <p>C2.21's own worked example, both halves, across two different turns: "If speed on Turn
+     * #5 was three, then it could be increased to no more than thirteen on Turn #6. If speed is
+     * increased to thirteen on Turn #6, then on Turn #7 speed could be increased to 26."
+     *
+     * <p>The cap used to take the lowest of the LAST TWO turns, so the three on Turn #5 held
+     * Turn #7 to thirteen where the rule allows 26. C12.33's window is 32 impulses — one turn —
+     * and the turn before that is outside it. Reported in play 2026-11-07: a destroyer that ran
+     * at fourteen was offered sixteen, because it had gone six two turns earlier.
+     *
+     * <p>Note the fixture does NOT use withRecentSpeed, which sets both turns to the same value
+     * and so cannot tell the two formulas apart — which is why the whole file missed this.
+     */
+    @Test
+    public void aSlowTurnStopsCountingOnceTheShipHasRecovered() {
+        Ship ship = warship();
+        ship.setSpeed(3);       // turn 5
+        ship.cleanUp();
+        ship.setSpeed(13);      // turn 6, the increase C2.21 allows from three
+        ship.cleanUp();
+
+        assertEquals("C2.21: thirteen doubled, with turn 5's three out of the window",
+                26, ship.getMaxAccelerationSpeed());
+    }
+
+    /** The owner's case, in the numbers he reported. */
+    @Test
+    public void theReportedCase() {
+        Ship ship = warship();
+        ship.setSpeed(6);       // turn 2
+        ship.cleanUp();
+        ship.setSpeed(14);      // turn 3
+        ship.cleanUp();
+
+        assertEquals("fourteen doubled, not six plus ten",
+                28, ship.getMaxAccelerationSpeed());
     }
 
     // ---------------------------------------------------------------- R1.7, the exception

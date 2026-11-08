@@ -69,7 +69,14 @@ class DisengagementResolver {
                 continue; // no warp engines
             int currentWarp = ship.getPowerSystems().getWarpEnginePower();
             int threshold = Math.min((int) Math.ceil(originalWarp * 0.5), 15);
-            if (ship.getSpeed() >= ship.getMaxAccelerationSpeed() && currentWarp >= threshold)
+            // The ceiling THIS turn, not getMaxAccelerationSpeed(), which by now has rolled
+            // over to next turn's. See Ship.accelerationCeilingThisTurn.
+            //
+            // Note this is narrower than C7.11, which asks for "the maximum possible practical
+            // speed which it can, as restricted by available warp engine power ... and the game
+            // imposed speed limit of 31" — a ship with power to spare but no acceleration
+            // headroom qualifies under the rule and not under this test. Longstanding; BACKLOG.
+            if (ship.getSpeed() >= ship.getAccelerationCeilingThisTurn() && currentWarp >= threshold)
                 pendingAccelDisengage.add(ship);
         }
     }

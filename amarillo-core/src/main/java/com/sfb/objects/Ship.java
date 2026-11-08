@@ -108,13 +108,46 @@ public class Ship extends Unit implements DroneController {
 	private com.sfb.Player boardingAttacker = null;
 
 	/**
-	 * Speed history for C2.2 acceleration limits.
-	 * Max speed this turn = max(lowestRecent + 10, lowestRecent * 2), capped at 31.
-	 * lowestRecent = min(speedPreviousTurn, speedTwoTurnsAgo).
-	 * Both seeded from startSpeed at scenario load.
+	 * Speed history for C2.2 acceleration limits. Both seeded from startSpeed at
+	 * scenario load.
+	 *
+	 * <p>
+	 * {@code speedPreviousTurn} is the one the cap reads — C2.21 measures the
+	 * increase against
+	 * the PREVIOUS turn's speed. See {@link #getMaxAccelerationSpeed()}.
+	 *
+	 * <p>
+	 * {@code speedTwoTurnsAgo} no longer governs anything and is kept for two
+	 * reasons: it is in
+	 * the save state, and {@code FighterPatrol} holds both down together when a
+	 * carrier launches
+	 * a patrol (S4.12). Do not put it back into the cap — that was the bug.
 	 */
 	private int speedPreviousTurn = 0;
 	private int speedTwoTurnsAgo = 0;
+
+	/**
+	 * The acceleration ceiling that applied to the turn now being flown, captured
+	 * when the
+	 * speed was set.
+	 *
+	 * <p>
+	 * C7.1 asks whether a ship went as fast as it was allowed to, and that is a
+	 * question about
+	 * the turn just flown. The check runs at turn end, by which point
+	 * {@link #cleanUp()} has
+	 * rolled the speed history and {@link #getMaxAccelerationSpeed()} answers for
+	 * the NEXT turn
+	 * instead. The two used to agree often enough to look right, by accident of the
+	 * old
+	 * two-turn minimum.
+	 *
+	 * <p>
+	 * MAX_VALUE until a turn is actually allocated, so a ship that has never
+	 * started a turn is
+	 * never mistaken for one sitting at its ceiling.
+	 */
+	private int accelerationCeilingThisTurn = Integer.MAX_VALUE;
 
 	/**
 	 * C2.21's ten: the floor on how much speed a turn may add, before doubling
@@ -553,7 +586,10 @@ public class Ship extends Unit implements DroneController {
 		int warpSpeed = Math.min(30, hexesBought(energyAllocated.getWarpMovement()));
 		int impulseSpeed = Math.min(energyAllocated.getImpulseMovement(), 1);
 		int requestedSpeed = Math.min(warpSpeed + impulseSpeed, 31);
-		setSpeed(Math.min(requestedSpeed, getMaxAccelerationSpeed()));
+		// Captured BEFORE the turn runs: cleanUp() rolls the history at the end, after
+		// which this same call answers for the next turn. C7.1 needs this one.
+		accelerationCeilingThisTurn = getMaxAccelerationSpeed();
+		setSpeed(Math.min(requestedSpeed, accelerationCeilingThisTurn));
 
 		// Life support
 		if (energyAllocated.getLifeSupport() >= lifeSupportCost) {
@@ -795,11 +831,37 @@ public class Ship extends Unit implements DroneController {
 	 * held to 31 by C2.16.
 	 *
 	 * <p>
-	 * The "lowest" is C12.33 rather than C2.21: "The lowest speed during the
-	 * previous 32
-	 * impulses determines the maximum speed to which the ship can accelerate." A
-	 * ship that dipped
-	 * mid-turn is held to the dip, which is why two turns of history are kept.
+	 * C12.33 refines which speed that is: "The lowest speed during the previous 32
+	 * impulses
+	 * determines the maximum speed to which the ship can accelerate." Thirty-two
+	 * impulses is ONE
+	 * turn — the turn just ended — so a dip is only a dip WITHIN that turn.
+	 *
+	 * <h2>It used to take the lowest of the last TWO turns, and that was wrong</h2>
+	 * C2.21's own example settles it: "If speed on Turn #5 was three, then it could
+	 * be increased
+	 * to no more than thirteen on Turn #6. If speed is increased to thirteen on
+	 * Turn #6, then on
+	 * Turn #7 speed could be increased to 26." Under the two-turn minimum, Turn #7
+	 * was held to
+	 * thirteen by the three on Turn #5 — a ship was punished for a slow turn it
+	 * had already
+	 * recovered from. Reported in play 2026-11-07: a destroyer that ran at
+	 * fourteen was offered
+	 * sixteen for the next turn, on the strength of a six two turns earlier, where
+	 * C2.21 allows
+	 * twenty-eight.
+	 *
+	 * <p>
+	 * What C12.33 actually asks for, the lowest speed held at any point DURING the
+	 * previous turn,
+	 * is not tracked: {@code speedPreviousTurn} is the speed at the turn's end.
+	 * That is exact
+	 * today, because plotted mid-turn speed changes (C12.31) are not built and the
+	 * drops that do
+	 * happen — emergency deceleration, a tractor — leave the ship at the lower
+	 * speed when the
+	 * turn ends. It stops being exact the day C12.0 arrives; see BACKLOG.
 	 *
 	 * <h2>R1.7 is a different FLOOR, not a different rule</h2>
 	 * Freighters and Q-ships accelerate "by no more than 5 movement points or
@@ -831,7 +893,7 @@ public class Ship extends Unit implements DroneController {
 	 * {@link #canDisengageByAcceleration()}, for C7.1 to ask.
 	 */
 	public int getMaxAccelerationSpeed() {
-		int lowest = Math.min(speedPreviousTurn, speedTwoTurnsAgo);
+		int lowest = speedPreviousTurn;
 		int byFloor = lowest + maxAccel;
 		return Math.min(31, accelDoubling ? Math.max(byFloor, lowest * 2) : byFloor);
 	}
@@ -966,6 +1028,11 @@ public class Ship extends Unit implements DroneController {
 
 	public int getSpeedPreviousTurn() {
 		return speedPreviousTurn;
+	}
+
+	/** The C2.21 ceiling that applied to the turn being flown — see the field. */
+	public int getAccelerationCeilingThisTurn() {
+		return accelerationCeilingThisTurn;
 	}
 
 	public int getSpeedTwoTurnsAgo() {
