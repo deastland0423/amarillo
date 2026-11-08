@@ -21,6 +21,7 @@ Implemented areas include:
 - Player-specific views that keep hidden information on the server
 - REST actions with live game-state updates over STOMP/WebSocket
 - Reconnection to an existing player seat from the same browser
+- Turn-boundary save and resume: a battle can be written to disk and reopened as a new session
 
 Coverage varies by rule and system. Amarillo should be treated as a work in progress, not yet as a complete implementation of every SFB rule.
 
@@ -93,7 +94,9 @@ Ship, faction, and scenario definitions are stored as JSON under `data/`. Core t
 
 The current application is best suited to development and trusted local-network play:
 
-- Active game sessions are held in server memory and are lost when the server restarts.
+- Active game sessions are held in server memory and are lost when the server restarts. A game
+  saved at a turn boundary does persist, and can be reopened afterwards as a new session — but
+  the save has to have been taken deliberately, and a save is refused mid-turn.
 - The React client and Spring server do not yet have a unified production package.
 - Internet deployment still needs hardened origin rules, authenticated WebSocket subscriptions, and environment-specific configuration.
 - Player access currently depends on possession of a generated player token stored by the browser.

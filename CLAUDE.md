@@ -59,9 +59,17 @@ Turns run 32 impulses (each Game owns a `TurnTracker` clock instance (`game.getC
 
 Game's domain logic lives in package-private collaborator classes in `com.sfb`. There are **sixteen as of 2026-11-06**: `ShipMover`, `SeekerMover`, `ShuttleMover`, `TractorResolver`, `DamageResolver`, `BoardingResolver`, `LaunchCoordinator`, `MineResolver`, `SeekerControl`, `LockOnResolver`, `DisengagementResolver`, `EsgResolver`, `SquadronEwResolver`, `VictoryCalculator`, `PpdResolver`, `ExplosionResolver`. Game itself holds state, the phase machine, allocation, victory, and public delegates. Don't take this list on trust either — `ls amarillo-core/src/main/java/com/sfb/*Resolver.java *Mover.java` and friends is one command.
 
-**Game.java is 6,160 lines, of which about 3,614 are code** (measured 2026-11-06; comment density 36%). This number has now gone stale twice: the file claimed ~1,900 until an outside reviewer concluded from it that decomposition had stalled, was corrected to 4,715, and was 6,160 by the time a *second* outside reviewer measured it — which is how that correction got made. Both times the reviewer was right about the number and wrong about the conclusion: two more collaborators arrived in the same period. But Game did grow by ~700 code lines in the meantime, so the pressure is real and rising.
+**Game.java is the largest file in the project and is still growing.** No figure is recorded here, on purpose. Measure it:
 
-**So: measure, never quote.** `grep -c` the file or run the code/comment split yourself; the comment density here is deliberate and runs 30–40%, so a file's length overstates its logic by about a third. The same goes for the other big ones — Ship.java 4,614, GameSession.java 3,984, GameController.java 3,492, GameBoard.tsx 5,115 on the same date. If a number in this file is more than a few weeks old, treat it as a guess.
+```bash
+wc -l amarillo-core/src/main/java/com/sfb/Game.java amarillo-core/src/main/java/com/sfb/objects/Ship.java \
+      amarillo-server/src/main/java/com/sfb/server/GameSession.java \
+      amarillo-server/src/main/java/com/sfb/server/GameController.java amarillo-web/src/components/GameBoard.tsx
+```
+
+Three separate outside reviewers have now measured these files and found the numbers in this file stale — ~1,900 when it was 4,715, then 6,160 when it was 6,941. Each time the reviewer was right about the arithmetic and wrong about the conclusion, because two more collaborators had arrived in the same period; and each time the correction aged out within weeks. A number with a date on it is a claim that needs maintaining, so the command is recorded instead of the answer.
+
+Two things that do not go stale: the comment density here is deliberate and runs 30–40%, so a file's length overstates its logic by about a third — count code lines before concluding anything from `wc -l`. And the growth is real: Game is growing faster than extraction is shrinking it.
 
 - Pending/shared lists stay **declared in Game** and are passed into the resolver constructor by reference.
 - Phase transitions stay **in Game**, reached via package-private hooks (e.g. `enterDacChoicePhase()`).

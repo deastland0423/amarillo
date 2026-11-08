@@ -463,6 +463,24 @@ says "successfully disengages"), but if the owner rules the other way, C7.1 has 
 in any scenario that names exit edges — which is a change to DisengagementResolver, not to this
 victory work.
 
+## ObjectiveResolver: the next extraction (named by a reviewer 2026-11-07)
+
+Game.java is 6,941 lines (measured 2026-11-07 — `wc -l` it rather than trusting this). Sixteen
+collaborators have been extracted and the file still grew by ~850 lines since the last outside
+review, most of it the SH47 objective work landed this month.
+
+Objectives are now a domain in their own right and a natural next extraction: searching counters
+(SH47.471/.472), revealing them, studying (SH47.474), guarding (D7.83), transferring between
+ships, recovering by tractor (J1.621), securing on exit, dropping on destruction, scoring, and
+save/restore. Roughly ninety lines in Game mention an objective.
+
+Follow the established pattern: one domain per commit, extract OPPORTUNISTICALLY when the
+objectives code is next touched rather than as a planned refactor, keep the pending/shared lists
+declared in Game and passed to the constructor by reference, keep phase transitions in Game
+behind package-private hooks, and leave one-line public delegates so the server and tests do not
+move. The SH47.5 victory work above is the obvious moment — it touches securing and scoring,
+which are two of the pieces that would move.
+
 ## Ready to start
 
 Each of these was named by an earlier session as the next sensible slice in its area, with the
@@ -2159,35 +2177,31 @@ and hex to the player is a few lines, and SH47 is the case that wants it.
 
 Roughly largest first. Several have had their rules read and their design settled; those say so.
 
-- **Turn-boundary save and reload.** LARGELY BUILT 2026-10-15/16, and what is left is listed
-  under its own heading above — see *Saved games: what is built and what is left*. A save can be
-  taken from a live game and written to `data/saves`, and `SavedGame.restore()` rebuilds a
-  playable battle; what is NOT done is putting one back into a running session, the remaining
-  system groups, mines and craft in flight, and the ship-spec fingerprint.
+- **Turn-boundary save and reload.** BUILT. See *Saved games: what is built and what is left*
+  above, which is the authoritative entry; what remains there is operational, not format work.
 
-  **Seeded dice are NOT a prerequisite for it**, and this file said they were until 2026-10-09.
-  A snapshot does not re-derive anything: every roll before the save has already become ordinary
-  stored state — a shield box is down, a lock-on is held — and the rolls after it need not match
-  a timeline that never happened. What genuinely needs reproducible randomness is REPLAY, which
-  is a different feature, and deterministic tests, which are their own reward (`DiceRoller` uses
-  `Math.random()`, so a statistical test can pass by luck). Worth doing early on its own merits;
-  just not a gate on this. Caught by an outside reviewer, and the error was in the compression —
-  the underlying design note had the distinction right all along.
+  This bullet used to restate the design at length and listed five things as unfinished —
+  restoring into a running session, the remaining system groups, mines and craft in flight, and
+  the ship-spec fingerprint. All five are built: `GameSessionService` hands a restored save to
+  `GameSession.adoptRestored`, and `Game.exportState` writes `seekers`, `activeShuttles` and
+  `mines` alongside a resolved-`ShipSpec` fingerprint. An outside reviewer found this entry
+  still claiming otherwise on 2026-11-07, which is the second time a duplicate in this file has
+  outlived its subject. **One subject, one entry** — a second copy is a second thing to keep
+  true, and it never is.
+- **Event-log replay, and seeded dice.** Not started; wanted by the owner (watch a battle back).
+  This note used to live inside the turn-boundary save entry, where it was answering a claim
+  that seeded dice gated saving. They do not, and the distinction is the useful part:
 
-  **The refit model makes this easier and adds one hazard.** A ship can be reconstructed from
-  `base hull + applied refits + scenario year + COI/loadout + mutable battle state`, which is far
-  less to store than a whole ship. But that reconstruction reads the ship JSON *at load time*, and
-  this repo edits ship JSON constantly — three new base files landed on 2026-10-09 alone. Edit a
-  hull or a refit between sessions and a restored ship silently becomes a different ship, in a
-  saved campaign, with nothing to say so.
+  A SNAPSHOT re-derives nothing. Every roll before the save has already become ordinary stored
+  state — a shield box is down, a lock-on is held — and the rolls after it need not match a
+  timeline that never happened. REPLAY is the feature that genuinely needs reproducible
+  randomness, because it re-runs the battle from the start and every roll must come out the
+  same. Deterministic TESTS want it too, on their own merits: `DiceRoller` uses `Math.random()`,
+  so an unseeded statistical test can pass by luck — see [[feedback_prove_test_fails]].
 
-  So **store a fingerprint of the resolved `ShipSpec` alongside the reference** and compare it on
-  load: same hash, reconstruct; different hash, say which ship changed and let the player decide.
-  Raised by an outside reviewer 2026-10-09 and the best thing in that review. The state inventory
-  it must cover has also grown since the feature was first scoped — base hull plus refit set,
-  scenario year and its automatic upgrades, fighter squadrons and individual loadouts, deck-crew
-  assignments and unfinished hangar work, carrier drone and plasma stores, aegis firing state,
-  bases, option mounts and commander's options.
+  So: seeding is worth doing early, and it was never a gate on saving. The original error was in
+  the compression, not the design; an outside reviewer caught it on 2026-10-09.
+
 - **The campaign system.** Owner's direction, not designed. Would lean on drone storage, crew
   quality and carriers. Rule pointers: G21.3 → U7.9/U2.0, G22 legendary officers → U7.8/U1.26.
 - ~~**The scenario system**~~ **LARGELY BUILT — this entry was stale (corrected 2026-11-06).**
