@@ -423,6 +423,46 @@ the drops that do happen — emergency deceleration, a tractor — leave the shi
 speed when the turn ends. It stops being exact the day C12.0 arrives, and the fix then is a
 running minimum updated wherever speed changes mid-turn, rolled into the history at cleanUp.
 
+## SH47.5 is not implemented: securing the box does not win (found in play 2026-11-07)
+
+DEFERRED by the owner the same day — "the players know who won" — but the diagnosis is done
+and the design is agreed in outline, so this is ready to pick up.
+
+**What happened.** The Kzinti carried a Stasis Box off the map by acceleration and the scoreboard
+said "Stasis Box 1 — secured" under its side. The game then ended on the generic last-side-
+standing check in `Game` ("All opposing ships destroyed, disengaged, or captured") and handed
+the FEDERATION the win, with an "Astounding Victory" banner scored in victory points — in a
+scenario whose box is deliberately worth `points: 0` because SH47.5 is not a VP rule.
+
+**Why nothing fired.** `ScenarioSpec.VictoryConditions` has exactly two fields, `type` and
+`notes`. `notes` is prose for humans; nothing anywhere branches on `type: "SPECIAL"`. The
+machinery underneath is all present and correct — `secureObjectivesFor` is called by all three
+exits (map edge, acceleration, separation), the objective is marked secured permanently, and
+the scoreboard already shows it. Only the reading-back is missing.
+
+**The design, kept general rather than SH47-shaped** (the owner's standing concern about
+one-scenario code paths):
+
+- `winsOnSecure: true` on the OBJECTIVE — "the side that gets this off the map wins outright".
+  A victory ROLE on the objective, which is where `project_cargo_objective_model` already says
+  it belongs. Any later "capture the thing and run" scenario uses the same flag.
+- `tiebreak: "FEWEST_INTERNALS_SCORED"` on the victory conditions — SH47.5's last clause, "if no
+  boxes exist, the player who scored the most internal hits on the other loses the scenario,
+  having ruined his career by provoking an incident". Internals per team are already tracked
+  (`internalsScoredBy`). Reusable for any don't-start-a-war scenario.
+- `GameEndResult` holds ONE `winnerTeam` and must hold a list: SH47.5 says in terms that with
+  two boxes "it is possible that both players could win".
+
+**One ruling still open, and it needs the owner.** SH47.41 says "The Kzinti can only disengage
+from 01xx map edge." That can be read as restricting ALL disengagement to that edge, which
+would exclude C7.1 by acceleration entirely. The engine instead maps each side's edges to
+directions and allows acceleration through a safe one — `resolveAccelDisengage` converts the
+facing to a direction, checks it against the team's destruction directions, and secures the
+cargo on a safe exit. Defensible (C7.0 lists acceleration as one of four means, and SH47.5 just
+says "successfully disengages"), but if the owner rules the other way, C7.1 has to be refused
+in any scenario that names exit edges — which is a change to DisengagementResolver, not to this
+victory work.
+
 ## Ready to start
 
 Each of these was named by an earlier session as the next sensible slice in its area, with the
