@@ -514,7 +514,10 @@ class ShipMover {
             }
         }
 
-        ship.performHet(newFacing);
+        // turnInPlace, NOT performHet: that one rolls for a C6.5 breakdown and leaves the facing
+        // alone when the roll fails, which is how two maneuvers could be logged here and neither
+        // happen on the map. See Ship.turnInPlace.
+        ship.turnInPlace(newFacing);
         return ActionResult.ok(ship.getName() + " " + type + " Tactical Maneuver → facing " + newFacing);
     }
 

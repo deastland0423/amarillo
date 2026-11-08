@@ -3762,6 +3762,30 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
+	 * Turn 60° in place for a Tactical Maneuver (C5.0) — the facing change, and nothing else.
+	 *
+	 * <h2>Why this is not performHet()</h2>
+	 * {@link #performHet(int)} is overridden on Ship to roll for a C6.5 BREAKDOWN, and it sets
+	 * the facing only if that roll passes. A Tactical Maneuver has no breakdown roll: C5.0 does
+	 * not mention one, and it could not — the ship is stationary (C5.41) and the maneuver is
+	 * "not movement per se" (C5.44).
+	 *
+	 * <p>Calling performHet from the Tactical Maneuver path therefore rolled a die nobody asked
+	 * for, and on a failure left the facing alone while the caller still reported success. The
+	 * odds came from the hull's HET rating, so it looked like a per-ship bug: a Kzinti CL
+	 * (breakdown 5) turned two times in three and a Federation DD (breakdown 3) one in three,
+	 * both logging "Tactical Maneuver → facing 5" either way. Found in play on turn 7 of a
+	 * live game, 2026-11-07, after two maneuvers in a row were logged and neither happened.
+	 * It also quietly spent the ship's -2 bonus HET (C6.52) on the first attempt.
+	 *
+	 * <p>Resets the turn and sideslip counters, which is what a Tactical Maneuver that passed
+	 * the roll always did — this removes the dice, not the rest of the behaviour.
+	 */
+	public void turnInPlace(int absoluteFacing) {
+		super.performHet(absoluteFacing);
+	}
+
+	/**
 	 * Apply all breakdown effects (C6.54). Call only when performHet() returns
 	 * false.
 	 * Returns the number of internal DAC hits to queue (always 2 per C6.5423).

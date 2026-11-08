@@ -367,6 +367,28 @@ Known omissions in the spend floor, all held outside `Energy` and so not yet cou
 ECCM, suicide-shuttle arming and holding, wild-weasel charging. The floor can only under-count,
 which is the safe direction — it catches the gross case and never an honest form.
 
+## Tactical Maneuvers (C5.0) — two clauses still missing (found 2026-11-07)
+
+Found while fixing the maneuver that rolled an HET breakdown die and silently did nothing
+(`TacticalManeuverTest` now pins that). Both of these are small and neither is built:
+
+**C5.31 — warp and sublight in the SAME IMPULSE.** A ship may use both kinds in one turn "but
+NOT during the same impulse". Nothing enforces the second half: with both paid for,
+`performTacticalTurn` is happy to spend the warp maneuver and then, on the very next call in
+the same impulse, fall back to the sublight one. Caught by a test that expected the second
+request to be refused and watched it succeed. The fix is a per-impulse marker on Ship beside
+`sublightTacUsed`, recording the impulse a maneuver of either kind was made on.
+
+**C5.13 — the zero-energy turn.** A ship with NO power allocated to any movement function for
+the whole turn, which did not move under its own power, gets one 60° turn free on attitude
+thrusters — on Impulse #32 only, and it cannot be combined with ordinary Tactical Maneuvers.
+Today such a ship has `tacBudget` 0 and can never turn at all, which is exactly the ship most
+likely to want to: one parked on a stasis box studying it (SH47.474), whose movement line is
+empty by design. A shuttle that did not move under its own power gets the same free turn, of
+up to 180°, by the same clause.
+
+Both are in the rulebook text at C5.1–C5.3; read it rather than this summary before building.
+
 ## Ready to start
 
 Each of these was named by an earlier session as the next sensible slice in its area, with the
