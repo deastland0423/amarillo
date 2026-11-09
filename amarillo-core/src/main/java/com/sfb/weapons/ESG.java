@@ -215,6 +215,27 @@ public class ESG extends Weapon {
     }
 
     /**
+     * (G23.314) The release moment arrived while the ship was under Erratic Maneuvers: "the
+     * ship must cease EM before the field is released or the field is voided and the power is
+     * lost."
+     *
+     * <p>Not {@link #cancelAnnouncement}, which is the VOLUNTARY withdrawal under G23.33 and
+     * keeps the energy. This is the punishment for leaving it too late, so the energy goes.
+     * It goes even on a generator with a capacitor: G23.242 lets a capacitor keep the unspent
+     * remainder of a RELEASE, and a void is not a release — G23.314 says "the power is lost"
+     * without qualification.
+     *
+     * <p>The reactivation lockout is armed exactly as {@link #release} arms it when no energy
+     * was available (G23.3121): a field that never formed still counts as dropped.
+     */
+    public void voidOnEm(int currentImpulse) {
+        this.announced      = false;
+        this.releaseImpulse = -1;
+        this.storedEnergy   = 0;
+        recordDrop(currentImpulse);
+    }
+
+    /**
      * Publicly cancel a pending announcement before the field forms (G23.33). Energy
      * is retained; a fresh announcement is locked out for 8 impulses.
      */

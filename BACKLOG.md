@@ -729,42 +729,68 @@ groundwork already in place.
   guards that by walking the library and counting to thirteen — owner's ruling, 2026-10-19: "All
   the Q-ships are secret military conversions. So they can all double and they can all disengage
   by acceleration." A hull copied from a freighter instead of a sibling Q-ship fails it by name.
-- **The EM restriction set (C10.51/C10.52) — AUDITED 2026-10-19, mostly NOT built.** Notes in
-  this project have said EM's "prohibitions" were done. Some are. Built and cited: **C10.511**
-  (cannot launch — `LaunchCoordinator.emLaunchBlock`, one helper for every launch path),
-  **C10.512** (cannot guide seekers — on both `Ship` and `Fighter`, with `checkControlOverflow`
-  sweeping a ship that starts EM while already guiding), **C10.516** (the carve-out that a
-  fighter under EM CAN use chaff), and two of C10.521's systems: **scout channels**
-  (`Ship.scoutChannelBlockReason`) and **labs** (`SeekerControl`), both citing the parent C10.52.
+- **The EM restriction set (C10.51/C10.52) — RE-AUDITED 2026-11-09, and now COMPLETE bar the
+  systems that do not exist yet.** Built and cited: **C10.511** (cannot launch —
+  `LaunchCoordinator.emLaunchBlock`, one helper for every launch path), **C10.512** (cannot guide
+  seekers — on both `Ship` and `Fighter`, with `checkControlOverflow` sweeping a ship that starts
+  EM while already guiding), **C10.514** (mines, in `MineResolver`), **C10.516** (the carve-out
+  that a fighter under EM CAN use chaff), **C10.521** for scout channels
+  (`Ship.scoutChannelBlockReason`), labs (`SeekerControl`), transporters (four doors in
+  `BoardingResolver`), tractor beams (two in `TractorResolver`, with C10.525's negative-energy
+  carve-out), ESGs and passive fire control, and **C10.522** (EW lending).
 
-  *(Audit note: grepping `C10.521` finds nothing and makes the systems list look wholly unbuilt.
-  The guards that exist cite `C10.52`. Grep the parent clause.)*
+  *(Audit note: grepping `C10.521` finds little and makes the systems list look unbuilt. Several
+  guards cite the parent `C10.52`. Grep both.)*
 
-  **The rest of C10.521 is the real work, and it is a SYSTEMS list rather than a set of
-  features**: a unit using EM also cannot operate **transporters**, **tractor beams**,
-  **passive fire control** (tracked separately as C10.415/D19.25), web generators, stasis field
-  generators, maulers, ESGs, or web casters for normal web. Web, SFGs, maulers and ESGs are
-  unbuilt here so they cost nothing yet. The live gaps are **transporters and tractor beams**,
-  neither of which has any EM guard — `Transporters` and `TractorResolver` contain no `C10.`
-  citation and no EM check at all. That is the general mechanism to wire this to, not one guard
-  per feature.
+  **This entry was wrong in three places when re-read on 2026-11-09**, which is the real lesson
+  in it. It said transporters and tractor beams had "no EM guard at all" — both were guarded, in
+  five places between them. It said C10.415/D19.25 had "zero citations" — built, in
+  `DamageResolver` and `Ship`. And it said ESGs "cost nothing yet" because they were unbuilt —
+  ESGs then landed on 26 hulls, and that sentence turned from true into the only live gap in the
+  list without anyone touching the file. **An audit is a claim with a date on it. Re-grep before
+  working from one.**
 
-  **And it subsumes half the mine question.** `Game.placeTBomb` lays a mine BY TRANSPORTER, so
-  C10.521 bars it as a transporter action before C10.514 ever speaks. Only the bay/rack path
-  (`Game.dropMine`) needs C10.514 on its own. A guard written against mines alone would leave
-  every other transporter action — boarding parties, hit-and-run raids, cargo — unguarded.
+  **ESGs (C10.521, G23.313/G23.314) — BUILT 2026-11-09, and NOT as a guard.** This is the part
+  worth reading before touching it, because `emActionBlock` is the wrong shape for all three of
+  its behaviours:
+  - G23.314 says the field "CAN be announced while under EM", so an announcement must not be
+    refused;
+  - an ACTIVE field is **dropped involuntarily** when EM comes into force, announced at that
+    moment (G23.313) — so the hook is in Stage 6E beside `applyEmAnnouncement`, not on the next
+    impulse's ESG sweep;
+  - an announcement that **matures** while EM is still running is **voided and its energy lost**
+    — `ESG.voidOnEm`, which is not `cancelAnnouncement` (G23.33's voluntary withdrawal keeps the
+    energy; this is the penalty for leaving it too late). The energy goes even with a capacitor:
+    G23.242 lets a capacitor keep the remainder of a RELEASE, and a void is not a release.
 
-  **Two clauses are exceptions and must not be flattened**: C10.522 lets a unit RECEIVE lent EW
-  while barring it from LENDING any (EWF squadron lending is live, so this one bites today), and
-  C10.525 allows negative tractor energy at full strength, which whoever implements the tractor
-  ban has to carve out.
+  `EsgErraticManeuversTest` has 7 cases, three guards proven by mutation. One of them passed on
+  the unfixed code until it was strengthened — `canAnnounce()` is also false while a field is up,
+  so the test had to assert the field was DOWN first for the refusal to mean the lockout.
 
-  **Beware the rulebook's own cross-reference here.** M2.11 says the EM mine prohibition is at
-  "(C10.53)". It is not — C10.53 is DOCKING. The mine clause is **C10.514**: "A unit using EM
-  cannot detect, lay, or sweep a mine. It can detect a minefield under (M7.11)." Do not "correct"
-  this entry to match the pointer.
-- **C10.415 / D19.25: EM negates passive fire control — ANALYSED 2026-10-19, not built.** The
-  last reachable clause in C10.52. Zero citations for either `C10.415` or `D19.25` in code.
+  **C10.522 (EW lending) — BUILT 2026-11-09.** "A unit using EM cannot lend EW points. A unit can
+  receive lent EW while performing EM." Both halves matter and the second is the trap: an
+  over-broad "no EW dealings under EM" would break a legal play — a fighter jinking while its
+  squadron-mate feeds it ECM. C10.523 narrows the first sentence for this craft specifically, an
+  EW fighter (R1.F7) under EM having no scout capability though it keeps active fire control.
+
+  Two checks, because the two lending paths share no code: `SquadronEwResolver.refusalReason` for
+  an EW fighter lending to squadron-mates (J4.92) and `carrierRefusal` for a carrier lending to
+  its squadron (J4.93). No web work — `ewLendRefusal` already carries whatever
+  `Game.ewLendRefusalFor` returns, and the panel already renders it. `SquadronEwEmTest` has 6
+  cases; 5 fail with the guards neutralised and the sixth is the exception clause, which must
+  pass either way.
+
+  **What is left is only what does not exist yet**: web generators, stasis field generators,
+  maulers and web casters for normal web are unbuilt systems, so C10.521 costs them nothing
+  today. **Whoever builds any of them owes it an EM check** — and should re-read this entry
+  rather than trust it, given the above. C10.523's MRS and SWAC are likewise unbuilt (`SquadronEwResolver`
+  says so where it refuses them as lenders), and C10.524's tactical-intelligence degradation
+  waits on D17.
+
+- **C10.415 / D19.25: EM negates passive fire control — BUILT.** Kept because the ANALYSIS
+  below is still the right reading and the entry claimed for weeks that it was unbuilt with
+  "zero citations" — there are citations in `DamageResolver` and `Ship`, and the firing case is
+  handled. What remains unbuilt is D19.3's EARNED PFC bonus, as the analysis already says.
 
   **The rule.** C10.415: "Using EM will negate the effects of passive fire control (D19.25) and
   prevent its use. If the fire control is not active, it would be considered **inactive**

@@ -1384,10 +1384,17 @@ public class Game {
                 List<Unit> emUnits = new ArrayList<>(ships);
                 emUnits.addAll(activeShuttles);
                 for (Unit emUnit : emUnits)
-                    if (emUnit.applyEmAnnouncement(getAbsoluteImpulse()))
+                    if (emUnit.applyEmAnnouncement(getAbsoluteImpulse())) {
                         log.add("  " + emUnit.getName() + (emUnit.isUsingEm()
                                 ? " begins Erratic Maneuvers (C10.311)"
                                 : " ceases Erratic Maneuvers (C10.32)"));
+                        // C10.521/G23.314: a ship that has just STARTED EM cannot hold an
+                        // active ESG field, and G23.313 requires the drop be announced at the
+                        // moment the causal condition takes effect — here, not on the next
+                        // impulse's ESG sweep.
+                        if (emUnit.isUsingEm() && emUnit instanceof Ship)
+                            log.addAll(esgResolver.dropActiveFieldsOnEmStart((Ship) emUnit));
+                    }
 
                 // 6E: Roll UIM burnout once per ship that used UIM this impulse (D6.521)
                 if (!uimUsedThisImpulse.isEmpty()) {

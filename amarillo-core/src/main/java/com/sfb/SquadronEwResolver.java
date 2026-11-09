@@ -92,6 +92,16 @@ class SquadronEwResolver {
             return ewf.getName() + " is not an EW fighter (R1.F7)";
         if (ewf.isCrippled())
             return ewf.getName() + " is crippled (J4.921)";
+        // C10.522: "A unit using EM cannot lend EW points." C10.523 says it again for this
+        // craft in particular — an EW fighter (R1.F7) using EM "cannot operate its electronic
+        // warfare (scout) capabilities", though it may still use active fire control.
+        //
+        // The ban is one-way, and the other half is asserted in SquadronEwEmTest rather than
+        // written here: C10.522's second sentence is "A unit CAN receive lent EW while
+        // performing EM", so the RECIPIENT's own EM is not a refusal and must not become one.
+        if (ewf.isUsingEm())
+            return ewf.getName() + " is using Erratic Maneuvers and cannot lend EW"
+                    + " (C10.522, C10.523)";
         // J1.343: "A shuttle cannot loan EW points ... for 1/4 turn (eight impulses) after its
         // most recent launch" — the same wait its own phasers serve under J1.342. Only the
         // LENDER waits: the rule's last sentence is "A shuttle can receive EW lending
@@ -133,6 +143,11 @@ class SquadronEwResolver {
         // J4.931/J4.6: "Only actual carriers (not casual carriers) can use this procedure."
         if (!carrier.getCarrierClass().isCarrier())
             return carrier.getName() + " is not a fully capable carrier (J4.931)";
+        // C10.522 again, on the carrier's side. Same clause, separate check: the two lending
+        // paths share no code, so a guard on one does nothing for the other.
+        if (carrier.isUsingEm())
+            return carrier.getName() + " is using Erratic Maneuvers and cannot lend EW"
+                    + " (C10.522)";
         com.sfb.objects.Squadron squadron = recipient.getSquadron();
         if (squadron == null)
             return recipient.getName() + " is in no squadron, and a carrier lends to squadrons"

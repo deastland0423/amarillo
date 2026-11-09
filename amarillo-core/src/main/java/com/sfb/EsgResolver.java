@@ -57,6 +57,37 @@ class EsgResolver {
         Field(Ship ship, ESG esg) { this.ship = ship; this.esg = esg; }
     }
 
+    /**
+     * (G23.313/G23.314) Erratic Maneuvers have just come into force on this ship, so any ACTIVE
+     * field drops. G23.314: "A ship that is using Erratic Maneuvers cannot have an active ESG
+     * field." G23.313 names EM among the conditions that drop a field INVOLUNTARILY, and
+     * requires that the drop "is announced when the causal condition takes effect" — which is
+     * why this is called from Stage 6E beside {@code applyEmAnnouncement} rather than being
+     * checked on the next impulse's sweep.
+     *
+     * <p>A pending ANNOUNCEMENT is deliberately left alone: G23.314 allows a field to be
+     * announced while under EM, and only the release is barred. See {@code processFields}.
+     *
+     * <p>This is not an {@code emActionBlock} guard, and could not be: nothing is being
+     * refused. EM is legal, the field is the casualty.
+     */
+    List<String> dropActiveFieldsOnEmStart(Ship ship) {
+        List<String> log = new ArrayList<>();
+        int impulse = game.getAbsoluteImpulse();
+        for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof ESG))
+                continue;
+            ESG esg = (ESG) w;
+            if (!esg.isActive())
+                continue;
+            esg.deactivate();
+            esg.recordDrop(impulse);
+            log.add("  " + ship.getName() + "'s ESG field dropped — a ship using Erratic"
+                    + " Maneuvers cannot hold one (G23.314)");
+        }
+        return log;
+    }
+
     /** Process every active ESG field for this impulse. Returns log lines. */
     List<String> processFields() {
         List<String> log = new ArrayList<>();
@@ -80,6 +111,18 @@ class EsgResolver {
                 // NOT damage anything this impulse — only units that ENTER on a later
                 // impulse are hit (G23.56/.46).
                 if (esg.readyToRelease(impulse)) {
+                    // (G23.314) Announcing under EM is legal; RELEASING under it is not.
+                    // "the ship must cease EM before the field is released or the field is
+                    // voided and the power is lost." So the announcement is not refused when
+                    // it is made, and nothing is checked again until this moment.
+                    if (ship.isUsingEm()) {
+                        int lost = esg.getStoredEnergy();
+                        esg.voidOnEm(impulse);
+                        log.add("  " + ship.getName() + "'s ESG was due to release while under"
+                                + " Erratic Maneuvers — field VOIDED and " + lost
+                                + " point" + (lost == 1 ? "" : "s") + " of power lost (G23.314)");
+                        continue;
+                    }
                     esg.release(impulse);
                     if (esg.isActive()) {
                         justReleased.add(new Field(ship, esg));
