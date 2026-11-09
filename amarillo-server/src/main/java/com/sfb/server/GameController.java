@@ -3413,10 +3413,18 @@ public class GameController {
                             side.disengagement == null || side.disengagement.isEmpty()
                                     ? java.util.EnumSet.allOf(com.sfb.properties.DisengagementMethod.class)
                                     : java.util.EnumSet.copyOf(side.disengagement);
+                    //
+                    // A side may also STATE the edges it may leave by, and a stated list beats
+                    // the derived complement — the standing rule that where a rule derives a
+                    // number the data may also state it, and the stated one must win. SH47 now
+                    // states one, so this is not a hypothetical branch.
                     List<String> exits = new ArrayList<>();
+                    java.util.Set<String> stated = side.exitEdges == null
+                            ? java.util.Set.of() : side.exitEdges;
                     if (methods.contains(com.sfb.properties.DisengagementMethod.MAP_EDGE))
                         for (String edge : List.of("TOP", "BOTTOM", "LEFT", "RIGHT"))
-                            if (!deadly.contains(edge))
+                            if (stated.isEmpty() ? !deadly.contains(edge)
+                                                 : stated.contains(edge) && !deadly.contains(edge))
                                 exits.add(edge);
                     s.put("exitEdges", exits);
                     s.put("destructionEdges", new java.util.TreeSet<>(deadly));

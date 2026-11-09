@@ -43,13 +43,15 @@
         }
       ],
       "reinforcements": [],
-      "destructionEdges": [
-        "TOP",
-        "BOTTOM",
-        "LEFT"
+      "disengagement": [
+        "MAP_EDGE"
       ],
+      "exitEdges": [
+        "RIGHT"
+      ],
+      "destructionEdges": [],
       "_headingComment": "SH47.2 reads \"heading at player's option\" for both ships, and a heading is fixed here anyway. Saying it properly needs a deployment zone of a single hex - MapRegion.circle(\"4230\", 0), which the deployment screen already supports - but a submitted placement overwrites startSpeed too, and SH47.2 fixes the speed at 4. Heading F points the Xerxes out of her corner toward the field and the Mystic.",
-      "_disengagementComment": "SH47.41: \"The Federation can only disengage from 42xx map edge\" - the right-hand edge, which is also the corner she starts in. The other three are marked destruction, which is HARSHER than the printed text: SH47.41 says only that leaving the map is disengagement and that the Federation's is limited to that edge, and never says an illegal exit destroys the ship (contrast SH80.41, which does say it). Marked anyway because destruction is the only enforcement the engine has, and the alternative is a Xerxes free to carry a box out of the Kzinti's edge and win - which SH47.41 plainly forbids and SH47.5 would then reward."
+      "_disengagementComment": "SH47.41: \"The Federation can only disengage from 42xx map edge\" - the right-hand edge, which is also the corner she starts in. This file now says EXACTLY that and nothing more. Owner's ruling 2026-11-09, in two parts: the clause restricts ALL disengagement, so \"disengagement\": [\"MAP_EDGE\"] denies this side C7.1 acceleration and C7.2 separation outright; and the restriction is a REFUSAL, so \"exitEdges\": [\"RIGHT\"] is stated and destructionEdges is now EMPTY. It used to hold the other three, which enforced a harsher rule than the text prints - SH47.41 never says an illegal exit destroys the ship, where SH80.41 does say it when it means it. A Xerxes pointed at the wrong edge is simply told she cannot go."
     },
     {
       "name": "Kzinti Hegemony",
@@ -66,13 +68,15 @@
         }
       ],
       "reinforcements": [],
-      "destructionEdges": [
-        "TOP",
-        "BOTTOM",
-        "RIGHT"
+      "disengagement": [
+        "MAP_EDGE"
       ],
+      "exitEdges": [
+        "LEFT"
+      ],
+      "destructionEdges": [],
       "_headingComment": "As on the Federation side: SH47.2 leaves the heading to the player. C points the Mystic out of her corner toward the field and the Xerxes.",
-      "_disengagementComment": "SH47.41: \"The Kzinti can only disengage from 01xx map edge\" - the left-hand edge, the corner she starts in. The other three are destruction for the same reason, and with the same caveat, as the Federation side."
+      "_disengagementComment": "SH47.41: \"The Kzinti can only disengage from 01xx map edge\" - the left-hand edge, the corner she starts in. Stated as an exit permit-list and restricted to MAP_EDGE on the same two-part ruling as the Federation side, with destructionEdges likewise empty. Note this is the side that provoked the ruling: in the playtest of 2026-11-07 the Mystic carried a Stasis Box off by ACCELERATION, which SH47.5 would have rewarded and SH47.41 forbids."
     }
   ],
   "victoryConditions": {

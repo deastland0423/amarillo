@@ -588,8 +588,49 @@ were run, each modelling a different wrong implementation:
 - one direction list for the whole battle, as if the field sat on the scenario → the three
   per-side cases fail.
 
-**Still open here:** nothing per-side, but C7.3 sublight evasion remains unbuilt, and
-`DisengagementResolver`'s own header still names it as the future home.
+**A trap that applies to EVERY per-team scenario rule, found while pinning SH47.** These two
+fields, `destructionEdges` and `destructionDirections` are all keyed on
+`ship.getOwner().getTeamName()` — and `Game.setupFromScenario` attaches NO OWNER to the ships it
+builds. Core alone holds a side's name and a side's ships and never joins them; `GameSession`
+does it, setting a seated player's team from the side that lists the hull.
+
+So **a battle run through core with no players gets no per-team restriction of any kind.** That
+is fine for the two-browser game that exists today, and it is a trap for whoever adds a
+single-player or AI path: four scenario rules would silently stop applying, with nothing
+failing. Not changed here, because making `setupFromScenario` seat owners would alter team
+resolution for every core-only game at once — a wider blast radius than this entry's subject.
+`Sh47LoadsTest.theEngineDeniesAccelerationAndSeparationToBothSides` seats them the way a session
+does, and says so; its first draft did not and failed, correctly.
+
+**SH47 now states the ruling** (owner, 2026-11-09): `"disengagement": ["MAP_EDGE"]` on both
+sides. SH47.41 restricts ALL disengagement, so neither ship may outrun the battle or separate
+away — which is what the 2026-11-07 playtest exposed, the Mystic having carried a Stasis Box off
+by acceleration.
+
+**`exitEdges` — the edge permit-list — BUILT the same day**, on the owner's call, so SH47 now
+reads exactly as printed. Which EDGE a side may use used to be expressed as three LETHAL edges,
+which the file's own comment had always flagged as harsher than the text: SH47.41 never says an
+illegal exit destroys the ship, where SH80.41 does say so when it means it.
+
+- `SideSpec.exitEdges`, empty or absent falling back to "any edge not in `destructionEdges`" —
+  which is what every other scenario still relies on, and is asserted rather than assumed.
+- Enforced in `ShipMover` BEFORE the tractor links are released, because a refused move must
+  leave the ship exactly as it was.
+- Destruction still wins where both are set: an edge permitted and lethal kills, same
+  precedence as the direction pair.
+- **The briefing's derived `exitEdges` now yields to a stated one** (`feedback_derived_vs_stated`).
+  This is not hypothetical: SH47 states a list AND carries an empty kill-list, so the derived
+  complement would be all four edges and the panel would promise three exits the engine refuses.
+- No web change — the payload key was already `exitEdges`, so a better source flows through the
+  same field.
+
+`sh47.json` is now `"disengagement": ["MAP_EDGE"]`, `"exitEdges": ["RIGHT"]`/`["LEFT"]` and an
+EMPTY `destructionEdges`. If anyone is tempted to put those destruction edges back, the scenario
+text is the reason not to, and `Sh47LoadsTest.eachSideMayLeaveByOneMapEdgeOnly` now fails if they
+return.
+
+**Still open here:** C7.3 sublight evasion remains unbuilt, and `DisengagementResolver`'s own
+header still names it as the future home.
 
 ## ObjectiveResolver: the next extraction (named by a reviewer 2026-11-07)
 

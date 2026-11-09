@@ -105,6 +105,8 @@ public class Game {
     private Map<String, Set<com.sfb.properties.DisengagementMethod>> disengagementByTeam = new HashMap<>();
     // teamName → directions it may disengage by acceleration along; absent = any.
     private Map<String, Set<String>> accelDirectionsByTeam = new HashMap<>();
+    // teamName → map edges it may leave by; absent = any edge that is not a destruction edge.
+    private Map<String, Set<String>> exitEdgesByTeam = new HashMap<>();
     private Map<String, Set<String>> destructionDirectionsByTeam = new HashMap<>(); // teamName → destruction directions
                                                                                     // (A–F) for accel disengage
     private GameEndResult gameEndResult = null;
@@ -280,6 +282,7 @@ public class Game {
         destructionDirectionsByTeam.clear();
         disengagementByTeam.clear();
         accelDirectionsByTeam.clear();
+        exitEdgesByTeam.clear();
         if (scenario.sides != null) {
             for (ScenarioSpec.SideSpec side : scenario.sides) {
                 if (side.destructionEdges != null && !side.destructionEdges.isEmpty())
@@ -292,6 +295,8 @@ public class Game {
                     disengagementByTeam.put(side.name, side.disengagement);
                 if (side.accelDisengageDirections != null && !side.accelDisengageDirections.isEmpty())
                     accelDirectionsByTeam.put(side.name, side.accelDisengageDirections);
+                if (side.exitEdges != null && !side.exitEdges.isEmpty())
+                    exitEdgesByTeam.put(side.name, side.exitEdges);
             }
         }
 
@@ -998,6 +1003,17 @@ public class Game {
             return new HashSet<>();
         Set<String> dirs = accelDirectionsByTeam.get(ship.getOwner().getTeamName());
         return dirs == null ? new HashSet<>() : new HashSet<>(dirs);
+    }
+
+    /**
+     * (C7.0) The map edges this ship's side may leave by, or an EMPTY set meaning "any that is
+     * not a destruction edge" — the pre-existing reading, which most scenarios still want.
+     */
+    public Set<String> allowedExitEdges(Ship ship) {
+        if (ship == null || ship.getOwner() == null)
+            return new HashSet<>();
+        Set<String> edges = exitEdgesByTeam.get(ship.getOwner().getTeamName());
+        return edges == null ? new HashSet<>() : new HashSet<>(edges);
     }
 
     /** The methods a side may use, or an EMPTY set meaning "all of them". For the briefing. */

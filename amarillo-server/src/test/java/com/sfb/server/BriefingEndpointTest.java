@@ -215,6 +215,42 @@ class BriefingEndpointTest {
         assertTrue(((java.util.Collection<?>) fed.get("accelDisengageDirections")).isEmpty());
     }
 
+    /**
+     * (C7.0) A side that STATES its exit edges gets those, not the complement of its kill-list.
+     *
+     * <p>The standing rule where a rule derives a number and the data may also state it: the
+     * stated one wins. This matters because SH47 now states one and carries an EMPTY kill-list,
+     * so the derived complement would be all four edges — the briefing would promise three
+     * exits the engine refuses.
+     */
+    @Test
+    void aStatedExitListBeatsTheDerivedComplement() {
+        ScenarioSpec stated = spec();
+        stated.sides.get(0).destructionEdges = new java.util.HashSet<>();  // nothing lethal
+        stated.sides.get(0).exitEdges = new java.util.HashSet<>(Set.of("RIGHT"));
+        session.adoptRestored(stated);
+
+        Map<String, Object> fed = sideNamed(briefing(HOST), "United Federation of Planets");
+
+        assertEquals(List.of("RIGHT"), fed.get("exitEdges"),
+                "stated RIGHT, so not the four the empty kill-list would imply");
+        assertTrue(((java.util.Collection<?>) fed.get("destructionEdges")).isEmpty(),
+                "and nothing is reported as lethal, because nothing is");
+    }
+
+    /** A stated edge that is ALSO lethal is not offered as an exit. */
+    @Test
+    void aStatedEdgeThatIsAlsoLethalIsNotOffered() {
+        ScenarioSpec trap = spec();
+        trap.sides.get(0).exitEdges = new java.util.HashSet<>(Set.of("LEFT"));  // LEFT is lethal
+        session.adoptRestored(trap);
+
+        Map<String, Object> fed = sideNamed(briefing(HOST), "United Federation of Planets");
+
+        assertEquals(List.of(), fed.get("exitEdges"),
+                "the panel must not call a destruction edge a way out");
+    }
+
     // ---------------------------------------------------------------- whose side is whose
 
     @Test

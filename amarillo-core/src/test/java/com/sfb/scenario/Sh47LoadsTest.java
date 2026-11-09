@@ -120,10 +120,17 @@ public class Sh47LoadsTest {
      * thing about it is that it is the OPPOSITE model to SH80's.
      *
      * <p>SH80.41 restricts the DIRECTION of disengagement on a floating map, so it uses
-     * {@code destructionDirections} and must not use edges. SH47.41 fixes the map and names
-     * map edges outright — "the Federation can only disengage from 42xx map edge" — so it uses
-     * {@code destructionEdges} and must not use directions. The same two fields, opposite
-     * verdicts, and the scenario text is what decides which.
+     * direction fields and must not use edges. SH47.41 fixes the map and names map edges
+     * outright — "the Federation can only disengage from 42xx map edge" — so it uses edge
+     * fields and must not use directions. The same pairs of fields, opposite verdicts, and the
+     * scenario text is what decides which.
+     *
+     * <h2>Stated as a permit-list since 2026-11-09, and destructionEdges is now EMPTY</h2>
+     * This used to assert the other three edges were DESTRUCTION, which was the only
+     * enforcement the engine had and was harsher than the printed text: SH47.41 never says an
+     * illegal exit destroys the ship, where SH80.41 does say so when it means it. The permitted
+     * edge is now stated outright and a wrong edge is REFUSED. If anyone is tempted to put the
+     * destruction edges back, the scenario text is the reason not to.
      */
     @Test
     public void eachSideMayLeaveByOneMapEdgeOnly() {
@@ -131,13 +138,121 @@ public class Sh47LoadsTest {
         ScenarioSpec.SideSpec kzinti     = spec.sides.get(1);
 
         assertEquals("SH47.41: the Federation can only disengage from the 42xx (right) edge",
-                Set.of("TOP", "BOTTOM", "LEFT"), federation.destructionEdges);
+                Set.of("RIGHT"), federation.exitEdges);
         assertEquals("SH47.41: the Kzinti can only disengage from the 01xx (left) edge",
-                Set.of("TOP", "BOTTOM", "RIGHT"), kzinti.destructionEdges);
+                Set.of("LEFT"), kzinti.exitEdges);
 
-        for (ScenarioSpec.SideSpec side : spec.sides)
+        for (ScenarioSpec.SideSpec side : spec.sides) {
             assertTrue(side.name + " restricts by map EDGE on a fixed map, not by direction",
                     side.destructionDirections.isEmpty());
+            assertTrue(side.name + ": a wrong edge is refused, not fatal — SH47.41 never says"
+                    + " an illegal exit destroys the ship",
+                    side.destructionEdges.isEmpty());
+        }
+    }
+
+    /**
+     * (SH47.41) The owner's ruling, 2026-11-09: "the Kzinti can only disengage from 01xx map
+     * edge" restricts ALL disengagement, not merely which edge counts. So neither side may use
+     * C7.1 acceleration or C7.2 separation at all — a ship out of options must cross its own
+     * edge.
+     *
+     * <p>This was an open question in BACKLOG for two days and it took a playtest to force it:
+     * on 2026-11-07 the Mystic carried a Stasis Box off the map BY ACCELERATION, which SH47.5
+     * would reward and SH47.41 plainly forbids. Until the per-scenario disengagement fields
+     * existed there was no way to say so in the file.
+     */
+    @Test
+    public void neitherSideMayDisengageByAccelerationOrSeparation() {
+        for (ScenarioSpec.SideSpec side : spec.sides)
+            assertEquals(side.name + " may leave only by its map edge (SH47.41)",
+                    Set.of(com.sfb.properties.DisengagementMethod.MAP_EDGE),
+                    side.disengagement);
+    }
+
+    /**
+     * And the ruling REACHES the engine, which is a different claim from the file saying it.
+     * A scenario field that nothing consults is how this project has twice shipped a rule that
+     * passed its own test while being unreachable in play.
+     *
+     * <h2>The seating step, which this test had to learn the hard way</h2>
+     * Every per-team scenario rule — these two, {@code destructionEdges} and
+     * {@code destructionDirections} alike — is keyed on {@code ship.getOwner().getTeamName()},
+     * and {@code Game.setupFromScenario} attaches NO OWNER to the ships it builds. Core alone
+     * has a side's name and a side's ships and never joins them; it is {@code GameSession} that
+     * does it, setting a seated player's team from the side that lists the ship.
+     *
+     * <p>So this test seats owners the way a session does before asking. The first draft did
+     * not, and failed — correctly. That is worth knowing rather than working around: a battle
+     * run through core with no players gets NO per-team restriction of any kind, which is fine
+     * for the two-browser game that exists today and a trap for anyone adding a single-player
+     * or AI path later. Recorded in BACKLOG under the per-scenario disengagement entry.
+     */
+    @Test
+    public void theEngineDeniesAccelerationAndSeparationToBothSides() throws Exception {
+        ScenarioSpec loaded = fresh();
+        com.sfb.Game game = new com.sfb.Game();
+        game.setupFromScenario(loaded);
+        seatPlayers(game, loaded);
+
+        assertFalse("fixture: the scenario put ships on the map", game.getShips().isEmpty());
+        for (com.sfb.objects.Ship ship : game.getShips()) {
+            assertNotNull("fixture: the ship must be seated, or nothing is being tested",
+                    ship.getOwner());
+            assertFalse(ship.getName() + " must not be able to outrun this battle (SH47.41)",
+                    game.sideMayDisengageBy(ship,
+                            com.sfb.properties.DisengagementMethod.ACCELERATION));
+            assertFalse(ship.getName() + " must not be able to separate away (SH47.41)",
+                    game.sideMayDisengageBy(ship,
+                            com.sfb.properties.DisengagementMethod.SEPARATION));
+            assertTrue(ship.getName() + " may still cross its own map edge",
+                    game.sideMayDisengageBy(ship,
+                            com.sfb.properties.DisengagementMethod.MAP_EDGE));
+            assertEquals(ship.getName() + " has exactly one edge to run for (SH47.41)",
+                    1, game.allowedExitEdges(ship).size());
+        }
+
+        // And the two sides' edges are opposite, which is the shape of the scenario: each ship
+        // starts in the corner it must return to, so the box is in the middle either way.
+        assertEquals(Set.of("RIGHT"),
+                game.allowedExitEdges(shipNamed(game, "USS Xerxes")));
+        assertEquals(Set.of("LEFT"),
+                game.allowedExitEdges(shipNamed(game, "KHS Mystic")));
+    }
+
+    private static com.sfb.objects.Ship shipNamed(com.sfb.Game game, String name) {
+        for (com.sfb.objects.Ship s : game.getShips())
+            if (name.equals(s.getName()))
+                return s;
+        throw new AssertionError("no ship called " + name);
+    }
+
+    /**
+     * Attach an owner to every ship whose team name is the side that lists it — what
+     * {@code GameSession} does when a player claims a hull, and the step core does not do for
+     * itself. Matched by ship name, which is unique across a scenario.
+     */
+    private static void seatPlayers(com.sfb.Game game, ScenarioSpec spec) {
+        java.util.Map<String, String> teamOfShip = new java.util.HashMap<>();
+        for (ScenarioSpec.SideSpec side : spec.sides)
+            if (side.ships != null)
+                for (ScenarioSpec.ShipSetup setup : side.ships)
+                    if (setup.shipName != null)
+                        teamOfShip.put(setup.shipName, side.name);
+
+        java.util.Map<String, com.sfb.Player> bySide = new java.util.HashMap<>();
+        for (com.sfb.objects.Ship ship : game.getShips()) {
+            String team = teamOfShip.get(ship.getName());
+            assertNotNull("fixture: " + ship.getName() + " is on no side", team);
+            com.sfb.Player owner = bySide.computeIfAbsent(team, name -> {
+                com.sfb.Player p = new com.sfb.Player();
+                p.setName(name);
+                p.setTeamName(name);
+                return p;
+            });
+            ship.setOwner(owner);
+            owner.getPlayerUnits().add(ship);
+        }
     }
 
     /**

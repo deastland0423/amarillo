@@ -224,6 +224,91 @@ public class ScenarioDisengagementTest {
         assertFalse(fed.isDisengaged());
     }
 
+    // ---------------------------------------------------------------- which edge
+
+    /**
+     * (C7.0) A stated exit permit-list refuses the wrong edge, and does not kill the ship.
+     *
+     * <p>SH47 is why this exists. SH47.41 says only "the Federation can only disengage from
+     * 42xx map edge" and never says an illegal exit destroys anything — where SH80.41 DOES say
+     * that when it means it. Stating the restriction as three lethal edges, the only way
+     * available before, enforced a harsher rule than the scenario prints.
+     */
+    @Test
+    public void anEdgeOffThePermitListIsRefusedNotFatal() {
+        Game game = battle(side -> side.exitEdges = Set.of("BOTTOM"));
+        Ship fed = shipNamed(game, "USS Enterprise");
+        atTheTopEdge(game, fed);
+
+        Game.ActionResult result = game.moveForward(fed);
+
+        assertFalse(result.getMessage(), result.isSuccess());
+        assertTrue("the refusal names the edge it WOULD permit: " + result.getMessage(),
+                result.getMessage().toLowerCase().contains("bottom"));
+        assertEquals("alive", BattleStatus.ACTIVE, fed.getBattleStatus());
+        assertFalse(fed.isDisengaged());
+        assertEquals("and exactly where it was", new Location(10, 1), fed.getLocation());
+    }
+
+    /** The edge the list DOES name still works. */
+    @Test
+    public void thePermittedEdgeStillLetsTheShipLeave() {
+        Game game = battle(side -> side.exitEdges = Set.of("TOP"));
+        Ship fed = shipNamed(game, "USS Enterprise");
+        atTheTopEdge(game, fed);
+
+        assertTrue(game.moveForward(fed).isSuccess());
+        assertTrue(fed.isDisengaged());
+        assertNull(fed.getLocation());
+    }
+
+    /**
+     * An edge that is both permitted AND lethal kills. A scenario setting both meant the trap,
+     * and the destruction branch runs first — the same precedence as the direction pair.
+     */
+    @Test
+    public void anEdgeBothPermittedAndLethalStillKills() {
+        Game game = battle(side -> {
+            side.exitEdges = Set.of("TOP");
+            side.destructionEdges = Set.of("TOP");
+        });
+        Ship fed = shipNamed(game, "USS Enterprise");
+        atTheTopEdge(game, fed);
+
+        game.moveForward(fed);
+
+        assertEquals(BattleStatus.DESTROYED, fed.getBattleStatus());
+        assertFalse(fed.isDisengaged());
+    }
+
+    /**
+     * Saying nothing keeps the old reading: any edge that is not a destruction edge. This is
+     * what every scenario but SH47 still relies on, so it is asserted rather than assumed.
+     */
+    @Test
+    public void sayingNothingKeepsTheComplementOfTheKillList() {
+        Game game = battle(side -> side.destructionEdges = Set.of("BOTTOM"));
+        Ship fed = shipNamed(game, "USS Enterprise");
+        assertTrue("no permit-list stated", game.allowedExitEdges(fed).isEmpty());
+        atTheTopEdge(game, fed);
+
+        assertTrue("TOP is not on the kill-list, so it is still a way out",
+                game.moveForward(fed).isSuccess());
+        assertTrue(fed.isDisengaged());
+    }
+
+    /** And each side's permit-list is its own, like the direction one. */
+    @Test
+    public void eachSideGetsItsOwnPermittedEdges() {
+        ScenarioSpec spec = twoSides();
+        spec.sides.get(0).exitEdges = Set.of("RIGHT");
+        spec.sides.get(1).exitEdges = Set.of("LEFT");
+        Game game = load(spec);
+
+        assertEquals(Set.of("RIGHT"), game.allowedExitEdges(shipNamed(game, "USS Enterprise")));
+        assertEquals(Set.of("LEFT"), game.allowedExitEdges(shipNamed(game, "IKV Saber")));
+    }
+
     // ---------------------------------------------------------------- per side, not per battle
 
     /**

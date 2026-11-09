@@ -242,6 +242,27 @@ public class ScenarioSpec {
          * trap the scenario meant to lay, so the destruction check runs first.
          */
         public java.util.Set<String> accelDisengageDirections = new java.util.HashSet<>();
+
+        /**
+         * The map edges this side may LEAVE by. Empty or absent falls back to "any edge that is
+         * not in {@link #destructionEdges}", which is how every scenario behaved before this
+         * field and is still the right reading for most of them.
+         *
+         * <p>The same refusal-versus-death distinction as {@link #accelDisengageDirections},
+         * and SH47 is why it exists. SH47.41 says only "the Federation can only disengage from
+         * 42xx map edge" — it never says an illegal exit destroys the ship, and SH80.41 DOES
+         * say that where it means it. Stating the restriction as three lethal edges, the only
+         * way available before, enforced a harsher rule than the scenario prints.
+         *
+         * <p>Both may be set. A permitted edge that is also a destruction edge kills, because
+         * the destruction check runs first — a scenario setting both meant the trap.
+         *
+         * <p>This list is STATED where the briefing otherwise DERIVES one by complementing the
+         * destruction edges. The stated list wins; see {@code GameController.getBriefing}, and
+         * the standing rule that where a rule derives a number the data may also state it and
+         * core must not refuse the stated one.
+         */
+        public java.util.Set<String> exitEdges = new java.util.HashSet<>();
     }
 
     // -------------------------------------------------------------------------

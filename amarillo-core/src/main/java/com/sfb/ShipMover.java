@@ -186,6 +186,17 @@ class ShipMover {
             String teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
             Set<String> teamEdges = teamName != null ? destructionEdgesByTeam.getOrDefault(teamName, new HashSet<>())
                     : new HashSet<>();
+            // C7.0: a side may name the edges it is ALLOWED to leave by, and an edge not on
+            // that list is refused rather than fatal. Checked BEFORE the tractor links are
+            // released and before anything else is touched, because a refused move must leave
+            // the ship exactly as it was. The destruction check below still runs first among
+            // the two outcomes: an edge both permitted and lethal kills.
+            Set<String> permitted = game.allowedExitEdges(ship);
+            if (!permitted.isEmpty() && !permitted.contains(exitEdge) && !teamEdges.contains(exitEdge))
+                return ActionResult.fail(ship.getName() + " cannot disengage across the "
+                        + exitEdge.toLowerCase() + " edge — this scenario permits its side only "
+                        + String.join(" or ", new java.util.TreeSet<>(permitted)).toLowerCase()
+                        + " (C7.0)");
             tractorResolver.releaseAllLinksInvolving(ship); // G7.28/G7.273
             if (teamEdges.contains(exitEdge)) {
                 // Destruction edge — ship is destroyed, not disengaged.
