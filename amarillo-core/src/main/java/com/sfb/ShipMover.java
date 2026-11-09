@@ -161,6 +161,16 @@ class ShipMover {
         }
 
         if (nextHex == null) {
+            // C7.0: a scenario may deny this side the map edge as a way out. Then the ship
+            // simply cannot leave — REFUSED, not destroyed. Destruction is what
+            // destructionEdges is for, and conflating the two would turn a scenario that says
+            // "you must fight this out" into one that says "and die if you try to go".
+            //
+            // Checked before the edge is even worked out, because no edge is a legal exit.
+            if (!game.sideMayDisengageBy(ship, com.sfb.properties.DisengagementMethod.MAP_EDGE))
+                return ActionResult.fail(ship.getName() + " cannot leave the map — this"
+                        + " scenario does not permit its side to disengage by leaving the map"
+                        + " (C7.0)");
             // Determine which edge the ship is exiting
             Location cur = ship.getLocation();
             String exitEdge;

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { gameApi } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
 import { readChart, riskSummary, type TerrainChartData } from '../game/terrainCharts';
-import { edgeLabel, yourSide, type BriefingData } from '../game/briefing';
+import { edgeLabel, yourSide, METHOD_LABEL, type BriefingData } from '../game/briefing';
 
 /**
  * The printed charts, on screen, knowing which cell you are reading.
@@ -140,6 +140,31 @@ export function PlayerAidPanel({ gameId, playerToken, shipName, mapCols, mapRows
                       <div style={{ color: '#f85149', marginTop: 2 }}>
                         Leaving by the {side.destructionEdges
                           .map(e => edgeLabel(e, mapCols, mapRows)).join(', ')} destroys the ship.
+                      </div>
+                    )}
+
+                    {/* (C7.0) Which means this side may use at all. Only shown when the
+                        scenario has RESTRICTED them — printing all three on every ordinary
+                        battle is noise, and the absence of the line is itself the message. */}
+                    {side.disengagement && side.disengagement.length < 3 && (
+                      <div style={{ marginTop: 4 }}>
+                        This side may disengage only{' '}
+                        {side.disengagement.map(m => METHOD_LABEL[m] ?? m).join(' or ')}.
+                      </div>
+                    )}
+
+                    {/* (C7.1) Where it may run to, which is a refusal and not a death — so it
+                        is worded apart from the destruction line above. */}
+                    {(side.accelDisengageDirections?.length ?? 0) > 0 && (
+                      <div style={{ marginTop: 2 }}>
+                        Disengaging by acceleration is only possible heading{' '}
+                        {side.accelDisengageDirections.join(', ')}.
+                      </div>
+                    )}
+                    {(side.accelDestructionDirections?.length ?? 0) > 0 && (
+                      <div style={{ color: '#f85149', marginTop: 2 }}>
+                        Accelerating away heading {side.accelDestructionDirections.join(', ')}{' '}
+                        destroys the ship.
                       </div>
                     )}
                   </div>

@@ -211,6 +211,37 @@ public class ScenarioSpec {
         public java.util.Set<String> destructionEdges = new java.util.HashSet<>();
         /** SFB directions (A–F) that are destruction zones for accel disengagement (C7.1). */
         public java.util.Set<String> destructionDirections = new java.util.HashSet<>();
+
+        /**
+         * Which of C7.0's means of disengagement this side may use. EMPTY OR ABSENT MEANS ALL
+         * OF THEM, which is what every scenario written before this field said by omission.
+         *
+         * <p>A scenario can now say "this side cannot simply outrun the battle" without having
+         * to declare the whole map lethal. The permissive default is the same choice R1.7's
+         * acceleration flags made: a new restriction must be opted into, or adding the field
+         * would silently re-rule every existing scenario.
+         *
+         * <p>This is a SCENARIO restriction and stacks with the HULL's own — a plain freighter
+         * still cannot disengage by acceleration (R1.7) however permissive the scenario is.
+         */
+        public java.util.Set<com.sfb.properties.DisengagementMethod> disengagement =
+                new java.util.HashSet<>();
+
+        /**
+         * The SFB directions (A–F) this side may disengage by acceleration ALONG. Empty or
+         * absent means any direction.
+         *
+         * <p>Distinct from {@link #destructionDirections}, and the difference is the point:
+         * a direction missing from THIS list is simply not a way out, and the attempt is
+         * refused. A direction listed in THAT one kills the ship that takes it. SH47.41's
+         * "can only disengage from the 01xx map edge" is the first kind — a refusal, not a
+         * death sentence — and until this field existed the only way to express it was to
+         * declare every other direction lethal, which is a different rule.
+         *
+         * <p>Both may be set at once. A direction that is permitted here and lethal there is a
+         * trap the scenario meant to lay, so the destruction check runs first.
+         */
+        public java.util.Set<String> accelDisengageDirections = new java.util.HashSet<>();
     }
 
     // -------------------------------------------------------------------------

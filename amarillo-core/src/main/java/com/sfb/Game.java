@@ -100,6 +100,11 @@ public class Game {
     // step-A handicap (S2.20 A).
     private final java.util.Set<String> fledByTurn2 = new java.util.HashSet<>();
     private Map<String, Set<String>> destructionEdgesByTeam = new HashMap<>(); // teamName → destruction edges
+    // teamName → the C7.0 means that side may use. A team ABSENT from this map may use all of
+    // them, which is how every scenario written before the field reads. See sideMayDisengageBy.
+    private Map<String, Set<com.sfb.properties.DisengagementMethod>> disengagementByTeam = new HashMap<>();
+    // teamName → directions it may disengage by acceleration along; absent = any.
+    private Map<String, Set<String>> accelDirectionsByTeam = new HashMap<>();
     private Map<String, Set<String>> destructionDirectionsByTeam = new HashMap<>(); // teamName → destruction directions
                                                                                     // (A–F) for accel disengage
     private GameEndResult gameEndResult = null;
@@ -273,12 +278,20 @@ public class Game {
         fledByTurn2.clear();
         destructionEdgesByTeam.clear();
         destructionDirectionsByTeam.clear();
+        disengagementByTeam.clear();
+        accelDirectionsByTeam.clear();
         if (scenario.sides != null) {
             for (ScenarioSpec.SideSpec side : scenario.sides) {
                 if (side.destructionEdges != null && !side.destructionEdges.isEmpty())
                     destructionEdgesByTeam.put(side.name, side.destructionEdges);
                 if (side.destructionDirections != null && !side.destructionDirections.isEmpty())
                     destructionDirectionsByTeam.put(side.name, side.destructionDirections);
+                // Empty is NOT stored, so "said nothing" and "said everything" are the same
+                // answer rather than one of them meaning "nothing allowed".
+                if (side.disengagement != null && !side.disengagement.isEmpty())
+                    disengagementByTeam.put(side.name, side.disengagement);
+                if (side.accelDisengageDirections != null && !side.accelDisengageDirections.isEmpty())
+                    accelDirectionsByTeam.put(side.name, side.accelDisengageDirections);
             }
         }
 
@@ -951,6 +964,46 @@ public class Game {
         double energy = t.getBankedEnergy() + ship.getPowerSystems().getBatteryPower();
         int affordable = (int) (energy / com.sfb.systemgroups.Transporters.energyPerUse() + 1e-6);
         return Math.min(freeBoxes, affordable);
+    }
+
+    /**
+     * (C7.0) Whether this ship's SIDE may leave the battle this way at all.
+     *
+     * <p>A scenario restriction, and separate from the hull's: a plain freighter cannot
+     * disengage by acceleration whatever the scenario permits (R1.7), which is asked
+     * independently in {@code DisengagementResolver}.
+     *
+     * <p>A side that named no methods may use all of them. That default is load-bearing — it is
+     * what every scenario written before the field says by omission — so the map deliberately
+     * holds no entry for such a side rather than an empty set.
+     *
+     * <p>A ship with no owner (a test fixture, a neutral) is unrestricted: there is no side to
+     * read a restriction from, and refusing would break every battle assembled without players.
+     */
+    public boolean sideMayDisengageBy(Ship ship, com.sfb.properties.DisengagementMethod method) {
+        if (ship == null || ship.getOwner() == null)
+            return true;
+        Set<com.sfb.properties.DisengagementMethod> allowed =
+                disengagementByTeam.get(ship.getOwner().getTeamName());
+        return allowed == null || allowed.isEmpty() || allowed.contains(method);
+    }
+
+    /**
+     * (C7.1) The directions this ship's side may disengage by acceleration along, or an EMPTY
+     * set meaning "any". Public so the briefing can print it: a player told only that his exit
+     * is restricted, without being told to where, has been told nothing useful.
+     */
+    public Set<String> allowedAccelDirections(Ship ship) {
+        if (ship == null || ship.getOwner() == null)
+            return new HashSet<>();
+        Set<String> dirs = accelDirectionsByTeam.get(ship.getOwner().getTeamName());
+        return dirs == null ? new HashSet<>() : new HashSet<>(dirs);
+    }
+
+    /** The methods a side may use, or an EMPTY set meaning "all of them". For the briefing. */
+    public Set<com.sfb.properties.DisengagementMethod> allowedDisengagementFor(String teamName) {
+        Set<com.sfb.properties.DisengagementMethod> allowed = disengagementByTeam.get(teamName);
+        return allowed == null ? new HashSet<>() : new HashSet<>(allowed);
     }
 
     /** True when either unit holds the other in a tractor beam (G7.412). */

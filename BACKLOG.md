@@ -506,15 +506,90 @@ one-scenario code paths):
 - `GameEndResult` holds ONE `winnerTeam` and must hold a list: SH47.5 says in terms that with
   two boxes "it is possible that both players could win".
 
-**One ruling still open, and it needs the owner.** SH47.41 says "The Kzinti can only disengage
-from 01xx map edge." That can be read as restricting ALL disengagement to that edge, which
-would exclude C7.1 by acceleration entirely. The engine instead maps each side's edges to
-directions and allows acceleration through a safe one — `resolveAccelDisengage` converts the
-facing to a direction, checks it against the team's destruction directions, and secures the
-cargo on a safe exit. Defensible (C7.0 lists acceleration as one of four means, and SH47.5 just
-says "successfully disengages"), but if the owner rules the other way, C7.1 has to be refused
-in any scenario that names exit edges — which is a change to DisengagementResolver, not to this
-victory work.
+**One ruling still open — but it is now a ONE-LINE DATA CHANGE, not a code decision.** SH47.41
+says "The Kzinti can only disengage from 01xx map edge." That can be read as restricting ALL
+disengagement to that edge, which would exclude C7.1 by acceleration entirely. The engine allows
+acceleration through a safe direction, which is defensible (C7.0 lists acceleration as one of
+four means, and SH47.5 just says "successfully disengages").
+
+Since 2026-11-09 a scenario can say which it means: `"disengagement": ["MAP_EDGE"]` on each side
+of `sh47.json` reads the clause the strict way, and leaving the field out keeps today's reading.
+See the per-scenario disengagement entry below. **`sh47.json` has deliberately NOT been changed**
+— which reading SH47.41 carries is the owner's call, and the file currently says nothing, which
+is the permissive one.
+
+## Per-scenario disengagement rules (C7.0) — BUILT 2026-11-09
+
+Asked for by the owner: "for a scenario, we should be able to specify what kind of disengagement
+is allowed (separation, leaving the map, acceleration). And there are some missions that only
+allow disengagement by acceleration in certain directions."
+
+**Two new fields on `SideSpec`, and they are deliberately different shapes:**
+
+- `disengagement` — a set of `DisengagementMethod` (`ACCELERATION`, `MAP_EDGE`, `SEPARATION`).
+  **Empty or absent means ALL OF THEM.** That default is load-bearing: every authored scenario
+  and every saved game in `data/` says nothing here, and if absent meant "none" each of them
+  would silently become a battle nobody can leave. Same choice R1.7's acceleration flags made.
+- `accelDisengageDirections` — the A–F directions C7.1 may be used ALONG; empty means any.
+
+**The second field is NOT `destructionDirections` with the sign flipped, and that is the whole
+design.** A direction missing from the permit-list is simply not a way out, and the attempt is
+refused. A direction in the kill-list destroys the ship that takes it. SH47.41's "can only
+disengage from the 01xx map edge" is the first kind, and expressing it with the kill-list — the
+only way available before — states a harsher rule than the scenario does. Both may be set at
+once, and the destruction check runs first, because a direction that is permitted and lethal is
+a trap the scenario meant to lay.
+
+**Where each is enforced**, and why not all in one place:
+- `Game.sideMayDisengageBy(ship, method)` is the single policy lookup; the resolvers call it
+  rather than being handed two more maps through their constructors. A ship with NO OWNER is
+  unrestricted — there is no side to read a restriction from, and refusing would break every
+  fixture built without players.
+- C7.1: checked in `queueAccelDisengageCandidates`, so a denied ship is never OFFERED the
+  disengagement. A prompt that can only be refused is worse than no prompt. This stacks with the
+  hull's own `canDisengageByAcceleration()` (R1.7) — a plain freighter still cannot, however
+  permissive the scenario.
+- C7.2: `canDisengageBySeparation`.
+- Map edge: in `ShipMover`, and it **REFUSES THE MOVE** rather than destroying the ship. Keeping
+  that distinct from `destructionEdges` is the point of the field; a scenario saying "you must
+  fight this out" must not become one saying "and die if you try to leave".
+
+**The briefing had to change with it, and this is the trap to remember.** `exitEdges` on the
+`/player-aid/briefing` endpoint is DERIVED as the complement of `destructionEdges`. A side barred
+from the map edge still has an un-lethal edge in that arithmetic, so without a fix the panel
+promised an exit the engine refuses — a derived field contradicting the rule it came from, the
+same shape as the privacy bug where a derived field leaked the one it was meant to withhold. The
+endpoint now sends an empty `exitEdges` for such a side, and sends `disengagement` RESOLVED so no
+client has to know that an absent field is the permissive case.
+
+**Validation is free and loud.** `ScenarioSpec`'s mapper is a plain `ObjectMapper`, so a method
+name the enum does not have throws at load rather than deserializing to null. That is deliberate:
+the enum holds only the three BUILT methods, so a scenario permitting sublight evasion (C7.3,
+unbuilt) is refused instead of being silently ignored. **Whoever builds C7.3 adds it to the enum**
+— and `automatic` (C7.4) is deliberately absent, being a scenario taking a ship off the board
+itself rather than a player action with anything to gate.
+
+**No save-format change.** `SavedGame.scenario` holds the whole `ScenarioSpec`, so the new fields
+ride along, and an old save lacking them defaults permissive — which is exactly how it behaved
+when it was written. Neither version number moved.
+
+**PER SIDE, not per battle, and proven so.** The owner's condition on accepting the feature:
+"so long as we are able to have separate accelDisengageDirections for each side in the battle".
+Both fields live on `SideSpec`, so that is the shape — but every other direction case restricts
+one side only, which means a map keyed wrongly, or a last-side-wins bug in the load loop, would
+pass all of them. `eachSideGetsItsOwnPermittedDirections` and its reversed twin are the cases
+that fail: two ships both facing A, one side permitted A and the other D, one offer and not two.
+
+`ScenarioDisengagementTest` (17 cases) and five more in `BriefingEndpointTest`. Three mutants
+were run, each modelling a different wrong implementation:
+- permit everything → the four denial cases fail;
+- make "absent" mean "none" → the default cases fail. **This is the one worth remembering** —
+  it is the mistake that would quietly re-rule every existing scenario;
+- one direction list for the whole battle, as if the field sat on the scenario → the three
+  per-side cases fail.
+
+**Still open here:** nothing per-side, but C7.3 sublight evasion remains unbuilt, and
+`DisengagementResolver`'s own header still names it as the future home.
 
 ## ObjectiveResolver: the next extraction (named by a reviewer 2026-11-07)
 
@@ -829,7 +904,12 @@ groundwork already in place.
   SAL only — **the other Orion hulls still need it**, and until they have it they fire every
   rack.
 
-- **G24.23, attracting drones** — then G24.1343, phaser downfire to avoid blinding.
+- **G24.1343, phaser downfire to avoid blinding** — unbuilt, and the next scout slice.
+  **G24.23, attracting drones, is BUILT** and was still listed here as the thing to do next:
+  G24.231's draw, G24.234's range band and G24.235's ask-the-owner round all exist, with
+  `channelAttractedDrone` on the DTO and a pending-answer flow in Game. See also
+  `project_phaser_downfire`: the rule is E2.25's LOW-POWER clause, not E1.x, and `shotModes`
+  already exist, so it is cheaper than it looks.
 - **G21.1/G21.2 crew quality adjustments.** The declaration is built and `crewQuality` is on
   `ShipSpec`; the adjustment lists are not. The ±3 natural EW is the first slice.
 
@@ -1037,8 +1117,12 @@ The cheapest category in the project, and the one that keeps producing real bugs
 already in the DTO; only the display is missing. Check this shape first whenever something looks
 absent from the UI — the DAC arming display turned out to be exactly this.
 
-- **Launch buttons are not disabled under EM.** `usingEm` is on the ship DTO
-  (`GameStateDto.java:524`). Today a player clicks launch and gets the server's refusal back.
+- ~~**Launch buttons are not disabled under EM.**~~ **FALSE as of 2026-11-09, and built better
+  than this asked for.** `LaunchOrdersPad.emBlocked` gates every launch control and prints a
+  banner naming C10.511 and the craft it covers. It reads the server's `emEffective`, NOT
+  `usingEm` as this bullet suggested — C10.24 says a tractor SUSPENDS EM without cancelling it,
+  so a held ship is still "using EM" and may still launch, and deriving that in the view would
+  be the client deciding a rule. The fourth claim in this file to be found false by grepping it.
 - ~~**No standalone "call declaration" button."**~~ **FALSE, and was when it was written.** The
   Fire Orders pad has had the button all along, wired to `ensureDeclarationOpen`, which requires
   no drafted orders — so the bluff has always been available. The second half was wrong for the

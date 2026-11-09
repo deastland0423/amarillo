@@ -64,6 +64,17 @@ class DisengagementResolver {
             // property of the hull, not of how the battle has gone.
             if (!ship.canDisengageByAcceleration())
                 continue;
+            // C7.0: and the SCENARIO may deny the whole method to this side, which is a
+            // separate question from the hull's own. Asked here rather than at confirmation so
+            // the offer never appears: a prompt that can only be refused is worse than none.
+            if (!game.sideMayDisengageBy(ship, com.sfb.properties.DisengagementMethod.ACCELERATION))
+                continue;
+            // C7.1 with a scenario permit-list: a ship pointing a way its side may not leave by
+            // is not a candidate. The facing read here is the one resolveAccelDisengage will
+            // read, because both run at the turn boundary.
+            Set<String> allowedDirs = game.allowedAccelDirections(ship);
+            if (!allowedDirs.isEmpty() && !allowedDirs.contains(exitDirectionOf(ship)))
+                continue;
             int originalWarp = ship.getPowerSystems().getOriginalWarp();
             if (originalWarp == 0)
                 continue; // no warp engines
@@ -101,7 +112,7 @@ class DisengagementResolver {
         Set<String> badDirs = teamName != null
                 ? destructionDirectionsByTeam.getOrDefault(teamName, new HashSet<>())
                 : new HashSet<>();
-        String exitDir = String.valueOf((char) ('A' + ((ship.getFacing() - 1) / 4)));
+        String exitDir = exitDirectionOf(ship);
         tractorResolver.releaseAllLinksInvolving(ship); // G7.28
         if (badDirs.contains(exitDir)) {
             // Destroyed on the way out — objectives drop (before location clears)
@@ -129,6 +140,14 @@ class DisengagementResolver {
         return secured.isEmpty() ? msg : msg + "\n" + String.join("\n", secured);
     }
 
+    /**
+     * (C7.1) The SFB direction a ship would leave along: its facing, which is one of the six
+     * bearings {1,5,9,13,17,21}, as the letter A-F a scenario file names.
+     */
+    private static String exitDirectionOf(Ship ship) {
+        return String.valueOf((char) ('A' + ((ship.getFacing() - 1) / 4)));
+    }
+
     /** S2.20 A: a unit that disengages by end of Turn 2 forfeits its side's handicap. */
     private void noteFledIfEarly(Ship ship) {
         if (game.getCurrentTurn() <= 2 && ship.getOwner() != null)
@@ -148,6 +167,9 @@ class DisengagementResolver {
      * no enemy ship within {@link #SEPARATION_RANGE} hexes, and no in-flight seekers targeting it.
      */
     boolean canDisengageBySeparation(Ship ship) {
+        // C7.0: the scenario may deny this side the method outright.
+        if (!game.sideMayDisengageBy(ship, com.sfb.properties.DisengagementMethod.SEPARATION))
+            return false;
         if (ship.getLocation() == null || ship.isDisengaged())
             return false;
         for (Ship other : ships) {

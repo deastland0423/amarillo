@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { edgeLabel, yourSide, type BriefingData, type BriefingSide } from './briefing';
+import {
+  edgeLabel, yourSide, METHOD_LABEL,
+  type BriefingData, type BriefingSide, type DisengagementMethod,
+} from './briefing';
 
 /**
  * The briefing panel's two helpers. Everything else it shows is sent by the server, which is
@@ -14,6 +17,9 @@ function side(over: Partial<BriefingSide> = {}): BriefingSide {
     yours: false,
     exitEdges: ['RIGHT'],
     destructionEdges: ['TOP', 'BOTTOM', 'LEFT'],
+    disengagement: ['ACCELERATION', 'MAP_EDGE', 'SEPARATION'],
+    accelDisengageDirections: [],
+    accelDestructionDirections: [],
     ships: ['USS Xerxes'],
     ...over,
   };
@@ -39,6 +45,22 @@ describe('naming an edge', () => {
   it('reads the numbers off the map rather than assuming the usual size', () => {
     expect(edgeLabel('RIGHT', 20, 15)).toBe('right (column 20)');
     expect(edgeLabel('BOTTOM', 20, 15)).toBe('bottom (row 15)');
+  });
+});
+
+describe('naming a means of disengagement (C7.0)', () => {
+  /**
+   * Every method the server can send has a label. A missing one would render the raw enum
+   * name at a player, which is the sort of thing nobody notices until a scenario uses it.
+   */
+  it('labels all three methods with their clause', () => {
+    const all: DisengagementMethod[] = ['ACCELERATION', 'MAP_EDGE', 'SEPARATION'];
+    for (const method of all) {
+      expect(METHOD_LABEL[method]).toBeTruthy();
+      expect(METHOD_LABEL[method]).not.toBe(method);
+    }
+    expect(METHOD_LABEL.ACCELERATION).toContain('C7.1');
+    expect(METHOD_LABEL.SEPARATION).toContain('C7.2');
   });
 });
 

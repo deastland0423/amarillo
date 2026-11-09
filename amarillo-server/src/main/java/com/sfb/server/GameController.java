@@ -3405,12 +3405,34 @@ public class GameController {
                     // sentences and the panel says both.
                     java.util.Set<String> deadly = side.destructionEdges != null
                             ? side.destructionEdges : java.util.Set.of();
+                    // C7.0: a side that may not disengage by leaving the map has NO exit edge,
+                    // whatever the kill-list says. exitEdges is derived from the complement of
+                    // that list, so without this it would promise an exit the rule forbids —
+                    // the derived field contradicting the one it was derived from.
+                    java.util.Set<com.sfb.properties.DisengagementMethod> methods =
+                            side.disengagement == null || side.disengagement.isEmpty()
+                                    ? java.util.EnumSet.allOf(com.sfb.properties.DisengagementMethod.class)
+                                    : java.util.EnumSet.copyOf(side.disengagement);
                     List<String> exits = new ArrayList<>();
-                    for (String edge : List.of("TOP", "BOTTOM", "LEFT", "RIGHT"))
-                        if (!deadly.contains(edge))
-                            exits.add(edge);
+                    if (methods.contains(com.sfb.properties.DisengagementMethod.MAP_EDGE))
+                        for (String edge : List.of("TOP", "BOTTOM", "LEFT", "RIGHT"))
+                            if (!deadly.contains(edge))
+                                exits.add(edge);
                     s.put("exitEdges", exits);
                     s.put("destructionEdges", new java.util.TreeSet<>(deadly));
+                    // The means this side may use, always sent as the full resolved list rather
+                    // than "null means everything" — the client should not have to know that
+                    // an absent field is the permissive case.
+                    s.put("disengagement", methods.stream().map(Enum::name).sorted().toList());
+                    // And where it may run to, when C7.1 is restricted by direction. Empty
+                    // means any direction, which is NOT the same as the method being denied —
+                    // that is in the list above.
+                    s.put("accelDisengageDirections", side.accelDisengageDirections == null
+                            ? List.of()
+                            : new java.util.TreeSet<>(side.accelDisengageDirections));
+                    s.put("accelDestructionDirections", side.destructionDirections == null
+                            ? List.of()
+                            : new java.util.TreeSet<>(side.destructionDirections));
                     s.put("ships", side.ships == null ? List.of() : side.ships.stream()
                             .map(sh -> sh.shipName != null && !sh.shipName.isBlank()
                                     ? sh.shipName : sh.type)

@@ -142,6 +142,79 @@ class BriefingEndpointTest {
         assertEquals(List.of("TOP", "BOTTOM", "LEFT", "RIGHT"), fed.get("exitEdges"));
     }
 
+    // ---------------------------------------------------------------- C7.0 means
+
+    /**
+     * (C7.0) The means a side may use, sent as the RESOLVED list. A side that named none may
+     * use all of them, and the client should not have to know that an absent field is the
+     * permissive case — so the server answers the question rather than passing on the silence.
+     */
+    @Test
+    void aSideThatNamedNoMeansGetsTheWholeListResolved() {
+        Map<String, Object> fed = sideNamed(briefing(HOST), "United Federation of Planets");
+
+        assertEquals(List.of("ACCELERATION", "MAP_EDGE", "SEPARATION"), fed.get("disengagement"));
+    }
+
+    /** And a side that named some gets those. */
+    @Test
+    void aRestrictedSideGetsOnlyWhatItMayUse() {
+        ScenarioSpec restricted = spec();
+        restricted.sides.get(0).disengagement =
+                new java.util.HashSet<>(Set.of(com.sfb.properties.DisengagementMethod.SEPARATION));
+        session.adoptRestored(restricted);
+
+        Map<String, Object> fed = sideNamed(briefing(HOST), "United Federation of Planets");
+
+        assertEquals(List.of("SEPARATION"), fed.get("disengagement"));
+    }
+
+    /**
+     * The derived field has to agree with the rule. {@code exitEdges} is the complement of the
+     * destruction list, so a side barred from leaving by the map edge must get an EMPTY list of
+     * exits — not the one safe edge its kill-list happens to leave open. Publishing an exit the
+     * engine will refuse is the exact shape of bug the privacy work calls a derived field
+     * contradicting its source.
+     */
+    @Test
+    void asideBarredFromTheMapEdgeHasNoExitEdgeAtAll() {
+        ScenarioSpec restricted = spec();
+        restricted.sides.get(0).disengagement = new java.util.HashSet<>(
+                Set.of(com.sfb.properties.DisengagementMethod.ACCELERATION));
+        session.adoptRestored(restricted);
+
+        Map<String, Object> fed = sideNamed(briefing(HOST), "United Federation of Planets");
+
+        assertEquals(List.of(), fed.get("exitEdges"),
+                "the scenario leaves RIGHT un-lethal, but the side may not use it");
+        assertEquals(3, ((java.util.Collection<?>) fed.get("destructionEdges")).size(),
+                "while the kill-list is reported unchanged");
+    }
+
+    /** (C7.1) The direction permit-list reaches the panel, and is distinct from the kill-list. */
+    @Test
+    void theAccelerationDirectionListsAreBothSent() {
+        ScenarioSpec restricted = spec();
+        restricted.sides.get(0).accelDisengageDirections = new java.util.HashSet<>(Set.of("A", "B"));
+        restricted.sides.get(0).destructionDirections = new java.util.HashSet<>(Set.of("D"));
+        session.adoptRestored(restricted);
+
+        Map<String, Object> fed = sideNamed(briefing(HOST), "United Federation of Planets");
+
+        assertEquals(List.of("A", "B"),
+                new java.util.ArrayList<>((java.util.Collection<?>) fed.get("accelDisengageDirections")));
+        assertEquals(List.of("D"),
+                new java.util.ArrayList<>((java.util.Collection<?>) fed.get("accelDestructionDirections")));
+    }
+
+    /** Silence on directions means any direction, and reads as an empty list. */
+    @Test
+    void noDirectionRestrictionIsAnEmptyList() {
+        Map<String, Object> fed = sideNamed(briefing(HOST), "United Federation of Planets");
+
+        assertTrue(((java.util.Collection<?>) fed.get("accelDisengageDirections")).isEmpty());
+    }
+
     // ---------------------------------------------------------------- whose side is whose
 
     @Test
