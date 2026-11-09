@@ -522,6 +522,13 @@ export interface ShipObject extends MapObjectBase {
   tacAvailable?:          number;  // earned warp TAC ready to use (0 or 1)
   tacBudget?:             number;  // warp TACs still to be earned this turn
   sublightTacAvailable?:  boolean; // sublight TAC paid and unused
+  // C5.13: this ship allocated NOTHING to any movement function, so it gets one free 60° turn
+  // on attitude thrusters — on Impulse #32 only. Withheld for an enemy ship, because it is a
+  // statement about his allocation form rather than about anything on the map.
+  zeroEnergyTurnAvailable?: boolean;
+  // C5.31: a maneuver of either kind has already been made this impulse. Both kinds are legal
+  // in one turn but not on one impulse.
+  tacUsedThisImpulse?:    boolean;
 }
 
 export interface ShuttleObject extends MapObjectBase {
@@ -578,6 +585,9 @@ export interface ShuttleObject extends MapObjectBase {
   fireDelayRemaining?:   number;
   seekerDelayRemaining?: number;
   hetUsed?:       boolean;        // fighters only: true if tactical maneuver used this turn
+  // C5.13: this craft did not move under its own power and has not turned, so it may turn up
+  // to 180° free on Impulse #32. Any craft, not only fighters.
+  zeroEnergyTurnAvailable?: boolean;
   landingPhase?:      string;        // NONE | DESCENDING | LANDED | CLIMBING (P2.4)
   landedHexSide?:     number;        // 1..6 (A..F) when landed on a planet
   holdCrew?:          number;        // crew units in the hold

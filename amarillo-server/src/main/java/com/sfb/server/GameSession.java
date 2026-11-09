@@ -2470,6 +2470,18 @@ public class GameSession {
                 return ssRes;
             }
 
+            case "PERFORM_SHUTTLE_ZERO_ENERGY_TURN": {
+                String shuttleName = request.getShipName();
+                com.sfb.objects.shuttles.Shuttle shuttle = game.getActiveShuttles().stream()
+                        .filter(s -> s.getName().equalsIgnoreCase(shuttleName))
+                        .findFirst().orElse(null);
+                if (shuttle == null)
+                    return ActionResult.fail("Active shuttle not found: " + shuttleName);
+                // No validation beyond finding the craft: every clause of C5.13 — the impulse,
+                // the speed, the once-per-turn — is in ShuttleMover where the rule lives.
+                return game.performShuttleZeroEnergyTurn(shuttle, request.getFacing());
+            }
+
             case "PERFORM_FIGHTER_HET": {
                 String shuttleName = request.getShipName();
                 com.sfb.objects.shuttles.Shuttle shuttle = game.getActiveShuttles().stream()

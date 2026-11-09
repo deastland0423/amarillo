@@ -92,6 +92,9 @@ public class MapObjectPrivacyTest {
             // would be undone the moment anyone keyed art off the role instead.
             "tokenArt",
             "crippled", "hetUsed", "beingRecovered", "landingPhase", "landedHexSide",
+            // C5.13's free turn. Public because both halves of it already are: speed is public
+            // above, and whether the craft has turned is as visible as hetUsed beside it.
+            "zeroEnergyTurnAvailable",
             "personnelCapacity", "isIdentified",
             // Damage is visible, and so is the hull behind it: unlike a drone, the craft
             // type is public ("Admin Shuttle"), so its hull was never secret.

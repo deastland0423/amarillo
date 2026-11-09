@@ -122,11 +122,11 @@ public class TacticalManeuverTest {
     /**
      * And the maneuver is still spent, so a second one in the same window is refused.
      *
-     * <p>This ship pays for a warp maneuver and NOT a sublight one. The first draft bought both
-     * and the second request succeeded by falling back to the sublight maneuver — which is a
-     * separate bug (C5.31 allows a ship both in a turn "but NOT during the same impulse", and
-     * nothing enforces that). Recorded in BACKLOG rather than fixed here; a test must not pin
-     * the behaviour it just caught being wrong.
+     * <p>This ship pays for a warp maneuver and NOT a sublight one, so that the refusal below is
+     * C5.232's and nothing else. The first draft bought both and the second request succeeded by
+     * falling back to the sublight maneuver — which was a second bug, C5.31, left recorded in
+     * BACKLOG at the time rather than pinned here. It is fixed now and has its own tests below;
+     * this one keeps its narrow fixture so the two failures stay distinguishable.
      */
     @Test
     public void theManeuverIsConsumed() {
@@ -140,6 +140,159 @@ public class TacticalManeuverTest {
 
         assertFalse("one earned maneuver is one maneuver (C5.232)", second.isSuccess());
         assertEquals("and the refused one leaves the facing alone", 5, xerxes.getFacing());
+    }
+
+    // ---------------------------------------------------------------- C5.31, same impulse
+
+    /**
+     * (C5.31) Both kinds in one TURN, "but NOT during the same impulse".
+     *
+     * <p>This is the bug {@link #theManeuverIsConsumed} was written around. A ship that paid for
+     * both spent its warp maneuver, and the fallback in {@code performTacticalTurn} handed it the
+     * sublight one on the next call in the same impulse — two 60° turns on one impulse, which is
+     * 120° and a different maneuver entirely.
+     */
+    @Test
+    public void bothKindsCannotBeUsedOnTheSameImpulse() {
+        Game game = battle();
+        Ship xerxes = shipNamed(game, "USS Xerxes");
+        noHetCanEverSucceed(xerxes);
+        toTacWindow(game);
+
+        assertTrue(game.performTacticalTurn(xerxes, 5, false).isSuccess());
+        ActionResult second = game.performTacticalTurn(xerxes, 9, false);
+
+        assertFalse("the sublight maneuver is not a second bite at this impulse (C5.31)",
+                second.isSuccess());
+        assertTrue("and the refusal says which rule it is: " + second.getMessage(),
+                second.getMessage().contains("C5.31"));
+        assertEquals("the facing is the one maneuver's, not two", 5, xerxes.getFacing());
+    }
+
+    /** Asking for the sublight one BY NAME is refused on that impulse too, not just the fallback. */
+    @Test
+    public void theSameImpulseBanAppliesToAnExplicitSublightRequest() {
+        Game game = battle();
+        Ship xerxes = shipNamed(game, "USS Xerxes");
+        noHetCanEverSucceed(xerxes);
+        toTacWindow(game);
+
+        assertTrue(game.performTacticalTurn(xerxes, 5, false).isSuccess());
+
+        assertFalse(game.performTacticalTurn(xerxes, 9, true).isSuccess());
+        assertEquals(5, xerxes.getFacing());
+    }
+
+    /**
+     * And the first half of C5.31 still stands: both kinds in the same turn is LEGAL, a later
+     * impulse being all it takes. A ban written as "one maneuver per turn" would pass the test
+     * above and fail this one.
+     */
+    @Test
+    public void bothKindsMayBeUsedOnDifferentImpulsesOfTheSameTurn() {
+        Game game = battle();
+        Ship xerxes = shipNamed(game, "USS Xerxes");
+        noHetCanEverSucceed(xerxes);
+        toTacWindow(game);
+
+        assertTrue(game.performTacticalTurn(xerxes, 5, false).isSuccess());
+        toMovementOfNextImpulse(game);
+
+        ActionResult sublight = game.performTacticalTurn(xerxes, 9, true);
+
+        assertTrue(sublight.getMessage(), sublight.isSuccess());
+        assertEquals("60° on one impulse and 60° on another", 9, xerxes.getFacing());
+    }
+
+    // ---------------------------------------------------------------- C5.13, the free turn
+
+    /**
+     * (C5.13) A ship that allocated nothing to any movement function turns once, free, on
+     * Impulse #32 — on attitude thrusters.
+     *
+     * <p>The ship that wants this is the one parked on an objective studying it (SH47.474),
+     * whose movement line is empty by design. Before this it could not turn at all: no budget,
+     * no sublight point, no maneuver.
+     */
+    @Test
+    public void aShipThatPaidForNoMovementTurnsFreeOnImpulse32() {
+        Game game = stationaryBattle();
+        Ship xerxes = shipNamed(game, "USS Xerxes");
+        noHetCanEverSucceed(xerxes);
+        toMovementOfImpulse(game, 32);
+
+        ActionResult result = game.performTacticalTurn(xerxes, 5, false);
+
+        assertTrue(result.getMessage(), result.isSuccess());
+        assertEquals(5, xerxes.getFacing());
+    }
+
+    /** One per turn, and the second is refused. */
+    @Test
+    public void theFreeTurnIsOnlyOnePerTurn() {
+        Game game = stationaryBattle();
+        Ship xerxes = shipNamed(game, "USS Xerxes");
+        noHetCanEverSucceed(xerxes);
+        toMovementOfImpulse(game, 32);
+
+        assertTrue(game.performTacticalTurn(xerxes, 5, false).isSuccess());
+        ActionResult second = game.performTacticalTurn(xerxes, 9, false);
+
+        assertFalse("one free turn per turn (C5.13)", second.isSuccess());
+        assertEquals(5, xerxes.getFacing());
+    }
+
+    /**
+     * Before Impulse #32 it is refused, and the refusal says WHY rather than reporting the
+     * generic "no maneuver available" — a player reading that at impulse 20 concludes the ship
+     * cannot turn this turn at all, which is the opposite of true.
+     */
+    @Test
+    public void theFreeTurnIsRefusedBeforeImpulse32ButSaysSo() {
+        Game game = stationaryBattle();
+        Ship xerxes = shipNamed(game, "USS Xerxes");
+        toTacWindow(game);
+        assertTrue("fixture must be short of impulse 32", game.getCurrentImpulse() < 32);
+
+        ActionResult early = game.performTacticalTurn(xerxes, 5, false);
+
+        assertFalse(early.isSuccess());
+        assertTrue("the message names the rule and the impulse: " + early.getMessage(),
+                early.getMessage().contains("C5.13") && early.getMessage().contains("32"));
+        assertEquals(1, xerxes.getFacing());
+    }
+
+    /**
+     * A ship that DID pay for movement gets no free turn, even with nothing left to spend. The
+     * clause is about the allocation form, not about what is unspent at impulse 32.
+     */
+    @Test
+    public void aShipThatPaidForMovementGetsNoFreeTurn() {
+        Game game = battle(false);
+        Ship xerxes = shipNamed(game, "USS Xerxes");
+        noHetCanEverSucceed(xerxes);
+        toTacWindow(game);
+        assertTrue(game.performTacticalTurn(xerxes, 5, false).isSuccess()); // spends the warp one
+        toMovementOfImpulse(game, 32);
+
+        ActionResult free = game.performTacticalTurn(xerxes, 9, false);
+
+        assertFalse("it allocated a movement function, so C5.13 does not apply", free.isSuccess());
+        assertEquals(5, xerxes.getFacing());
+    }
+
+    /**
+     * And the free turn is 60°, like any other Tactical Maneuver. The 180° in C5.13's last
+     * paragraph belongs to a SHUTTLE, not to a ship — see the note in BACKLOG.
+     */
+    @Test
+    public void theFreeTurnIsStillSixtyDegrees() {
+        Game game = stationaryBattle();
+        Ship xerxes = shipNamed(game, "USS Xerxes");
+        toMovementOfImpulse(game, 32);
+
+        assertFalse(game.performTacticalTurn(xerxes, 13, false).isSuccess()); // 180°
+        assertEquals(1, xerxes.getFacing());
     }
 
     // ---------------------------------------------------------------- helpers
@@ -175,13 +328,69 @@ public class TacticalManeuverTest {
         fail("never reached the Movement phase of impulse 2");
     }
 
+    /** Advance to the Movement phase of a later impulse than the one we are on. */
+    private static void toMovementOfNextImpulse(Game game) {
+        int from = game.getCurrentImpulse();
+        for (int guard = 0; guard < 400; guard++) {
+            game.advancePhase();
+            if (game.getCurrentImpulse() > from
+                    && game.getCurrentPhase() == Game.ImpulsePhase.MOVEMENT)
+                return;
+        }
+        fail("never reached the Movement phase of an impulse after " + from);
+    }
+
+    /** Advance to the Movement phase of a given impulse of this turn. */
+    private static void toMovementOfImpulse(Game game, int impulse) {
+        for (int guard = 0; guard < 4000; guard++) {
+            if (game.getCurrentImpulse() == impulse
+                    && game.getCurrentPhase() == Game.ImpulsePhase.MOVEMENT)
+                return;
+            game.advancePhase();
+        }
+        fail("never reached the Movement phase of impulse " + impulse);
+    }
+
     /** Two stationary ships, each having paid for a warp and a sublight maneuver (C5.22/C5.12). */
     private static Game battle() {
         return battle(true);
     }
 
+    /**
+     * Two ships whose allocation forms contain NO movement function at all — the C5.13 case.
+     * Life support and fire control only, which is what a ship sitting on an objective
+     * studying it actually pays for.
+     */
+    private static Game stationaryBattle() {
+        Game game = emptyBattle();
+        game.startTurn();
+        for (Ship s : game.getShips()) {
+            Energy e = new Energy();
+            e.setLifeSupport(s.getLifeSupportCost());
+            e.setFireControl(s.getFireControlCost());
+            game.submitAllocation(s, e);
+        }
+        return game;
+    }
+
     /** @param sublightToo whether each ship also pays the impulse point for a sublight TAC. */
     private static Game battle(boolean sublightToo) {
+        Game game = emptyBattle();
+        game.startTurn();
+        for (Ship s : game.getShips()) {
+            Energy e = new Energy();
+            e.setLifeSupport(s.getLifeSupportCost());
+            e.setFireControl(s.getFireControlCost());
+            e.setWarpTacticalTurns(1);
+            if (sublightToo)
+                e.setImpulseTacticalTurn(1);
+            game.submitAllocation(s, e);
+        }
+        return game;
+    }
+
+    /** Two stationary ships facing A, no allocation submitted yet. */
+    private static Game emptyBattle() {
         Game game = new Game();
 
         Player fed = new Player();
@@ -195,17 +404,6 @@ public class TacticalManeuverTest {
 
         game.getShips().add(ship(FederationShips.getFedCa(), "USS Xerxes", 10, 10, fed));
         game.getShips().add(ship(KlingonShips.getD7(), "KHS Mystic", 10, 12, kzin));
-
-        game.startTurn();
-        for (Ship s : game.getShips()) {
-            Energy e = new Energy();
-            e.setLifeSupport(s.getLifeSupportCost());
-            e.setFireControl(s.getFireControlCost());
-            e.setWarpTacticalTurns(1);
-            if (sublightToo)
-                e.setImpulseTacticalTurn(1);
-            game.submitAllocation(s, e);
-        }
         return game;
     }
 

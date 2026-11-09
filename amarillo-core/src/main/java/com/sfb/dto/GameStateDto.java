@@ -880,6 +880,8 @@ public class GameStateDto {
         public int tacAvailable; // earned warp TACs ready to use (0 or 1)
         public int tacBudget; // warp TACs still to be earned this turn
         public boolean sublightTacAvailable; // true if sublight TAC paid and not yet used
+        public boolean zeroEnergyTurnAvailable; // C5.13: free 60° turn on Impulse #32
+        public boolean tacUsedThisImpulse; // C5.31: a maneuver of either kind already made
     }
 
     // -------------------------------------------------------------------------
@@ -951,6 +953,9 @@ public class GameStateDto {
         public int impulsesUntilMove;
 
         public boolean hetUsed; // fighters only: true if tactical maneuver used this turn
+        // C5.13: this craft did not move under its own power and has not turned, so it may turn
+        // up to 180° free on Impulse #32. Public, like the speed it is read from.
+        public boolean zeroEnergyTurnAvailable;
         // Planet landing (P2.4) + cargo hold, for the surface-cargo UI
         public String landingPhase;     // NONE | DESCENDING | LANDED | CLIMBING
         public int landedHexSide;       // 1..6 (A..F) when on a planet, else 0
@@ -1960,6 +1965,8 @@ public class GameStateDto {
         dto.tacAvailable = ship.getTacAvailable();
         dto.tacBudget = ship.getTacBudget();
         dto.sublightTacAvailable = ship.isSublightTacAvailable();
+        dto.zeroEnergyTurnAvailable = ship.isZeroEnergyTurnAvailable();
+        dto.tacUsedThisImpulse = ship.getLastTacImpulse() == game.getCurrentImpulse();
 
         // Control space damage state
         com.sfb.systemgroups.ControlSpaces cs = ship.getControlSpaces();
@@ -2491,6 +2498,7 @@ public class GameStateDto {
             com.sfb.objects.shuttles.Fighter fighter = (com.sfb.objects.shuttles.Fighter) shuttle;
             dto.hetUsed = fighter.isTacticalManeuverUsed();
         }
+        dto.zeroEnergyTurnAvailable = shuttle.isZeroEnergyTurnAvailable();
         dto.beingRecovered = shuttle.isBeingRecovered();
         dto.landingPhase = shuttle.getLandingPhase().name();
         dto.landedHexSide = shuttle.getLandedHexSide();
@@ -2604,6 +2612,10 @@ public class GameStateDto {
         dto.tacBudget = 0;
         dto.tacAvailable = 0;          // an int: earned TACs ready to use
         dto.sublightTacAvailable = false;
+        // C5.13's free turn is available only to a ship that allocated NOTHING to movement, so
+        // the flag is a statement about his allocation form and not about anything on the map.
+        // tacUsedThisImpulse stays public beside it: a ship turning in place is seen.
+        dto.zeroEnergyTurnAvailable = false;
 
         // Transporter uses left this turn are public, because every use is seen: it is
         // the boxes still undamaged, less the uses already made. NOT our owner-side figure,

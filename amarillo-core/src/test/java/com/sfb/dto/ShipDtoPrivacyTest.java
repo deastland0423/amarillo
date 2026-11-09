@@ -101,6 +101,11 @@ public class ShipDtoPrivacyTest {
         // Intentions: paying for Erratic Maneuvers is one, USING them is a visible
         // manoeuvre (C10.11 vs C10.0).
         "lockOnTargets", "tacBudget", "tacAvailable", "sublightTacAvailable", "paidForEm",
+        // C5.13's free turn belongs with them, and is the plainest statement of intent of the
+        // lot: it is true only of a ship that allocated NOTHING to any movement function, so
+        // publishing it would publish a whole line of his allocation form. Note it is not the
+        // same as "is at speed 0", which is on the map for anyone to see.
+        "zeroEnergyTurnAvailable",
         "scoutEwPool", "scoutEwRemaining",
         // Seeker control channels. controlUsed alone would tell an opponent nothing — every
         // seeker on the map names its controller, so it can be counted — but the LIMIT is not
@@ -137,6 +142,10 @@ public class ShipDtoPrivacyTest {
         "moveCost", "maxSpeedNextTurn", "decelerating", "decelerationEndsAtImpulse",
         "immobileUntilImpulse", "canDisengageBySeparation", "destructionDirections",
         "hetsThisTurn", "lastHetImpulse", "hetCost", "usingEm", "emPending",
+        // C5.31's marker, ruled exactly as lastHetImpulse beside it: a ship turning in place is
+        // seen by both captains, so the fact that it has already done so this impulse is not a
+        // secret. What it was PAID for stays private — that is tacBudget's problem, not this.
+        "tacUsedThisImpulse",
         // Public for the same reason usingEm is (C10.11, EM is announced): it is only
         // that fact and being tractored, both of which an opponent can already see.
         "emEffective",

@@ -821,6 +821,7 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
 
     @Override
     public void startTurn() {
+        super.startTurn();      // C5.13's free turn lives on Shuttle; do not drop this
         tacticalManeuverUsed = false;
         // The turn's count resets; lastDroneLaunchImpulse deliberately does NOT, because
         // J4.24's quarter turn is measured from the launch and reaches across the boundary.

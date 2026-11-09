@@ -383,7 +383,8 @@ function isCloakOperating(ship: ShipObject): boolean {
 // ---- Shuttle movement panel ----
 
 function ShuttleMovementPanel({
-  shuttle, isMine, canMove, phase, onMove, onHet, onClose, canLand, onLand,
+  shuttle, isMine, canMove, phase, impulse, onMove, onHet, onZeroEnergyTurn, onClose,
+  canLand, onLand,
   canLandOnBalcony, onLandOnBalcony,
   onLoadPersonnel, onUnloadPersonnel, onDesignateEwSource,
 }: {
@@ -391,8 +392,11 @@ function ShuttleMovementPanel({
   isMine:   boolean;
   canMove:  boolean;
   phase:    string;
+  /** The impulse within the turn, 1-32. C5.13's free turn is on #32. */
+  impulse:  number;
   onMove:   (action: string) => void;
   onHet:    (facing: number) => void;
+  onZeroEnergyTurn: (facing: number) => void;
   onClose:  () => void;
   canLand:  boolean;
   onLand:   () => void;
@@ -406,9 +410,16 @@ function ShuttleMovementPanel({
 }) {
   const [hetMode, setHetMode]     = useState(false);
   const [hetFacing, setHetFacing] = useState<number | null>(null);
+  const [zetMode, setZetMode]     = useState(false);
+  const [zetFacing, setZetFacing] = useState<number | null>(null);
 
   const isFighter  = (shuttle.weapons?.length ?? 0) > 0;
   const canHet     = isFighter && !shuttle.crippled && !shuttle.hetUsed && phase === 'Movement';
+  // C5.13: a craft that did not move under its own power turns up to 180° free, on the last
+  // impulse of the turn. The server decides whether it is available (speed 0, not yet used);
+  // the impulse is mirrored here only so the button can say "not yet" instead of failing.
+  const zetEligible = isMine && shuttle.zeroEnergyTurnAvailable === true && phase === 'Movement';
+  const canZet      = zetEligible && impulse === 32;
 
   const typeLabel = (s: ShuttleObject) => {
     if (s.type === 'SUICIDE_SHUTTLE') return 'Suicide Shuttle';
@@ -613,6 +624,41 @@ function ShuttleMovementPanel({
                     }}
                   >
                     Execute HET →{hetFacing !== null ? ` facing ${['A','B','C','D','E','F'][[1,5,9,13,17,21].indexOf(hetFacing)]}` : ''}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Zero-energy turn (C5.13). Any craft, fighter or not, that stood still all turn:
+              up to 180° on attitude thrusters, which on a hex grid is any facing at all. */}
+          {zetEligible && (
+            <div className="het-strip">
+              <button
+                className={`action-strip-btn${zetMode ? ' active' : ''}`}
+                disabled={!canZet}
+                onClick={() => { setZetMode(m => !m); setZetFacing(null); }}
+                title={canZet
+                  ? 'Zero-energy turn — up to 180° free on attitude thrusters (C5.13)'
+                  : 'Zero-energy turn: free, up to 180°, but only on Impulse 32 (C5.13)'}
+              >
+                Free turn
+              </button>
+              {zetMode && canZet && (
+                <div className="het-picker-panel">
+                  <FacingPicker value={zetFacing} onChange={setZetFacing} label="New facing" />
+                  <button
+                    className="secondary"
+                    style={{ marginTop: '0.35rem', width: '100%', fontSize: '0.75rem' }}
+                    disabled={zetFacing === null}
+                    onClick={async () => {
+                      if (zetFacing === null) return;
+                      await onZeroEnergyTurn(zetFacing);
+                      setZetMode(false);
+                      setZetFacing(null);
+                    }}
+                  >
+                    Turn →{zetFacing !== null ? ` facing ${['A','B','C','D','E','F'][[1,5,9,13,17,21].indexOf(zetFacing)]}` : ''}
                   </button>
                 </div>
               )}
@@ -825,6 +871,9 @@ interface SidebarProps {
   onGoActiveFc:  () => void;
   // Emergency deceleration (C8.0)
   absoluteImpulse: number;
+  // The impulse WITHIN the turn, 1-32. Separate from absoluteImpulse because C5.13's free turn
+  // is on Impulse #32 of the turn, which no absolute number can tell you.
+  impulse: number;
   onEmergencyDecel: () => void;
   // Tractor beams (G7.0)
   tractorMode:          boolean;
@@ -877,7 +926,7 @@ function ShipSidebar({
   onStartCrew, onCancelCrew, onSetCrewAmount, onSubmitCrew,
   onDisengageSeparation,
   onGoPassiveFc, onGoActiveFc,
-  absoluteImpulse, onEmergencyDecel,
+  absoluteImpulse, impulse, onEmergencyDecel,
   onAnnounceEm,
   tractorMode, tractorError, onStartTractor, onCancelTractor, onReleaseTractor,
   tractorBidTarget, tractorBidValue, tractorRangeMultiplier, onSetTractorBid, onSubmitTractorBid, onCancelTractorBid, tractorBidMax,
@@ -933,8 +982,17 @@ function ShipSidebar({
   const canHet          = phase === 'Movement' && isMine
                         && (ship.hetCost ?? 0) > 0
                         && (ship.reserveWarp ?? 0) >= (ship.hetCost ?? 1);
+  // C5.13: a ship that allocated nothing to any movement function has no budget and no
+  // sublight point, so before this its TAC strip never appeared at all — and the ship most
+  // likely to want a turn is exactly that one, parked on an objective studying it (SH47.474).
+  // Its single free turn comes on Impulse #32, on attitude thrusters.
+  const zeroEnergyTac   = ship.zeroEnergyTurnAvailable === true;
+  const zeroEnergyNow   = zeroEnergyTac && impulse === 32;
   const canTac          = phase === 'Movement' && isMine && ship.speed === 0
-                        && ((ship.tacAvailable ?? 0) > 0 || ship.sublightTacAvailable === true);
+                        // C5.31: both kinds are legal in a turn, but not on one impulse.
+                        && ship.tacUsedThisImpulse !== true
+                        && ((ship.tacAvailable ?? 0) > 0 || ship.sublightTacAvailable === true
+                            || zeroEnergyNow);
   const maxHarParties   = Math.min(ship.boardingParties, ship.availableTransporters ?? 0);
   // transporterUses is what the ship can actually pay for, batteries included (H7.x).
   // This used to divide ONE point of energy by the per-use cost, which neither reflected
@@ -1029,21 +1087,33 @@ function ShipSidebar({
               )}
 
               {/* Tactical Maneuver strip — shown when a TAC is available (C5.0) */}
-              {isMine && (canTac || (ship.speed === 0 && ((ship.tacBudget ?? 0) > 0 || ship.sublightTacAvailable))) && (
+              {isMine && (canTac || (ship.speed === 0 && ((ship.tacBudget ?? 0) > 0 || ship.sublightTacAvailable || zeroEnergyTac))) && (
                 <div className="het-strip">
                   <button
                     className={`action-strip-btn${tacMode ? ' active' : ''}`}
                     disabled={!canTac}
                     onClick={() => setTacMode(m => !m)}
                     title={
-                      (ship.tacAvailable ?? 0) > 0
+                      ship.tacUsedThisImpulse
+                        ? 'Already turned this impulse — warp and sublight maneuvers cannot share one (C5.31)'
+                        : (ship.tacAvailable ?? 0) > 0
                         ? `Warp Tactical Maneuver — turn 60° (${ship.tacBudget ?? 0} budget remaining)`
                         : ship.sublightTacAvailable
                         ? 'Sublight Tactical Maneuver — turn 60°'
+                        : zeroEnergyNow
+                        ? 'Zero-energy turn — 60° free on attitude thrusters (C5.13)'
+                        : zeroEnergyTac
+                        ? 'No movement power allocated: one free 60° turn, on Impulse 32 (C5.13)'
                         : 'No Tactical Maneuver earned yet this impulse'
                     }
                   >
-                    TAC {(ship.tacAvailable ?? 0) > 0 ? '(W)' : ship.sublightTacAvailable ? '(S)' : ''}
+                    TAC {(ship.tacAvailable ?? 0) > 0
+                          ? '(W)'
+                          : ship.sublightTacAvailable
+                          ? '(S)'
+                          : zeroEnergyTac
+                          ? '(free)'
+                          : ''}
                   </button>
                   {tacMode && canTac && (() => {
                     const FACINGS = [1, 5, 9, 13, 17, 21];
@@ -1056,7 +1126,9 @@ function ShipSidebar({
                       <div className="het-picker-panel">
                         <div style={{ fontSize: '0.7rem', color: '#8b949e', marginBottom: 6 }}>
                           Turn 60° — current facing {facingNames[curIdx] ?? ship.facing}
-                          {sublight ? ' (Sublight)' : ' (Warp)'}
+                          {zeroEnergyNow && !sublight && (ship.tacAvailable ?? 0) === 0
+                            ? ' (free — C5.13)'
+                            : sublight ? ' (Sublight)' : ' (Warp)'}
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button
@@ -3274,6 +3346,20 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
+  async function handleShuttleZeroEnergyTurn(facing: number) {
+    if (!liveShuttle) return;
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'PERFORM_SHUTTLE_ZERO_ENERGY_TURN', shipName: liveShuttle.name, facing,
+      });
+      if (!res.success) setActionError(res.message);
+      else if (res.message) addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Zero-energy turn failed');
+    }
+  }
+
   async function handleFighterHet(facing: number) {
     if (!liveShuttle) return;
     setActionError(null);
@@ -4772,6 +4858,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             onGoPassiveFc={handleGoPassiveFc}
             onGoActiveFc={handleGoActiveFc}
             absoluteImpulse={gameState?.absoluteImpulse ?? 0}
+            impulse={gameState?.impulse ?? 0}
             onEmergencyDecel={handleEmergencyDecel}
             tractorMode={tractorMode}
             tractorError={tractorError}
@@ -4812,8 +4899,10 @@ export default function GameBoard({ session, onLeave }: Props) {
             isMine={myShips.has(liveShuttle.parentShipName ?? '')}
             canMove={canMoveShuttle}
             phase={phase}
+            impulse={gameState?.impulse ?? 0}
             onMove={handleShuttleMove}
             onHet={handleFighterHet}
+            onZeroEnergyTurn={handleShuttleZeroEnergyTurn}
             onTacTurn={handleTacTurn}
             onDesignateEwSource={handleDesignateEwSource}
             onClose={() => setSelected(null)}

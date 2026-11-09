@@ -30,6 +30,52 @@ class ShuttleMover {
         this.prevLocations  = prevLocations;
     }
 
+    /**
+     * (C5.13) The shuttle half of the zero-energy turn: a craft that did not move under its own
+     * power may turn up to 180° on the last impulse of the turn, on attitude thrusters.
+     *
+     * <p>Three differences from the ship's version in {@code ShipMover.performTacticalTurn}, all
+     * of them the rule's:
+     * <ul>
+     *   <li>the test is SPEED, not the allocation form — a craft has no allocation form, and
+     *       C5.13 asks only whether it moved under its own power;</li>
+     *   <li>up to 180°, not 60°, which on a hex grid means any of the six facings;</li>
+     *   <li>"the last impulse of that turn", which is Impulse #32, same as the ship's.</li>
+     * </ul>
+     *
+     * <p>A fighter may use this as well as its once-a-turn HET (C6.42). They are different
+     * things — the HET is a maneuver a fighter can make at speed, this is what a stationary
+     * craft can do with compressed gas — and C5.13 says "a shuttle" without excluding fighters.
+     */
+    Game.ActionResult performZeroEnergyTurn(Shuttle shuttle, int absoluteFacing) {
+        if (game.getCurrentPhase() != Game.ImpulsePhase.MOVEMENT)
+            return Game.ActionResult.fail("A zero-energy turn can only be made during the"
+                    + " Movement phase");
+        if (game.getCurrentImpulse() != 32)
+            return Game.ActionResult.fail(shuttle.getName()
+                    + " can only make its zero-energy turn on the last impulse of the turn,"
+                    + " Impulse 32 (C5.13)");
+        if (shuttle.getSpeed() != 0)
+            return Game.ActionResult.fail(shuttle.getName()
+                    + " moved under its own power this turn, so it has no free turn (C5.13)");
+
+        boolean isBearing = false;
+        for (int dir : MapUtils.FACINGS)
+            if (dir == absoluteFacing)
+                isBearing = true;
+        if (!isBearing)
+            return Game.ActionResult.fail("Facing must be one of the six bearings (A-F)");
+        if (absoluteFacing == shuttle.getFacing())
+            return Game.ActionResult.fail(shuttle.getName() + " already faces that way");
+
+        if (!shuttle.consumeZeroEnergyTurn())
+            return Game.ActionResult.fail(shuttle.getName()
+                    + " has already made its zero-energy turn this turn (C5.13)");
+        shuttle.setFacing(absoluteFacing);
+        return Game.ActionResult.ok(shuttle.getName()
+                + " zero-energy turn → facing " + absoluteFacing + " (C5.13)");
+    }
+
     List<String> moveShuttles() {
         List<String> log = new ArrayList<>();
         int impulse = game.getCurrentImpulse();

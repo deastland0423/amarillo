@@ -4169,6 +4169,12 @@ public class Game {
 
     // --- Fighter HET (C6.42) ---
 
+    /** (C5.13) A stationary craft's free turn, up to 180°, on Impulse #32. */
+    public ActionResult performShuttleZeroEnergyTurn(com.sfb.objects.shuttles.Shuttle shuttle,
+            int absoluteFacing) {
+        return shuttleMover.performZeroEnergyTurn(shuttle, absoluteFacing);
+    }
+
     public ActionResult performFighterHet(com.sfb.objects.shuttles.Shuttle shuttle, int absoluteFacing) {
         return shipMover.performFighterHet(shuttle, absoluteFacing);
     }

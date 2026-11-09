@@ -367,27 +367,80 @@ Known omissions in the spend floor, all held outside `Energy` and so not yet cou
 ECCM, suicide-shuttle arming and holding, wild-weasel charging. The floor can only under-count,
 which is the safe direction — it catches the gross case and never an honest form.
 
-## Tactical Maneuvers (C5.0) — two clauses still missing (found 2026-11-07)
+## Tactical Maneuvers (C5.0) — COMPLETE as of 2026-11-08, ships and shuttles both
 
 Found while fixing the maneuver that rolled an HET breakdown die and silently did nothing
-(`TacticalManeuverTest` now pins that). Both of these are small and neither is built:
+(`TacticalManeuverTest` pins that, and now these too — 13 tests).
 
-**C5.31 — warp and sublight in the SAME IMPULSE.** A ship may use both kinds in one turn "but
-NOT during the same impulse". Nothing enforces the second half: with both paid for,
-`performTacticalTurn` is happy to spend the warp maneuver and then, on the very next call in
-the same impulse, fall back to the sublight one. Caught by a test that expected the second
-request to be refused and watched it succeed. The fix is a per-impulse marker on Ship beside
-`sublightTacUsed`, recording the impulse a maneuver of either kind was made on.
+**C5.31 — warp and sublight in the SAME IMPULSE. BUILT.** A ship may use both kinds in one turn
+"but NOT during the same impulse", and nothing enforced the second half: with both paid for,
+`performTacticalTurn` spent the warp maneuver and then, on the very next call in the same
+impulse, fell back to the sublight one — 120° on one impulse. `Ship.lastTacImpulse` records the
+impulse of the turn a maneuver of either kind was made on, cleared by `startTurn()` like
+`sublightTacUsed`, and `performTacticalTurn` refuses a second one on the same impulse. The
+client disables the strip from `tacUsedThisImpulse` on the DTO, which is PUBLIC — a ship turning
+in place is seen by both captains, exactly as `lastHetImpulse` beside it already is.
 
-**C5.13 — the zero-energy turn.** A ship with NO power allocated to any movement function for
-the whole turn, which did not move under its own power, gets one 60° turn free on attitude
-thrusters — on Impulse #32 only, and it cannot be combined with ordinary Tactical Maneuvers.
-Today such a ship has `tacBudget` 0 and can never turn at all, which is exactly the ship most
-likely to want to: one parked on a stasis box studying it (SH47.474), whose movement line is
-empty by design. A shuttle that did not move under its own power gets the same free turn, of
-up to 180°, by the same clause.
+The first half of the rule is tested too (`bothKindsMayBeUsedOnDifferentImpulsesOfTheSameTurn`),
+because a ban written as "one maneuver per turn" passes the same-impulse test and is wrong.
 
-Both are in the rulebook text at C5.1–C5.3; read it rather than this summary before building.
+**C5.13 — the zero-energy turn. BUILT for SHIPS.** A ship with no power allocated to any movement
+function gets one 60° turn free on attitude thrusters, on Impulse #32 only. Before this such a
+ship had `tacBudget` 0 and could never turn at all — and it is the ship most likely to want to,
+being the one parked on a stasis box studying it (SH47.474), whose movement line is empty by
+design. `Ship.movementPowerAllocated` is set in `startTurn()` from the six movement functions on
+the allocation form (warp and impulse movement, HETs, EM, and both kinds of Tactical Maneuver);
+`isZeroEnergyTurnAvailable()` is that plus the free turn being unused. `zeroEnergyTurnAvailable`
+on the DTO is PRIVATE, since it is a statement about his allocation form rather than about
+anything on the map — unlike speed 0, which everyone can see.
+
+**Two clauses of C5.13 needed no state, and the reasons are worth keeping** because both stop
+being true later:
+- *"did not move under its own power for the entire turn"* FOLLOWS from the allocation test here.
+  A ship that allocated no movement energy has speed 0 and no way to buy a speed change, since
+  plotted mid-turn changes (C12.31) are not built. A tractor or terrain dragging it is not
+  movement under its own power and does not disqualify it. **The day C12.0 arrives this needs
+  the second test for real.**
+- *"cannot be combined with normal Tactical Maneuvers during the same game turn"* is automatic,
+  because both kinds of normal maneuver ARE movement functions, so a turn that qualifies for the
+  free one cannot have bought any. **That stops being automatic if C5.5 reserve-power maneuvers
+  are built**, which would let a ship buy a maneuver it never allocated for.
+
+**The SHUTTLE half of C5.13 is BUILT too** (same day, after the owner's ruling). "A shuttle
+which does not move under its own power for an entire turn may make a zero energy turn of up to
+180° on the last impulse of that turn." It is a separate mechanism from the ship's, not the same
+rule with different numbers:
+
+- **The test is SPEED, not the allocation form** — the owner's call, and the better fit: a craft
+  has no allocation form, and C5.13 asks only whether it moved under its own power, which for a
+  craft is exactly what its speed says. (For a SHIP speed 0 is weaker evidence, since a ship can
+  pay for movement and sit still anyway, which is why that half reads the form.)
+- **`getSpeed()`, deliberately not `getCurrentSpeed()` as well.** That is the field
+  `ShuttleMover` consults to decide whether a craft moves this impulse. The two can disagree:
+  J1.6223 gives a craft under tractor recovery the HOLDING ship's speed while `currentSpeed`
+  keeps whatever it had, and a craft being DRAGGED at speed 0 is not moving under its own power
+  — so the rule allows its turn and a test of both fields would wrongly refuse it.
+- **"Up to 180°" reaches every facing on a hex grid**, so there is no angle to check — only that
+  the craft stood still. A fighter gets this as well as its once-a-turn HET (C6.42): different
+  things, and C5.13 says "a shuttle" without excluding fighters.
+
+`Shuttle.zeroEnergyTurnUsed` with `startTurn()` clearing it, `ShuttleMover.performZeroEnergyTurn`,
+`PERFORM_SHUTTLE_ZERO_ENERGY_TURN`, and a **Free turn** button on the craft's movement panel.
+`ShuttleZeroEnergyTurnTest` has 11 cases and three of its guards were proven by mutation.
+
+**Two traps it left behind:**
+
+1. **`Fighter.startTurn()` must keep its `super.startTurn()` call.** The flag lives on `Shuttle`,
+   one level up, and `Fighter` overrides the method — so without that call a fighter's free turn
+   is one a game. The call did not exist before this work; it was added. This is the same shape
+   as the bug `FighterTurnResetTest` documents, where `Fighter.startTurn` existed for months with
+   nothing calling it at all. `theFightersFreeTurnComesBackNextTurn` fails if it is dropped.
+2. **One known imprecision, left alone deliberately.** `Game.makeSeekerShuttleInert` zeroes the
+   speed of a seeking shuttle that loses control mid-turn (G24.224), so one that flew six hexes
+   and then went inert reads as having stood still and would be granted a free turn it did not
+   earn. Harmless — an inert seeking shuttle's facing decides nothing — and the alternative is a
+   per-turn movement flag on every craft for that one case. Revisit it if a craft ever gains
+   another way to stop mid-turn.
 
 ## C7.11 asks about WARP POWER, and we test the acceleration ceiling (found 2026-11-07)
 

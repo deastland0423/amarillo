@@ -490,6 +490,13 @@ class ShipMover {
         if (localImpulse < 2)
             return ActionResult.fail("Tactical Maneuvers cannot be made on Impulse 1 (C5.11)");
 
+        // (C5.31) Warp and sublight maneuvers may both be made in one TURN, "but NOT during the
+        // same impulse". With both paid for, the fallback below would spend the warp maneuver and
+        // then hand out the sublight one on the very next call in the same impulse.
+        if (ship.getLastTacImpulse() == localImpulse)
+            return ActionResult.fail(ship.getName()
+                    + " has already made a Tactical Maneuver this impulse (C5.31)");
+
         // Validate exactly 60° change
         int diff = ((newFacing - ship.getFacing()) % 24 + 24) % 24;
         if (diff != 4 && diff != 20)
@@ -509,10 +516,22 @@ class ShipMover {
             } else if (ship.isSublightTacAvailable()) {
                 ship.consumeSublightTac();
                 type = "Sublight";
+            } else if (ship.isZeroEnergyTurnAvailable()) {
+                // (C5.13) A ship that allocated nothing to movement turns once on its attitude
+                // thrusters, free, and ONLY on Impulse #32. The two refusals are deliberately
+                // different: "not yet" is the common case and a player who reads "no Tactical
+                // Maneuver available" at impulse 20 will conclude the ship cannot turn at all.
+                if (localImpulse != 32)
+                    return ActionResult.fail(ship.getName()
+                            + " allocated no movement power, so its only turn is the free one on"
+                            + " Impulse 32 (C5.13)");
+                ship.consumeZeroEnergyTurn();
+                type = "Zero-energy";
             } else {
                 return ActionResult.fail("No Tactical Maneuver available — earn one on a Speed-4 impulse (C5.231)");
             }
         }
+        ship.recordTacticalManeuver(localImpulse);
 
         // turnInPlace, NOT performHet: that one rolls for a C6.5 breakdown and leaves the facing
         // alone when the roll fails, which is how two maneuvers could be logged here and neither

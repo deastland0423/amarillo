@@ -218,6 +218,29 @@ public class Ship extends Unit implements DroneController {
 	private boolean sublightTacAllocated = false; // impulse TAC paid this turn
 	private boolean sublightTacUsed = false; // sublight TAC already executed this turn
 
+	/**
+	 * (C5.31) The impulse of the turn on which this ship last made a Tactical Maneuver, of
+	 * either kind; -1 before the first one. A ship may use warp and sublight maneuvers in the
+	 * same TURN "but NOT during the same impulse", and with both paid for nothing stopped the
+	 * warp one being spent and the sublight one taken on the same impulse immediately after.
+	 *
+	 * <p>Local impulse, not absolute, because {@link #startTurn()} clears it — the same
+	 * contract {@code sublightTacUsed} has.
+	 */
+	private int lastTacImpulse = -1;
+
+	/**
+	 * (C5.13) Whether ANY movement function was paid for this turn — movement itself, HETs,
+	 * Erratic Maneuvers, or either kind of Tactical Maneuver.
+	 *
+	 * <p>Its only purpose is the zero-energy turn: a ship that allocated nothing to movement
+	 * may still make one free 60° turn on Impulse #32, on attitude thrusters. The ship most
+	 * likely to want it is the one parked on an objective studying it (SH47.474), whose
+	 * movement line is empty by design and which before this could not turn at all.
+	 */
+	private boolean movementPowerAllocated = false;
+	private boolean zeroEnergyTurnUsed = false;
+
 	// Emergency deceleration (C8.0)
 	private int decelerationEndsAtImpulse = -1; // absolute impulse when ship stops; -1 = not decelerating
 
@@ -664,6 +687,18 @@ public class Ship extends Unit implements DroneController {
 		this.tacAvailable = 0;
 		this.sublightTacAllocated = energyAllocated.getImpulseTacticalTurn() > 0;
 		this.sublightTacUsed = false;
+		this.lastTacImpulse = -1;
+
+		// (C5.13) "no power allocated to any movement function for the entire turn". These six
+		// are the movement functions in the allocation form; everything else on it is weapons,
+		// shields, EW or housekeeping.
+		this.movementPowerAllocated = energyAllocated.getWarpMovement() > 0
+				|| energyAllocated.getImpulseMovement() > 0
+				|| energyAllocated.getHighEnergyTurns() > 0
+				|| energyAllocated.getErraticManuvers() > 0
+				|| energyAllocated.getWarpTacticalTurns() > 0
+				|| energyAllocated.getImpulseTacticalTurn() > 0;
+		this.zeroEnergyTurnUsed = false;
 
 		// Phaser Capacitor
 		if (energyAllocated.isEnergizeCaps() && !capacitorsCharged) {
@@ -1133,6 +1168,48 @@ public class Ship extends Unit implements DroneController {
 			return false;
 		sublightTacUsed = true;
 		return true;
+	}
+
+	/**
+	 * (C5.13) True when this ship may make its one free 60° turn: no movement function was paid
+	 * for this turn, and the free turn has not been used.
+	 *
+	 * <p>The rule asks for a second thing — that the ship "did not move under its own power for
+	 * the entire turn" — which in this engine FOLLOWS from the first. A ship that allocated no
+	 * movement energy has speed 0 and no way to buy a speed change, since plotted mid-turn
+	 * changes (C12.31) are not built. Being dragged by a tractor or by terrain is not movement
+	 * under its own power and so does not disqualify it. The day C12.0 arrives this needs the
+	 * second test for real.
+	 *
+	 * <p>C5.13's last clause — the free turn "cannot be combined with normal Tactical Maneuvers
+	 * during the same game turn" — needs no state either, and for the same reason: both kinds of
+	 * normal maneuver ARE movement functions, so a turn that qualifies for the free one cannot
+	 * have bought any. That stops being automatic if C5.5 reserve-power maneuvers are built,
+	 * which would let a ship buy a maneuver it never allocated for.
+	 *
+	 * <p>The caller is responsible for the Impulse #32 restriction; see
+	 * {@code ShipMover.performTacticalTurn}, which distinguishes "not eligible" from "not yet".
+	 */
+	public boolean isZeroEnergyTurnAvailable() {
+		return !movementPowerAllocated && !zeroEnergyTurnUsed;
+	}
+
+	/** Consume the C5.13 free turn. Returns true if successful. */
+	public boolean consumeZeroEnergyTurn() {
+		if (!isZeroEnergyTurnAvailable())
+			return false;
+		zeroEnergyTurnUsed = true;
+		return true;
+	}
+
+	/** (C5.31) The impulse of this turn a maneuver of either kind was last made on, or -1. */
+	public int getLastTacImpulse() {
+		return lastTacImpulse;
+	}
+
+	/** (C5.31) Record that a maneuver of some kind happened on this impulse of the turn. */
+	public void recordTacticalManeuver(int localImpulse) {
+		this.lastTacImpulse = localImpulse;
 	}
 
 	// ---- Emergency Deceleration (C8.0) ----

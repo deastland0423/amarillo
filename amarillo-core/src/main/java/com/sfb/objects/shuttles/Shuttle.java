@@ -419,6 +419,62 @@ public abstract class Shuttle extends Unit {
 		emSpeedCommitted = false;
 	}
 
+	// ---- The zero-energy turn (C5.13) ----
+
+	/**
+	 * (C5.13) Whether this craft has spent its one free turn this turn.
+	 *
+	 * <p>"A shuttle which does not move under its own power for an entire turn may make a zero
+	 * energy turn of up to 180° on the last impulse of that turn." On a hex grid "up to 180°"
+	 * reaches every one of the six facings, so there is no angle to check — only that the craft
+	 * stood still, and that it has not already turned.
+	 */
+	private boolean zeroEnergyTurnUsed = false;
+
+	/**
+	 * Turn boundary: the free turn comes back.
+	 *
+	 * <p>{@link Fighter#startTurn()} overrides this and MUST keep its {@code super} call, or a
+	 * fighter's free turn becomes one a game. That is not hypothetical — {@code Fighter.startTurn}
+	 * existed for months with nothing calling it at all, and every counter it clears was cleared
+	 * never (see the note in {@code Game.startTurn}).
+	 */
+	@Override
+	public void startTurn() {
+		super.startTurn();
+		zeroEnergyTurnUsed = false;
+	}
+
+	/**
+	 * (C5.13) True when this craft may make its free turn: it is not moving, and has not turned.
+	 *
+	 * <p>The test is {@code getSpeed()}, which is the field {@code ShuttleMover} reads to decide
+	 * whether the craft moves this impulse — so speed 0 IS "does not move under its own power",
+	 * which is what the rule asks. Deliberately NOT {@code getCurrentSpeed()} as well: a craft
+	 * under tractor recovery is given the holding ship's speed (J1.6223) while {@code
+	 * currentSpeed} keeps whatever it had, so requiring both would refuse a craft being DRAGGED
+	 * at speed 0 — and being dragged is not movement under its own power, so the rule allows it.
+	 *
+	 * <p>The caller owns the Impulse #32 restriction; see {@code ShuttleMover}.
+	 *
+	 * <p>One known imprecision, left alone: {@code Game.makeSeekerShuttleInert} zeroes the speed
+	 * of a seeking shuttle that loses control mid-turn (G24.224), so one that flew six hexes and
+	 * then went inert reads as having stood still. It would be granted a free turn it did not
+	 * earn. Harmless — an inert seeking shuttle's facing decides nothing — and the alternative is
+	 * a per-turn movement flag on every craft for that one case.
+	 */
+	public boolean isZeroEnergyTurnAvailable() {
+		return !zeroEnergyTurnUsed && getSpeed() == 0;
+	}
+
+	/** Consume the C5.13 free turn. Returns true if successful. */
+	public boolean consumeZeroEnergyTurn() {
+		if (!isZeroEnergyTurnAvailable())
+			return false;
+		zeroEnergyTurnUsed = true;
+		return true;
+	}
+
 	/**
 	 * The fastest this shuttle may move, after any point of speed dedicated to Erratic
 	 * Maneuvers (C10.13). C10.134: a shuttle at this speed counts as being at "maximum
