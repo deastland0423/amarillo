@@ -478,8 +478,21 @@ running minimum updated wherever speed changes mid-turn, rolled into the history
 
 ## SH47.5 is not implemented: securing the box does not win (found in play 2026-11-07)
 
-DEFERRED by the owner the same day — "the players know who won" — but the diagnosis is done
-and the design is agreed in outline, so this is ready to pick up.
+DEFERRED by the owner twice: on the day it was found — "the players know who won" — and again
+**2026-11-10, this time with a condition attached: do not build it for SH47.** The owner's words:
+"the next time we start working on objectives again (probably another scenario) we can revisit
+what common logic would help them."
+
+**So this entry is NOT ready to pick up on its own, and that is deliberate.** Building the three
+pieces below now would shape them around the only scenario that needs them, which is the exact
+failure the owner has objected to repeatedly and which `project_cargo_objective_model` exists to
+prevent. The design in outline is sound and should be read before the next objective scenario is
+started — but the second scenario is what tells us which of these three is general and which is
+SH47-shaped. Pick this up WITH that scenario, not before it.
+
+A worked example of why waiting helps: `winsOnSecure` reads as obviously general until you ask
+what a DELIVERY scenario wants, where securing is reaching a specific hex rather than any exit,
+and the flag has to become a destination rather than a boolean. One more data point decides it.
 
 **What happened.** The Kzinti carried a Stasis Box off the map by acceleration and the scoreboard
 said "Stasis Box 1 — secured" under its side. The game then ended on the generic last-side-
@@ -512,11 +525,18 @@ disengagement to that edge, which would exclude C7.1 by acceleration entirely. T
 acceleration through a safe direction, which is defensible (C7.0 lists acceleration as one of
 four means, and SH47.5 just says "successfully disengages").
 
-Since 2026-11-09 a scenario can say which it means: `"disengagement": ["MAP_EDGE"]` on each side
-of `sh47.json` reads the clause the strict way, and leaving the field out keeps today's reading.
-See the per-scenario disengagement entry below. **`sh47.json` has deliberately NOT been changed**
-— which reading SH47.41 carries is the owner's call, and the file currently says nothing, which
-is the permissive one.
+**RULED AND APPLIED 2026-11-09** (ae16a011). The owner read the clause the strict way, in two
+parts. First, it restricts ALL disengagement, so both sides of `sh47.json` now carry
+`"disengagement": ["MAP_EDGE"]` — no C7.1 acceleration, no C7.2 separation, a ship out of options
+must cross its own edge. Second, the restriction is a REFUSAL and not a death sentence: both
+sides state `"exitEdges": ["RIGHT"]` / `["LEFT"]` and `destructionEdges` is now EMPTY. It used to
+hold the other three, which enforced a harsher rule than the text prints — SH47.41 never says an
+illegal exit destroys the ship, where SH80.41 does say so when it means it. `Sh47LoadsTest
+.eachSideMayLeaveByOneMapEdgeOnly` fails if anyone puts the lethal edges back, and says why.
+
+This closes the half of the question that was data. The other half is the scoring above, and it
+stays open — the playtest that found this found TWO bugs stacked: an illegal exit the engine
+allowed, and a legal win it could not record.
 
 ## Per-scenario disengagement rules (C7.0) — BUILT 2026-11-09
 
@@ -2347,11 +2367,16 @@ Three things about it are worth keeping:
   that cannot fail**: the first draft asked `getSearchMarkers().isEmpty()`, which can never be
   true when the fixture lays all eighteen counters, and it reported a working feature broken.
 - **SH47.5's incident tiebreaker.** "If no boxes exist, the player who scored the most internal
-  hits on the other LOSES the scenario and ruins his career by provoking an incident." Nothing
-  tallies internal hits SCORED per side — damage is recorded on the ship that took it, not
-  against the side that dealt it — and `VictoryConditions` has no way to express a loss
-  condition that fires only when another condition is unreachable. The rest of SH47.5 is built:
-  disengaging with a box wins, and two boxes can mean both players win.
+  hits on the other LOSES the scenario and ruins his career by provoking an incident."
+  `VictoryConditions` has no way to express a loss condition that fires only when another
+  condition is unreachable. **This bullet was wrong on both of its other claims until
+  2026-11-10, and both were checkable in one grep.** It said nothing tallies internal hits
+  scored per side — `Game.internalsScoredBy(team)` does, with `InternalsScoredTest` and an
+  `internalsScored` column already on the scoreboard DTO. And it said "the rest of SH47.5 is
+  built: disengaging with a box wins, and two boxes can mean both players win" — neither is
+  built: `winsOnSecure` does not exist anywhere in the tree, and `GameEndResult` is still
+  `record GameEndResult(String winnerTeam, String reason)`, one winner. See the SH47.5 entry
+  above, which is the accurate one; the two entries contradicted each other for three days.
 - **`Objective.revealed` has no user.** The hidden-objective path (a box hidden in the open
   rather than under a counter) still works, is still tested, and the reveal sweep still handles
   it — it is one rule, "a ship in the hex finds what is in the hex". But SH47 hides its boxes
