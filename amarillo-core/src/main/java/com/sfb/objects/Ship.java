@@ -4389,6 +4389,13 @@ public class Ship extends Unit implements DroneController {
 			// a repair box.
 			case "cargo":
 				return conversionCandidates("cargo").size() > 1;
+			// (D4.36) "If undestroyed cargo spaces exist on a ship, excess damage hits may be
+			// scored against them AT THE OPTION OF THE OWNING PLAYER." So this row is the
+			// owner's whenever they have somewhere else to put the point, and the decision is
+			// a real one: an excess damage box is the countdown to the ship exploding, and a
+			// cargo box is a crate.
+			case "excess":
+				return conversionCandidates("excess").size() > 1;
 			default:
 				return false;
 		}
@@ -4495,6 +4502,8 @@ public class Ship extends Unit implements DroneController {
 			}
 			case "cargo":
 				return conversionCandidates("cargo");
+			case "excess":
+				return conversionCandidates("excess");
 			default:
 				return java.util.Collections.emptyList();
 		}
@@ -4545,20 +4554,40 @@ public class Ship extends Unit implements DroneController {
 		java.util.List<String> opts = new ArrayList<>();
 		switch (row) {
 			case "cargo":
-				if (hullBoxes.getAvailableCargo() > 0)
-					opts.add("cargo");
-				if (hullBoxes.getAvailableRepair() > 0)
-					opts.add("repair");
-				// An EMPTY rack is still a box and still absorbs the point. Only a destroyed
-				// one leaves the list - which is why this reads isDestroyed() rather than
-				// MineRack.isUsable(), the LAYING check, which also refuses an empty rack.
-				for (int i = 0; i < mineRacks.size(); i++)
-					if (!mineRacks.get(i).isDestroyed())
-						opts.add("minerack:" + i);
+				addCargoRowBoxes(opts);
+				return opts;
+			case "excess":
+				// (D4.40) "Excess Damage ....... Cargo, Repair, Mine Rack." The excess track
+				// goes FIRST, which is both the sensible default and what keeps the
+				// non-interactive wrapper applyInternalDamage(int) spending excess boxes
+				// before cargo, the way it always has.
+				if (specialFunctions.getExcessDamage() > 0)
+					opts.add("excess");
+				addCargoRowBoxes(opts);
 				return opts;
 			default:
 				return opts;
 		}
+	}
+
+	/**
+	 * The three box kinds shared by the cargo row and the excess damage row, appended in
+	 * Annex #7E's own order.
+	 *
+	 * <p>Shared because the chart shares them. Writing the trio out at each row would be the
+	 * same rule stated twice, and the second copy is the one that goes stale.
+	 */
+	private void addCargoRowBoxes(java.util.List<String> opts) {
+		if (hullBoxes.getAvailableCargo() > 0)
+			opts.add("cargo");
+		if (hullBoxes.getAvailableRepair() > 0)
+			opts.add("repair");
+		// An EMPTY rack is still a box and still absorbs the point. Only a destroyed one
+		// leaves the list - which is why this reads isDestroyed() rather than
+		// MineRack.isUsable(), the LAYING check, which also refuses an empty rack.
+		for (int i = 0; i < mineRacks.size(); i++)
+			if (!mineRacks.get(i).isDestroyed())
+				opts.add("minerack:" + i);
 	}
 
 	/**
@@ -4587,6 +4616,14 @@ public class Ship extends Unit implements DroneController {
 		}
 		if ("repair".equals(option))
 			return hullBoxes.damageRepair() ? "repair HIT (G17.0)" : null;
+		if ("excess".equals(option)) {
+			if (!specialFunctions.damageExcessDamage())
+				return null;
+			String note = "excess damage (" + specialFunctions.getExcessDamage()
+					+ " boxes remaining)";
+			String reloads = noteExcessDamageBoxLost();
+			return reloads == null ? note : note + "; " + reloads.trim();
+		}
 		if (option.startsWith("minerack:")) {
 			int idx;
 			try {
@@ -4715,7 +4752,8 @@ public class Ship extends Unit implements DroneController {
 				String label = tractors.destroyBeam(Integer.parseInt(m.group(1)));
 				return label != null ? label + " [chosen]" : null;
 			}
-			case "cargo": {
+			case "cargo":
+			case "excess": {
 				String label = applyConversionHit(chosen);
 				return label == null ? null : label + " [chosen]";
 			}
@@ -4808,58 +4846,86 @@ public class Ship extends Unit implements DroneController {
 			int roll = roller.rollTwoDice();
 			String system = dac.fetchNextHit(roll);
 
-			if (system == null) {
-				boolean boxRemaining = specialFunctions.damageExcessDamage();
-				if (!boxRemaining) {
-					battleStatus = com.sfb.properties.BattleStatus.DESTROYED;
-					log.add("  internal [" + roll + "]: excess damage — SHIP DESTROYED");
-					break;
-				}
-				log.add(
-						"  internal [" + roll + "]: excess damage (" + specialFunctions.getExcessDamage() + " boxes remaining)");
-				String reloadsLost = noteExcessDamageBoxLost();
-				if (reloadsLost != null)
-					log.add(reloadsLost);
-				continue;
-			}
+			// The systems that could not take this point, for the log. It is also how the two
+			// routes to an excess damage hit are told apart below: empty means the column was
+			// exhausted before we looked, non-empty means we walked it and nothing could take
+			// the point.
+			String chainText = "";
 
-			// Advance DAC loop: apply hit or interrupt for player choice (C3.14).
-			java.util.Set<String> tried = new java.util.HashSet<>();
-			StringBuilder chain = new StringBuilder();
-			String hitLabel = null;
-			while (true) {
-				if (requiresPlayerChoice(system)) {
-					java.util.List<String> options = getDacChoiceOptions(system, attacker);
-					if (!options.isEmpty()) {
-						// Pause — defender must choose which system is destroyed
-						int remaining = bleedThrough - i - 1;
-						log.add("  internal [" + roll + "]: " + chain + system + " — awaiting player choice");
-						return new DamageResult(log, system, roll, options, remaining);
+			if (system != null) {
+				// Advance DAC loop: apply hit or interrupt for player choice (C3.14).
+				java.util.Set<String> tried = new java.util.HashSet<>();
+				StringBuilder chain = new StringBuilder();
+				String hitLabel = null;
+				while (true) {
+					if (requiresPlayerChoice(system)) {
+						java.util.List<String> options = getDacChoiceOptions(system, attacker);
+						if (!options.isEmpty()) {
+							// Pause — defender must choose which system is destroyed
+							int remaining = bleedThrough - i - 1;
+							log.add("  internal [" + roll + "]: " + chain + system + " — awaiting player choice");
+							return new DamageResult(log, system, roll, options, remaining);
+						}
+						// No valid targets (all destroyed) — advance DAC as normal
+						tried.add(system);
+						chain.append(system).append(" (no targets) → ");
+					} else {
+						hitLabel = tryApplySystemHit(system, attacker);
+						if (hitLabel != null)
+							break;
+						tried.add(system);
+						chain.append(system).append(" (no boxes) → ");
 					}
-					// No valid targets (all destroyed) — advance DAC as normal
-					tried.add(system);
-					chain.append(system).append(" (no targets) → ");
-				} else {
-					hitLabel = tryApplySystemHit(system, attacker);
-					if (hitLabel != null)
-						break;
-					tried.add(system);
-					chain.append(system).append(" (no boxes) → ");
+					String next = dac.fetchNextHitExcludingAll(roll, tried);
+					if (next == null)
+						break; // all entries exhausted
+					system = next;
 				}
-				String next = dac.fetchNextHitExcludingAll(roll, tried);
-				if (next == null)
-					break; // all entries exhausted
-				system = next;
+
+				if (hitLabel != null) {
+					log.add("  internal [" + roll + "]: " + chain + hitLabel);
+					continue;
+				}
+				// Every entry in the column is gone, so the point is an excess damage hit and
+				// falls through to the one place below that scores one. It used to destroy the
+				// ship right here, which was the same (D4.40) mistake the exhausted-chart path
+				// above made, in a second place.
+				chainText = chain.toString();
 			}
 
-			if (hitLabel != null) {
-				log.add("  internal [" + roll + "]: " + chain + hitLabel);
-			} else {
-				// All systems including excess are gone — ship is destroyed (C3.14)
+			/*
+			 * (D4.40) ACT OF DESTRUCTION, and the reason this is one block rather than two.
+			 *
+			 * "When there are no 'excess damage' boxes remaining, and one additional excess
+			 * damage hit is scored on the ship, the ship is destroyed. THIS FINAL EXCESS
+			 * DAMAGE HIT CANNOT BE SCORED AS EXCESS DAMAGE SO LONG AS THERE IS SOME OTHER
+			 * SYSTEM (only: cargo, repair, mine rack) ON WHICH AN EXCESS DAMAGE HIT CAN BE
+			 * SCORED BY ANNEX #7E."
+			 *
+			 * So running out of excess damage boxes is not the end of the ship. Running out of
+			 * everything on the row is. Both routes here - a column exhausted before we looked
+			 * at it, and a column walked to its end - produce an excess damage hit, and until
+			 * this was one block each of them killed the ship the moment the excess track ran
+			 * dry. Every hull with cargo boxes died early; a Base Station died forty points
+			 * early, on its ten cargo boxes and thirty repair boxes.
+			 */
+			java.util.List<String> excessOpts = conversionCandidates("excess");
+			if (excessOpts.isEmpty()) {
 				battleStatus = com.sfb.properties.BattleStatus.DESTROYED;
-				log.add("  internal [" + roll + "]: " + chain + system + " — SHIP DESTROYED");
+				log.add("  internal [" + roll + "]: " + chainText
+						+ "excess damage — nothing left on the row — SHIP DESTROYED (D4.40)");
 				break;
 			}
+			if (excessOpts.size() > 1) {
+				// (D4.36) The owner's option while they have somewhere else to put it.
+				int remaining = bleedThrough - i - 1;
+				log.add("  internal [" + roll + "]: " + chainText
+						+ "excess damage — awaiting player choice (D4.36)");
+				return new DamageResult(log, "excess", roll, excessOpts, remaining);
+			}
+			String excessLabel = applyConversionHit(excessOpts.get(0));
+			log.add("  internal [" + roll + "]: " + chainText
+					+ (excessLabel == null ? "excess damage" : excessLabel));
 		}
 
 		dac.reset();
@@ -4944,14 +5010,13 @@ public class Ship extends Unit implements DroneController {
 			case "probe":
 				return probes.damage() ? "probe HIT" : null;
 			case "excess": {
-				// Explicit column-13 entry; distinct from the exhausted-chart path,
-				// which reaches excess via fetchNextHit returning null
-				if (!specialFunctions.damageExcessDamage())
-					return null;
-				String note = "excess damage (" + specialFunctions.getExcessDamage()
-						+ " boxes remaining)";
-				String reloads = noteExcessDamageBoxLost();
-				return reloads == null ? note : note + "; " + reloads.trim();
+				// The explicit column-13 entry. Only the forced case lands here, as with the
+				// cargo row: requiresPlayerChoice has already diverted this to the owner if
+				// there was more than one candidate. Returning null on an empty row advances
+				// the DAC, and the exhausted-chart path in applyInternalDamage is what turns
+				// an exhausted row into (D4.40) destruction.
+				java.util.List<String> candidates = conversionCandidates("excess");
+				return candidates.isEmpty() ? null : applyConversionHit(candidates.get(0));
 			}
 			case "scanner":
 				return specialFunctions.damageScanner() ? "scanner HIT" : null;

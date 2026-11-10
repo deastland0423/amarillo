@@ -22,6 +22,10 @@ const DAC_LABELS: Record<string, string> = {
   // Named for the row rather than for cargo, because on a Base Station or the ROC the cargo box
   // is not the likeliest thing to lose and may not exist at all.
   cargo:   'Cargo Row (Cargo / Repair / Mine Rack)',
+  // Annex #7E: "Excess Damage ....... Cargo, Repair, Mine Rack." (D4.40) is why the row matters
+  // more than its name suggests: the ship is destroyed only once EVERY box on it is gone, so
+  // these buttons are the difference between dying now and dying later.
+  excess:  'Excess Damage Row (Excess / Cargo / Repair / Mine Rack)',
 };
 
 const WARP_LABELS: Record<string, string> = {
@@ -38,9 +42,10 @@ const WARP_LABELS: Record<string, string> = {
  * index; a mine rack is not, because what is loaded in it differs rack by rack, and that is why
  * `minerack:` carries an index while the other two do not.
  */
-const CARGO_ROW_LABELS: Record<string, string> = {
+const CONVERSION_ROW_LABELS: Record<string, string> = {
   cargo:  'Cargo Box',
   repair: 'Repair Box (G17.0)',
+  excess: 'Excess Damage Box',
 };
 
 /**
@@ -104,23 +109,25 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
     };
   }
 
-  interface CargoRowInfo {
+  interface ConversionRowInfo {
     label:  string;
     detail: string;
-    /** True when real ordnance dies with the box, so the button gets the warning border. */
+    /** True when the choice costs more than a box, so the button gets the warning border. */
     costly: boolean;
   }
 
   /**
-   * (Annex #7E) Describe one cargo-row candidate.
+   * (Annex #7E) Describe one candidate on a DAMAGE CONVERSION CHART row.
    *
-   * The whole point of the dialog on this row is that the three kinds are not equivalent: a
-   * cargo box and a repair box are both just absorption, while a mine rack takes its mines with
-   * it. (M9.13) is explicit that those mines "will not detonate", so this is an expensive loss
-   * and not a lethal one — worth saying on the button, because a player who thinks four NSMs are
-   * about to go off inside their own hull will pick differently.
+   * The whole point of a dialog on these rows is that the kinds are not equivalent. A cargo box
+   * and a repair box are plain absorption. A mine rack takes its mines with it — and (M9.13) is
+   * explicit that those mines "will not detonate", so it is an expensive loss and not a lethal
+   * one, worth saying because a player who thinks four NSMs are about to go off inside their own
+   * hull will pick differently. An excess damage box is the countdown to the ship exploding and
+   * cripples it outright (S2.41 C), which makes it the costliest box on the sheet to spend even
+   * though nothing is stored in it.
    */
-  function cargoRowInfo(opt: string): CargoRowInfo {
+  function conversionRowInfo(opt: string): ConversionRowInfo {
     if (opt.startsWith('minerack:')) {
       const idx = parseInt(opt.slice('minerack:'.length), 10);
       const rack: MineRackState | undefined = targetShip?.mineRacks?.[idx];
@@ -139,12 +146,21 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
         costly: loaded > 0,
       };
     }
-    const left = opt === 'cargo' ? targetShip?.availableCargo : targetShip?.availableRepair;
-    const max  = opt === 'cargo' ? targetShip?.maxCargo       : targetShip?.maxRepair;
+    const left = opt === 'cargo'  ? targetShip?.availableCargo
+               : opt === 'repair' ? targetShip?.availableRepair
+               :                    targetShip?.availableExcess;
+    const max  = opt === 'cargo'  ? targetShip?.maxCargo
+               : opt === 'repair' ? targetShip?.maxRepair
+               :                    targetShip?.maxExcess;
+    // `!= null` and not `!== undefined`: Jackson writes an absent value as `"field": null`
+    // rather than omitting the key, and `null !== undefined` is true.
+    const count = left != null && max != null ? `${left} of ${max} left` : '';
     return {
-      label:  CARGO_ROW_LABELS[opt] ?? opt,
-      detail: left != null && max != null ? `${left} of ${max} left` : '',
-      costly: false,
+      label:  CONVERSION_ROW_LABELS[opt] ?? opt,
+      detail: opt === 'excess'
+        ? [count, 'spending one cripples the ship (S2.41 C)'].filter(Boolean).join(' — ')
+        : count,
+      costly: opt === 'excess',
     };
   }
 
@@ -223,10 +239,10 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
           {myChoice.options.map(opt => {
             const isShuttle = opt.startsWith('bay:');
             const isWarp    = opt in WARP_LABELS;
-            const isCargoRow = opt in CARGO_ROW_LABELS || opt.startsWith('minerack:');
+            const isConversionRow = opt in CONVERSION_ROW_LABELS || opt.startsWith('minerack:');
             const sInfo = isShuttle ? shuttleSpaceLabel(opt) : null;
-            const cInfo = isCargoRow ? cargoRowInfo(opt) : null;
-            const wInfo = (!isShuttle && !isWarp && !isCargoRow) ? weaponInfo(opt) : null;
+            const cInfo = isConversionRow ? conversionRowInfo(opt) : null;
+            const wInfo = (!isShuttle && !isWarp && !isConversionRow) ? weaponInfo(opt) : null;
             // One warning colour for every kind of "you are about to lose something": an armed
             // shuttle in its space, a weapon holding a warhead or a load, a loaded mine rack.
             const armedWarning = (sInfo?.armed ?? false) || (wInfo?.costly ?? false)
@@ -290,7 +306,7 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
                   </div>
                 )}
 
-                {/* Cargo row option (Annex #7E) — which box, and what goes with it */}
+                {/* Conversion row option (Annex #7E) — which box, and what goes with it */}
                 {cInfo && (
                   <div>
                     <div style={{ fontWeight: 500 }}>{cInfo.label}</div>
@@ -306,7 +322,7 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
                 )}
 
                 {/* Fallback for unrecognised options */}
-                {!isShuttle && !isWarp && !isCargoRow && !wInfo && (
+                {!isShuttle && !isWarp && !isConversionRow && !wInfo && (
                   <span>{opt}</span>
                 )}
               </button>

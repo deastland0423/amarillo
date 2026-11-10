@@ -800,7 +800,7 @@ groundwork already in place.
     cargo boxes at all and the row scores nowhere, while the ROC has repair boxes and no cargo
     boxes, so its cargo hits are compulsory on repair and never prompt.
 
-    **STILL OPEN on the chart:**
+    **STILL OPEN on the chart** (the Cargo and Excess Damage rows are both built):
     - **The Shuttle row** — Fighter and Mine Rack. Cheap: `requiresPlayerChoice("shuttle")`
       already returns true and the options are `bay:B:space:S` strings, so this is adding
       `minerack:<i>` to that list and routing it through `applyConversionHit`. Note the force is
@@ -816,20 +816,34 @@ groundwork already in place.
       One hull declares barracks (the Federation CMC, 3 boxes); `ShipSpec.toMap` silently dropped
       them until 2026-11-10, so they were zero on every load.
 
-  - **(D4.40) A LIVE BUG: ships are destroyed too early.** "When there are no 'excess damage'
-    boxes remaining, and one additional excess damage hit is scored on the ship, the ship is
-    destroyed. **This final excess damage hit cannot be scored as excess damage so long as there
-    is some other system (only: cargo, repair, mine rack) on which an excess damage hit can be
-    scored by Annex #7E.**" And (D4.36): "If undestroyed cargo spaces exist on a ship, excess
-    damage hits may be scored against them at the option of the owning player."
+  - **(D4.40) The excess damage row and the destruction guard: BUILT 2026-11-10.** "When there
+    are no 'excess damage' boxes remaining, and one additional excess damage hit is scored on the
+    ship, the ship is destroyed. **This final excess damage hit cannot be scored as excess damage
+    so long as there is some other system (only: cargo, repair, mine rack) on which an excess
+    damage hit can be scored by Annex #7E.**" And (D4.36): "If undestroyed cargo spaces exist on
+    a ship, excess damage hits may be scored against them **at the option of the owning player**."
 
-    `Ship.applyInternalDamage` sets `DESTROYED` the moment `specialFunctions.damageExcessDamage()`
-    returns false, and the explicit `case "excess"` does the same. Neither consults cargo, repair
-    or mine racks. So **every hull with cargo boxes dies before it should** — a Base Station by
-    its 10 cargo plus 30 repair, forty points early. This is the Excess Damage row of the table
-    above plus a destruction guard, and `conversionCandidates` is already the list it needs to
-    ask. Do this next; it is the only entry here that makes the game give a wrong answer in
-    ordinary play.
+    It was a live bug and it sat in TWO places: the exhausted-chart branch and the
+    walked-the-whole-column branch of `Ship.applyInternalDamage` both set `DESTROYED` the moment
+    the excess track ran dry, and neither consulted cargo. Every hull with cargo boxes died early;
+    a Base Station died forty points early on ten cargo and thirty repair boxes. Both branches now
+    converge on one excess-row block, which is the only place in the method that scores an excess
+    damage hit, so the rule cannot be half-applied again.
+
+    The excess TRACK is offered first, which is both the sensible default and what keeps the
+    non-interactive `applyInternalDamage(int)` spending excess boxes before cargo the way it
+    always has. `ExcessDamageRowTest` pins the invariant dice-PROOF rather than dice-dependent: it
+    drives real damage through the real DAC and asserts the row is empty at the instant the engine
+    declares the ship dead, whatever route the chart took. Four mutants, four caught — including
+    one that restores the second destruction path on its own.
+
+    **OPEN QUESTION for the owner, found doing this and deliberately NOT decided.** (S2.41 C)
+    cripples a ship on "any excess damage hits". Our `isCrippled` reads that as *excess BOXES
+    destroyed*, which is the pre-existing behaviour and was left alone. The stricter reading is
+    *any hit allocated to the excess damage ROW, wherever it is scored* — under which D4.36's
+    option buys survival but not escape from crippling, and under the current reading it buys
+    both. The difference is worth a ruling, because D4.36 otherwise lets a base with forty boxes
+    on the row avoid crippled status indefinitely.
 
   - **Cargo boxes are a COUNT, not addressable objects.** The owner's point (2026-11-10) when the
     cargo row went in: "if a ship is carrying important cargo in a specific cargo box, but others
