@@ -16,7 +16,9 @@ const DAC_LABELS: Record<string, string> = {
   torp:    'Heavy Weapon (Torp)',
   weapon:  'Any Weapon',
   warp:    'Warp Engine',
-  shuttle: 'Shuttle Bay Space',
+  // Annex #7E: "Shuttle ....... Fighter, Mine Rack, ..." (M9.13) gives the row no opt-out, so a
+  // minelayer soaks shuttle hits on its racks whether its owner likes it or not.
+  shuttle: 'Shuttle Row (Bay Space / Mine Rack)',
   tractor: 'Tractor Beam',
   // Annex #7E: "Cargo ..... Repair, Mine Rack, ship in Starbase docking module (R1.1D), Works."
   // Named for the row rather than for cargo, because on a Base Station or the ROC the cargo box

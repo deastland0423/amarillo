@@ -800,13 +800,17 @@ groundwork already in place.
     cargo boxes at all and the row scores nowhere, while the ROC has repair boxes and no cargo
     boxes, so its cargo hits are compulsory on repair and never prompt.
 
-    **STILL OPEN on the chart** (the Cargo and Excess Damage rows are both built):
-    - **The Shuttle row** — Fighter and Mine Rack. Cheap: `requiresPlayerChoice("shuttle")`
-      already returns true and the options are `bay:B:space:S` strings, so this is adding
-      `minerack:<i>` to that list and routing it through `applyConversionHit`. Note the force is
+    **STILL OPEN on the chart** (Cargo, Excess Damage and Shuttle are all built):
+    - ~~The Shuttle row~~ — **BUILT 2026-11-10.** `addMineRackBoxes` appends the racks after the
+      bay spaces, so the non-interactive wrapper still empties bays first. Note the force is
       different from the cargo row's: M9.13 says a shuttle hit "must be scored on shuttle or mine
       rack boxes if any of either type exist", with no opt-out, so a minelayer with full racks
-      soaks shuttle hits whether the defender likes it or not.
+      soaks shuttle hits whether the defender likes it or not — and the racks die either way, so
+      it is not the defensive bonus it reads like. A rack pick is routed PAST the resolver's
+      shuttle branch to the generic one: that branch is all bay (deck crews, the occupant, the
+      D12.10 chain reaction), none of which a rack has, and its `split(":")` read `minerack:0` as
+      a bay address and threw. A D12.10 chain reaction still offers bay spaces only, which is
+      correct — the rule destroys "one additional space in the same bay".
     - **The two Hull rows** — Repair and Barracks. `HullBoxes.damageRepair()` exists;
       `damageBarracks()` has existed for a long time and **is still called from nowhere**, so
       barracks boxes cannot be damaged. Needs (G28.33) with it: "Any boarding parties in a

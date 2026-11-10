@@ -4477,6 +4477,21 @@ public class Ship extends Unit implements DroneController {
 							opts.add("bay:" + b + ":space:" + s);
 					}
 				}
+				/*
+				 * (M9.13, Annex #7E) "Shuttle hits must be scored on shuttle or mine rack boxes
+				 * if any of either type exist."
+				 *
+				 * Note the force, which is stronger than the cargo row's and stronger than
+				 * (D4.325) alone suggests: there is no opt-out. A minelayer with loaded racks
+				 * soaks shuttle hits whether its owner likes it or not, and the only decision is
+				 * which box. Spelling that out because it reads like a defensive bonus and is
+				 * nothing of the kind - the racks are being destroyed either way, and the mines
+				 * with them.
+				 *
+				 * Racks go LAST so the non-interactive wrapper, which takes the first option,
+				 * keeps emptying the bays first exactly as it did before.
+				 */
+				addMineRackBoxes(opts);
 				return opts;
 			}
 			case "ahull":
@@ -4582,9 +4597,23 @@ public class Ship extends Unit implements DroneController {
 			opts.add("cargo");
 		if (hullBoxes.getAvailableRepair() > 0)
 			opts.add("repair");
-		// An EMPTY rack is still a box and still absorbs the point. Only a destroyed one
-		// leaves the list - which is why this reads isDestroyed() rather than
-		// MineRack.isUsable(), the LAYING check, which also refuses an empty rack.
+		addMineRackBoxes(opts);
+	}
+
+	/**
+	 * (M9.13) Every undestroyed mine rack, as option strings.
+	 *
+	 * <p>Separate from {@link #addCargoRowBoxes} because the racks appear on a third row that
+	 * shares nothing else with the other two: "Shuttle .... Fighter, Mine Rack, Ships in
+	 * Andromedan hangars (G19.2), Shard." A shuttle hit reaches a rack; it does not reach a cargo
+	 * box or a repair box.
+	 *
+	 * <p>An EMPTY rack is still a box and still absorbs the point. Only a destroyed one leaves the
+	 * list - which is why this reads {@code isDestroyed()} rather than {@link
+	 * com.sfb.systemgroups.MineRack#isUsable(int)}, the LAYING check, which also refuses an empty
+	 * rack and would have made one indestructible.
+	 */
+	private void addMineRackBoxes(java.util.List<String> opts) {
 		for (int i = 0; i < mineRacks.size(); i++)
 			if (!mineRacks.get(i).isDestroyed())
 				opts.add("minerack:" + i);
@@ -4753,7 +4782,14 @@ public class Ship extends Unit implements DroneController {
 				return label != null ? label + " [chosen]" : null;
 			}
 			case "cargo":
-			case "excess": {
+			case "excess":
+			case "shuttle": {
+				// On the shuttle row only a mine rack arrives here. A bay space is applied by
+				// DamageResolver, which owns the half of (D12.10) this class knows nothing
+				// about - deck crews, the occupant, and the chain reaction - and it routes a
+				// rack pick to us instead. applyConversionHit returns null for anything it does
+				// not recognise, so "bay:0:space:1" reaching this by accident is a no-op rather
+				// than a wrong box.
 				String label = applyConversionHit(chosen);
 				return label == null ? null : label + " [chosen]";
 			}

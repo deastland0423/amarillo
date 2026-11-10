@@ -1304,7 +1304,14 @@ class DamageResolver {
             if (pending.remainingBleed > 0)
                 pendingInternalDamage.add(0, new PendingDamage(
                         pending.targetShip, pending.remainingBleed, pending.attackerShip, true));
-        } else if ("shuttle".equals(pending.dacType)) {
+        } else if ("shuttle".equals(pending.dacType)
+                && !(chosenSystem != null && chosenSystem.startsWith("minerack:"))) {
+            // (Annex #7E) A mine rack is a shuttle-row candidate too, and it deliberately does
+            // NOT come down this branch: it has no occupant to destroy, no deck crews to kill,
+            // and (M9.13) says in so many words that its mines "will not detonate", so there is
+            // no chain reaction either. It falls through to the generic branch below, which
+            // hands it to Ship.applyDacChoiceHit. Without this guard the split(":") below reads
+            // "minerack:0" as a bay address and throws.
             // Parse "bay:<b>:space:<s>"
             String[] parts = chosenSystem.split(":");
             int bayIdx = Integer.parseInt(parts[1]);
