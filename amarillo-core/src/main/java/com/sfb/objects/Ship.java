@@ -99,6 +99,11 @@ public class Ship extends Unit implements DroneController {
 	// mode commitments and switch lockouts persist across turns (D6.312)
 	private final com.sfb.systemgroups.EwCircuits ewCircuits = new com.sfb.systemgroups.EwCircuits();
 	private int nuclearSpaceMines = 0; // Number of nuclear space mines available. (Romulan special weapon)
+	// (M9.21) Rack mines laid this turn, for the converted hull's one-per-turn-per-bay limit.
+	private int rackMineTurn = -1;
+	private int rackMinesLaidThisTurn = 0;
+	// (M9.11) Mine storage boxes. Built EMPTY from the hull's count; see getMineRacks.
+	private final java.util.List<com.sfb.systemgroups.MineRack> mineRacks = new java.util.ArrayList<>();
 	/** Enemy boarding parties currently on board (D7.31). */
 	private final TroopCount enemyTroops = new TroopCount();
 	/**
@@ -477,6 +482,12 @@ public class Ship extends Unit implements DroneController {
 		tBombs = values.get("tbombs") == null ? 0 : (Integer) values.get("tbombs");
 		dummyTBombs = values.get("dummytbombs") == null ? 0 : (Integer) values.get("dummytbombs");
 		nuclearSpaceMines = values.get("nuclearspacemines") == null ? 0 : (Integer) values.get("nuclearspacemines");
+		// (M9.11) One MineRack per declared box, each empty. M2.76: the mines are not in the
+		// hull's BPV, so nothing here loads them -- they are bought against the force total.
+		mineRacks.clear();
+		int declaredRacks = values.get("mineracks") == null ? 0 : (Integer) values.get("mineracks");
+		for (int i = 0; i < declaredRacks; i++)
+			mineRacks.add(new com.sfb.systemgroups.MineRack());
 
 		// Subsystem values
 		shields.init(values);
@@ -1565,6 +1576,16 @@ public class Ship extends Unit implements DroneController {
 		return mineRole;
 	}
 
+	/**
+	 * (M9.21) Declare this hull a minesweeper or minelayer, which switches the laying RATE.
+	 * <p>
+	 * A configuration call, not a move: nothing in play changes a ship's mine role. Null is
+	 * NONE, matching {@code setCarrierClass} and {@code MineRole.from}.
+	 */
+	public void setMineRole(com.sfb.properties.MineRole mineRole) {
+		this.mineRole = mineRole == null ? com.sfb.properties.MineRole.NONE : mineRole;
+	}
+
 	public com.sfb.properties.CarrierClass getCarrierClass() {
 		return carrierClass;
 	}
@@ -2564,6 +2585,53 @@ public class Ship extends Unit implements DroneController {
 
 	public int getNuclearSpaceMines() {
 		return this.nuclearSpaceMines;
+	}
+
+	/**
+	 * (M9.11) This ship's mine storage boxes, in declaration order; empty for almost every hull.
+	 * <p>
+	 * Live objects, deliberately: a rack is loaded before the scenario, fired during it and
+	 * destroyed by (M9.13), so a caller holds the box rather than a count. The LIST itself is
+	 * fixed at init -- a ship does not grow racks -- but a destroyed rack stays in it, because
+	 * (M9.13) needs the hit to land somewhere and a removed box would be an undamaged one.
+	 */
+	public java.util.List<com.sfb.systemgroups.MineRack> getMineRacks() {
+		return this.mineRacks;
+	}
+
+	/**
+	 * (M9.21) How many rack mines this ship has put over the side on a given turn, for the
+	 * converted hull's limit of "one per turn per shuttle bay".
+	 * <p>
+	 * A ship-level tally rather than a flag on the rack, because the limit counts BAYS and not
+	 * racks: a hull with two racks and one bay may lay one mine a turn, and either rack may be
+	 * the one it comes from. The rack's own {@code lastLaidTurn} answers the other rate, the
+	 * minelayer's one-per-rack, where the box IS the launcher.
+	 */
+	public int rackMinesLaidOn(int turn) {
+		return rackMineTurn == turn ? rackMinesLaidThisTurn : 0;
+	}
+
+	/** Record one rack mine laid, resetting the tally when the turn has moved on. */
+	public void recordRackMineLaid(int turn) {
+		if (rackMineTurn != turn) {
+			rackMineTurn = turn;
+			rackMinesLaidThisTurn = 0;
+		}
+		rackMinesLaidThisTurn++;
+	}
+
+	/** Whether this hull has mine racks at all (M9.11), destroyed or not. */
+	public boolean hasMineRacks() {
+		return !this.mineRacks.isEmpty();
+	}
+
+	/** (M9.11) Every mine in every rack, which is the ship's whole rack-borne stock. */
+	public int getRackMineCount() {
+		int total = 0;
+		for (com.sfb.systemgroups.MineRack rack : this.mineRacks)
+			total += rack.getTotalMines();
+		return total;
 	}
 
 	public void setNuclearSpaceMines(int nuclearSpaceMines) {

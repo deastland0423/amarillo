@@ -1157,6 +1157,44 @@ public class ScenarioLoader {
             }
         }
 
+        // --- Mine racks (M9.11), charged to the FORCE TOTAL and not to this budget ---
+        //
+        // M9.17: "mine purchases by minesweepers are not restricted to a percentage of the BPV
+        // (M6.31). Essentially, the cost of mines in mine racks is part of the overall force
+        // total, not a part of the cost of the minesweeper." M2.76 repeats it for the Romulan
+        // large Q-ship, the only hull in the data with racks. So this block does NOT touch
+        // `spent` and is NOT tested against `budget` -- it bills ForceCost.RACK_MINES, which
+        // FleetValidator.costOf sums and CoiBudget never reads.
+        //
+        // M9.12 gives these racks no reloads, so what is loaded here is the whole stock for the
+        // scenario. Capacity is M9.11's four large slots a box, two small mines to a slot, and
+        // MineRack.load* returns what actually fitted so an over-order is reported rather than
+        // silently dropped.
+        if (ship.hasMineRacks()
+                && (loadout.rackNsms > 0 || loadout.rackTBombs > 0 || loadout.rackDummyTBombs > 0)) {
+            int nsms = 0;
+            int tbombs = 0;
+            int dummies = 0;
+            for (com.sfb.systemgroups.MineRack rack : ship.getMineRacks()) {
+                nsms    += rack.loadLarge(loadout.rackNsms - nsms);
+                tbombs  += rack.loadSmall(loadout.rackTBombs - tbombs);
+                dummies += rack.loadSmallDummy(loadout.rackDummyTBombs - dummies);
+            }
+            if (nsms < loadout.rackNsms || tbombs < loadout.rackTBombs
+                    || dummies < loadout.rackDummyTBombs)
+                note(ship, "COI: mine racks hold " + nsms + " NSM / " + tbombs + " T-bomb / "
+                        + dummies + " dummy -- the rest did not fit (M9.11)");
+            double mineBill = nsms * CoiLoadout.COST_NSM
+                    + (tbombs + dummies) * CoiLoadout.COST_TBOMB;
+            ship.setForceCost(com.sfb.properties.ForceCost.RACK_MINES, mineBill);
+        } else if (loadout.rackNsms > 0 || loadout.rackTBombs > 0 || loadout.rackDummyTBombs > 0) {
+            // M9.14: "Non-minelaying ships cannot carry mines except as per (M3.1) or (M2.7)."
+            // A hull with no racks cannot be given rack mines, and charging for them would be
+            // worse than refusing - the player would pay for stock they could never lay.
+            note(ship, "COI: " + ship.getName() + " has no mine racks, so rack mines cannot be"
+                    + " loaded (M9.14)");
+        }
+
         // --- Drone rack loadouts (FD2.22's surcharge; year/speed limits enforced) ---
         if (!loadout.droneRackLoadouts.isEmpty() || !loadout.antiDroneLoadouts.isEmpty()) {
             Integer maxSpeed = spec.commanderOptions != null ? spec.commanderOptions.maxDroneSpeed : null;

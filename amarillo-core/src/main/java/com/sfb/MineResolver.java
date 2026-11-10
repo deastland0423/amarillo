@@ -168,22 +168,86 @@ class MineResolver {
         if (actingShip.getLocation() == null)
             return ActionResult.fail("Ship has no location");
 
-        // Find an available shuttle bay
         int currentImpulse = game.getAbsoluteImpulse();
-        com.sfb.systemgroups.ShuttleBay availableBay = null;
-        for (com.sfb.systemgroups.ShuttleBay bay : actingShip.getShuttles().getBays()) {
-            if (bay.canLaunch(currentImpulse)) {
-                availableBay = bay;
-                break;
-            }
-        }
-        if (availableBay == null)
-            return ActionResult.fail("No shuttle bay available to drop a mine this impulse");
-
-        // Check inventory and deduct
+        int currentTurn = game.getClock().getTurn();
         boolean isNsm = "NSM".equalsIgnoreCase(mineType);
         boolean isDummy = "DUMMY_TBOMB".equalsIgnoreCase(mineType);
-        if (isNsm) {
+
+        // (M9.21) THE RATE, and it splits on the SHIP rather than on the rack.
+        //
+        // "Ships can lay one mine from each mine rack during each turn. Only minesweepers and
+        // minelayers use these rates to lay mines. Other ships converted (S7.0) to carry mine
+        // racks drop mines through the shuttle hatch at the rate of one per turn per shuttle
+        // bay, regardless of the number of racks in the bay."
+        //
+        // So for a minesweeper or minelayer a rack IS a launcher: no bay is consumed, no
+        // quarter-turn spacing, no M2.111 conflict with launching a shuttle. For everyone else
+        // -- including an S7.0 conversion, which M9.16 says is "not considered a minesweeper for
+        // any purpose" -- the rack is only an inventory and the hatch is the bottleneck. The
+        // owner ruled (2026-10-19) that the Romulan large Q-ship, being neither a minesweeper
+        // (M2.78) nor a minelayer (M2.79), takes the bay rate: its two racks hold eight NSMs and
+        // it can still only put one of them over the side per turn.
+        com.sfb.systemgroups.MineRack sourceRack = null;
+        if (actingShip.hasMineRacks()) {
+            boolean perRack = actingShip.laysOneMinePerRack();
+            boolean anyHeldIt = false;
+            boolean anyFreeThisTurn = false;
+            for (com.sfb.systemgroups.MineRack rack : actingShip.getMineRacks()) {
+                if (rack.isDestroyed() || rack.isOutOfService(currentTurn))
+                    continue;
+                if (!rack.has(isNsm, isDummy))
+                    continue;
+                anyHeldIt = true;
+                if (perRack && rack.laidThisTurn(currentTurn))
+                    continue;
+                anyFreeThisTurn = true;
+                sourceRack = rack;
+                break;
+            }
+            if (sourceRack == null && anyHeldIt && !anyFreeThisTurn)
+                return ActionResult.fail(actingShip.getName()
+                        + " has already laid a mine from every loaded rack this turn (M9.21)");
+        }
+
+        // (M9.21) The converted hull's limit is "one per turn per shuttle bay, REGARDLESS of the
+        // number of racks in the bay" -- a per-TURN rate, where the hatch cooldown below is only
+        // two impulses. Without this a one-bay hull could put sixteen mines over the side in a
+        // turn and satisfy every other check on the way.
+        //
+        // Counted per ship rather than per rack, because the rule counts bays: two racks behind
+        // one bay is one mine a turn, from whichever rack. The minelayer's rate is the other
+        // branch entirely and is capped by the racks themselves, so this does not apply to it.
+        if (sourceRack != null && !actingShip.laysOneMinePerRack()) {
+            int bays = actingShip.getShuttles().getBays().size();
+            if (actingShip.rackMinesLaidOn(currentTurn) >= bays)
+                return ActionResult.fail(actingShip.getName() + " has already laid "
+                        + actingShip.rackMinesLaidOn(currentTurn)
+                        + " mine" + (actingShip.rackMinesLaidOn(currentTurn) == 1 ? "" : "s")
+                        + " from its racks this turn, one for each shuttle bay (M9.21)");
+        }
+
+        // The hatch, which a minesweeper or minelayer firing its own rack does not use.
+        boolean needsBay = sourceRack == null || !actingShip.laysOneMinePerRack();
+        com.sfb.systemgroups.ShuttleBay availableBay = null;
+        if (needsBay) {
+            for (com.sfb.systemgroups.ShuttleBay bay : actingShip.getShuttles().getBays()) {
+                if (bay.canLaunch(currentImpulse)) {
+                    availableBay = bay;
+                    break;
+                }
+            }
+            if (availableBay == null)
+                return ActionResult.fail("No shuttle bay available to drop a mine this impulse");
+        }
+
+        // Check inventory and deduct. A rack is drawn on FIRST where one holds the mine: M9.12
+        // gives rack mines no reloads, so rack stock is the scarcer kind and spending the loose
+        // allocation first would strand it.
+        if (sourceRack != null) {
+            sourceRack.takeOne(isNsm, isDummy, currentTurn);
+            if (!actingShip.laysOneMinePerRack())
+                actingShip.recordRackMineLaid(currentTurn); // M9.21's per-bay-per-turn tally
+        } else if (isNsm) {
             if (actingShip.getNuclearSpaceMines() < 1)
                 return ActionResult.fail("No nuclear space mines remaining");
             actingShip.setNuclearSpaceMines(actingShip.getNuclearSpaceMines() - 1);
@@ -197,8 +261,9 @@ class MineResolver {
             actingShip.setTBombs(actingShip.getTBombs() - 1);
         }
 
-        // Consume the bay slot and place the mine
-        availableBay.markUsed(currentImpulse);
+        // Consume the bay slot, where one was needed, and place the mine
+        if (availableBay != null)
+            availableBay.markUsed(currentImpulse);
         SpaceMine mine = isNsm
                 ? SpaceMine.createDroppedNSM(actingShip, currentImpulse)
                 : SpaceMine.createDroppedTBomb(actingShip, currentImpulse, !isDummy);

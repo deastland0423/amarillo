@@ -53,24 +53,6 @@ public class ShipJsonKeyGuardTest {
         PARKED.put("auxiliary.web",
                 "Tholian, 8 files. Web generators — the Sequence of Play cites web "
                 + "deceleration at (G10.59), so the system is G10 and wholly unbuilt.");
-        PARKED.put("auxiliary.mineRacks",
-                "Romulan, 1 file, the large Q-ship. Mine racks (M9.11), and the count is racks "
-                + "and not mines: each rack box holds FOUR large mines, and two small mines may "
-                + "be substituted for one large, so two racks is 8 NSMs or up to 16 T-bombs. "
-                + "There are NO reloads (M9.12) and the mines in them do not come with the free "
-                + "dummies a T-bomb gets (M3.224). Unbuilt: dropMine knows TBOMB, DUMMY_TBOMB "
-                + "and NSM and no ship holds a rack inventory. M2.76 names THIS ship: two "
-                + "racks of four NSMs each, and the mines are NOT in its BPV — they are "
-                + "bought IN EXCESS OF the Commander's Options budget (S3.2), so when "
-                + "mines become purchasable they must not be charged against the 20%. Note "
-                + "CoiLoadout.extraTBombs already buys T-bombs INTO that budget, which is "
-                + "right for T-bombs and wrong for these, so do not copy it. "
-                + "Which is also why this hull declares no nuclearSpaceMines: the racks "
-                + "are capacity, and it starts empty. Note NSM itself IS built, as "
-                + "auxiliary.nuclearSpaceMines, which the small Q-ship uses — so the pair of "
-                + "Romulan Q-ships sits either side of the gap. When racks are built they also "
-                + "take damage: M9.13 puts cargo hits on them when no other cargo remains and "
-                + "shuttle hits on them or shuttle boxes, per Annex #7E.");
         PARKED.put("hullBoxes.repair",
                 "Romulan, 1 file, the ROC. Repair boxes, unbuilt: our damage control has no "
                 + "notion of them — Ship.repairShield spends energy against the DamCon rating "

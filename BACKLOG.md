@@ -721,9 +721,66 @@ groundwork already in place.
   F4.0 and somebody looking for it will come here first. Still open: the SCATTER-PACK has no
   ballistic door (it needs F4.41/F4.42/F4.43, which is a feature in its own right — see the
   scatter-pack section), F4.3 wild boars, F4.5 tractors, and firing at a bare hex has no UI.
-- **Mine racks (M9.0) — rules READ, and SMALLER than they look. Unbuilt.** The Romulan large
-  Q-ship is the first hull in the data to carry them, and `auxiliary.mineRacks` is parked rather
-  than read.
+- **Mine racks (M9.0) — INVENTORY, RATE AND PURCHASE BUILT 2026-11-10. Damage (M9.13) and the
+  in-play transfer (M9.19) are what is left.**
+
+  `com.sfb.systemgroups.MineRack` is the box; `Ship.getMineRacks()` holds them, built empty from
+  `auxiliary.mineRacks` (now a real `ShipSpec` field, unparked from `ShipJsonKeyGuardTest`).
+  `MineResolver.dropMine` draws from a rack in preference to the loose allocation, because M9.12
+  gives rack mines no reloads and spending the loose stock first would strand the scarcer kind.
+  `CoiLoadout.rackNsms`/`rackTBombs`/`rackDummyTBombs` buy the contents and bill
+  `ForceCost.RACK_MINES`, so the force-total work of the same day is what made this reachable.
+
+  **Capacity is counted in SLOTS, not mines, and that is load-bearing.** M9.11: four large mines
+  a box, two small substituted for one large. A lone T-bomb therefore occupies a WHOLE slot with
+  its partner cradle open — three large mines still fit beside it, not three and a half — and a
+  mine count cannot express that. `MineRackTest` pins the arithmetic.
+
+  **M9.21's rate split is now wired, and `laysOneMinePerRack()` finally has a caller.** For a
+  minesweeper or minelayer a rack IS a launcher: one mine per rack per turn, no bay consumed, no
+  hatch cooldown. For everyone else the rack is only an inventory and the hatch is the
+  bottleneck.
+
+  **A bug found by reading M9.21 against the code rather than by a failing test.** The converted
+  hull's rate is "one per turn per shuttle bay", and the bay cooldown this reused is TWO
+  IMPULSES — so a one-bay hull could have laid sixteen rack mines in a turn with every other
+  check satisfied. Now tallied per ship per turn against the bay count, because the rule counts
+  BAYS: two racks behind one bay is one mine a turn, from whichever rack.
+  `aConvertedHullLaysOnePerTurnPerBayHoweverLongTheTurnIs` holds it.
+
+  **REACHABILITY, stated plainly: the per-rack rate has no hull to exercise it.** No ship in the
+  data declares `mineRole`, because none is a minesweeper or minelayer — and the owner ruled
+  (2026-10-19) that the Romulan large Q-ship, the only hull with racks, takes the BAY rate, being
+  neither (M2.78/M2.79) and M9.16 being emphatic that an S7.0 conversion is "not considered a
+  minesweeper for any purpose". So the fast path is correct, tested and unreached until a sweeper
+  or layer is entered. `aHullWithNoDeclaredRoleLaysAtTheBayRateNotThePerRackRate` records the
+  claim and is where it stops being true.
+
+  **STILL OPEN:**
+  - **M9.13 damage.** "Cargo hits MAY be scored on mine rack boxes and MUST be scored on them if
+    no other cargo boxes are available. Shuttle hits must be scored on shuttle or mine rack boxes
+    if any of either type exist. See Annex #7E." `MineRack.destroy()` exists and correctly loses
+    the mines WITHOUT detonating them (the rule says so in a parenthesis, and four NSMs going off
+    inside the hull would end the ship) — but nothing calls it. The DAC dispatches on system
+    names in `Ship.applyInternalDamage` ("cargo" reaches `hullBoxes.damageCargo()`), so the
+    mandatory halves are a change there; the "may" halves are a DAC CHOICE and want the existing
+    `enterDacChoicePhase` mechanism.
+  - **M9.19's in-play transfer.** "A ship with mine racks can load or unload one large mine from
+    any one of its racks during one turn ... The rack must be taken out of service for the entire
+    turn." `MineRack.takeOutOfService(turn)`/`isOutOfService(turn)` exist and are honoured by the
+    laying path; nothing sets them, and the FD2.42 procedure the rule cites is unread.
+  - **M9.23.** Captor and sensor mines, and any control, chain or deadman switch mine, "cannot be
+    laid during a scenario". None of those kinds is modelled, so there is nothing to refuse yet.
+  - **M9.15.** Small explosive mines removed from the racks "can also be used as T-bombs on the
+    following turn" — a one-turn delay nothing implements, and it needs M9.19 first.
+  - **No UI.** The whole system is server-side. The racks are not in the DTO, the Hangar Ops or
+    EA dialogs do not show them, and no button lays from one, so a player cannot reach any of it
+    in a browser. This is the largest remaining risk here, and it is the same shape as the chaff
+    entry: core correct, unreachable.
+
+  **The original entry follows, accurate except where the above supersedes it.** The Romulan
+  large Q-ship is the first hull in the data to carry them, and `auxiliary.mineRacks` WAS parked
+  rather than read.
 
   **The laying ACTION is already built and correct** (established 2026-10-19). A rack mine is
   laid exactly as a bay-dropped one is: M9.0 says "large or small mines can be laid directly (in
@@ -734,13 +791,13 @@ groundwork already in place.
   already exists as a placement method, **the saved-game format carries rack mines with no
   change at all**. EM is guarded too (C10.514, 2026-10-19).
 
-  **What is actually left is three things, none of them the laying:**
-  1. *Inventory* — the rack's contents. `DroneRack` is the pattern, since it already models
-     capacity that varies with what is loaded.
-  2. *Rate, and whether the bay is involved.* `MineResolver` currently refuses with "No shuttle
-     bay available to drop a mine this impulse", and for a true minelayer that is WRONG — M9.21
-     bypasses the hatch entirely. So the bay requirement has to become conditional.
-  3. *Damage location* — M9.13, below.
+  **What was left was three things, none of them the laying** — the first two are now DONE:
+  1. ~~*Inventory*~~ DONE. `MineRack`, built from `DroneRack`'s shape for capacity-that-varies,
+     but deliberately WITHOUT its reload list: M9.12 gives these racks no reloads, and copying
+     that part would have invented a rule.
+  2. ~~*Rate, and whether the bay is involved*~~ DONE, and the bay requirement is now
+     conditional exactly as this predicted.
+  3. *Damage location* — M9.13, still open. See the list above.
 
   **M9.21 splits three ways**, and only the first gets the fast rate:
   - minesweepers and minelayers: one mine **per rack** per turn, no bay consumed, no quarter-turn
@@ -755,9 +812,12 @@ groundwork already in place.
   "Ships modified by (S7.0) to carry mines in the shuttle bay are not considered minesweepers
   for any purpose."
 
-  **Cost is a separate prerequisite, and not this entry's to solve** — the mines in a rack are
-  not part of the ship's BPV (M9.17) and are bought outside the 20% cap. See the force-total
-  entry below; it serves drone speed upgrades and crew quality too.
+  ~~**Cost is a separate prerequisite, and not this entry's to solve**~~ — SOLVED 2026-11-10,
+  earlier the same day. The mines in a rack are not part of the ship's BPV (M9.17) and are bought
+  outside the 20% cap, which is now `ForceCost.RACK_MINES`; `CoiLoadout.rackMineCost()` prices
+  them from Annex #6 (NSM 8, transporter bomb 4, and a dummy charged as a small mine because
+  M9.11 withdraws M3.224's free ones). A hull with no racks is REFUSED rack mines rather than
+  charged for them (M9.14), since paying for stock you can never lay is worse than a refusal.
 
   **M9.11:** minesweepers and minelayers carry mine storage boxes. "Each such box holds FOUR large
   mines. Two small mines can be substituted for one large one." So a rack is 4 NSMs or up to 8

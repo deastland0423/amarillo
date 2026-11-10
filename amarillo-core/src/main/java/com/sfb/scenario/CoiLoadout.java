@@ -43,6 +43,35 @@ public class CoiLoadout {
     public int extraTBombs = 0;
 
     /**
+     * (M9.17, Annex #6) Large mines to load into this ship's mine racks — NSMs.
+     *
+     * <h2>These do NOT go in {@link #totalCost}, and that is the whole point</h2>
+     * M9.17: "mine purchases by minesweepers are not restricted to a percentage of the BPV
+     * (M6.31). Essentially, the cost of mines in mine racks is part of the overall force total,
+     * not a part of the cost of the minesweeper." M2.76 says it again for the hull that has the
+     * only racks in the data: its mines "can be purchased in excess of the Commander's Options
+     * (S3.2)". So they are priced by {@link #rackMineCost()} and billed to
+     * {@link com.sfb.properties.ForceCost#RACK_MINES}, never to the 20%.
+     *
+     * <p><b>Do not copy {@link #extraTBombs} here.</b> That field buys loose T-bombs INTO the
+     * capped budget, which is correct for an M3.1 allocation and wrong for a rack. The two look
+     * alike and are charged to different purses.
+     */
+    public int rackNsms = 0;
+
+    /**
+     * (M9.11) Small mines for the racks — T-bombs, two to a large-mine slot.
+     *
+     * <p>Also billed to the force total rather than the cap, for the reason {@link #rackNsms}
+     * gives. Note these come with NO free dummies: M9.11's last sentence removes M3.224's
+     * allowance for rack mines specifically, so {@link #rackDummyTBombs} must be bought.
+     */
+    public int rackTBombs = 0;
+
+    /** (M9.11) Dummy small mines for the racks, which here are never free. */
+    public int rackDummyTBombs = 0;
+
+    /**
      * Extra deck crews (S3.2). Half a point each, four at most, and only a fully capable
      * carrier may hire them (J4.816): a casual carrier with a fighter or two aboard has not
      * the facilities, whatever its budget.
@@ -190,6 +219,15 @@ public class CoiLoadout {
     public static final double COST_CONVERT_TO_COMMANDO = 0.5;
     public static final double COST_EXTRA_COMMANDO     = 1.0;
     public static final double COST_TBOMB              = 4.0;
+    /**
+     * (Annex #6) "Each nuclear space mine (minelayers only) ... 8".
+     *
+     * <p>The annex gives the same 8 on a second line, "One NSM on Romulan (M2.73, .74, .76)
+     * ship" — which is what lets the Romulan Q-ships buy NSMs at all, since they are not
+     * minelayers and the first line is restricted to those. Same price by either door, so one
+     * constant serves. (A Y-NSM is 7 and a Y-transporter bomb 3; neither is built.)
+     */
+    public static final double COST_NSM               = 8.0;
     public static final double COST_EXTRA_DECK_CREW    = 0.5;
 
     public static final int MAX_EXTRA_BP              = 10;
@@ -289,6 +327,24 @@ public class CoiLoadout {
      */
     public double droneUpgradeCost(int year) {
         return droneUpgradeCost(null, year);
+    }
+
+    /**
+     * (M9.17, Annex #6) What the mines in this loadout's racks cost the FORCE total — a figure
+     * deliberately absent from {@link #totalCost}.
+     *
+     * <p>Annex #6's "MINES CARRIED ON SHIPS": an NSM is 8 and a transporter bomb 4. A dummy is
+     * charged as a real small mine, because M9.11 withdraws the free dummies M3.224 gives a
+     * T-bomb allocation and the annex prices no separate dummy — so a dummy in a rack is a
+     * small mine that happens to be hollow, and it was paid for.
+     *
+     * <p>A budget check must never add this to {@code totalCost}: the two are charged to
+     * different purses, and {@code ForceCostTest} holds the line that nothing in this category
+     * reaches the option allowance.
+     */
+    public double rackMineCost() {
+        return rackNsms * COST_NSM
+             + (rackTBombs + rackDummyTBombs) * COST_TBOMB;
     }
 
     /**

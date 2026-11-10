@@ -766,6 +766,23 @@ public class ShipSpec {
         public int tBombs;
         public int dummyTBombs;
         public int nuclearSpaceMines;
+        /**
+         * (M9.11) How many mine storage BOXES this hull has — racks, not mines.
+         *
+         * <p>Each box holds four large mines, and two small may stand in for one large, so two
+         * racks is eight NSMs or up to sixteen T-bombs. The racks start EMPTY: M2.76 says the
+         * mines of the Romulan large Q-ship "are not included in its BPV", so its 80 points buy
+         * the capacity and the mines are bought separately against the force total
+         * ({@link com.sfb.properties.ForceCost#RACK_MINES}).
+         *
+         * <p>This is why that hull declares no {@code nuclearSpaceMines} while its small sibling
+         * does: the small Q-ship carries a bundled NSM that IS in its BPV (M2.75), and the large
+         * one carries racks it must fill. The pair sits either side of the distinction.
+         *
+         * <p>The LAYING RATE is not here — see {@link #mineRole}. A hull with racks and no role
+         * drops through the shuttle hatch at one per bay per turn (M9.21).
+         */
+        public int mineRacks;
         public int cloakCost;
         public boolean derfacs;
         public int uim;
@@ -1134,6 +1151,8 @@ public class ShipSpec {
                 m.put("dummytbombs", auxiliary.dummyTBombs);
             if (auxiliary.nuclearSpaceMines > 0)
                 m.put("nuclearspacemines", auxiliary.nuclearSpaceMines);
+            if (auxiliary.mineRacks > 0)
+                m.put("mineracks", auxiliary.mineRacks);
             if (auxiliary.cloakCost > 0)
                 m.put("cloakcost", auxiliary.cloakCost);
             if (auxiliary.derfacs)
