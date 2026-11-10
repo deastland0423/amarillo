@@ -763,6 +763,31 @@ public class GameStateDto {
         public int maxFhull;
         public int maxAhull;
         public int maxChull;
+        /**
+         * (Annex #7E) The other box kinds the DAMAGE CONVERSION CHART scores on, sent so the DAC
+         * choice dialog can say what a player is being asked to give up.
+         * <p>
+         * Cargo was never sent before this. Nothing noticed, because nothing offered a choice
+         * between a cargo box and anything else.
+         */
+        public int availableCargo;
+        public int maxCargo;
+        public int availableRepair;
+        public int maxRepair;
+        public int availableBarracks;
+        public int maxBarracks;
+        /** (M9.11) Mine storage BOXES still undestroyed, and how many the hull was built with. */
+        public int availableMineRacks;
+        public int maxMineRacks;
+        /**
+         * (M9.11) What is in each mine rack, in the order the DAC addresses them.
+         * <p>
+         * Owner-only, and split from the two counts above for exactly the reason the cargo-drone
+         * fields are: the BOX is a printed SSD box whose destruction (D3.241) was announced, while
+         * the mines sitting in it are no more public than the T-bombs in the hold. An enemy viewer
+         * gets an empty list, like {@code droneRacks}.
+         */
+        public List<MineRackDto> mineRacks = new ArrayList<>();
         // Power system damage state
         public int availableLWarp;
         public int availableRWarp;
@@ -1258,6 +1283,20 @@ public class GameStateDto {
         public int totalDamage;
         public int envelopingHellboreDamage;
         public boolean addHit;
+    }
+
+    /**
+     * (M9.11) One mine storage box: whether it is still there, and what is in it.
+     * <p>
+     * The contents are the reason this is sent at all. On a cargo-row DAC hit the owner picks
+     * which box to lose, and a rack holding four NSMs is a very different loss from an empty one.
+     */
+    public static class MineRackDto {
+        public boolean destroyed;
+        public int largeMines;
+        public int smallMines;
+        public int smallDummyMines;
+        public int slotsFree;
     }
 
     public static class PendingDacChoiceDto {
@@ -1879,6 +1918,17 @@ public class GameStateDto {
         dto.maxFhull = hb.getMaxFhull();
         dto.maxAhull = hb.getMaxAhull();
         dto.maxChull = hb.getMaxChull();
+        dto.availableCargo = hb.getAvailableCargo();
+        dto.maxCargo = hb.getMaxCargo();
+        dto.availableRepair = hb.getAvailableRepair();
+        dto.maxRepair = hb.getMaxRepair();
+        dto.availableBarracks = hb.getAvailableBarracks();
+        dto.maxBarracks = hb.getMaxBarracks();
+        dto.maxMineRacks = ship.getMineRacks().size();
+        dto.availableMineRacks = 0;
+        for (com.sfb.systemgroups.MineRack rack : ship.getMineRacks())
+            if (!rack.isDestroyed())
+                dto.availableMineRacks++;
 
         // Power system damage state
         com.sfb.systemgroups.PowerSystems ps = ship.getPowerSystems();
@@ -2133,9 +2183,21 @@ public class GameStateDto {
         // what is LOADED is not).
         dto.droneRacks = new ArrayList<>();
         dto.shuttleBays = new ArrayList<>();
+        dto.mineRacks = new ArrayList<>();
         if (hideSecrets) {
             redactForEnemy(dto, ship, game.getAbsoluteImpulse());
             return dto;
+        }
+        // Mine rack contents, past the enemy return for the same reason the bay contents are:
+        // the count of surviving boxes went out above and is public, what is loaded is not.
+        for (com.sfb.systemgroups.MineRack rack : ship.getMineRacks()) {
+            MineRackDto md = new MineRackDto();
+            md.destroyed = rack.isDestroyed();
+            md.largeMines = rack.getLargeMines();
+            md.smallMines = rack.getSmallMines();
+            md.smallDummyMines = rack.getSmallDummyMines();
+            md.slotsFree = rack.spaceFree();
+            dto.mineRacks.add(md);
         }
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (!(w instanceof DroneRack))

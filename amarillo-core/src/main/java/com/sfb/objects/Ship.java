@@ -4251,6 +4251,18 @@ public class Ship extends Unit implements DroneController {
 		return tryApplySystemHit(system, null);
 	}
 
+	/**
+	 * For testing only: exposes requiresPlayerChoice (same-package access).
+	 * <p>
+	 * Worth having a hook of its own, because "does this raise a dialog at all" is a separate
+	 * claim from "what are the options" and the two disagree on purpose: {@link
+	 * #getDacChoiceOptions} lists one candidate where this returns false, and the single
+	 * candidate is then resolved silently by {@code tryApplySystemHit}.
+	 */
+	boolean requiresPlayerChoiceForTest(String system) {
+		return requiresPlayerChoice(system);
+	}
+
 	// ---------------------------------------------------------------- Balcony
 	// (J1.53)
 
@@ -4369,6 +4381,14 @@ public class Ship extends Unit implements DroneController {
 			case "ahull":
 			case "afthull":
 				return parkedCraft().size() > 1;
+			// (Annex #7E) The cargo row is not one box type: "Cargo ... Repair, Mine Rack,
+			// ship in Starbase docking module (R1.1D), Works." Ask the owner only when more
+			// than one candidate exists, following the tractor and balcony precedent - a hull
+			// with cargo boxes and nothing else, which is most of them, resolves silently and
+			// raises no dialog. The size-1 case also covers the ROC, whose only candidate is
+			// a repair box.
+			case "cargo":
+				return conversionCandidates("cargo").size() > 1;
 			default:
 				return false;
 		}
@@ -4473,9 +4493,124 @@ public class Ship extends Unit implements DroneController {
 						opts.add(b.describe());
 				return opts;
 			}
+			case "cargo":
+				return conversionCandidates("cargo");
 			default:
 				return java.util.Collections.emptyList();
 		}
+	}
+
+	/**
+	 * (Annex #7E) The boxes a DAMAGE CONVERSION CHART row may be scored on, as option strings.
+	 *
+	 * <h2>Why this is one list and not a cargo feature with a mine-rack special case</h2>
+	 * Annex #7E's rows are one-to-many, and the many overlap. Five rows reach only three box
+	 * types between them:
+	 *
+	 * <pre>
+	 * Forward Hull ... C Hull, Repair, Barracks.
+	 * Aft Hull ....... C Hull, Repair, Barracks. Shuttles on Balconies (J1.531) must be hit first.
+	 * Cargo .......... Repair, Mine Rack, ship in Starbase docking module (R1.1D), Works.
+	 * Excess Damage .. Cargo, Repair, Mine Rack.
+	 * Shuttle ........ Fighter, Mine Rack, Ships in Andromedan hangars (G19.2), Shard.
+	 * </pre>
+	 *
+	 * So a repair box is reachable from four directions and a mine rack from three. Written as
+	 * "a cargo hit may also take a mine rack" the same rule would have had to be written out
+	 * three times and kept in step.
+	 *
+	 * <h2>The hit is MANDATORY while this list is non-empty</h2>
+	 * That is the force of (D4.351) for the hull rows - "If a ship has either of the acceptable
+	 * types of hull and one of the systems listed on Annex #7E, <b>the hit must be scored on one
+	 * of them</b>" - and of (M9.13) for this one: "Cargo hits may be scored on mine rack boxes
+	 * and <b>must</b> be scored on them if no other cargo boxes are available."
+	 *
+	 * <p>Nothing here enforces that, and nothing needs to. An empty list is what lets the DAC
+	 * advance to the next column and a non-empty one is what stops it, which is already the
+	 * contract {@code applyInternalDamage} applies to every choice type. The "must" and the "may"
+	 * are one code path; the only difference between them is how many candidates came back.
+	 *
+	 * <h2>Two members of the cargo row are deliberately absent</h2>
+	 * A ship in a starbase docking module (R1.1D) has no representation, because docking modules
+	 * are not built. "Works" appears nowhere in the Captain's Master Rulebook - it is priced at 3
+	 * in Annex #9 and otherwise undefined, so it belongs to a module we do not have. Neither
+	 * omission can put a hit in the wrong place: both would only ADD candidates, so their absence
+	 * can at worst mean a point lands on cargo that could have had another option.
+	 *
+	 * @param row the DAC row name, as the chart's left column calls it
+	 * @return candidate option strings, in the order they should be offered; empty if the row can
+	 *         be scored nowhere on this ship, which is the signal to advance the DAC
+	 */
+	private java.util.List<String> conversionCandidates(String row) {
+		java.util.List<String> opts = new ArrayList<>();
+		switch (row) {
+			case "cargo":
+				if (hullBoxes.getAvailableCargo() > 0)
+					opts.add("cargo");
+				if (hullBoxes.getAvailableRepair() > 0)
+					opts.add("repair");
+				// An EMPTY rack is still a box and still absorbs the point. Only a destroyed
+				// one leaves the list - which is why this reads isDestroyed() rather than
+				// MineRack.isUsable(), the LAYING check, which also refuses an empty rack.
+				for (int i = 0; i < mineRacks.size(); i++)
+					if (!mineRacks.get(i).isDestroyed())
+						opts.add("minerack:" + i);
+				return opts;
+			default:
+				return opts;
+		}
+	}
+
+	/**
+	 * Destroy one box named by a {@link #conversionCandidates} option string.
+	 *
+	 * <p>The forced path and the chosen path both come through here, so what is offered to the
+	 * owner and what is auto-picked for them cannot drift apart.
+	 *
+	 * @return a log label, or null if the named box does not exist or is already destroyed
+	 */
+	private String applyConversionHit(String option) {
+		if (option == null)
+			return null;
+		if ("cargo".equals(option)) {
+			if (!hullBoxes.damageCargo())
+				return null;
+			// FD2.445: "These drones are lost when the cargo boxes are destroyed."
+			// Reported so the loss is visible - a silent 50 spaces going missing is
+			// exactly the kind of thing nobody notices until a reload fails.
+			if (cargoDroneStore != null) {
+				int lost = cargoDroneStore.loseOneBox();
+				if (lost > 0)
+					return "cargo HIT (" + lost + " spaces of drones lost)";
+			}
+			return "cargo HIT";
+		}
+		if ("repair".equals(option))
+			return hullBoxes.damageRepair() ? "repair HIT (G17.0)" : null;
+		if (option.startsWith("minerack:")) {
+			int idx;
+			try {
+				idx = Integer.parseInt(option.substring("minerack:".length()));
+			} catch (NumberFormatException e) {
+				return null;
+			}
+			if (idx < 0 || idx >= mineRacks.size())
+				return null;
+			com.sfb.systemgroups.MineRack rack = mineRacks.get(idx);
+			if (rack.isDestroyed())
+				return null;
+			int lost = rack.getTotalMines();
+			// M9.13: "The mines on a destroyed rack are also destroyed (but will not
+			// detonate)." MineRack.destroy() zeroes them and nothing is routed to the
+			// explosion resolver: four NSMs going up inside the hull would be the end of the
+			// ship, and the rule says plainly that it is not what happens.
+			rack.destroy();
+			return lost > 0
+					? "mine rack #" + (idx + 1) + " HIT (" + lost
+							+ " mine(s) destroyed, no detonation, M9.13)"
+					: "mine rack #" + (idx + 1) + " HIT (empty)";
+		}
+		return null;
 	}
 
 	/**
@@ -4579,6 +4714,10 @@ public class Ship extends Unit implements DroneController {
 					return null;
 				String label = tractors.destroyBeam(Integer.parseInt(m.group(1)));
 				return label != null ? label + " [chosen]" : null;
+			}
+			case "cargo": {
+				String label = applyConversionHit(chosen);
+				return label == null ? null : label + " [chosen]";
 			}
 			default:
 				return null;
@@ -4821,17 +4960,13 @@ public class Ship extends Unit implements DroneController {
 			case "damcon":
 				return specialFunctions.damageDamCon() ? "damcon HIT" : null;
 			case "cargo": {
-				if (!hullBoxes.damageCargo())
-					return null;
-				// FD2.445: "These drones are lost when the cargo boxes are destroyed."
-				// Reported so the loss is visible - a silent 50 spaces going missing is
-				// exactly the kind of thing nobody notices until a reload fails.
-				if (cargoDroneStore != null) {
-					int lost = cargoDroneStore.loseOneBox();
-					if (lost > 0)
-						return "cargo HIT (" + lost + " spaces of drones lost)";
-				}
-				return "cargo HIT";
+				// Only the forced case lands here: with more than one candidate box
+				// requiresPlayerChoice has already diverted this to the owner. Returning null
+				// on an empty list is what advances the DAC to the next column, and is the
+				// whole of M9.13's "must" - a rack is passed over only when no cargo, repair
+				// or rack box remains at all.
+				java.util.List<String> candidates = conversionCandidates("cargo");
+				return candidates.isEmpty() ? null : applyConversionHit(candidates.get(0));
 			}
 			case "fhull": {
 				boolean fAvail = hullBoxes.getAvailableFhull() > 0;

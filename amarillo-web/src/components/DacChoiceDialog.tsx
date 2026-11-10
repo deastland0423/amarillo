@@ -1,5 +1,5 @@
 import React from 'react';
-import type { PendingDacChoice, ShipObject } from '../types/gameState';
+import type { MineRackState, PendingDacChoice, ShipObject } from '../types/gameState';
 import type { WeaponChip } from './weaponCondition';
 import { weaponChips, chipColour } from './weaponCondition';
 
@@ -18,12 +18,29 @@ const DAC_LABELS: Record<string, string> = {
   warp:    'Warp Engine',
   shuttle: 'Shuttle Bay Space',
   tractor: 'Tractor Beam',
+  // Annex #7E: "Cargo ..... Repair, Mine Rack, ship in Starbase docking module (R1.1D), Works."
+  // Named for the row rather than for cargo, because on a Base Station or the ROC the cargo box
+  // is not the likeliest thing to lose and may not exist at all.
+  cargo:   'Cargo Row (Cargo / Repair / Mine Rack)',
 };
 
 const WARP_LABELS: Record<string, string> = {
   lwarp: 'Left Warp',
   cwarp: 'Center Warp',
   rwarp: 'Right Warp',
+};
+
+/**
+ * (Annex #7E) The cargo row's own option strings, which name a KIND of box rather than one
+ * identified system — unlike a weapon (by name), a bay space (by index) or a warp engine.
+ *
+ * A cargo box and a repair box are interchangeable within their kind, so there is nothing to
+ * index; a mine rack is not, because what is loaded in it differs rack by rack, and that is why
+ * `minerack:` carries an index while the other two do not.
+ */
+const CARGO_ROW_LABELS: Record<string, string> = {
+  cargo:  'Cargo Box',
+  repair: 'Repair Box (G17.0)',
 };
 
 /**
@@ -84,6 +101,50 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
       label: `Bay ${bayNum}, Space ${spaceNum} — ${name}`,
       armed: space.armed,
       empty: false,
+    };
+  }
+
+  interface CargoRowInfo {
+    label:  string;
+    detail: string;
+    /** True when real ordnance dies with the box, so the button gets the warning border. */
+    costly: boolean;
+  }
+
+  /**
+   * (Annex #7E) Describe one cargo-row candidate.
+   *
+   * The whole point of the dialog on this row is that the three kinds are not equivalent: a
+   * cargo box and a repair box are both just absorption, while a mine rack takes its mines with
+   * it. (M9.13) is explicit that those mines "will not detonate", so this is an expensive loss
+   * and not a lethal one — worth saying on the button, because a player who thinks four NSMs are
+   * about to go off inside their own hull will pick differently.
+   */
+  function cargoRowInfo(opt: string): CargoRowInfo {
+    if (opt.startsWith('minerack:')) {
+      const idx = parseInt(opt.slice('minerack:'.length), 10);
+      const rack: MineRackState | undefined = targetShip?.mineRacks?.[idx];
+      const label = `Mine Rack #${idx + 1}`;
+      if (!rack) return { label, detail: '', costly: false };
+      const parts: string[] = [];
+      if (rack.largeMines > 0)      parts.push(`${rack.largeMines} NSM`);
+      if (rack.smallMines > 0)      parts.push(`${rack.smallMines} T-bomb`);
+      if (rack.smallDummyMines > 0) parts.push(`${rack.smallDummyMines} dummy`);
+      const loaded = rack.largeMines + rack.smallMines + rack.smallDummyMines;
+      return {
+        label,
+        detail: loaded === 0
+          ? 'empty — nothing lost with the box'
+          : `${parts.join(', ')} destroyed, no detonation (M9.13)`,
+        costly: loaded > 0,
+      };
+    }
+    const left = opt === 'cargo' ? targetShip?.availableCargo : targetShip?.availableRepair;
+    const max  = opt === 'cargo' ? targetShip?.maxCargo       : targetShip?.maxRepair;
+    return {
+      label:  CARGO_ROW_LABELS[opt] ?? opt,
+      detail: left != null && max != null ? `${left} of ${max} left` : '',
+      costly: false,
     };
   }
 
@@ -162,11 +223,14 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
           {myChoice.options.map(opt => {
             const isShuttle = opt.startsWith('bay:');
             const isWarp    = opt in WARP_LABELS;
+            const isCargoRow = opt in CARGO_ROW_LABELS || opt.startsWith('minerack:');
             const sInfo = isShuttle ? shuttleSpaceLabel(opt) : null;
-            const wInfo = (!isShuttle && !isWarp) ? weaponInfo(opt) : null;
-            // One warning colour for both kinds of "you are about to lose something": an armed
-            // shuttle in its space, and a weapon holding a warhead or a load.
-            const armedWarning = (sInfo?.armed ?? false) || (wInfo?.costly ?? false);
+            const cInfo = isCargoRow ? cargoRowInfo(opt) : null;
+            const wInfo = (!isShuttle && !isWarp && !isCargoRow) ? weaponInfo(opt) : null;
+            // One warning colour for every kind of "you are about to lose something": an armed
+            // shuttle in its space, a weapon holding a warhead or a load, a loaded mine rack.
+            const armedWarning = (sInfo?.armed ?? false) || (wInfo?.costly ?? false)
+              || (cInfo?.costly ?? false);
 
             return (
               <button
@@ -226,8 +290,23 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
                   </div>
                 )}
 
+                {/* Cargo row option (Annex #7E) — which box, and what goes with it */}
+                {cInfo && (
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{cInfo.label}</div>
+                    {cInfo.detail && (
+                      <div style={{
+                        color: cInfo.costly ? '#f0883e' : '#8b949e',
+                        fontSize: 11, marginTop: 3,
+                      }}>
+                        {cInfo.detail}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Fallback for unrecognised options */}
-                {!isShuttle && !isWarp && !wInfo && (
+                {!isShuttle && !isWarp && !isCargoRow && !wInfo && (
                   <span>{opt}</span>
                 )}
               </button>

@@ -12,6 +12,10 @@ public class HullBoxes implements Systems {
 	private int chull;
 	private int armor;
 	private int cargo;
+	// (G17.0) Repair boxes. A real SSD box with its own damage behaviour, which is why it is
+	// here and not derived: Annex #7E scores FOUR different DAC rows on it - Forward Hull, Aft
+	// Hull, Cargo and Excess Damage. Ten hulls declare them, nine Base Stations at 30 apiece.
+	private int repair;
 	private int barracks; // Not a real hull box type, but used for boarding party calculations
 
 	private int availableFhull;
@@ -19,6 +23,7 @@ public class HullBoxes implements Systems {
 	private int availableChull;
 	private int availableArmor;
 	private int availableCargo;
+	private int availableRepair;
 	private int availableBarracks;
 
 	private Unit owningUnit = null;
@@ -40,6 +45,7 @@ public class HullBoxes implements Systems {
 		availableChull = chull = values.get("chull") == null ? 0 : (Integer) values.get("chull");
 		availableArmor = armor = values.get("armor") == null ? 0 : (Integer) values.get("armor");
 		availableCargo = cargo = values.get("cargo") == null ? 0 : (Integer) values.get("cargo");
+		availableRepair = repair = values.get("repair") == null ? 0 : (Integer) values.get("repair");
 		availableBarracks = barracks = values.get("barracks") == null ? 0 : (Integer) values.get("barracks");
 
 	}
@@ -51,6 +57,7 @@ public class HullBoxes implements Systems {
 		this.chull = spec.chull;
 		this.armor = spec.armor;
 		this.cargo = spec.cargo;
+		this.repair = spec.repair;
 		this.barracks = spec.barracks;
 
 		// Reset available counts to max
@@ -58,6 +65,7 @@ public class HullBoxes implements Systems {
 		this.availableAhull = this.ahull;
 		this.availableChull = this.chull;
 		this.availableCargo = this.cargo;
+		this.availableRepair = this.repair;
 		this.availableBarracks = this.barracks;
 		this.availableArmor = this.armor;
 	}
@@ -79,6 +87,10 @@ public class HullBoxes implements Systems {
 		return this.availableCargo;
 	}
 
+	public int getAvailableRepair() {
+		return this.availableRepair;
+	}
+
 	public int getAvailableBarracks() {
 		return this.availableBarracks;
 	}
@@ -86,20 +98,24 @@ public class HullBoxes implements Systems {
 	public int getMaxFhull()        { return fhull; }
 	public int getMaxAhull()        { return ahull; }
 	public int getMaxChull()        { return chull; }
+	public int getMaxCargo()        { return cargo; }
+	public int getMaxRepair()       { return repair; }
+	public int getMaxBarracks()     { return barracks; }
 	public int getOriginalArmor()   { return armor; }
 	public int getAvailableArmor()  { return availableArmor; }
 
 	// Total original hull boxes on SSD (cripple calculations).
 	@Override
 	public int fetchOriginalTotalBoxes() {
-		return this.ahull + this.cargo + this.chull + this.fhull + this.barracks + this.armor;
+		return this.ahull + this.cargo + this.chull + this.fhull + this.barracks + this.armor
+				+ this.repair;
 	}
 
 	// Total current hull boxes (cripple calculations).
 	@Override
 	public int fetchRemainingTotalBoxes() {
 		return this.availableAhull + this.availableCargo + this.availableChull + this.availableFhull
-				+ this.availableBarracks + this.availableArmor;
+				+ this.availableBarracks + this.availableArmor + this.availableRepair;
 	}
 
 	//// SETTERS (for client-side sync from server state) ////
@@ -139,6 +155,23 @@ public class HullBoxes implements Systems {
 		}
 
 		availableCargo--;
+		return true;
+	}
+
+	/**
+	 * (G17.0) Destroy one repair box.
+	 * <p>
+	 * There is deliberately no {@code repairRepair} counterpart. Annex #9's Cost of Repair
+	 * Chart prices a repair box at 4 and then notes against it: "Ship cannot repair this system
+	 * on itself." A symmetrical setter would have been the obvious thing to add and would have
+	 * made that rule unenforceable from the one place it is checked.
+	 */
+	public boolean damageRepair() {
+		if (availableRepair == 0) {
+			return false;
+		}
+
+		availableRepair--;
 		return true;
 	}
 
@@ -245,6 +278,7 @@ public class HullBoxes implements Systems {
 		state.put("chull", availableChull);
 		state.put("armor", availableArmor);
 		state.put("cargo", availableCargo);
+		state.put("repair", availableRepair);
 		state.put("barracks", availableBarracks);
 		return state;
 	}
@@ -258,6 +292,7 @@ public class HullBoxes implements Systems {
 		availableChull    = StateIo.integer(state, "chull", availableChull);
 		availableArmor    = StateIo.integer(state, "armor", availableArmor);
 		availableCargo    = StateIo.integer(state, "cargo", availableCargo);
+		availableRepair   = StateIo.integer(state, "repair", availableRepair);
 		availableBarracks = StateIo.integer(state, "barracks", availableBarracks);
 	}
 }

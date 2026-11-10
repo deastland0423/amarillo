@@ -53,13 +53,6 @@ public class ShipJsonKeyGuardTest {
         PARKED.put("auxiliary.web",
                 "Tholian, 8 files. Web generators — the Sequence of Play cites web "
                 + "deceleration at (G10.59), so the system is G10 and wholly unbuilt.");
-        PARKED.put("hullBoxes.repair",
-                "Romulan, 1 file, the ROC. Repair boxes, unbuilt: our damage control has no "
-                + "notion of them — Ship.repairShield spends energy against the DamCon rating "
-                + "and nothing counts boxes. When they are built they take damage on the SAME "
-                + "DAC ROW AS CARGO (owner, 2026-10-09), so hullBoxes is the right block and "
-                + "the work is a damage-allocation change rather than a new hit location. The "
-                + "rule section has not been read; do not cite one here until it has.");
     }
 
     private static final File SHIP_DIR = new File("../data/factions");

@@ -564,6 +564,7 @@ public class ShipSpec {
         public int chull;
         public int armor;
         public int cargo;
+        public int repair;   // (G17.0) repair boxes; damaged on four separate Annex #7E rows
         public int barracks; // Not a real hull box type, but used for boarding party calculations
     }
 
@@ -1098,6 +1099,12 @@ public class ShipSpec {
                 m.put("cargo", hullBoxes.cargo);
             if (hullBoxes.armor > 0)
                 m.put("armor", hullBoxes.armor);
+            if (hullBoxes.repair > 0)
+                m.put("repair", hullBoxes.repair);
+            // barracks was parsed and then dropped here, so the one hull that declares any
+            // (the Federation CMC, 3 boxes) lost them on every load through this path.
+            if (hullBoxes.barracks > 0)
+                m.put("barracks", hullBoxes.barracks);
         }
 
         // Power

@@ -757,14 +757,111 @@ groundwork already in place.
   claim and is where it stops being true.
 
   **STILL OPEN:**
-  - **M9.13 damage.** "Cargo hits MAY be scored on mine rack boxes and MUST be scored on them if
-    no other cargo boxes are available. Shuttle hits must be scored on shuttle or mine rack boxes
-    if any of either type exist. See Annex #7E." `MineRack.destroy()` exists and correctly loses
-    the mines WITHOUT detonating them (the rule says so in a parenthesis, and four NSMs going off
-    inside the hull would end the ship) — but nothing calls it. The DAC dispatches on system
-    names in `Ship.applyInternalDamage` ("cargo" reaches `hullBoxes.damageCargo()`), so the
-    mandatory halves are a change there; the "may" halves are a DAC CHOICE and want the existing
-    `enterDacChoicePhase` mechanism.
+  - **M9.13 damage: the CARGO row is BUILT (2026-11-10); the other two rows are not.**
+
+    Annex #7E, the Damage Conversion Chart, read in full — "HIT FROM CHART ... SCORED ON". Five
+    rows reach only three box kinds between them, which is why the mechanism is general:
+
+    | Hit from chart | Scored on |
+    |---|---|
+    | Forward Hull | C Hull, **Repair**, **Barracks** |
+    | Aft Hull | C Hull, **Repair**, **Barracks**; balcony shuttles (J1.531) must be hit first |
+    | **Cargo** | **Repair**, **Mine Rack**, ship in Starbase docking module (R1.1D), Works |
+    | Excess Damage | **Cargo**, **Repair**, **Mine Rack** |
+    | Shuttle | Fighter, **Mine Rack**, Ships in Andromedan hangars (G19.2), Shard |
+
+    Note how much wider this is than M9.13 reads on its own: the Excess Damage row is not in
+    M9.13 at all, and the two hull rows are not about mine racks in the slightest. Reading the
+    rule without the annex would have produced a mine-rack feature instead of a conversion chart.
+
+    **(D4.351) settles "choice or fall-through":** "Barracks (G28.0) and Repair (G17.0) are also
+    destroyed by hull hits. If a ship has either of the acceptable types of hull and one of the
+    systems listed on Annex #7E, **the hit must be scored on one of them**." So the owner picks,
+    and picking is compulsory while anything qualifies. M9.13's "may"/"must" pair is the same
+    thing said twice: a non-empty candidate list is the "must", and more than one candidate in it
+    is the "may".
+
+    **BUILT:** `Ship.conversionCandidates(row)` / `Ship.applyConversionHit(option)`, with option
+    strings `cargo`, `repair` and `minerack:<i>`. The cargo row is wired through them end to end
+    — `requiresPlayerChoice`, `getDacChoiceOptions`, `applyDacChoiceHit` and the forced path in
+    `tryApplySystemHit` — plus the DTO and a labelled `DacChoiceDialog` branch that says what
+    goes with the box. `MineRack.destroy()` finally has a caller, so M9.13's
+    mines-lost-without-detonating is no longer theoretical. **Repair boxes (G17.0) are modelled**
+    for the first time, on ten hulls: nine Base Stations at 30 and the Romulan ROC at 4.
+
+    Two things the row deliberately omits, both harmless because both would only ADD candidates:
+    a ship in a starbase docking module (R1.1D — docking modules are unbuilt) and "Works", which
+    appears nowhere in the Captain's Master Rulebook and is priced at 3 in Annex #9 — it belongs
+    to a module we do not own.
+
+    **Only asks when there IS a choice,** following the tractor and balcony precedent. One
+    candidate resolves silently, which keeps a modal off the screen on every cargo hit in the
+    game. Two live cases fall out of that: most warships (the Federation CA included) declare no
+    cargo boxes at all and the row scores nowhere, while the ROC has repair boxes and no cargo
+    boxes, so its cargo hits are compulsory on repair and never prompt.
+
+    **STILL OPEN on the chart:**
+    - **The Shuttle row** — Fighter and Mine Rack. Cheap: `requiresPlayerChoice("shuttle")`
+      already returns true and the options are `bay:B:space:S` strings, so this is adding
+      `minerack:<i>` to that list and routing it through `applyConversionHit`. Note the force is
+      different from the cargo row's: M9.13 says a shuttle hit "must be scored on shuttle or mine
+      rack boxes if any of either type exist", with no opt-out, so a minelayer with full racks
+      soaks shuttle hits whether the defender likes it or not.
+    - **The two Hull rows** — Repair and Barracks. `HullBoxes.damageRepair()` exists;
+      `damageBarracks()` has existed for a long time and **is still called from nowhere**, so
+      barracks boxes cannot be damaged. Needs (G28.33) with it: "Any boarding parties in a
+      destroyed barracks box are destroyed. Boarding parties in a barracks box are not subject to
+      casualties under (G9.2) and (D7.21), and hits on barracks boxes do not count for these
+      purposes" — which is a carve-out in the crew-casualty code, not just a box to decrement.
+      One hull declares barracks (the Federation CMC, 3 boxes); `ShipSpec.toMap` silently dropped
+      them until 2026-11-10, so they were zero on every load.
+
+  - **(D4.40) A LIVE BUG: ships are destroyed too early.** "When there are no 'excess damage'
+    boxes remaining, and one additional excess damage hit is scored on the ship, the ship is
+    destroyed. **This final excess damage hit cannot be scored as excess damage so long as there
+    is some other system (only: cargo, repair, mine rack) on which an excess damage hit can be
+    scored by Annex #7E.**" And (D4.36): "If undestroyed cargo spaces exist on a ship, excess
+    damage hits may be scored against them at the option of the owning player."
+
+    `Ship.applyInternalDamage` sets `DESTROYED` the moment `specialFunctions.damageExcessDamage()`
+    returns false, and the explicit `case "excess"` does the same. Neither consults cargo, repair
+    or mine racks. So **every hull with cargo boxes dies before it should** — a Base Station by
+    its 10 cargo plus 30 repair, forty points early. This is the Excess Damage row of the table
+    above plus a destruction guard, and `conversionCandidates` is already the list it needs to
+    ask. Do this next; it is the only entry here that makes the game give a wrong answer in
+    ordinary play.
+
+  - **Cargo boxes are a COUNT, not addressable objects.** The owner's point (2026-11-10) when the
+    cargo row went in: "if a ship is carrying important cargo in a specific cargo box, but others
+    are not", the choice needs to name WHICH box, not just the kind. Today `HullBoxes` holds one
+    integer and the option string is a bare `cargo`, so the dialog can only offer "a cargo box".
+    The `minerack:<i>` option beside it is already indexed for exactly this reason — what is in
+    one rack differs from the next — so the format extends without a redesign. Wants the
+    box-as-addressable-object work that `project_hangar_operations` also waits on, and a reason
+    for a cargo box to differ from its neighbours, which (G25.1) cargo and the objective model
+    would supply.
+
+  - **(G17.0) Repair boxes now take damage but still DO nothing.** They are absorption and a
+    cripple denominator; the repair function they exist for is unbuilt. `Ship.repairShield`
+    spends energy against the DamCon rating and nothing counts repair boxes. Note (G17.311): "A
+    given repair system can only produce one repair point", and if a box is destroyed during the
+    turn it produces nothing. This is the D9.7/G17.0 gap, now with the boxes in place to hang it
+    on.
+
+  - **Annex #9: repairing a mine rack costs 4**, and "Mine Rack in shuttle box" is separately
+    listed, also at 4 — so the repair chart already distinguishes a rack in a bay from a rack in
+    its own box, the same distinction M9.21 draws for the laying rate. A repair BOX is 4 on the
+    same chart, with a note against it that settles a design question: "Ship cannot repair this
+    system on itself", which is why `HullBoxes` has `damageRepair()` and deliberately no
+    `repairRepair()` counterpart. All unbuilt, and it needs D9.7/G17.0 repair.
+
+  - **Annex #8B: a rack PURCHASE rule we do not model.** "A maximum of four mine racks can be
+    purchased by minesweepers; no mine racks can be purchased by non-minesweepers. Mine racks may
+    only be placed in weapons option boxes" — at 1 BPV plus the cost of the mines. This is the
+    Orion option-mount path and it sits oddly beside M9.16 ("Orion ships with mine racks added by
+    Annex #8B or (R8.R1) are not considered minesweepers"): a ship must BE one to buy them, but
+    buying them does not MAKE it one. Relevant to the Orion option-mount work, not to the Romulan
+    Q-ship, whose two racks are on its SSD rather than bought.
   - **M9.19's in-play transfer.** "A ship with mine racks can load or unload one large mine from
     any one of its racks during one turn ... The rack must be taken out of service for the entire
     turn." `MineRack.takeOutOfService(turn)`/`isOutOfService(turn)` exist and are honoured by the

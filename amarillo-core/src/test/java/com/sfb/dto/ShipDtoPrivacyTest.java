@@ -116,7 +116,11 @@ public class ShipDtoPrivacyTest {
         // scout has committed a channel is not an opponent's to know.
         "controlUsed", "controlLimit",
         // Built empty for an enemy rather than blanked
-        "droneRacks", "shuttleBays", "allocationNotes", "setupNotes"
+        "droneRacks", "shuttleBays", "allocationNotes", "setupNotes",
+        // (M9.11) Mines sitting in the racks, which belong with tBombs and nuclearSpaceMines
+        // above. The rack BOXES are public and counted in SHIP_PUBLIC; their contents are the
+        // owner's, and a dummy mine loaded in a rack is a bluff like any other.
+        "mineRacks"
     ));
 
     private static final Set<String> SHIP_PUBLIC = new HashSet<>(Arrays.asList(
@@ -166,6 +170,14 @@ public class ShipDtoPrivacyTest {
         "explosionStrength", "availableExcess", "maxExcess",
         "availableAhull", "availableChull", "availableFhull", "maxAhull", "maxChull",
         "maxFhull", "availableApr", "maxApr", "availableImpulse", "maxImpulse",
+        // (Annex #7E) The rest of the boxes the DAMAGE CONVERSION CHART scores on. Same
+        // ruling as the hull boxes above and for the same two sentences: they are printed on
+        // the ship portion of the SSD, and (D3.241) gives an enemy "how many damage points
+        // have been scored and how many boxes remain". A mine RACK is counted here; what is
+        // loaded in it is in SHIP_PRIVATE, exactly as a cargo box is public while the drones
+        // inside it are not.
+        "availableCargo", "maxCargo", "availableRepair", "maxRepair",
+        "availableBarracks", "maxBarracks", "availableMineRacks", "maxMineRacks",
         "availableLWarp", "availableRWarp", "availableCWarp", "maxLWarp", "maxRWarp",
         "maxCWarp", "availableAwr", "maxAwr", "availableBridge", "maxBridge",
         "availableAuxcon", "maxAuxcon", "availableFlag", "maxFlag", "availableEmer",

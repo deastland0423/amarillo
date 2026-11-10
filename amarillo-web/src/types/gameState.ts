@@ -346,6 +346,19 @@ export interface ShipObject extends MapObjectBase {
   maxFhull:         number;
   maxAhull:         number;
   maxChull:         number;
+  // The rest of the boxes Annex #7E's DAMAGE CONVERSION CHART scores on. Cargo was never sent
+  // before the cargo row became a choice; repair boxes were not modelled at all.
+  availableCargo:    number;
+  maxCargo:          number;
+  availableRepair:   number;
+  maxRepair:         number;
+  availableBarracks: number;
+  maxBarracks:       number;
+  // Mine storage boxes (M9.11). The two counts are public; `mineRacks` arrives EMPTY for an
+  // enemy, like droneRacks and shuttleBays — what is loaded in a rack is the owner's.
+  availableMineRacks: number;
+  maxMineRacks:       number;
+  mineRacks:          MineRackState[];
   // Control spaces (current / max)
   availableBridge:   number;
   maxBridge:         number;
@@ -844,11 +857,22 @@ export interface PendingVolley {
   addHit:                   boolean;
 }
 
+/** (M9.11) One mine storage box, as its owner sees it. */
+export interface MineRackState {
+  destroyed:       boolean;
+  largeMines:      number;
+  smallMines:      number;
+  smallDummyMines: number;
+  slotsFree:       number;
+}
+
 export interface PendingDacChoice {
   targetShipName: string;
   dacType:        string;  // "phaser" | "drone" | "torp" | "weapon" | "warp" | "shuttle"
   roll:           number;
-  options:        string[]; // weapon names, "lwarp"/"cwarp"/"rwarp", or "bay:N:space:N"
+  // weapon names, "lwarp"/"cwarp"/"rwarp", "bay:N:space:N", or — on the cargo row —
+  // "cargo" / "repair" / "minerack:N" (Annex #7E).
+  options:        string[];
   bayIndex:       number;   // shuttle chain reactions: >=0 = scoped bay; -1 = any bay
 }
 
