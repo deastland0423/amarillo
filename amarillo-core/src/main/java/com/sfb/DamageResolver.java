@@ -1284,7 +1284,14 @@ class DamageResolver {
      * Game.submitDacChoice — validation and phase bookkeeping stay in Game).
      */
     void applyDacChoice(PendingDacChoice pending, String chosenSystem) {
-        if ("ahull".equals(pending.dacType) || "afthull".equals(pending.dacType)) {
+        if (("ahull".equals(pending.dacType) || "afthull".equals(pending.dacType))
+                && chosenSystem != null && chosenSystem.contains(":balcony:")) {
+            // The hull rows reach repair and barracks boxes too (Annex #7E), and those picks
+            // deliberately do NOT come down this branch - they are ordinary box hits with no
+            // craft to name, and applyBalconyDacChoice would return null for them and quietly
+            // swallow the damage point while logging "no parked craft matched repair". They
+            // fall through to the generic branch instead, which hands them to
+            // Ship.applyDacChoiceHit.
             // J1.531: the owner has picked which parked craft the rear hull point takes.
             // Ship owns the option format, since Ship is what generated it.
             String killed = pending.targetShip.applyBalconyDacChoice(chosenSystem);

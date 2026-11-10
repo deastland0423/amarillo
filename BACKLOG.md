@@ -800,7 +800,8 @@ groundwork already in place.
     cargo boxes at all and the row scores nowhere, while the ROC has repair boxes and no cargo
     boxes, so its cargo hits are compulsory on repair and never prompt.
 
-    **STILL OPEN on the chart** (Cargo, Excess Damage and Shuttle are all built):
+    **ALL FIVE ROWS ARE NOW BUILT** (Cargo, Excess Damage, Shuttle, Forward Hull, Aft Hull).
+    What remains of the chart:
     - ~~The Shuttle row~~ — **BUILT 2026-11-10.** `addMineRackBoxes` appends the racks after the
       bay spaces, so the non-interactive wrapper still empties bays first. Note the force is
       different from the cargo row's: M9.13 says a shuttle hit "must be scored on shuttle or mine
@@ -811,14 +812,50 @@ groundwork already in place.
       D12.10 chain reaction), none of which a rack has, and its `split(":")` read `minerack:0` as
       a bay address and threw. A D12.10 chain reaction still offers bay spaces only, which is
       correct — the rule destroys "one additional space in the same bay".
-    - **The two Hull rows** — Repair and Barracks. `HullBoxes.damageRepair()` exists;
-      `damageBarracks()` has existed for a long time and **is still called from nowhere**, so
-      barracks boxes cannot be damaged. Needs (G28.33) with it: "Any boarding parties in a
-      destroyed barracks box are destroyed. Boarding parties in a barracks box are not subject to
-      casualties under (G9.2) and (D7.21), and hits on barracks boxes do not count for these
-      purposes" — which is a carve-out in the crew-casualty code, not just a box to decrement.
-      One hull declares barracks (the Federation CMC, 3 boxes); `ShipSpec.toMap` silently dropped
-      them until 2026-11-10, so they were zero on every load.
+    - ~~The two Hull rows~~ — **BUILT 2026-11-10.** Repair and Barracks are candidates on both
+      hull rows, with balcony craft (J1.531) pre-empting the aft row entirely while anything is
+      parked — "must be hit first" is absolute, so the balcony IS the row rather than one option
+      among several. The biggest effect is on the bases: a Base Station's hull hit now chooses
+      between ten hull boxes and thirty repair boxes, where before it had ten places to land and
+      no decision. A repair or barracks pick is routed PAST the resolver's balcony branch, which
+      would otherwise hand it to `applyBalconyDacChoice`, get null, log "no parked craft matched
+      repair" and **silently swallow the damage point**. `applyConversionHit` now takes the ROW as
+      well as the option so a box cannot be destroyed on a row that never offers it — a balcony
+      string applied on the FORWARD row was destroying the parked craft.
+
+      C hull is still a SUBSTITUTE reached by `damageFhull`/`damageAhull` falling through, not a
+      separate candidate. **Open question:** Annex #7E lists "C Hull" on both hull rows and
+      (D4.351) says the hit "must be scored on one of them", which arguably lets the owner choose
+      C hull over F hull while both survive. Left alone deliberately — it would change
+      long-standing behaviour on every hull in the game, and the rules give no ordering either
+      way. Wants a ruling.
+
+      (G28.33)'s first sentence is built: "Any boarding parties in a destroyed barracks box are
+      destroyed." **How many were in THAT box is a ruling, not a calculation**, and an even
+      spread rounded down is the recorded default: (G28.32) lets the owner "divide the non-guards
+      among the barracks spaces as he sees fit" and the DAC lets him pick the box, so played to
+      the letter an owner with 15 parties in three boxes would quarter them 10/5/0 and score the
+      hit on the empty one, losing nobody. There is no UI for that division and no rule saying
+      when it is fixed. Needs the owner's ruling; what is certain is that killing nobody at all
+      would be wrong.
+
+      One hull declares barracks (the Federation CMC, 3 boxes, 8 parties); `ShipSpec.toMap`
+      silently dropped them until 2026-11-10, so they were zero on every load. Guards are NOT
+      quartered: `GuardPosts.assign` already pulls the party off the roster (D7.834), so
+      `boardingPartiesInBarracks` must not subtract `totalPosted()` on top — the first version
+      did and removed each guard twice.
+
+  - **(G28.33) the two casualty EXEMPTIONS, deliberately not built.** "Boarding parties in a
+    barracks box are not subject to casualties under (G9.2) and (D7.21), and hits on barracks
+    boxes do not count for these purposes."
+
+    The first half is cheap — exempt `boardingPartiesInBarracks()` from the pool the D7.21 block
+    draws from. The second half is not: `applyInternalDamage` increments
+    `internalDamagePointsTotal` and runs the whole G9.21/D7.21 casualty block at the TOP of each
+    iteration, before the point's destination is known, so "hits on barracks boxes do not count"
+    needs the casualty block to run AFTER the point is placed. That is a reordering of the damage
+    loop's hot path and belongs in its own commit, with its own mutants. Only reachable on one
+    hull today.
 
   - **(D4.40) The excess damage row and the destruction guard: BUILT 2026-11-10.** "When there
     are no 'excess damage' boxes remaining, and one additional excess damage hit is scored on the

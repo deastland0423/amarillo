@@ -4371,16 +4371,17 @@ public class Ship extends Unit implements DroneController {
 			// forced and resolves silently via tryApplySystemHit.
 			case "tractor":
 				return tractors.needsDamageChoice();
-			// J1.531: a rear hull point destroys a shuttle parked on the balcony INSTEAD of
-			// a
-			// hull box. Following the tractor precedent, only ask when there is a real
-			// choice
-			// to make: with one craft parked the pick is forced and tryApplySystemHit does
-			// it
-			// silently, and with none parked this is an ordinary hull hit.
+			// (Annex #7E) The hull rows are "C Hull, Repair, Barracks", with balcony craft
+			// (J1.531) taking precedence over all of it. Following the tractor precedent, only
+			// ask when there is a real choice: one parked craft, or a hull with nothing but
+			// hull boxes, resolves silently and raises no dialog. What is new here is that a
+			// hull carrying repair or barracks boxes now HAS a choice where it never did -
+			// which on nine Base Stations is a choice between ten hull boxes and thirty
+			// repair boxes.
+			case "fhull":
 			case "ahull":
 			case "afthull":
-				return parkedCraft().size() > 1;
+				return conversionCandidates(system).size() > 1;
 			// (Annex #7E) The cargo row is not one box type: "Cargo ... Repair, Mine Rack,
 			// ship in Starbase docking module (R1.1D), Works." Ask the owner only when more
 			// than one candidate exists, following the tractor and balcony precedent - a hull
@@ -4494,19 +4495,13 @@ public class Ship extends Unit implements DroneController {
 				addMineRackBoxes(opts);
 				return opts;
 			}
+			case "fhull":
 			case "ahull":
-			case "afthull": {
-				// Only reached with more than one craft parked (J1.531). Addressed by NAME
-				// rather than by index: a balcony is an unordered list of craft, and no
-				// individual position is ever addressed - unlike a shuttle box, which has an
-				// identity that survives being emptied.
-				java.util.List<String> opts = new ArrayList<>();
-				java.util.List<com.sfb.systemgroups.ShuttleBay> bays = shuttles.getBays();
-				for (int b = 0; b < bays.size(); b++)
-					for (com.sfb.objects.shuttles.Shuttle craft : bays.get(b).getBalcony())
-						opts.add("bay:" + b + ":balcony:" + craft.getName());
-				return opts;
-			}
+			case "afthull":
+				// Balcony craft are addressed by NAME rather than by index: a balcony is an
+				// unordered list of craft and no individual position is ever addressed - unlike
+				// a shuttle box, which has an identity that survives being emptied.
+				return conversionCandidates(system);
 			case "tractor": {
 				// Only reached when every functional beam holds a unit (needsDamageChoice)
 				java.util.List<String> opts = new ArrayList<>();
@@ -4580,9 +4575,121 @@ public class Ship extends Unit implements DroneController {
 					opts.add("excess");
 				addCargoRowBoxes(opts);
 				return opts;
+			case "fhull":
+			case "ahull":
+			case "afthull": {
+				/*
+				 * (Annex #7E) "Forward Hull ... C Hull, Repair, Barracks." and "Aft Hull ... C
+				 * Hull, Repair, Barracks. Shuttles on Balconies (J1.531) must be hit first."
+				 *
+				 * (D4.351) is the clause that makes these a choice rather than a fall-through:
+				 * "Barracks (G28.0) and Repair (G17.0) are also destroyed by hull hits. If a
+				 * ship has either of the acceptable types of hull and one of the systems listed
+				 * on Annex #7E, the hit must be scored on one of them."
+				 *
+				 * (G28.2) says the same from the barracks end: "Barracks can be destroyed by F
+				 * Hull or A Hull damage points. If all normal hull boxes of one (or both)
+				 * type(s) are destroyed but undestroyed barracks boxes remain, hull hits must
+				 * be scored on barracks." Which is just this list emptying from the front.
+				 */
+				boolean aft = !"fhull".equals(row);
+				// "must be hit first" is absolute, so while anything is parked the row IS the
+				// balcony. Not one candidate among several - J1.531: "This is not an option."
+				if (aft && !parkedCraft().isEmpty()) {
+					java.util.List<com.sfb.systemgroups.ShuttleBay> bays = shuttles.getBays();
+					for (int b = 0; b < bays.size(); b++)
+						for (com.sfb.objects.shuttles.Shuttle craft : bays.get(b).getBalcony())
+							opts.add("bay:" + b + ":balcony:" + craft.getName());
+					return opts;
+				}
+				// One candidate for "a hull box", not two. C hull is a SUBSTITUTE the existing
+				// damageFhull/damageAhull fall back to once the named type is gone, and whether
+				// (D4.351) also lets the owner choose C hull over F hull while both survive is
+				// an open question in the backlog - not something to decide by quietly adding
+				// an option here.
+				int named = "fhull".equals(row)
+						? hullBoxes.getAvailableFhull() : hullBoxes.getAvailableAhull();
+				if (named > 0 || hullBoxes.getAvailableChull() > 0)
+					opts.add(row);
+				if (hullBoxes.getAvailableRepair() > 0)
+					opts.add("repair");
+				if (hullBoxes.getAvailableBarracks() > 0)
+					opts.add("barracks");
+				return opts;
+			}
 			default:
 				return opts;
 		}
+	}
+
+	/** (G28.31) "Each barracks (BAR) box on the SSD can hold up to ten boarding parties." */
+	public static final int BOARDING_PARTIES_PER_BARRACKS = 10;
+
+	/**
+	 * (G28.32) How many of this ship's boarding parties are quartered in its barracks.
+	 *
+	 * <blockquote>"All boarding parties (a.k.a. marine squads) on board a ship with barracks are
+	 * assumed to be in the barracks <b>unless assigned as guards</b> (D7.83). ... The owning
+	 * player can divide the non-guards among the barracks spaces as he sees fit, up to the limit
+	 * of ten per barracks box. <b>Any surplus marine squads are considered to be distributed
+	 * around the ship</b> as they would be on a ship with no barracks."</blockquote>
+	 *
+	 * <p>So the quartered count is the non-guards capped at ten a box, and anything over that cap
+	 * is loose in the hull and takes its chances the ordinary way.
+	 *
+	 * <h2>Guards are already gone from the roster, so do NOT subtract them here</h2>
+	 * {@code GuardPosts.assign} takes the party off the ship's roster while it is posted
+	 * (D7.834, which is why a guard does not fight in boarding combat) and returns it on release.
+	 * So {@code getAvailableBoardingParties()} has already excluded every guard, and subtracting
+	 * {@code guardPosts.totalPosted()} on top of that - which the first version of this method
+	 * did - removes each guard twice and under-reports the barracks by the size of the guard
+	 * detail. G28.32's "unless assigned as guards" is honoured by the roster, not here.
+	 *
+	 * @return 0 on every hull with no barracks boxes, which is all but one of them
+	 */
+	public int boardingPartiesInBarracks() {
+		int boxes = hullBoxes.getAvailableBarracks();
+		if (boxes <= 0)
+			return 0;
+		return Math.min(getCrew().getAvailableBoardingParties(),
+				boxes * BOARDING_PARTIES_PER_BARRACKS);
+	}
+
+	/**
+	 * (G28.33) Destroy one barracks box, and the boarding parties quartered in it.
+	 *
+	 * <blockquote>"Any boarding parties in a destroyed barracks box are destroyed."</blockquote>
+	 *
+	 * <h2>How many were in THAT box is a ruling, not a calculation</h2>
+	 * (G28.32) lets the owner "divide the non-guards among the barracks spaces as he sees fit",
+	 * and the DAC lets him choose which box takes the hit. Played to the letter, an owner with 15
+	 * parties in three boxes would quarter them 10/5/0 and score the hit on the empty one, losing
+	 * nobody. There is no UI for that division and no rule saying when it is fixed, so this uses
+	 * an EVEN SPREAD and rounds the loss DOWN: 15 parties in three boxes is five a box, and the
+	 * destroyed box costs five.
+	 *
+	 * <p>Recorded as a deliberate default rather than an answer. The alternatives are both
+	 * defensible and the backlog asks the owner to rule; what is certain is that destroying a
+	 * barracks box and killing nobody at all would be wrong.
+	 *
+	 * <p>Note what this does NOT do, and see the backlog: (G28.33) continues "Boarding parties in
+	 * a barracks box are not subject to casualties under (G9.2) and (D7.21), and hits on barracks
+	 * boxes do not count for these purposes." Neither exemption is built. The second one needs
+	 * the casualty block in {@code applyInternalDamage} to run AFTER the point is placed instead
+	 * of before, which is a reordering of the damage loop and belongs in its own commit.
+	 */
+	private String destroyOneBarracksBox() {
+		int boxes = hullBoxes.getAvailableBarracks();
+		if (boxes <= 0)
+			return null;
+		int lost = boardingPartiesInBarracks() / boxes;
+		if (!hullBoxes.damageBarracks())
+			return null;
+		if (lost <= 0)
+			return "barracks HIT (empty, G28.0)";
+		getCrew().getFriendlyTroops().removeCasualties(lost);
+		return "barracks HIT (" + lost + " boarding part" + (lost == 1 ? "y" : "ies")
+				+ " lost with the box, G28.33)";
 	}
 
 	/**
@@ -4625,9 +4732,18 @@ public class Ship extends Unit implements DroneController {
 	 * <p>The forced path and the chosen path both come through here, so what is offered to the
 	 * owner and what is auto-picked for them cannot drift apart.
 	 *
-	 * @return a log label, or null if the named box does not exist or is already destroyed
+	 * <p>The ROW is passed in as well as the option, so a box can only be destroyed on a row that
+	 * offers it. Without that, a balcony option string applied on the FORWARD hull row destroyed
+	 * the parked craft - unreachable through {@code Game.submitDacChoice}, which validates the
+	 * pick against the options actually offered, but exactly the kind of leniency that becomes a
+	 * bug the next time a caller is added.
+	 *
+	 * @param row    the DAC row the point was allocated to
+	 * @param option one of {@link #conversionCandidates}'s strings for that row
+	 * @return a log label, or null if the named box does not exist, is already destroyed, or does
+	 *         not belong to this row
 	 */
-	private String applyConversionHit(String option) {
+	private String applyConversionHit(String row, String option) {
 		if (option == null)
 			return null;
 		if ("cargo".equals(option)) {
@@ -4645,6 +4761,33 @@ public class Ship extends Unit implements DroneController {
 		}
 		if ("repair".equals(option))
 			return hullBoxes.damageRepair() ? "repair HIT (G17.0)" : null;
+		if ("barracks".equals(option))
+			return destroyOneBarracksBox();
+		if (option.contains(":balcony:")) {
+			// J1.531 is the REAR hull's rule - "each 'rear hull' damage point destroys one
+			// shuttle" - and Annex #7E puts balcony craft on the Aft Hull row only. A forward
+			// hull point ignores the balcony entirely, so it may not apply one.
+			if (!"ahull".equals(row) && !"afthull".equals(row))
+				return null;
+			// Reached as the aft row's forced single-craft case as well as the owner's pick. No
+			// chain reaction even if the craft was armed: the rule says so outright, which is
+			// the opposite of a shuttle BOX (D12.10).
+			String killed = applyBalconyDacChoice(option);
+			return killed == null ? null
+					: "balcony HIT (" + killed + " destroyed, J1.531)";
+		}
+		if ("fhull".equals(option)) {
+			boolean fAvail = hullBoxes.getAvailableFhull() > 0;
+			if (!hullBoxes.damageFhull())
+				return null;
+			return fAvail ? "fhull HIT" : "chull (fhull exhausted) HIT";
+		}
+		if ("ahull".equals(option) || "afthull".equals(option)) {
+			boolean aAvail = hullBoxes.getAvailableAhull() > 0;
+			if (!hullBoxes.damageAhull())
+				return null;
+			return aAvail ? option + " HIT" : "chull (ahull exhausted) HIT";
+		}
 		if ("excess".equals(option)) {
 			if (!specialFunctions.damageExcessDamage())
 				return null;
@@ -4783,14 +4926,18 @@ public class Ship extends Unit implements DroneController {
 			}
 			case "cargo":
 			case "excess":
+			case "fhull":
+			case "ahull":
+			case "afthull":
 			case "shuttle": {
+				final String row = dacType;
 				// On the shuttle row only a mine rack arrives here. A bay space is applied by
 				// DamageResolver, which owns the half of (D12.10) this class knows nothing
 				// about - deck crews, the occupant, and the chain reaction - and it routes a
 				// rack pick to us instead. applyConversionHit returns null for anything it does
 				// not recognise, so "bay:0:space:1" reaching this by accident is a no-op rather
 				// than a wrong box.
-				String label = applyConversionHit(chosen);
+				String label = applyConversionHit(row, chosen);
 				return label == null ? null : label + " [chosen]";
 			}
 			default:
@@ -4959,7 +5106,7 @@ public class Ship extends Unit implements DroneController {
 						+ "excess damage — awaiting player choice (D4.36)");
 				return new DamageResult(log, "excess", roll, excessOpts, remaining);
 			}
-			String excessLabel = applyConversionHit(excessOpts.get(0));
+			String excessLabel = applyConversionHit("excess", excessOpts.get(0));
 			log.add("  internal [" + roll + "]: " + chainText
 					+ (excessLabel == null ? "excess damage" : excessLabel));
 		}
@@ -5052,7 +5199,8 @@ public class Ship extends Unit implements DroneController {
 				// the DAC, and the exhausted-chart path in applyInternalDamage is what turns
 				// an exhausted row into (D4.40) destruction.
 				java.util.List<String> candidates = conversionCandidates("excess");
-				return candidates.isEmpty() ? null : applyConversionHit(candidates.get(0));
+				return candidates.isEmpty() ? null
+						: applyConversionHit("excess", candidates.get(0));
 			}
 			case "scanner":
 				return specialFunctions.damageScanner() ? "scanner HIT" : null;
@@ -5067,35 +5215,21 @@ public class Ship extends Unit implements DroneController {
 				// whole of M9.13's "must" - a rack is passed over only when no cargo, repair
 				// or rack box remains at all.
 				java.util.List<String> candidates = conversionCandidates("cargo");
-				return candidates.isEmpty() ? null : applyConversionHit(candidates.get(0));
+				return candidates.isEmpty() ? null
+						: applyConversionHit("cargo", candidates.get(0));
 			}
-			case "fhull": {
-				boolean fAvail = hullBoxes.getAvailableFhull() > 0;
-				if (!hullBoxes.damageFhull())
-					return null;
-				return fAvail ? "fhull HIT" : "chull (fhull exhausted) HIT";
-			}
+			case "fhull":
 			case "ahull":
 			case "afthull": {
-				// J1.531: "each 'rear hull' damage point destroys one shuttle (instead of one
-				// hull box) ... This is not an option; the damage point MUST be scored on the
-				// shuttles if any are on the balcony." So the hull box is never touched while
-				// anything is parked - the craft is not extra armour, it is the hit.
-				//
-				// Only the forced case lands here: with more than one parked craft
-				// requiresPlayerChoice has already diverted this to the owner.
-				java.util.List<com.sfb.objects.shuttles.Shuttle> parked = parkedCraft();
-				if (!parked.isEmpty()) {
-					com.sfb.objects.shuttles.Shuttle craft = parked.get(0);
-					destroyParkedCraft(craft);
-					// No chain reaction even if it was armed - J1.531 says so outright, which
-					// is the opposite of a shuttle BOX (D12.10).
-					return "balcony HIT (" + craft.getName() + " destroyed, J1.531)";
-				}
-				boolean aAvail = hullBoxes.getAvailableAhull() > 0;
-				if (!hullBoxes.damageAhull())
-					return null;
-				return aAvail ? system + " HIT" : "chull (ahull exhausted) HIT";
+				// Only the forced case lands here: with more than one candidate
+				// requiresPlayerChoice has already diverted this to the owner. The first
+				// candidate is a parked craft while anything is parked, because J1.531 says
+				// "This is not an option; the damage point MUST be scored on the shuttles if
+				// any are on the balcony" - the hull box is never touched while the balcony has
+				// something on it, so parked craft are ablative protection for the rear hull.
+				java.util.List<String> candidates = conversionCandidates(system);
+				return candidates.isEmpty() ? null
+						: applyConversionHit(system, candidates.get(0));
 			}
 			case "phaser": {
 				List<Weapon> candidates = bearingFunctionalPhasers(attacker);

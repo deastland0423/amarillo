@@ -28,6 +28,11 @@ const DAC_LABELS: Record<string, string> = {
   // more than its name suggests: the ship is destroyed only once EVERY box on it is gone, so
   // these buttons are the difference between dying now and dying later.
   excess:  'Excess Damage Row (Excess / Cargo / Repair / Mine Rack)',
+  // Annex #7E: "Forward Hull ... C Hull, Repair, Barracks." and the same for Aft Hull, where
+  // balcony craft (J1.531) must be hit first and so are the only option while any are parked.
+  fhull:   'Forward Hull Row (Hull / Repair / Barracks)',
+  ahull:   'Aft Hull Row (Hull / Repair / Barracks)',
+  afthull: 'Aft Hull Row (Hull / Repair / Barracks)',
 };
 
 const WARP_LABELS: Record<string, string> = {
@@ -45,9 +50,13 @@ const WARP_LABELS: Record<string, string> = {
  * `minerack:` carries an index while the other two do not.
  */
 const CONVERSION_ROW_LABELS: Record<string, string> = {
-  cargo:  'Cargo Box',
-  repair: 'Repair Box (G17.0)',
-  excess: 'Excess Damage Box',
+  cargo:    'Cargo Box',
+  repair:   'Repair Box (G17.0)',
+  excess:   'Excess Damage Box',
+  barracks: 'Barracks Box (G28.0)',
+  fhull:    'Forward Hull Box',
+  ahull:    'Aft Hull Box',
+  afthull:  'Aft Hull Box',
 };
 
 /**
@@ -148,12 +157,18 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
         costly: loaded > 0,
       };
     }
-    const left = opt === 'cargo'  ? targetShip?.availableCargo
-               : opt === 'repair' ? targetShip?.availableRepair
-               :                    targetShip?.availableExcess;
-    const max  = opt === 'cargo'  ? targetShip?.maxCargo
-               : opt === 'repair' ? targetShip?.maxRepair
-               :                    targetShip?.maxExcess;
+    const left = opt === 'cargo'    ? targetShip?.availableCargo
+               : opt === 'repair'   ? targetShip?.availableRepair
+               : opt === 'barracks' ? targetShip?.availableBarracks
+               : opt === 'fhull'    ? targetShip?.availableFhull
+               : (opt === 'ahull' || opt === 'afthull') ? targetShip?.availableAhull
+               :                      targetShip?.availableExcess;
+    const max  = opt === 'cargo'    ? targetShip?.maxCargo
+               : opt === 'repair'   ? targetShip?.maxRepair
+               : opt === 'barracks' ? targetShip?.maxBarracks
+               : opt === 'fhull'    ? targetShip?.maxFhull
+               : (opt === 'ahull' || opt === 'afthull') ? targetShip?.maxAhull
+               :                      targetShip?.maxExcess;
     // `!= null` and not `!== undefined`: Jackson writes an absent value as `"field": null`
     // rather than omitting the key, and `null !== undefined` is true.
     const count = left != null && max != null ? `${left} of ${max} left` : '';
@@ -161,9 +176,31 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
       label:  CONVERSION_ROW_LABELS[opt] ?? opt,
       detail: opt === 'excess'
         ? [count, 'spending one cripples the ship (S2.41 C)'].filter(Boolean).join(' — ')
+        : opt === 'barracks'
+        ? [count, barracksLoss()].filter(Boolean).join(' — ')
         : count,
-      costly: opt === 'excess',
+      costly: opt === 'excess' || (opt === 'barracks' && barracksPartiesPerBox() > 0),
     };
+  }
+
+  /**
+   * (G28.33) How many boarding parties go with one barracks box: "Any boarding parties in a
+   * destroyed barracks box are destroyed."
+   *
+   * <p>Mirrors the server's even-spread default rather than computing a rule of its own. The
+   * server is authoritative; this only has to tell the player what the button costs.
+   */
+  function barracksPartiesPerBox(): number {
+    const boxes = targetShip?.availableBarracks ?? 0;
+    const parties = targetShip?.boardingParties ?? 0;
+    if (boxes <= 0 || parties <= 0) return 0;
+    return Math.floor(Math.min(parties, boxes * 10) / boxes);
+  }
+
+  function barracksLoss(): string {
+    const n = barracksPartiesPerBox();
+    if (n <= 0) return 'empty';
+    return `${n} boarding part${n === 1 ? 'y' : 'ies'} lost with it (G28.33)`;
   }
 
   interface WeaponInfo {
