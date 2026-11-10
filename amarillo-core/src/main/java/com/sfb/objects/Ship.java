@@ -302,7 +302,12 @@ public class Ship extends Unit implements DroneController {
 	private Faction faction = Faction.Federation; // The faction to which this ship belongs.
 	private int battlePointValue = 0; // BPV, a measure of how powerful the ship is in combat.
 	private int economicPointValue = 0; // EPV (split-BPV ships only); falls back to BPV if unset.
-	private int droneSpeedBpv = 0; // S2.11's mandatory drone speed charge; see getDroneSpeedBpv.
+	// (S3.21) Charges that count against the FORCE total but escape the 20% option cap, and
+	// which (S2.14) may or may not put into the Gross Adjusted BPV. See ForceCost: the
+	// members differ on that second axis, which is why this is a map and not a number.
+	// Values may be negative (Annex #6A prices a Poor Crew at -20%) and fractional.
+	private final java.util.EnumMap<com.sfb.properties.ForceCost, Double> forceCosts =
+			new java.util.EnumMap<>(com.sfb.properties.ForceCost.class);
 	// Fleet-building classifications (S8.0). Used when a force is assembled, not in
 	// play.
 	private boolean leader = false; // leader variant (S8.36)
@@ -1413,11 +1418,61 @@ public class Ship extends Unit implements DroneController {
 	 * them. Nothing in the ship data says it and nothing should.
 	 */
 	public int getDroneSpeedBpv() {
-		return this.droneSpeedBpv;
+		return (int) Math.round(getForceCost(com.sfb.properties.ForceCost.DRONE_SPEED));
 	}
 
 	public void setDroneSpeedBpv(int droneSpeedBpv) {
-		this.droneSpeedBpv = droneSpeedBpv;
+		setForceCost(com.sfb.properties.ForceCost.DRONE_SPEED, droneSpeedBpv);
+	}
+
+	/**
+	 * (S3.21) One charge against the force total, or 0 if this ship owes none.
+	 *
+	 * @see com.sfb.properties.ForceCost for the category, and for why the members are not
+	 *      interchangeable
+	 */
+	public double getForceCost(com.sfb.properties.ForceCost item) {
+		Double owed = forceCosts.get(item);
+		return owed == null ? 0 : owed;
+	}
+
+	/**
+	 * Record what this ship owes under one member of the category, replacing any earlier figure.
+	 * <p>
+	 * Every one of these is DERIVED and may be re-derived: the drone speed charge follows what
+	 * is actually in the racks and {@code ScenarioLoader} re-prices it after the Commander's
+	 * Options have changed them. So this sets rather than accumulates — two calls for the same
+	 * member are the same answer computed twice, not two separate bills.
+	 */
+	public void setForceCost(com.sfb.properties.ForceCost item, double amount) {
+		if (item != null)
+			forceCosts.put(item, amount);
+	}
+
+	/**
+	 * (S3.21) Everything this ship adds to the force total outside the option cap — the figure a
+	 * fleet budget pays and the per-ship 20% must stay blind to (S3.211).
+	 */
+	public double getForceCostTotal() {
+		double total = 0;
+		for (Double owed : forceCosts.values())
+			total += owed == null ? 0 : owed;
+		return total;
+	}
+
+	/**
+	 * (S2.14) The part of the above that raises the Gross Adjusted BPV, which is NOT all of it.
+	 * <p>
+	 * The rule lists drone speed, crew quality and Legendary Officers as included and
+	 * "Commander's Optional Purchases (S3.2)" as excluded, and rack mines are bought under S3.2
+	 * (M9.17). A scoring caller wants this; a fleet budget wants {@link #getForceCostTotal}.
+	 */
+	public double getGabpvForceCost() {
+		double total = 0;
+		for (java.util.Map.Entry<com.sfb.properties.ForceCost, Double> e : forceCosts.entrySet())
+			if (e.getKey().countsInGabpv() && e.getValue() != null)
+				total += e.getValue();
+		return total;
 	}
 
 	/**

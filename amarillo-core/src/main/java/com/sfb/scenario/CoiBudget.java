@@ -24,11 +24,13 @@ import com.sfb.objects.shuttles.Shuttle;
  *   <li><b>plus its fighters</b>, which the hull BPV does NOT include — a Kzinti CV is 147 with
  *       twelve 6-point AAS aboard, so its true basis is 219 and its budget 43, not 29.</li>
  * </ul>
- * Of the two exclusions, the first now has code and is honoured by omission: a ship's mandatory
- * drone speed charge lives on {@link Ship#getDroneSpeedBpv} rather than in its BPV, precisely so
- * that nothing here has to remember to take it out again. Crew quality adjustments are still
- * unimplemented and will want the same treatment when they arrive -- a figure of their own, not
- * a number folded into the hull.
+ * Both exclusions are now honoured by OMISSION rather than by subtraction, which is the only way
+ * that stays correct as the list grows. Neither lives in the hull BPV: they are members of the
+ * S3.21 force-total category, held on the ship as {@link com.sfb.properties.ForceCost} and read
+ * through {@code Ship.getForceCostTotal()}, which nothing in this class calls. So a new member of
+ * that category is excluded from this basis the day it is added, with no edit here and nothing to
+ * remember -- and {@code ForceCostTest} sweeps every member against this very method to keep it
+ * so. {@code Ship.getDroneSpeedBpv()} survives as a delegate onto one of those members.
  */
 public final class CoiBudget {
 

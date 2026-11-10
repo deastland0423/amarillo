@@ -789,8 +789,70 @@ groundwork already in place.
   What exists today: `Game.dropMine` takes "TBOMB", "DUMMY_TBOMB" or "NSM", `MineResolver` runs
   arming and detonation, and `auxiliary.nuclearSpaceMines` gives a ship its NSMs. What is missing
   is the RACK as an inventory and as a hit location.
-- **Costs that count against the FORCE total but escape the per-ship COI cap — DESIGNED
-  2026-10-19, not built. A prerequisite THREE parked features were each waiting on separately.**
+- **Costs that count against the FORCE total but escape the per-ship COI cap — THE CATEGORY IS
+  BUILT 2026-11-10. `com.sfb.properties.ForceCost`.**
+
+  **Three things this entry had wrong, all found by reading the rule and grepping before
+  building.** They are kept here because each was a plausible-sounding claim that cost nothing to
+  check and would have cost a migration to act on.
+
+  1. **Drone speed upgrades were NOT parked — they were already built, S3.221 exception and
+     all.** `Ship.droneSpeedBpv` existed, `FleetValidator.costOf` summed it into the force total,
+     `CoiBudget` was deliberately blind to it, and `CoiLoadout.droneUpgradeCost(ship, year)`
+     already implemented S3.221's exception: "Faster drones available as limited or restricted
+     weapons in years prior to their general introduction are purchased as Commander's Options",
+     so speed bought AHEAD of availability is an ordinary option INSIDE the cap. The mechanism
+     this entry asked for therefore existed, named after its first member. What was actually
+     needed was to generalise it, which is what landed.
+  2. **(S2.14) splits the category in two, and this entry never cited it.** The Gross Adjusted
+     BPV — the basis victory percentages are taken of — "includes the cost of drone speed
+     upgrades (FD2.22), the effect of crew quality (G21.0), the value of Legendary Officers
+     (G22.0)" and does NOT include "Commander's Optional Purchases (S3.2)". M9.17 buys a
+     minesweeper's mines under S3.2. So rack mines are in the force total and OUT of the victory
+     basis, while the other three are in both. The single "second spend" this entry proposed,
+     summed into the GABPV the way `droneSpeedBpv` was, would have made a loaded minelayer worth
+     32 points more to destroy than the chart says — which is the exact failure
+     `ForceCostTest.rackMinesDoNotMakeAMinelayerWorthMoreToKill` reports under a mutant.
+  3. **Annex #6A prices crew quality as a PERCENTAGE, and Poor Crew is −20%.** So a member of
+     this category can be negative and fractional: it is an adjustment, not a spend, and the
+     `int` the first member got away with would have been a lie. Annex #6A also names a FOURTH
+     member this entry missed — "Legendary Officers, if used, are purchased as part of the base
+     force, not as Commander's Options."
+
+  **What landed.** `ForceCost` is an enum of four members, each carrying `countsInGabpv()`;
+  `Ship` holds an `EnumMap` of them with `getForceCost`, `setForceCost`, `getForceCostTotal`
+  (what the quartermaster pays) and `getGabpvForceCost` (what the enemy scores).
+  `FleetValidator.costOf` sums the total, `Game.calculateVictoryPoints` sums only the GABPV
+  subset, `CoiBudget` still never reads either, and `getDroneSpeedBpv()` survives as a delegate
+  so its callers and tests did not move. `ForceCostTest`, 12 tests, sweeps every member against
+  both axes so a fifth member cannot be added and silently missed.
+
+  **THE TRAP, and it is in a javadoc as well as here: do NOT derive `CREW_QUALITY` from
+  `ship.getCrew().getCrewQuality()`.** Four Klingon penal hulls declare `crewQuality: "poor"`
+  and for all four the discount is ALREADY IN THE STATED BPV. `d6j.json` says it outright: "epv
+  123, bpv 98, and the 98 is live here BECAUSE crewQuality is poor." Worse, the chart's split is
+  not the rule's number — the E4J is 62/40, a 35% gap where Annex #6A gives 20%. The two are
+  different acts: a penal ship does not PURCHASE a poor crew, it comes with one and its chart
+  entry is already discounted, while Annex #6A prices a player CHOOSING a quality for a scenario.
+  Only the second belongs in this category, nothing sells it yet, so the member is correctly
+  never set. `ForceCostTest.aDeclaredPoorCrewIsNotChargedAgain` fails if anyone wires the obvious
+  thing.
+
+  **Still open, and now cheap:** `RACK_MINES` has a member and no filler — it wants the mine
+  rack inventory from the M9.0 entry above, plus M9.17's scenario waiver. `CREW_QUALITY` and
+  `LEGENDARY_OFFICERS` want a purchase path (a `ShipSpec`/fleet-builder field), not a derivation.
+
+  **A divergence found while reading S2.14, NOT fixed and not a bug today.** S2.14 also says the
+  GABPV does not include "Fighters, PFs, SWACS", because S2.21 scores them as units in their own
+  right — "any units (fighters, MRS shuttles, extra marines, etc.) on a ship which is destroyed
+  count as destroyed as a result of enemy action". `Game.calculateVictoryPoints` instead folds
+  each ship's fighter BPV into that ship's GABPV, and gives fighters no scoreboard row of their
+  own. So it is one row per ship by design, not a double count, and the totals are close to
+  right. Scoring fighters separately is a real feature (rows, statuses, who shot which fighter)
+  and belongs in its own slice; until then the comment in that method should not be read as
+  claiming S2.14 compliance.
+
+  **The original design note, which was sound where it was not superseded:**
 
   **The category.** S3.21 names the pattern for Annex #6A items: they "could be purchased as
   Commander's options" but "are normally purchased as part of the overall force structure of a
@@ -801,7 +863,8 @@ groundwork already in place.
   speed, and M9.17 for mines: "the cost of mines in mine racks is part of the overall force
   total, not a part of the cost of the minesweeper."
 
-  **Three members, already identified:**
+  **Three members as first identified** (a fourth, Legendary Officers, was missed; and the
+  first of these turned out to be built already — see above):
   1. **Rack mines** (M9.17, M6.31). Annex #6 costs: a transporter bomb **4**, a nuclear space
      mine (minelayers only) **8**, one NSM on a Romulan M2.73/.74/.76 ship **8**, a PA mine
      **4**, a Y-transporter bomb **3**, a Y-NSM **7**. M6.31's cheaper chart is for mines ALREADY
@@ -813,7 +876,9 @@ groundwork already in place.
   3. **Crew quality adjustments** (G21.0), named by S3.211 alongside drone speed. The declaration
      exists on `ShipSpec`; the costs do not.
 
-  **The code is already the right shape, and needs ONE new figure.** `FleetValidator.totalCost`
+  **The code is already the right shape, and needs ONE new figure.** — SUPERSEDED: it needed a
+  figure PER MEMBER plus S2.14's flag, for the reason given above. The rest of this paragraph is
+  accurate and is what the build followed. `FleetValidator.totalCost`
   is hulls + carried fighters + every ship's `getCoiSpend()`, and `checkBudget` holds it to the
   agreed budget (S8.11) — its javadoc already says "option points come out of the agreed total
   rather than on top of it". Separately, `checkCommanderOptions` caps each ship's `coiSpend`

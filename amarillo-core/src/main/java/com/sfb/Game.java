@@ -2471,8 +2471,14 @@ public class Game {
                     fighterBpv += f.getBpv();
                 }
             }
-            int gabpv = victoryBpvBasis(ship, teamName) + fighterBpv
-                    + ship.getDroneSpeedBpv();
+            // getGabpvForceCost(), NOT getForceCostTotal(): S2.14 lists drone speed, crew
+            // quality and Legendary Officers as part of the Gross Adjusted BPV and excludes
+            // "Commander's Optional Purchases (S3.2)", under which M9.17 buys a minesweeper's
+            // mines. So the force total and the victory basis are different subsets of one
+            // category, and summing the whole of it here would make a loaded minelayer worth
+            // more to kill than the chart says.
+            int gabpv = (int) Math.round(victoryBpvBasis(ship, teamName) + fighterBpv
+                    + ship.getGabpvForceCost());
 
             // Scoring math lives in VictoryCalculator (S2.21 order, S2.24 rounding)
             String status = VictoryCalculator.status(ship).name();

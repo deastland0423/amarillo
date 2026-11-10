@@ -274,8 +274,13 @@ public final class FleetValidator {
         // hull let an Orion force grow after it had been declared legal. Returns a
         // double
         // because the deltas are fractional: a Phaser-2 is -0.25.
+        // (S3.21) The whole force-total category, not just its first member. This read
+        // getDroneSpeedBpv() while that was the only charge in it; ForceCost names the rest
+        // (crew quality, Legendary Officers, rack mines) and this sum takes them all, so the
+        // next member to arrive needs no change here. S3.211 keeps every one of them out of
+        // the option allowance, which goes through CoiBudget and never reads this method.
         return hull + optionMountCost(ship) + carriedFighterBpv(ship)
-                + ship.getDroneSpeedBpv();
+                + ship.getForceCostTotal();
     }
 
     /**
