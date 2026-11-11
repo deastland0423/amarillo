@@ -823,12 +823,22 @@ groundwork already in place.
       well as the option so a box cannot be destroyed on a row that never offers it — a balcony
       string applied on the FORWARD row was destroying the parked craft.
 
-      C hull is still a SUBSTITUTE reached by `damageFhull`/`damageAhull` falling through, not a
-      separate candidate. **Open question:** Annex #7E lists "C Hull" on both hull rows and
-      (D4.351) says the hit "must be scored on one of them", which arguably lets the owner choose
-      C hull over F hull while both survive. Left alone deliberately — it would change
-      long-standing behaviour on every hull in the game, and the rules give no ordering either
-      way. Wants a ruling.
+      C hull is a SUBSTITUTE reached by `damageFhull`/`damageAhull` falling through, not a
+      separate candidate, and **that is RULED CORRECT (owner, 2026-11-11)**. Annex #7E does list
+      "C Hull" on both hull rows and (D4.351) says the hit "must be scored on one of them", so a
+      tabletop player could technically elect C hull while F or A hull boxes still stand — "but
+      in practice it is never done."
+
+      Nor would it pay to. An F hull box absorbs only forward hits and an A hull box only aft,
+      while a C hull box absorbs either, so spending the inflexible box first and keeping the
+      flexible one in reserve is the owner's optimal line in every position we can construct.
+      The fall-through already plays it. Offering the choice would add a dialog nobody would
+      ever answer differently.
+
+      Note this is the OPPOSITE conclusion to the barracks packing ruling the same day, and for
+      the same reason: both ask what the owner would actually do with a freedom the rules give
+      him. There it changed the outcome, so the model changed; here it does not, so the model
+      stays. Decided, not deferred — do not reopen it as a "missing choice".
 
       (G28.33)'s first sentence is built: "Any boarding parties in a destroyed barracks box are
       destroyed." **How many were in THAT box was a ruling, and the owner made it on
