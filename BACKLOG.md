@@ -839,23 +839,68 @@ groundwork already in place.
       when it is fixed. Needs the owner's ruling; what is certain is that killing nobody at all
       would be wrong.
 
-      One hull declares barracks (the Federation CMC, 3 boxes, 8 parties); `ShipSpec.toMap`
+      One hull declares barracks (the Federation CMC, 3 boxes); `ShipSpec.toMap`
       silently dropped them until 2026-11-10, so they were zero on every load. Guards are NOT
       quartered: `GuardPosts.assign` already pulls the party off the roster (D7.834), so
       `boardingPartiesInBarracks` must not subtract `totalPosted()` on top — the first version
       did and removed each guard twice.
 
-  - **(G28.33) the two casualty EXEMPTIONS, deliberately not built.** "Boarding parties in a
-    barracks box are not subject to casualties under (G9.2) and (D7.21), and hits on barracks
-    boxes do not count for these purposes."
+  - **(G28.33) the CASUALTY EXEMPTION: BUILT 2026-11-11.** "Boarding parties in a barracks box
+    are not subject to casualties under (G9.2) and (D7.21)." (D7.21) now draws from
+    `Ship.exposedBoardingParties()` — the complement minus whoever is quartered — so a commando
+    ship keeps its marines through any amount of internal damage.
 
-    The first half is cheap — exempt `boardingPartiesInBarracks()` from the pool the D7.21 block
-    draws from. The second half is not: `applyInternalDamage` increments
-    `internalDamagePointsTotal` and runs the whole G9.21/D7.21 casualty block at the TOP of each
-    iteration, before the point's destination is known, so "hits on barracks boxes do not count"
-    needs the casualty block to run AFTER the point is placed. That is a reordering of the damage
-    loop's hot path and belongs in its own commit, with its own mutants. Only reachable on one
-    hull today.
+    **This is not the marginal carve-out it reads as.** (G28.32) makes shelter the DEFAULT, not
+    something the owner assigns: "All boarding parties ... are assumed to be in the barracks
+    unless assigned as guards (D7.83)." So on the one hull with barracks, essentially the whole
+    marine complement is exempt, and without the rule the only ship in the game built to carry an
+    invasion force lost it to generic attrition like a freighter. The capacity cliff is real and
+    modelled: shelter is `min(parties, boxes × 10)` and "any surplus marine squads are considered
+    to be distributed around the ship as they would be on a ship with no barracks", so the
+    surplus stays in the casualty pool. Shelter reads the SURVIVING box count, so shooting the
+    barracks away puts the survivors back in the pool with no rule of its own.
+
+    **The (G9.2) half needs no code and that is not an oversight.** (G9.21) kills CREW UNITS —
+    "every tenth internal damage point kills one crew unit" — and our implementation touches only
+    `getAvailableCrewUnits()`. It has no path to a boarding party, so that half holds by
+    construction. (D7.21) is the rule that draws on parties.
+
+    **(D7.21)'s two-party floor is measured against the whole roster, not the exposed subset:**
+    "the last two boarding parties ON THE SHIP cannot be killed by this method". A sheltered
+    party still counts towards that floor even though it can never be the one taken.
+
+  - **(D7.21) a posted GUARD cannot currently be an internal-damage casualty, and the rule says
+    it should be.** "The BP to be lost is selected by the owning player and can be any of his own
+    BPs **(including guards)** except one captured by the enemy." But `GuardPosts.assign` takes
+    the party off the roster while it is posted (D7.834, which is why a guard does not fight in
+    boarding combat), and (D7.21) draws from `getAvailableBoardingParties()` — so a guard is out
+    of reach on every hull, barracks or not.
+
+    Predates the barracks work and is pinned by `aPostedGuardIsCurrentlyOutOfReachOfD7_21` rather
+    than quietly changed, because the barracks exemption is what makes it matter: on a troop ship
+    the guards are now the only parties D7.21 could legitimately take, and it takes none of them.
+    Fixing it means D7.21 drawing from a pool that spans the roster AND the guard posts, and
+    deciding which one a casualty comes out of — "selected by the owning player", so arguably
+    another DAC-style choice. Wants a ruling before code.
+
+  - **(G28.33) second clause, "hits on barracks boxes do not count for these purposes":
+    deliberately NOT built.** `applyInternalDamage` increments `internalDamagePointsTotal` and
+    runs the whole G9.21/D7.21 casualty block at the TOP of each iteration, before the point's
+    destination is known.
+
+    The obvious fix is to move the block below the placement, and the block is already safe to
+    run late — it is catch-up arithmetic against high-water marks (`killThreshold -
+    crewKilledByInternalDamage`), not a one-shot. **But there is no longer a single place where
+    "the point has been placed" is true.** A point needing the owner's pick returns out of the
+    loop with a `DamageResult` and is placed later, in `DamageResolver`, on a separate call — and
+    every Annex #7E conversion row can pause that way, the barracks row among them. The exemption
+    needs a seam both paths converge on, and that seam does not exist. Building it to serve three
+    boxes on one hull is the wrong trade.
+
+    Do NOT "fix" it by decrementing the total after a barracks hit lands: the barracks point may
+    already have tripped its own threshold and advanced the high-water mark, and the crew unit is
+    dead by then. That is wrong on exactly the tenth points, which are the only points where the
+    rule does anything.
 
   - **(D4.40) The excess damage row and the destruction guard: BUILT 2026-11-10.** "When there
     are no 'excess damage' boxes remaining, and one additional excess damage hit is scored on the

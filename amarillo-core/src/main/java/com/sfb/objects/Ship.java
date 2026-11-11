@@ -4246,6 +4246,17 @@ public class Ship extends Unit implements DroneController {
 		return getDacChoiceOptions(system, null);
 	}
 
+	/**
+	 * For testing only: the cumulative internal damage points scored on this ship.
+	 *
+	 * <p>(D7.21) ignores its first four casualty events, so a test that means to exercise a
+	 * boarding party casualty has to prove it drove at least fifty points. Without a way to ask,
+	 * a fixture that dies at thirty makes every assertion about casualties vacuously true.
+	 */
+	int internalDamagePointsForTest() {
+		return internalDamagePointsTotal;
+	}
+
 	/** For testing only: exposes tryApplySystemHit (same-package access). */
 	String applySystemHitForTest(String system) {
 		return tryApplySystemHit(system, null);
@@ -4656,6 +4667,34 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
+	 * (G28.33) The boarding parties an internal-damage casualty may actually be taken from.
+	 *
+	 * <blockquote>"Boarding parties in a barracks box are <b>not subject to casualties</b> under
+	 * (G9.2) and (D7.21)."</blockquote>
+	 *
+	 * <p>So (D7.21) draws from the parties NOT quartered in a barracks box: on a hull with no
+	 * barracks that is all of them, which is every hull but one, and on the Federation CMC it is
+	 * normally none of them. (G28.32) makes shelter the default rather than something the owner
+	 * assigns, so a commando ship keeps its marines through any amount of internal damage - the
+	 * quality that makes it a troop ship rather than a cruiser with a big hold.
+	 *
+	 * <p>The shelter is the BOX, not a flag on the party: this reads
+	 * {@code getAvailableBarracks()} on every call, so shooting the barracks away puts the
+	 * survivors back in the casualty pool without needing a rule of its own.
+	 *
+	 * <h2>Why the (G9.2) half of that sentence needs no code</h2>
+	 * (G9.21) kills CREW UNITS - "every tenth internal damage point kills one crew unit" - and
+	 * our implementation touches only {@code getAvailableCrewUnits()}. It has no path to a
+	 * boarding party, so that half of the exemption holds by construction. (D7.21) is the rule
+	 * that draws on parties.
+	 *
+	 * @return the unsheltered parties, i.e. everything over ten a box
+	 */
+	public int exposedBoardingParties() {
+		return getCrew().getAvailableBoardingParties() - boardingPartiesInBarracks();
+	}
+
+	/**
 	 * (G28.33) Destroy one barracks box, and the boarding parties quartered in it.
 	 *
 	 * <blockquote>"Any boarding parties in a destroyed barracks box are destroyed."</blockquote>
@@ -4672,11 +4711,13 @@ public class Ship extends Unit implements DroneController {
 	 * defensible and the backlog asks the owner to rule; what is certain is that destroying a
 	 * barracks box and killing nobody at all would be wrong.
 	 *
-	 * <p>Note what this does NOT do, and see the backlog: (G28.33) continues "Boarding parties in
-	 * a barracks box are not subject to casualties under (G9.2) and (D7.21), and hits on barracks
-	 * boxes do not count for these purposes." Neither exemption is built. The second one needs
-	 * the casualty block in {@code applyInternalDamage} to run AFTER the point is placed instead
-	 * of before, which is a reordering of the damage loop and belongs in its own commit.
+	 * <p>(G28.33) continues: "Boarding parties in a barracks box are not subject to casualties
+	 * under (G9.2) and (D7.21), and hits on barracks boxes do not count for these purposes." The
+	 * casualty exemption IS built - see {@link #exposedBoardingParties}, which is what (D7.21)
+	 * draws from. The second clause, "hits on barracks boxes do not count", is deliberately not:
+	 * it needs the casualty block in {@code applyInternalDamage} to run AFTER the point is
+	 * placed, and there is no longer one place where that is true, because a point needing the
+	 * owner's pick is placed in {@code DamageResolver} on a later call. See the backlog.
 	 */
 	private String destroyOneBarracksBox() {
 		int boxes = hullBoxes.getAvailableBarracks();
@@ -5019,7 +5060,21 @@ public class Ship extends Unit implements DroneController {
 			if (newBpEvents > 0) {
 				bpCasualtiesProcessed += newBpEvents;
 				int currentBp = getCrew().getAvailableBoardingParties();
-				int actual = Math.min(newBpEvents, Math.max(0, currentBp - 2)); // last 2 BPs protected
+
+				// G28.33: "Boarding parties in a barracks box are not subject to casualties
+				// under (G9.2) and (D7.21)." So the casualty is drawn only from the parties NOT
+				// quartered in a barracks box. On every hull without barracks that is all of
+				// them; on the Federation CMC it is normally none, which is the whole point of
+				// a troop ship. G28.32 makes shelter the DEFAULT rather than something the
+				// owner assigns, so this needs no order and no UI.
+				//
+				// The two-party floor is measured against the ship's WHOLE roster, not the
+				// exposed subset, because D7.21 protects "the last two boarding parties ON THE
+				// SHIP" - a sheltered party still counts towards that floor even though it can
+				// never be the one taken.
+				int eligible = exposedBoardingParties();
+				int actual = Math.min(newBpEvents,
+						Math.min(eligible, Math.max(0, currentBp - 2)));
 				if (actual > 0) {
 					getCrew().getFriendlyTroops().removeCasualties(actual);
 					log.add("  boarding party casualty: " + actual + " BP(s) lost to internal damage (D7.21)");

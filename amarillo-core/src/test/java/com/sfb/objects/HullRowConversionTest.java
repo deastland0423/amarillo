@@ -158,26 +158,30 @@ public class HullRowConversionTest {
     /**
      * (G28.33) "Any boarding parties in a destroyed barracks box are destroyed."
      *
-     * <p>The CMC quarters eight parties (G28.32: all non-guards are in the barracks) across three
-     * boxes, so an even spread is two a box and the destroyed box costs two. The spread is a
-     * DEFAULT and not a derivation — see {@code destroyOneBarracksBox} and the backlog, because
-     * G28.32 lets the owner divide them as he likes and there is no UI for that.
+     * <p>Nine parties quartered across three boxes is an even spread of three a box, so the
+     * destroyed box costs three. The spread is a DEFAULT and not a derivation — see
+     * {@code destroyOneBarracksBox} and the backlog, because G28.32 lets the owner divide them
+     * as he likes and there is no UI for that.
+     *
+     * <p>The complement is set here rather than read from {@code cmc.json}, which has already
+     * changed once (eight parties, then thirty-two) and broke this test when it did. Nine is
+     * chosen because it divides by three exactly, which keeps the rounding out of the way of
+     * what is being tested.
      */
     @Test
     public void destroyingABarracksBoxKillsTheBoardingPartiesInIt() throws Exception {
         Ship cmc = commandoCruiser();
-        assertEquals("cmc.json: eight boarding parties", 8,
-                cmc.getCrew().getAvailableBoardingParties());
-        assertEquals("all eight are quartered, none on guard", 8,
+        cmc.getCrew().setAvailableBoardingParties(9);
+        assertEquals("all nine are quartered, none on guard", 9,
                 cmc.boardingPartiesInBarracks());
 
         String label = cmc.applyDacChoiceHit("fhull", "barracks", null);
 
         assertNotNull(label);
         assertTrue("the log says what died and cites the rule: " + label,
-                label.contains("2 boarding parties lost") && label.contains("G28.33"));
+                label.contains("3 boarding parties lost") && label.contains("G28.33"));
         assertEquals("one box gone", 2, cmc.getHullBoxes().getAvailableBarracks());
-        assertEquals("and two parties with it", 6,
+        assertEquals("and three parties with it", 6,
                 cmc.getCrew().getAvailableBoardingParties());
     }
 
@@ -208,14 +212,15 @@ public class HullRowConversionTest {
     @Test
     public void guardsAreNotQuarteredInTheBarracks() throws Exception {
         Ship cmc = commandoCruiser();
+        cmc.getCrew().setAvailableBoardingParties(20); // under the three boxes' thirty berths
         int posted = postSomeGuards(cmc);
         assertTrue("fixture: some parties are on guard duty", posted > 0);
 
+        assertEquals("the roster dropped by the guard detail (D7.834)", 20 - posted,
+                cmc.getCrew().getAvailableBoardingParties());
         assertEquals("a posted guard is already off the roster, so it must not be"
                 + " subtracted a second time",
-                8 - posted, cmc.boardingPartiesInBarracks());
-        assertEquals("which is exactly what the roster says", 8 - posted,
-                cmc.getCrew().getAvailableBoardingParties());
+                20 - posted, cmc.boardingPartiesInBarracks());
     }
 
     /**
