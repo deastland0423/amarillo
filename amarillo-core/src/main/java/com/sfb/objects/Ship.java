@@ -2816,7 +2816,13 @@ public class Ship extends Unit implements DroneController {
 		if (originalInterior > 0 && destroyedInterior >= originalInterior * 0.5)
 			return true;
 
-		// C: any excess damage hits
+		// C: any excess damage hits.
+		//
+		// (S2.41 C) is the terse "Any excess damage hits", and the owner ruled (2026-11-11) on
+		// the literal reading: an excess damage BOX has to be destroyed. A point ALLOCATED to
+		// the excess row but scored elsewhere under (D4.36) - on cargo, repair or a mine rack,
+		// at the owner's option - does not cripple. That is not the loophole it looks like,
+		// because those repair boxes are interior boxes under B above, so dodging C feeds B.
 		if (specialFunctions.getExcessDamage() < specialFunctions.getOriginalExcessDamage())
 			return true;
 
@@ -2824,7 +2830,15 @@ public class Ship extends Unit implements DroneController {
 		if (controlSpaces.fetchRemainingTotalBoxes() == 0)
 			return true;
 
-		// E: all weapons destroyed
+		// E: all weapons destroyed.
+		//
+		// "The definition of weapons for condition E is given in Annex #7D", and a MINE RACK is
+		// deliberately not one. The annex's ALWAYS list runs "...maulers, missile racks, nova
+		// cannons...": drone racks, missile racks, plasma racks and plasma-drone racks are all
+		// in it and mine racks are not. Annex #7E agrees from the other side - a drone rack is
+		// hit by the Drone row, a weapon row, while a mine rack is reached only from Cargo,
+		// Excess Damage and Shuttle. So a hull whose last armed system is a mine rack IS
+		// crippled under E, even though that same rack counts as an interior box under B.
 		if (weapons.fetchAllWeapons().stream().noneMatch(com.sfb.weapons.Weapon::isFunctional))
 			return true;
 
@@ -4104,6 +4118,9 @@ public class Ship extends Unit implements DroneController {
 		totalBoxes += this.specialFunctions.getOriginalExcessDamage();
 		totalBoxes += this.shuttles.fetchOriginalTotalBoxes();
 		totalBoxes += this.weapons.fetchOriginalTotalBoxes();
+		// (M9.11) A mine rack is a box on the SSD and belongs in the count. It was missing
+		// until 2026-11-11, so (S2.41 B) under-counted on every hull that carries one.
+		totalBoxes += this.mineRacks.size();
 
 		return totalBoxes;
 	}
@@ -4125,6 +4142,9 @@ public class Ship extends Unit implements DroneController {
 		totalBoxes += this.specialFunctions.getExcessDamage();
 		totalBoxes += this.shuttles.fetchRemainingTotalBoxes();
 		totalBoxes += this.weapons.fetchRemainingTotalBoxes();
+		for (com.sfb.systemgroups.MineRack rack : this.mineRacks)
+			if (!rack.isDestroyed())
+				totalBoxes++;
 
 		return totalBoxes;
 	}
@@ -4255,6 +4275,21 @@ public class Ship extends Unit implements DroneController {
 	 */
 	int internalDamagePointsForTest() {
 		return internalDamagePointsTotal;
+	}
+
+	/**
+	 * For testing only: the two box totals (S2.41 B) measures "interior boxes" with.
+	 *
+	 * <p>Both are private and {@code isCrippled} is their only caller, so a system that is
+	 * missing from them is invisible from outside — which is how mine rack boxes went uncounted.
+	 */
+	int totalSsdBoxesForTest() {
+		return getTotalSSDBoxes();
+	}
+
+	/** For testing only: see {@link #totalSsdBoxesForTest}. */
+	int currentBoxesForTest() {
+		return getCurrentBoxes();
 	}
 
 	/** For testing only: exposes tryApplySystemHit (same-package access). */

@@ -960,17 +960,24 @@ groundwork already in place.
     `getTotalSSDBoxes()` at all, while armor and excess damage are in it and subtracted again in
     `isCrippled`. Both totals are private and used by nothing but `isCrippled`.
 
-  - **(S2.41 B) MINE RACK boxes are not counted as interior boxes, and should be.** Found closing
-    the ruling above. `getTotalSSDBoxes()`/`getCurrentBoxes()` sum control, power, hull, labs,
-    tractors, probes, transporters, excess, shuttles and weapons — Ship's
-    `List<MineRack> mineRacks` is in neither, so a rack is excluded from both the original count
-    and the remaining one.
+  - **(S2.41 B) MINE RACK boxes count as interior boxes: FIXED 2026-11-11.** They were in
+    neither `getTotalSSDBoxes()` nor `getCurrentBoxes()`, so a rack was excluded from both the
+    original count and the remaining one and a hull that lost its racks crippled slightly later
+    than it should. B's exclusion list does not mention them, and the same reasoning that makes
+    a repair box interior makes a rack one.
 
-    B's exclusion list does not mention mine racks, and the same reasoning that makes repair
-    boxes interior boxes makes a rack one too. The effect is small and favours the owner: a hull
-    that loses its racks does not count those losses towards the 50%, so it cripples slightly
-    LATER than it should. Confined to crippling, since nothing else calls either method. Wants
-    its own commit and its own mutants, and a test on a hull that actually declares racks.
+    Invisible from outside until someone looked: both totals are private and `isCrippled` is
+    their only caller. The regression test asserts the PAIR — a fresh hull's remaining equals its
+    original, and destroying one rack moves remaining by exactly one — because either total
+    alone can be wrong without the other noticing. Only `romulan/lq.json` declares racks (2).
+
+    **A mine rack is NOT a weapon, and condition E was left alone.** (S2.41 E) defers to Annex
+    #7D for the definition, whose ALWAYS list runs "...maulers, missile racks, nova cannons...":
+    drone racks, missile racks, plasma racks and plasma-drone racks are all on it and mine racks
+    are not. Annex #7E agrees from the other side — a drone rack is hit by the Drone row, a
+    weapon row, while a mine rack is reachable only from Cargo, Excess Damage and Shuttle. So a
+    hull whose last armed system is a mine rack IS crippled under E while that same rack counts
+    as an interior box under B. Recorded on `isCrippled` so nobody "fixes" the asymmetry.
 
   - **Cargo boxes are a COUNT, not addressable objects.** The owner's point (2026-11-10) when the
     cargo row went in: "if a ship is carrying important cargo in a specific cargo box, but others

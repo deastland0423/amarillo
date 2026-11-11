@@ -107,6 +107,38 @@ public class CrippledStatusTest {
         assertFalse(s.isCrippled());
     }
 
+    /**
+     * (S2.41 B, M9.11) A mine rack box is an interior box, and was in neither total until
+     * 2026-11-11.
+     *
+     * <p>B's exclusion list is exhaustive — "shields, armor, sensor, scanner, DamCon, or excess
+     * damage" — and a mine rack is not on it, so it counts. The same reasoning already made
+     * repair boxes interior boxes. Being absent from BOTH totals, the omission was invisible
+     * from outside: nothing but {@code isCrippled} reads them, and a hull that lost its racks
+     * simply crippled slightly later than it should have.
+     *
+     * <p>Asserted as the pair, which is what pins both halves. A fresh ship has every box
+     * intact, so remaining must equal original; destroying one rack must then move remaining by
+     * exactly one. Were racks missing from the original count but present in the remaining one,
+     * the first assertion would fail; were they missing from the remaining count, the second
+     * would.
+     */
+    @Test
+    public void conditionB_mineRackBoxesAreInteriorBoxes() throws Exception {
+        ShipLibrary.loadAllSpecs("../data/factions");
+        Ship lq = ShipLibrary.createShip(ShipLibrary.get("Romulan", "L-Q"));
+        assertEquals("fixture: lq.json declares two mine racks", 2, lq.getMineRacks().size());
+
+        int original = lq.totalSsdBoxesForTest();
+        assertEquals("a fresh hull has lost nothing, racks included",
+                original, lq.currentBoxesForTest());
+
+        lq.getMineRacks().get(0).destroy();
+
+        assertEquals("the rack is still on the SSD", original, lq.totalSsdBoxesForTest());
+        assertEquals("but one fewer box survives", original - 1, lq.currentBoxesForTest());
+    }
+
     // -------------------------------------------------------------------------
     // Condition C: any excess damage hit
     // -------------------------------------------------------------------------
