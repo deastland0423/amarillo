@@ -831,13 +831,27 @@ groundwork already in place.
       way. Wants a ruling.
 
       (G28.33)'s first sentence is built: "Any boarding parties in a destroyed barracks box are
-      destroyed." **How many were in THAT box is a ruling, not a calculation**, and an even
-      spread rounded down is the recorded default: (G28.32) lets the owner "divide the non-guards
-      among the barracks spaces as he sees fit" and the DAC lets him pick the box, so played to
-      the letter an owner with 15 parties in three boxes would quarter them 10/5/0 and score the
-      hit on the empty one, losing nobody. There is no UI for that division and no rule saying
-      when it is fixed. Needs the owner's ruling; what is certain is that killing nobody at all
-      would be wrong.
+      destroyed." **How many were in THAT box was a ruling, and the owner made it on
+      2026-11-11: pack the parties into as few boxes as possible, and destroy the box with the
+      fewest troops first.** (G28.32) lets him "divide the non-guards among the barracks spaces
+      as he sees fit, up to the limit of ten per barracks box" and the DAC lets him pick the box,
+      so 15 parties in three boxes sit 10/5/0 and three successive hits cost 0, then 5, then 10.
+      `Ship.partiesInTheEmptiestBarracksBox` with a tested mirror in
+      `amarillo-web/src/components/barracks.ts`.
+
+      Not a loophole — the optimal line, and free to take. Packing cannot reduce the total lost
+      to a determined attacker, because shelter is `min(roster, boxes × 10)` whatever the
+      arrangement; the same fifteen die across the same three hits either way. It DEFERS the
+      loss, and a hit that costs nothing today may be the last hit of the scenario. The even
+      spread this replaced was modelling the owner playing badly.
+
+      **Being deterministic, this closes the door on addressable barracks boxes** — there is
+      nothing left for a player to decide, so barracks need not join the "important cargo in a
+      specific box" work.
+
+      At capacity there is no discretion at all, which is where the real CMC sits: thirty berths
+      in three boxes can only be 10/10/10, so the ruling and the even spread agree there and the
+      hull's observed behaviour did not change.
 
       One hull declares barracks (the Federation CMC, 3 boxes); `ShipSpec.toMap`
       silently dropped them until 2026-11-10, so they were zero on every load. Guards are NOT

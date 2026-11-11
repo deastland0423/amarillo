@@ -2,6 +2,7 @@ import React from 'react';
 import type { MineRackState, PendingDacChoice, ShipObject } from '../types/gameState';
 import type { WeaponChip } from './weaponCondition';
 import { weaponChips, chipColour } from './weaponCondition';
+import { barracksLossLabel, partiesLostWithNextBarracksBox } from './barracks';
 
 interface Props {
   pendingChoices: PendingDacChoice[];
@@ -177,31 +178,13 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
       detail: opt === 'excess'
         ? [count, 'spending one cripples the ship (S2.41 C)'].filter(Boolean).join(' — ')
         : opt === 'barracks'
-        ? [count, barracksLoss()].filter(Boolean).join(' — ')
+        ? [count, barracksLossLabel(targetShip)].filter(Boolean).join(' — ')
         : count,
-      costly: opt === 'excess' || (opt === 'barracks' && barracksPartiesPerBox() > 0),
+      costly: opt === 'excess'
+        || (opt === 'barracks' && partiesLostWithNextBarracksBox(targetShip) > 0),
     };
   }
 
-  /**
-   * (G28.33) How many boarding parties go with one barracks box: "Any boarding parties in a
-   * destroyed barracks box are destroyed."
-   *
-   * <p>Mirrors the server's even-spread default rather than computing a rule of its own. The
-   * server is authoritative; this only has to tell the player what the button costs.
-   */
-  function barracksPartiesPerBox(): number {
-    const boxes = targetShip?.availableBarracks ?? 0;
-    const parties = targetShip?.boardingParties ?? 0;
-    if (boxes <= 0 || parties <= 0) return 0;
-    return Math.floor(Math.min(parties, boxes * 10) / boxes);
-  }
-
-  function barracksLoss(): string {
-    const n = barracksPartiesPerBox();
-    if (n <= 0) return 'empty';
-    return `${n} boarding part${n === 1 ? 'y' : 'ies'} lost with it (G28.33)`;
-  }
 
   interface WeaponInfo {
     displayName: string;

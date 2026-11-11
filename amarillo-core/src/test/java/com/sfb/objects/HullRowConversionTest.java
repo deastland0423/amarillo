@@ -158,31 +158,98 @@ public class HullRowConversionTest {
     /**
      * (G28.33) "Any boarding parties in a destroyed barracks box are destroyed."
      *
-     * <p>Nine parties quartered across three boxes is an even spread of three a box, so the
-     * destroyed box costs three. The spread is a DEFAULT and not a derivation — see
-     * {@code destroyOneBarracksBox} and the backlog, because G28.32 lets the owner divide them
-     * as he likes and there is no UI for that.
+     * <p>(G28.32) Parties are PACKED into as few boxes as possible and the EMPTIEST box is lost
+     * first — the owner's ruling, because G28.32 lets him "divide the non-guards among the
+     * barracks spaces as he sees fit" and the DAC lets him pick the box, so he would always play
+     * it this way. Fifteen parties in three boxes sit 10/5/0, and three successive hits cost 0,
+     * then 5, then 10.
+     *
+     * <p>Packing does not save anybody from a determined attacker: the same fifteen die across
+     * the same three hits either way, because shelter is {@code min(roster, boxes x 10)} whatever
+     * the arrangement. It DEFERS the loss, and a hit that costs nothing today may be the last
+     * hit of the scenario. Modelling an even spread was modelling the owner playing badly.
      *
      * <p>The complement is set here rather than read from {@code cmc.json}, which has already
-     * changed once (eight parties, then thirty-two) and broke this test when it did. Nine is
-     * chosen because it divides by three exactly, which keeps the rounding out of the way of
-     * what is being tested.
+     * changed once (eight parties, then thirty-two) and broke this test when it did.
      */
     @Test
-    public void destroyingABarracksBoxKillsTheBoardingPartiesInIt() throws Exception {
+    public void barracksBoxesArePackedAndTheEmptiestIsLostFirst() throws Exception {
         Ship cmc = commandoCruiser();
-        cmc.getCrew().setAvailableBoardingParties(9);
-        assertEquals("all nine are quartered, none on guard", 9,
-                cmc.boardingPartiesInBarracks());
+        cmc.getCrew().setAvailableBoardingParties(15);
+        assertEquals("three boxes hold thirty, so all fifteen are quartered",
+                15, cmc.boardingPartiesInBarracks());
+        assertEquals("packed 10/5/0, so the cheapest box holds nobody",
+                0, cmc.partiesInTheEmptiestBarracksBox());
 
-        String label = cmc.applyDacChoiceHit("fhull", "barracks", null);
-
-        assertNotNull(label);
-        assertTrue("the log says what died and cites the rule: " + label,
-                label.contains("3 boarding parties lost") && label.contains("G28.33"));
-        assertEquals("one box gone", 2, cmc.getHullBoxes().getAvailableBarracks());
-        assertEquals("and three parties with it", 6,
+        String first = cmc.applyDacChoiceHit("fhull", "barracks", null);
+        assertNotNull(first);
+        assertTrue("the empty box went, and the log says so: " + first,
+                first.contains("empty"));
+        assertEquals("nobody died with it", 15,
                 cmc.getCrew().getAvailableBoardingParties());
+        assertEquals("two boxes left", 2, cmc.getHullBoxes().getAvailableBarracks());
+
+        String second = cmc.applyDacChoiceHit("fhull", "barracks", null);
+        assertTrue("now the part-filled box is the cheapest: " + second,
+                second.contains("5 boarding parties lost") && second.contains("G28.33"));
+        assertEquals(10, cmc.getCrew().getAvailableBoardingParties());
+
+        String third = cmc.applyDacChoiceHit("fhull", "barracks", null);
+        assertTrue("and the last box is full: " + third,
+                third.contains("10 boarding parties lost"));
+        assertEquals("every marine aboard is gone", 0,
+                cmc.getCrew().getAvailableBoardingParties());
+        assertEquals("with no barracks left", 0, cmc.getHullBoxes().getAvailableBarracks());
+    }
+
+    /**
+     * (G28.32) With no box standing empty, the part-filled one is still the cheapest.
+     *
+     * <p>Twenty-five parties in three boxes pack 10/10/5, so the first hit costs five and the
+     * next two cost ten each. This is the branch between "a box is empty" and "every box is
+     * full", and it is the one an even-spread model got wrong in both directions.
+     */
+    @Test
+    public void withNoEmptyBoxThePartFilledOneGoesFirst() throws Exception {
+        Ship cmc = commandoCruiser();
+        cmc.getCrew().setAvailableBoardingParties(25); // 10/10/5
+
+        assertEquals(5, cmc.partiesInTheEmptiestBarracksBox());
+        assertTrue(cmc.applyDacChoiceHit("fhull", "barracks", null)
+                .contains("5 boarding parties lost"));
+        assertEquals(20, cmc.getCrew().getAvailableBoardingParties());
+
+        assertEquals("both survivors are full now", 10,
+                cmc.partiesInTheEmptiestBarracksBox());
+        assertTrue(cmc.applyDacChoiceHit("fhull", "barracks", null)
+                .contains("10 boarding parties lost"));
+        assertEquals(10, cmc.getCrew().getAvailableBoardingParties());
+    }
+
+    /**
+     * (G28.32) At capacity there is no discretion left, which is where the real CMC sits.
+     *
+     * <p>Thirty parties in three boxes of ten can only be 10/10/10, so every hit costs ten and
+     * the packing ruling and an even spread agree. {@code cmc.json} declares thirty-two against
+     * those thirty berths, so a fresh commando cruiser is in exactly this state with two squads
+     * loose in the hull — and those two, being in no box at all, outlive the barracks.
+     */
+    @Test
+    public void atCapacityEveryBoxIsFullAndEveryHitCostsTen() throws Exception {
+        Ship cmc = commandoCruiser();
+        cmc.getCrew().setAvailableBoardingParties(32); // thirty berths, two loose
+
+        assertEquals(30, cmc.boardingPartiesInBarracks());
+        assertEquals(2, cmc.exposedBoardingParties());
+        assertEquals(10, cmc.partiesInTheEmptiestBarracksBox());
+
+        while (cmc.getHullBoxes().getAvailableBarracks() > 0)
+            cmc.applyDacChoiceHit("fhull", "barracks", null);
+
+        assertEquals("the two who were never in a box are the only survivors",
+                2, cmc.getCrew().getAvailableBoardingParties());
+        assertEquals("and they are exposed, with no barracks left to shelter them",
+                2, cmc.exposedBoardingParties());
     }
 
     /** An empty barracks box costs a box and nobody. */

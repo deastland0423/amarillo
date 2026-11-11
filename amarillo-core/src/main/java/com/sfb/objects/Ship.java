@@ -4695,21 +4695,52 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
+	 * (G28.32) How many parties are in the barracks box a hull hit destroys.
+	 *
+	 * <h2>Packed tight, and the emptiest box dies first</h2>
+	 * (G28.32) lets the owner "divide the non-guards among the barracks spaces as he sees fit, up
+	 * to the limit of ten per barracks box", and the DAC lets him pick the box that takes the
+	 * hit. Owner's ruling: assume he always plays that option as well as it can be played, which
+	 * is to PACK the parties into as few boxes as possible and then lose the emptiest box first.
+	 * Fifteen parties in three boxes are quartered 10/5/0, and three successive hits cost 0, then
+	 * 5, then 10.
+	 *
+	 * <p>That is not a loophole, it is the optimal line, and it costs the owner nothing to take.
+	 * Packing does not change how many parties are sheltered - that is
+	 * {@code min(roster, boxes x 10)} whatever the arrangement - so it cannot reduce the total
+	 * lost to a determined attacker. It DEFERS the losses, and a hit that costs nothing today may
+	 * be the last hit of the scenario. An even spread would have cost the same fifteen parties
+	 * spread 5/5/5, just sooner, so modelling the spread was modelling the owner playing badly.
+	 *
+	 * <p>Being deterministic, this also means barracks boxes never need to become individually
+	 * addressable: there is nothing left for the player to decide.
+	 *
+	 * @return 0 while any box stands empty, the remainder in the part-filled box if there is one,
+	 *         otherwise a full ten
+	 */
+	public int partiesInTheEmptiestBarracksBox() {
+		int boxes = hullBoxes.getAvailableBarracks();
+		if (boxes <= 0)
+			return 0;
+
+		int sheltered = boardingPartiesInBarracks();
+		int fullBoxes = sheltered / BOARDING_PARTIES_PER_BARRACKS;
+		int remainder = sheltered % BOARDING_PARTIES_PER_BARRACKS;
+		int occupied = fullBoxes + (remainder > 0 ? 1 : 0);
+
+		if (occupied < boxes)
+			return 0; // at least one box is empty, and that is the one that dies
+		if (remainder > 0)
+			return remainder; // no empties left, so the part-filled box is the cheapest
+		return BOARDING_PARTIES_PER_BARRACKS; // every surviving box is full
+	}
+
+	/**
 	 * (G28.33) Destroy one barracks box, and the boarding parties quartered in it.
 	 *
 	 * <blockquote>"Any boarding parties in a destroyed barracks box are destroyed."</blockquote>
 	 *
-	 * <h2>How many were in THAT box is a ruling, not a calculation</h2>
-	 * (G28.32) lets the owner "divide the non-guards among the barracks spaces as he sees fit",
-	 * and the DAC lets him choose which box takes the hit. Played to the letter, an owner with 15
-	 * parties in three boxes would quarter them 10/5/0 and score the hit on the empty one, losing
-	 * nobody. There is no UI for that division and no rule saying when it is fixed, so this uses
-	 * an EVEN SPREAD and rounds the loss DOWN: 15 parties in three boxes is five a box, and the
-	 * destroyed box costs five.
-	 *
-	 * <p>Recorded as a deliberate default rather than an answer. The alternatives are both
-	 * defensible and the backlog asks the owner to rule; what is certain is that destroying a
-	 * barracks box and killing nobody at all would be wrong.
+	 * <p>Which box, and so how many die, is {@link #partiesInTheEmptiestBarracksBox}.
 	 *
 	 * <p>(G28.33) continues: "Boarding parties in a barracks box are not subject to casualties
 	 * under (G9.2) and (D7.21), and hits on barracks boxes do not count for these purposes." The
@@ -4720,10 +4751,9 @@ public class Ship extends Unit implements DroneController {
 	 * owner's pick is placed in {@code DamageResolver} on a later call. See the backlog.
 	 */
 	private String destroyOneBarracksBox() {
-		int boxes = hullBoxes.getAvailableBarracks();
-		if (boxes <= 0)
+		if (hullBoxes.getAvailableBarracks() <= 0)
 			return null;
-		int lost = boardingPartiesInBarracks() / boxes;
+		int lost = partiesInTheEmptiestBarracksBox();
 		if (!hullBoxes.damageBarracks())
 			return null;
 		if (lost <= 0)
