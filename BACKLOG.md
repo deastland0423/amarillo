@@ -937,13 +937,40 @@ groundwork already in place.
     declares the ship dead, whatever route the chart took. Four mutants, four caught — including
     one that restores the second destruction path on its own.
 
-    **OPEN QUESTION for the owner, found doing this and deliberately NOT decided.** (S2.41 C)
-    cripples a ship on "any excess damage hits". Our `isCrippled` reads that as *excess BOXES
-    destroyed*, which is the pre-existing behaviour and was left alone. The stricter reading is
-    *any hit allocated to the excess damage ROW, wherever it is scored* — under which D4.36's
-    option buys survival but not escape from crippling, and under the current reading it buys
-    both. The difference is worth a ruling, because D4.36 otherwise lets a base with forty boxes
-    on the row avoid crippled status indefinitely.
+    **(S2.41 C) RULED 2026-11-11: an excess damage BOX must be destroyed.** "A ship is crippled
+    when ... C: Any excess damage hits." The owner's reading is the literal one and the one
+    already implemented — `isCrippled` compares `getExcessDamage()` against
+    `getOriginalExcessDamage()`, so a box has to go. No code changed; the ruling closed the
+    question.
+
+    The rejected reading was *any hit allocated to the excess damage ROW, wherever it is
+    actually scored*. What the ruling therefore grants is that **(D4.36)'s option doubles as
+    cripple-avoidance**: a hit allocated to the excess row but scored on cargo, repair or a mine
+    rack destroys no excess box, so condition C never fires.
+
+    That is not the loophole it first looks like, and the reason is worth keeping. **Repair boxes
+    ARE interior boxes under (S2.41 B)** — B's exclusion list is exhaustive, "shields, armor,
+    sensor, scanner, DamCon, or excess damage", and repair is not in it. So spending repair
+    boxes to dodge condition C drives condition B towards its 50%. The escape converts a
+    C-cripple into progress towards a B-cripple rather than avoiding both, which is why a base
+    with thirty repair boxes cannot sit on the excess row forever after all.
+
+    Condition B's exclusions were checked while closing this and are all honoured, by two
+    different means: shields and the sensor, scanner and DamCon TRACKS are never in
+    `getTotalSSDBoxes()` at all, while armor and excess damage are in it and subtracted again in
+    `isCrippled`. Both totals are private and used by nothing but `isCrippled`.
+
+  - **(S2.41 B) MINE RACK boxes are not counted as interior boxes, and should be.** Found closing
+    the ruling above. `getTotalSSDBoxes()`/`getCurrentBoxes()` sum control, power, hull, labs,
+    tractors, probes, transporters, excess, shuttles and weapons — Ship's
+    `List<MineRack> mineRacks` is in neither, so a rack is excluded from both the original count
+    and the remaining one.
+
+    B's exclusion list does not mention mine racks, and the same reasoning that makes repair
+    boxes interior boxes makes a rack one too. The effect is small and favours the owner: a hull
+    that loses its racks does not count those losses towards the 50%, so it cripples slightly
+    LATER than it should. Confined to crippling, since nothing else calls either method. Wants
+    its own commit and its own mutants, and a test on a hull that actually declares racks.
 
   - **Cargo boxes are a COUNT, not addressable objects.** The owner's point (2026-11-10) when the
     cargo row went in: "if a ship is carrying important cargo in a specific cargo box, but others
