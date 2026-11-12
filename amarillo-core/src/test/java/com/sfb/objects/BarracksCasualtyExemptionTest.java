@@ -381,6 +381,11 @@ public class BarracksCasualtyExemptionTest {
             result = target.applyInternalDamage(result.remainingBleed, null);
             log.addAll(result.log);
         }
+        // (D7.21) The casualties are taken once the volley is fully placed, not point by point,
+        // because "casualties under (D7.832) are scored first". DamageResolver calls this right
+        // after the guard reconcile; a test driving the ship by hand has to do the same, or the
+        // casualties it is measuring never happen at all.
+        log.addAll(target.applyPendingInternalCasualties());
         return log;
     }
 

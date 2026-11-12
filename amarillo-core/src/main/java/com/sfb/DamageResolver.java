@@ -1263,6 +1263,15 @@ class DamageResolver {
             for (Ship ship : game.getShips()) {
                 for (String line : ship.getGuardPosts().reconcileAfterDamage())
                     game.internalDamageLog().add("  [" + ship.getName() + "] " + line);
+                // D7.21: "Casualties under (D7.832) are scored first, before casualties
+                // resulting from general internal damage." So the every-tenth-point crew and
+                // boarding-party casualties are taken HERE, after the guard rolls above, and
+                // not point by point inside Ship.applyInternalDamage: which post died is only
+                // known once the whole volley is placed, DAC choices and all, and this is the
+                // one place in the sequence where that is true. Harmless on an untouched hull -
+                // the call is catch-up arithmetic and does nothing when nothing is owing.
+                for (String line : ship.applyPendingInternalCasualties())
+                    game.internalDamageLog().add("  [" + ship.getName() + "] " + line);
             }
             game.cleanupDestroyedShips();
 

@@ -233,9 +233,14 @@ public class InternalsScoredTest {
                     ? null : result.options.get(0);
             target.applyDacChoiceHit(result.choiceType, chosen, attacker);
             if (result.remainingBleed <= 0)
-                return;
+                break;
             result = target.applyInternalDamage(result.remainingBleed, attacker);
         }
+        // (D7.21) G9.21's crew kills and D7.21's party losses are taken once the volley is
+        // placed, after the (D7.832) guard rolls - so a hand-driven pump has to ask for them,
+        // exactly as DamageResolver does. The early `return` this replaces would have skipped
+        // them on the one path that matters, the last choice of a volley.
+        target.applyPendingInternalCasualties();
     }
 
     private static void assumeArmor(int armor) {

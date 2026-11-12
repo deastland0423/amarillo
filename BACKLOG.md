@@ -926,33 +926,59 @@ groundwork already in place.
     the object is usually the scenario. Seven mutants, all killed; the order between weapon and
     tractor is declared, not derived.
 
-    **Found doing this and NOT built: (D7.21) orders the two kinds of casualty.** "Casualties
-    under (D7.832) are scored first, before casualties resulting from general internal damage."
-    (D7.832) is the guard whose post was destroyed. We run the opposite way round: the (D7.21)
-    block runs inside `applyInternalDamage`, and `GuardPosts.reconcileAfterDamage()` is called
-    afterwards from `DamageResolver`. It only shows up through the last-two floor and through
-    which parties are still there to be taken, so the effect is small — but it is a real
-    divergence and it is cheap to get wrong twice, so it is written down here rather than
-    guessed at.
+  - **(D7.21) orders the two kinds of casualty, and now we do too — BUILT 2026-11-12.**
+    "Casualties under (D7.832) are scored first, before casualties resulting from general
+    internal damage." (D7.832) is the guard whose POST was destroyed. We ran it the opposite way
+    round: the casualty block was inside `applyInternalDamage`'s per-point loop, while
+    `GuardPosts.reconcileAfterDamage()` is called afterwards from `DamageResolver`.
+
+    The block is now `Ship.applyPendingInternalCasualties()`, called by
+    `DamageResolver.resolveInternalDamage()` immediately after the guard reconcile, and by the
+    non-interactive `applyInternalDamage(int)` at the end of its own run. What made this a small
+    change rather than a refactor is that the block was ALREADY catch-up arithmetic against two
+    high-water marks (`crewKilledByInternalDamage`, `bpCasualtiesProcessed`), so it is safe to
+    run late and safe to run twice — the resolver can call it once per ship per resolution
+    without knowing which ships were hit.
+
+    **The order is not bookkeeping: it decides whether (D7.21)'s own floor holds.** A guard
+    killed under (D7.832) is not killed "by this method", so it CAN take a ship below two
+    parties. Three aboard with one guard whose post is gone: score the general casualty first and
+    the ship ends with ONE, which (D7.21) forbids, and the party cannot be given back.
+    `GuardCasualtyOrderTest` drives that through the real pipeline — `markShieldDamage` for an
+    exact volley, `submitDacChoice` for the pauses — with the (D7.832) 50% forced. Three mutants,
+    all killed, one of which was the swap of the two loops.
+
+    Only two test helpers drove `applyInternalDamage` by hand and so had to learn the new step
+    (`InternalsScoredTest.applyAll`, `BarracksCasualtyExemptionTest.pumpDamageAvoidingBarracks`).
+    Nothing in amarillo-server or amarillo-web touches either method.
 
   - **(G28.33) second clause, "hits on barracks boxes do not count for these purposes":
     deliberately NOT built.** `applyInternalDamage` increments `internalDamagePointsTotal` and
     runs the whole G9.21/D7.21 casualty block at the TOP of each iteration, before the point's
     destination is known.
 
-    The obvious fix is to move the block below the placement, and the block is already safe to
-    run late — it is catch-up arithmetic against high-water marks (`killThreshold -
-    crewKilledByInternalDamage`), not a one-shot. **But there is no longer a single place where
-    "the point has been placed" is true.** A point needing the owner's pick returns out of the
-    loop with a `DamageResult` and is placed later, in `DamageResolver`, on a separate call — and
-    every Annex #7E conversion row can pause that way, the barracks row among them. The exemption
-    needs a seam both paths converge on, and that seam does not exist. Building it to serve three
-    boxes on one hull is the wrong trade.
+    **CORRECTION 2026-11-12: the seam this was waiting for exists, and this entry said it did
+    not.** It claimed "there is no longer a single place where 'the point has been placed' is
+    true", because a point needing the owner's pick is placed later, in `DamageResolver`, on a
+    separate call. The premise was right and the conclusion was wrong: `resolveInternalDamage()`
+    drains the pending queue and only falls out of its loop when every point — DAC choices and
+    all — is down, and `GuardPosts.reconcileAfterDamage()` has been sitting in exactly that spot
+    the whole time. `Game.submitDacChoice` re-enters the resolver, so the spot is always reached.
 
-    Do NOT "fix" it by decrementing the total after a barracks hit lands: the barracks point may
-    already have tripped its own threshold and advanced the high-water mark, and the crew unit is
-    dead by then. That is wrong on exactly the tenth points, which are the only points where the
-    rule does anything.
+    The casualty block has now moved there anyway, for the (D7.21)/(D7.832) ordering above. So
+    what remains for this clause is just a count: the number of internal points that landed on a
+    barracks box, subtracted from the odometer before dividing by ten. The block reads
+    `internalDamagePointsTotal` once, in one place, so it is a counter and one expression.
+
+    Still NOT built, now for want of asking rather than for want of a seam. Do NOT "fix" it by
+    decrementing the odometer the moment a barracks hit lands — see below.
+
+    Do NOT "fix" it by decrementing the total after a barracks hit lands. That was fatal when the
+    casualty block ran per point — the barracks point had already tripped its threshold and
+    advanced the high-water mark, and the crew unit was dead by then, which is wrong on exactly
+    the tenth points, the only points where the rule does anything. It is merely redundant now
+    that the block runs once at the end: keep the barracks count separate and subtract it when
+    computing the threshold, rather than mutating the odometer, which is also saved and restored.
 
   - **(D4.40) The excess damage row and the destruction guard: BUILT 2026-11-10.** "When there
     are no 'excess damage' boxes remaining, and one additional excess damage hit is scored on the

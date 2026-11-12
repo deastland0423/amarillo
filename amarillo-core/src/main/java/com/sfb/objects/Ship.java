@@ -5092,6 +5092,104 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
+	 * (G9.21, D7.21) Take the crew and boarding-party casualties the internal damage scored so
+	 * far has earned, and return the log lines.
+	 *
+	 * <h2>Why this is not inside the damage loop</h2>
+	 * (D7.21): "Casualties under (D7.832) are scored first, before casualties resulting from
+	 * general internal damage." (D7.832) is the guard whose POST was destroyed, and WHICH post
+	 * died cannot be known until every point of the volley has been placed. So the order the
+	 * rule asks for is: place the damage, roll the guard casualties, and only then take the
+	 * every-tenth-point ones. {@code DamageResolver.resolveInternalDamage} does exactly that,
+	 * calling this immediately after {@code GuardPosts.reconcileAfterDamage()} - which is the
+	 * one point in the sequence where the whole volley is down, DAC choices and all.
+	 *
+	 * <p>Safe to run late and safe to run twice, because it is CATCH-UP arithmetic against two
+	 * high-water marks ({@code crewKilledByInternalDamage} and {@code bpCasualtiesProcessed})
+	 * rather than a per-point side effect. A call that finds nothing owing does nothing and logs
+	 * nothing, which is what lets the resolver call it once per ship per resolution without
+	 * caring which ships were hit.
+	 *
+	 * <p>It also means the floors are read at the END of the volley: (G9.22)'s last crew unit and
+	 * (D7.21)'s last two parties are measured against who is left once the guards have taken
+	 * theirs, which is the whole point of the ordering clause.
+	 */
+	public List<String> applyPendingInternalCasualties() {
+		List<String> log = new ArrayList<>();
+		// G9.21: every 10th internal damage point kills 1 crew unit
+		int killThreshold = internalDamagePointsTotal / 10;
+		int newCrewKills = killThreshold - crewKilledByInternalDamage;
+		if (newCrewKills > 0) {
+			crewKilledByInternalDamage += newCrewKills;
+			int current = getCrew().getAvailableCrewUnits();
+			int actual = Math.min(newCrewKills, Math.max(0, current - 1)); // G9.22: last crew unit protected
+			if (actual > 0) {
+				getCrew().setAvailableCrewUnits(current - actual);
+				log.add("  crew casualty: " + actual + " crew unit(s) lost to internal damage (G9.21)");
+			}
+		}
+
+		// D7.21: every 10th point also generates a BP casualty; first 4 events ignored,
+		// last 2 BPs protected.
+		// Casualties are normal parties first, commandos last. Floor applies only to
+		// internal damage;
+		// boarding combat and H&R raids can kill the last 2 BPs freely.
+		// TODO: multi-faction support (D7.21 para 2) — requires per-faction BP tracking
+		// on the defending
+		// ship, which the data model does not yet support.
+		int effectiveBpEvents = Math.max(0, killThreshold - 4);
+		int newBpEvents = effectiveBpEvents - bpCasualtiesProcessed;
+		if (newBpEvents > 0) {
+			bpCasualtiesProcessed += newBpEvents;
+
+			// G28.33: "Boarding parties in a barracks box are not subject to casualties
+			// under (G9.2) and (D7.21)." So the casualty is drawn only from the parties NOT
+			// quartered in a barracks box. On every hull without barracks that is all of
+			// them; on the Federation CMC it is normally none, which is the whole point of
+			// a troop ship. G28.32 makes shelter the DEFAULT rather than something the
+			// owner assigns, so this needs no order and no UI.
+			//
+			// D7.21's pool also includes the posted guards, which the roster does not: see
+			// casualtyEligibleBoardingParties().
+			//
+			// The two-party floor is measured against everyone ABOARD, not against the
+			// eligible subset, because D7.21 protects "the last two boarding parties ON THE
+			// SHIP" - a sheltered party counts towards that floor even though it can never
+			// be the one taken.
+			int eligible = casualtyEligibleBoardingParties();
+			int actual = Math.min(newBpEvents,
+					Math.min(eligible, Math.max(0, boardingPartiesAboard() - 2)));
+			if (actual > 0) {
+				// Roster parties before guards. Owner's optimal line, and the same reasoning
+				// as the barracks packing ruling: an unsheltered marine is doing nothing a
+				// guard at a post is not doing better, so nobody would spend the guard while
+				// a loose party is available. Read exposed BEFORE removing any, since
+				// removeCasualties moves the roster it is derived from.
+				int fromRoster = Math.min(actual, exposedBoardingParties());
+				if (fromRoster > 0)
+					getCrew().getFriendlyTroops().removeCasualties(fromRoster);
+
+				List<String> vacated = new ArrayList<>();
+				for (int n = fromRoster; n < actual; n++) {
+					String post = guardPosts.killOneGuardAsCasualty();
+					if (post == null)
+						break; // belt and braces: eligible already counted the detail
+					vacated.add(post);
+				}
+
+				int taken = fromRoster + vacated.size();
+				if (taken > 0) {
+					log.add("  boarding party casualty: " + taken
+							+ " BP(s) lost to internal damage (D7.21)");
+					for (String post : vacated)
+						log.add("    " + post);
+				}
+			}
+		}
+		return log;
+	}
+
+	/**
 	 * Auto-resolving wrapper (used by tests and non-interactive contexts).
 	 * When a DAC result requires player choice, picks the first available option.
 	 */
@@ -5111,6 +5209,9 @@ public class Ship extends Unit implements DroneController {
 			if (remaining == 0)
 				dac.reset();
 		}
+		// The volley is fully placed, so the casualties are due (D7.21). There is no guard
+		// reconcile on this path - it has no Game to walk - so nothing can come before them.
+		allLog.addAll(applyPendingInternalCasualties());
 		return allLog;
 	}
 
@@ -5138,77 +5239,6 @@ public class Ship extends Unit implements DroneController {
 					: attacker.getOwner().getTeamName();
 			if (scoringTeam != null)
 				internalsTakenByTeam.merge(scoringTeam, 1, Integer::sum);
-
-			// G9.21: every 10th internal damage point kills 1 crew unit
-			int killThreshold = internalDamagePointsTotal / 10;
-			int newCrewKills = killThreshold - crewKilledByInternalDamage;
-			if (newCrewKills > 0) {
-				crewKilledByInternalDamage += newCrewKills;
-				int current = getCrew().getAvailableCrewUnits();
-				int actual = Math.min(newCrewKills, Math.max(0, current - 1)); // G9.22: last crew unit protected
-				if (actual > 0) {
-					getCrew().setAvailableCrewUnits(current - actual);
-					log.add("  crew casualty: " + actual + " crew unit(s) lost to internal damage (G9.21)");
-				}
-			}
-
-			// D7.21: every 10th point also generates a BP casualty; first 4 events ignored,
-			// last 2 BPs protected.
-			// Casualties are normal parties first, commandos last. Floor applies only to
-			// internal damage;
-			// boarding combat and H&R raids can kill the last 2 BPs freely.
-			// TODO: multi-faction support (D7.21 para 2) — requires per-faction BP tracking
-			// on the defending
-			// ship, which the data model does not yet support.
-			int effectiveBpEvents = Math.max(0, killThreshold - 4);
-			int newBpEvents = effectiveBpEvents - bpCasualtiesProcessed;
-			if (newBpEvents > 0) {
-				bpCasualtiesProcessed += newBpEvents;
-
-				// G28.33: "Boarding parties in a barracks box are not subject to casualties
-				// under (G9.2) and (D7.21)." So the casualty is drawn only from the parties NOT
-				// quartered in a barracks box. On every hull without barracks that is all of
-				// them; on the Federation CMC it is normally none, which is the whole point of
-				// a troop ship. G28.32 makes shelter the DEFAULT rather than something the
-				// owner assigns, so this needs no order and no UI.
-				//
-				// D7.21's pool also includes the posted guards, which the roster does not: see
-				// casualtyEligibleBoardingParties().
-				//
-				// The two-party floor is measured against everyone ABOARD, not against the
-				// eligible subset, because D7.21 protects "the last two boarding parties ON THE
-				// SHIP" - a sheltered party counts towards that floor even though it can never
-				// be the one taken.
-				int eligible = casualtyEligibleBoardingParties();
-				int actual = Math.min(newBpEvents,
-						Math.min(eligible, Math.max(0, boardingPartiesAboard() - 2)));
-				if (actual > 0) {
-					// Roster parties before guards. Owner's optimal line, and the same reasoning
-					// as the barracks packing ruling: an unsheltered marine is doing nothing a
-					// guard at a post is not doing better, so nobody would spend the guard while
-					// a loose party is available. Read exposed BEFORE removing any, since
-					// removeCasualties moves the roster it is derived from.
-					int fromRoster = Math.min(actual, exposedBoardingParties());
-					if (fromRoster > 0)
-						getCrew().getFriendlyTroops().removeCasualties(fromRoster);
-
-					List<String> vacated = new ArrayList<>();
-					for (int n = fromRoster; n < actual; n++) {
-						String post = guardPosts.killOneGuardAsCasualty();
-						if (post == null)
-							break; // belt and braces: eligible already counted the detail
-						vacated.add(post);
-					}
-
-					int taken = fromRoster + vacated.size();
-					if (taken > 0) {
-						log.add("  boarding party casualty: " + taken
-								+ " BP(s) lost to internal damage (D7.21)");
-						for (String post : vacated)
-							log.add("    " + post);
-					}
-				}
-			}
 
 			int roll = roller.rollTwoDice();
 			String system = dac.fetchNextHit(roll);
