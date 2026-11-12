@@ -25,10 +25,14 @@ import org.junit.Test;
  *
  * <h2>This is not a marginal carve-out</h2>
  * Shelter is the DEFAULT, not something the owner assigns: every non-guard party on a hull with
- * barracks is quartered automatically. The Federation CMC declares {@code barracks: 3} and
- * {@code boardingParties: 8}, and three boxes hold thirty, so its entire marine complement is
- * sheltered with room for twenty-two more. Without this rule the one hull in the game built to
- * carry marines loses them to generic internal damage like any freighter.
+ * barracks is quartered automatically. The Federation CMC declares {@code barracks: 3}, and
+ * three boxes hold thirty of its thirty-two parties, so all but two are sheltered. Without this
+ * rule the one hull in the game built to carry marines loses them to generic internal damage
+ * like any freighter.
+ *
+ * <p>These fixtures state their own complements rather than reading that number, because it has
+ * already changed once mid-build (eight parties, then thirty-two) and broke five tests that had
+ * hard-coded the old one.
  *
  * <h2>Only the D7.21 half needs code</h2>
  * G28.33 names G9.2 as well, but (G9.21) kills CREW UNITS — "every tenth internal damage point
@@ -262,33 +266,96 @@ public class BarracksCasualtyExemptionTest {
     }
 
     /**
-     * Pins a PRE-EXISTING divergence this rule makes visible, rather than quietly changing it.
+     * (D7.21) A posted guard is a valid casualty, and on a troop ship it is the ONLY one.
      *
      * <blockquote>D7.21: "The BP to be lost is selected by the owning player and can be any of
      * his own BPs <b>(including guards)</b> except one captured by the enemy."</blockquote>
      *
-     * So a guard IS eligible for an internal-damage casualty. But {@code GuardPosts.assign} takes
-     * the party off the roster while it is posted (D7.834), and D7.21 draws from
-     * {@code getAvailableBoardingParties()} — so a posted guard cannot currently be chosen, on
-     * any hull, barracks or not. That predates this commit and is recorded in the backlog; it is
-     * pinned here because the barracks exemption is what makes it reachable on a troop ship,
-     * where guards would otherwise be the only parties left to take.
+     * <p>This is the case that made the gap worth closing (owner's ruling 2026-11-12). Every
+     * party on this CMC is either sheltered by (G28.33) or standing at a post, so if the guard
+     * were out of reach the ship would be wholly immune to internal-damage attrition — two
+     * guards would have bought the Federation CMC total immunity. {@code GuardPosts.assign}
+     * takes the party off the roster while posted (D7.834), so the roster alone cannot see it;
+     * {@link Ship#casualtyEligibleBoardingParties} is what can.
      */
     @Test
-    public void aPostedGuardIsCurrentlyOutOfReachOfD7_21() {
-        Ship cmc = commandoCruiser();
-        cmc.getCrew().setAvailableBoardingParties(ALL_SHELTERED); // under the thirty berths
+    public void aPostedGuardIsTakenWhenEveryOtherPartyIsSheltered() {
+        Ship cmc = deepHulledCommandoCruiser(); // twenty parties, thirty berths
+        assertEquals("fixture: this test needs a guard posted", 1, postOneGuard(cmc));
 
-        int posted = postOneGuard(cmc);
-        assertEquals("fixture: this test needs a guard posted", 1, posted);
+        int roster = cmc.getCrew().getAvailableBoardingParties();
+        assertEquals("the guard left the roster (D7.834)", ALL_SHELTERED - 1, roster);
+        assertEquals("and everyone still on it is quartered", roster,
+                cmc.boardingPartiesInBarracks());
+        assertEquals("so the guard is the whole eligible pool", 0, cmc.exposedBoardingParties());
+        assertEquals(1, cmc.casualtyEligibleBoardingParties());
+        assertEquals("while the ship counts every party aboard, posted or not",
+                ALL_SHELTERED, cmc.boardingPartiesAboard());
 
-        assertEquals("the guard left the roster (D7.834)",
-                ALL_SHELTERED - 1, cmc.getCrew().getAvailableBoardingParties());
-        assertEquals("the rest are all quartered",
-                ALL_SHELTERED - 1, cmc.boardingPartiesInBarracks());
-        assertEquals("so the pool D7.21 draws from holds nobody at all - not even the guard,"
-                + " whom D7.21 explicitly makes eligible",
-                0, cmc.exposedBoardingParties());
+        List<String> log = pumpDamageAvoidingBarracks(cmc, POINTS_DRIVEN);
+
+        assertDroveEnoughDamage(cmc);
+        assertEquals("fixture: the barracks must have survived the run",
+                3, cmc.getHullBoxes().getAvailableBarracks());
+        assertEquals("the guard was taken, and its post is vacant", 0,
+                cmc.getGuardPosts().totalPosted());
+        assertEquals("it was DESTROYED, not released - the roster must not have grown", roster,
+                cmc.getCrew().getAvailableBoardingParties());
+        assertEquals("and the sheltered parties are still exempt", roster,
+                cmc.boardingPartiesInBarracks());
+        assertTrue("the log must name the post that fell vacant, got: " + log,
+                log.stream().anyMatch(l -> l.contains("taken as a casualty (D7.21)")));
+    }
+
+    /**
+     * (D7.21) A loose party is spent before a guard — the owner's optimal line.
+     *
+     * <p>Nobody pulls a marine off a post while an unsheltered one is standing about, so the
+     * roster goes first. One casualty event, nine loose parties, one guard: the guard keeps its
+     * post.
+     */
+    @Test
+    public void aLoosePartyIsSpentBeforeAGuard() {
+        Ship ca = ShipLibrary.createShip(ShipLibrary.get("Federation", "CA"));
+        ca.setName("USS Unsheltered");
+        ca.getCrew().setAvailableBoardingParties(10);
+        assertEquals("fixture: this test needs a guard posted", 1, postOneGuard(ca));
+        assertEquals("no barracks, so the nine left on the roster are all exposed", 9,
+                ca.exposedBoardingParties());
+
+        pumpDamageAvoidingBarracks(ca, ENOUGH_FOR_CASUALTIES); // one casualty event
+
+        assertDroveEnoughDamage(ca);
+        assertEquals("the casualty came off the roster", 8,
+                ca.getCrew().getAvailableBoardingParties());
+        assertEquals("and the guard is still at its post", 1, ca.getGuardPosts().totalPosted());
+    }
+
+    /**
+     * (D7.21) "the last two boarding parties <b>on the ship</b> cannot be killed by this method."
+     *
+     * <p>A guard is aboard, so it counts towards that two — which cuts both ways, and here it
+     * cuts against the owner. Two on the roster and one at a post is THREE aboard, so one of
+     * them can still be taken; measuring the floor against the roster alone would have made all
+     * three untouchable. The attrition stops at two aboard, not at two on the roster.
+     */
+    @Test
+    public void theLastTwoFloorCountsAGuardAsAboard() {
+        Ship ca = ShipLibrary.createShip(ShipLibrary.get("Federation", "CA"));
+        ca.setName("USS Thin");
+        ca.getCrew().setAvailableBoardingParties(3);
+        assertEquals("fixture: this test needs a guard posted", 1, postOneGuard(ca));
+        assertEquals("two on the roster", 2, ca.getCrew().getAvailableBoardingParties());
+        assertEquals("three aboard", 3, ca.boardingPartiesAboard());
+
+        pumpDamageAvoidingBarracks(ca, 400); // far more events than there are parties
+
+        assertDroveEnoughDamage(ca);
+        assertEquals("attrition ran down to the last two ABOARD", 2, ca.boardingPartiesAboard());
+        assertEquals("spending the roster first leaves the guard posted", 1,
+                ca.getGuardPosts().totalPosted());
+        assertEquals("so one roster party survives beside it", 1,
+                ca.getCrew().getAvailableBoardingParties());
     }
 
     // ---------------------------------------------------------------------------------- helpers

@@ -4702,7 +4702,7 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * (G28.33) The boarding parties an internal-damage casualty may actually be taken from.
+	 * (G28.33) The boarding parties on the roster that a barracks box is not sheltering.
 	 *
 	 * <blockquote>"Boarding parties in a barracks box are <b>not subject to casualties</b> under
 	 * (G9.2) and (D7.21)."</blockquote>
@@ -4723,10 +4723,50 @@ public class Ship extends Unit implements DroneController {
 	 * boarding party, so that half of the exemption holds by construction. (D7.21) is the rule
 	 * that draws on parties.
 	 *
-	 * @return the unsheltered parties, i.e. everything over ten a box
+	 * <h2>This is not the whole pool (D7.21) draws from</h2>
+	 * A posted guard is off the roster (D7.834) and so is not counted here either, but (D7.21)
+	 * makes it an eligible casualty all the same. The pool is
+	 * {@link #casualtyEligibleBoardingParties}, which is this plus the guard detail.
+	 *
+	 * @return the unsheltered parties on the roster, i.e. everything over ten a box
 	 */
 	public int exposedBoardingParties() {
 		return getCrew().getAvailableBoardingParties() - boardingPartiesInBarracks();
+	}
+
+	/**
+	 * (D7.21) Every boarding party aboard, the posted guards included.
+	 *
+	 * <p>{@code getAvailableBoardingParties()} is the roster, and {@code GuardPosts.assign}
+	 * takes a party OFF the roster while it stands at a post (D7.834), so the roster alone
+	 * under-reports the ship by the size of the guard detail. (D7.21) protects "the last two
+	 * boarding parties <b>on the ship</b>", and a guard is as much aboard as a marine asleep in
+	 * the barracks, so this - not the roster - is what that floor is measured against.
+	 */
+	public int boardingPartiesAboard() {
+		return getCrew().getAvailableBoardingParties() + guardPosts.totalPosted();
+	}
+
+	/**
+	 * (D7.21) The boarding parties an internal-damage casualty may actually be taken from.
+	 *
+	 * <blockquote>"The BP to be lost is selected by the owning player and can be any of his own
+	 * BPs <b>(including guards)</b> except one captured by the enemy."</blockquote>
+	 *
+	 * <p>So the pool is everyone aboard except the one group a rule removes from it: the parties
+	 * a barracks box shelters (G28.33). Owner's ruling 2026-11-12: a guard IS a valid choice,
+	 * which it had not been, because the roster that (D7.21) drew from had already lost it to
+	 * its post.
+	 *
+	 * <p>That gap mattered most exactly where it was least visible. On a hull with barracks the
+	 * guards are the only parties (D7.21) can legitimately take, so posting two guards on the
+	 * Federation CMC used to buy the whole ship total immunity from internal-damage attrition -
+	 * a bigger prize than either rule meant to hand out.
+	 *
+	 * @return the unsheltered roster parties plus every posted guard
+	 */
+	public int casualtyEligibleBoardingParties() {
+		return exposedBoardingParties() + guardPosts.totalPosted();
 	}
 
 	/**
@@ -5124,7 +5164,6 @@ public class Ship extends Unit implements DroneController {
 			int newBpEvents = effectiveBpEvents - bpCasualtiesProcessed;
 			if (newBpEvents > 0) {
 				bpCasualtiesProcessed += newBpEvents;
-				int currentBp = getCrew().getAvailableBoardingParties();
 
 				// G28.33: "Boarding parties in a barracks box are not subject to casualties
 				// under (G9.2) and (D7.21)." So the casualty is drawn only from the parties NOT
@@ -5133,16 +5172,41 @@ public class Ship extends Unit implements DroneController {
 				// a troop ship. G28.32 makes shelter the DEFAULT rather than something the
 				// owner assigns, so this needs no order and no UI.
 				//
-				// The two-party floor is measured against the ship's WHOLE roster, not the
-				// exposed subset, because D7.21 protects "the last two boarding parties ON THE
-				// SHIP" - a sheltered party still counts towards that floor even though it can
-				// never be the one taken.
-				int eligible = exposedBoardingParties();
+				// D7.21's pool also includes the posted guards, which the roster does not: see
+				// casualtyEligibleBoardingParties().
+				//
+				// The two-party floor is measured against everyone ABOARD, not against the
+				// eligible subset, because D7.21 protects "the last two boarding parties ON THE
+				// SHIP" - a sheltered party counts towards that floor even though it can never
+				// be the one taken.
+				int eligible = casualtyEligibleBoardingParties();
 				int actual = Math.min(newBpEvents,
-						Math.min(eligible, Math.max(0, currentBp - 2)));
+						Math.min(eligible, Math.max(0, boardingPartiesAboard() - 2)));
 				if (actual > 0) {
-					getCrew().getFriendlyTroops().removeCasualties(actual);
-					log.add("  boarding party casualty: " + actual + " BP(s) lost to internal damage (D7.21)");
+					// Roster parties before guards. Owner's optimal line, and the same reasoning
+					// as the barracks packing ruling: an unsheltered marine is doing nothing a
+					// guard at a post is not doing better, so nobody would spend the guard while
+					// a loose party is available. Read exposed BEFORE removing any, since
+					// removeCasualties moves the roster it is derived from.
+					int fromRoster = Math.min(actual, exposedBoardingParties());
+					if (fromRoster > 0)
+						getCrew().getFriendlyTroops().removeCasualties(fromRoster);
+
+					List<String> vacated = new ArrayList<>();
+					for (int n = fromRoster; n < actual; n++) {
+						String post = guardPosts.killOneGuardAsCasualty();
+						if (post == null)
+							break; // belt and braces: eligible already counted the detail
+						vacated.add(post);
+					}
+
+					int taken = fromRoster + vacated.size();
+					if (taken > 0) {
+						log.add("  boarding party casualty: " + taken
+								+ " BP(s) lost to internal damage (D7.21)");
+						for (String post : vacated)
+							log.add("    " + post);
+					}
 				}
 			}
 

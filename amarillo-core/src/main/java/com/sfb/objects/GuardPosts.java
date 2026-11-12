@@ -316,6 +316,98 @@ public class GuardPosts {
         return log;
     }
 
+    // -------------------------------------------------------------------------
+    // Internal-damage casualties (D7.21)
+    // -------------------------------------------------------------------------
+
+    /**
+     * (D7.21) Take one posted guard as an internal-damage casualty.
+     *
+     * <blockquote>"The BP to be lost is selected by the owning player and can be any of his own
+     * BPs <b>(including guards)</b> except one captured by the enemy."</blockquote>
+     *
+     * <p>The party is DESTROYED, not released: it does not go back on the roster, and its post
+     * is left vacant, so the system it was watching is unguarded from here on. There is no
+     * (D7.832) die roll — that rule is for a guard whose post was shot out from under it, and
+     * this is a marine killed by the general carnage who happened to be standing at a post.
+     *
+     * <h2>Which guard, when the rule says the owner picks</h2>
+     * We do not model that choice, so this takes the one the owner would plausibly give up
+     * first, on the same principle as the barracks packing ruling: assume the option is played
+     * as well as it can be played.
+     *
+     * <ol>
+     * <li><b>Pool posts first</b> (hull, batteries, transporters), and among them the post with
+     * the worst odds. A pool guard intercepts a raid with probability guards/boxes (D7.8374), so
+     * one of two guards on twenty hull boxes is protecting 5% of a raid's target space — the
+     * cheapest party on the ship to lose.</li>
+     * <li>Then weapon posts, then tractor posts. Each covers exactly one system; the order
+     * between them is declared, not derived.</li>
+     * <li>Then singleton posts. One guard covers every box of a control type or a whole engine
+     * (D7.8371), which is the densest protection a single party can give.</li>
+     * <li>Objective posts LAST. (D7.833) allows one guard per object and the object is usually
+     * the scenario; giving it up to save a marine is the one trade nobody would make.</li>
+     * </ol>
+     *
+     * @return a log fragment naming the vacated post, or null when no guard is posted
+     */
+    public String killOneGuardAsCasualty() {
+        SystemTarget.Type pool = cheapestPoolPost();
+        if (pool != null) {
+            List<BoardingPartyQuality> list = poolGuards.get(pool);
+            list.remove(list.size() - 1);
+            if (list.isEmpty())
+                poolGuards.remove(pool);
+            // poolLastKnown is deliberately NOT refreshed here. It is the box count at the last
+            // reconcile, and boxes lost in this same damage step have yet to roll their
+            // (D7.832) casualties; overwriting it would swallow those rolls. Removing a guard
+            // does not change the box count, so it has nothing to say to it.
+            return "guard on " + pool + " taken as a casualty (D7.21)";
+        }
+        if (!weaponGuards.isEmpty()) {
+            Weapon weapon = weaponGuards.keySet().iterator().next();
+            weaponGuards.remove(weapon);
+            return "guard on " + weapon.getName() + " taken as a casualty (D7.21)";
+        }
+        if (!tractorGuards.isEmpty()) {
+            Integer beam = tractorGuards.keySet().iterator().next();
+            tractorGuards.remove(beam);
+            return "guard on Tractor #" + beam + " taken as a casualty (D7.21)";
+        }
+        if (!singletonGuards.isEmpty()) {
+            SystemTarget.Type type = singletonGuards.keySet().iterator().next();
+            singletonGuards.remove(type);
+            return "guard on " + type + " taken as a casualty (D7.21)";
+        }
+        if (!objectiveGuards.isEmpty()) {
+            String name = objectiveGuards.keySet().iterator().next();
+            objectiveGuards.remove(name);
+            return "guard on " + name + " taken as a casualty (D7.21)";
+        }
+        return null;
+    }
+
+    /**
+     * The pool post whose guard is doing the least good: lowest guards/boxes. POOL_TYPES is an
+     * EnumSet, so a tie goes to whichever type SystemTarget.Type declares first, which is
+     * arbitrary but stable. Null when no pool post is manned.
+     */
+    private SystemTarget.Type cheapestPoolPost() {
+        SystemTarget.Type worst = null;
+        double worstOdds = Double.MAX_VALUE;
+        for (SystemTarget.Type type : POOL_TYPES) {
+            List<BoardingPartyQuality> list = poolGuards.get(type);
+            if (list == null || list.isEmpty())
+                continue;
+            double odds = list.size() / (double) Math.max(1, poolBoxCount(type));
+            if (odds < worstOdds) {
+                worstOdds = odds;
+                worst = type;
+            }
+        }
+        return worst;
+    }
+
     /** Roll the D7.832 50%: the guard dies, or is released to the roster. */
     private String casualtyRoll(BoardingPartyQuality quality, String postName) {
         if (random.nextInt(2) == 0)

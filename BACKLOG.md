@@ -889,23 +889,51 @@ groundwork already in place.
     `getAvailableCrewUnits()`. It has no path to a boarding party, so that half holds by
     construction. (D7.21) is the rule that draws on parties.
 
-    **(D7.21)'s two-party floor is measured against the whole roster, not the exposed subset:**
-    "the last two boarding parties ON THE SHIP cannot be killed by this method". A sheltered
-    party still counts towards that floor even though it can never be the one taken.
+    **(D7.21)'s two-party floor is measured against everyone ABOARD, not against the eligible
+    subset:** "the last two boarding parties ON THE SHIP cannot be killed by this method". A
+    sheltered party counts towards that floor even though it can never be the one taken, and so
+    does a posted guard, which is not on the roster at all — `Ship.boardingPartiesAboard()`.
 
-  - **(D7.21) a posted GUARD cannot currently be an internal-damage casualty, and the rule says
-    it should be.** "The BP to be lost is selected by the owning player and can be any of his own
-    BPs **(including guards)** except one captured by the enemy." But `GuardPosts.assign` takes
-    the party off the roster while it is posted (D7.834, which is why a guard does not fight in
-    boarding combat), and (D7.21) draws from `getAvailableBoardingParties()` — so a guard is out
-    of reach on every hull, barracks or not.
+  - **(D7.21) a posted GUARD is a valid internal-damage casualty — RULED and BUILT 2026-11-12.**
+    "The BP to be lost is selected by the owning player and can be any of his own BPs
+    **(including guards)** except one captured by the enemy." `GuardPosts.assign` takes the party
+    off the roster while it is posted (D7.834, which is why a guard does not fight in boarding
+    combat), and (D7.21) drew from `getAvailableBoardingParties()`, so a guard had been out of
+    reach on every hull. Owner's ruling: "Guards placed on guard duty are also valid choices for
+    casualties."
 
-    Predates the barracks work and is pinned by `aPostedGuardIsCurrentlyOutOfReachOfD7_21` rather
-    than quietly changed, because the barracks exemption is what makes it matter: on a troop ship
-    the guards are now the only parties D7.21 could legitimately take, and it takes none of them.
-    Fixing it means D7.21 drawing from a pool that spans the roster AND the guard posts, and
-    deciding which one a casualty comes out of — "selected by the owning player", so arguably
-    another DAC-style choice. Wants a ruling before code.
+    The pool is now `Ship.casualtyEligibleBoardingParties()` — the unsheltered roster parties
+    plus the whole guard detail. A guard taken this way is **destroyed, not released**: it does
+    not go back on the roster and its post falls vacant, so the system it was watching is
+    unguarded from then on. There is no (D7.832) 50% roll, because that rule is for a guard whose
+    post was shot out from under it, not for a marine killed by the general carnage who happened
+    to be standing at one.
+
+    **Why it mattered most where it was least visible.** On a hull with barracks the guards are
+    the only parties (D7.21) can legitimately take, so before this, posting two guards on the
+    Federation CMC bought the whole ship total immunity from internal-damage attrition — a bigger
+    prize than either rule meant to hand out. `aPostedGuardIsTakenWhenEveryOtherPartyIsSheltered`
+    is that exact fixture.
+
+    **Which guard dies is a choice we do not model**, so `GuardPosts.killOneGuardAsCasualty()`
+    takes the one the owner would plausibly give up first — the barracks-packing principle again:
+    assume the option is played as well as it can be played. Roster parties before any guard (an
+    unsheltered marine is doing nothing a guard is not doing better); then pool posts, worst
+    guards/boxes odds first, because a pool guard only intercepts with probability guards/boxes
+    (D7.8374) and one guard over twenty hull boxes is the cheapest party on the ship; then weapon
+    and tractor posts; then singleton posts, where one guard covers a whole control type or
+    engine (D7.8371); and an objective post LAST, since (D7.833) allows one guard per object and
+    the object is usually the scenario. Seven mutants, all killed; the order between weapon and
+    tractor is declared, not derived.
+
+    **Found doing this and NOT built: (D7.21) orders the two kinds of casualty.** "Casualties
+    under (D7.832) are scored first, before casualties resulting from general internal damage."
+    (D7.832) is the guard whose post was destroyed. We run the opposite way round: the (D7.21)
+    block runs inside `applyInternalDamage`, and `GuardPosts.reconcileAfterDamage()` is called
+    afterwards from `DamageResolver`. It only shows up through the last-two floor and through
+    which parties are still there to be taken, so the effect is small — but it is a real
+    divergence and it is cheap to get wrong twice, so it is written down here rather than
+    guessed at.
 
   - **(G28.33) second clause, "hits on barracks boxes do not count for these purposes":
     deliberately NOT built.** `applyInternalDamage` increments `internalDamagePointsTotal` and

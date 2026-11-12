@@ -209,6 +209,83 @@ public class GuardPostsTest {
         assertTrue(after.getMessage().contains("D7.83"));
     }
 
+    // -------------------------------------------------------------------------
+    // Internal-damage casualties (D7.21)
+    // -------------------------------------------------------------------------
+
+    /**
+     * (D7.21) "The BP to be lost is selected by the owning player and can be any of his own BPs
+     * (including guards)." We do not model that choice, so the pick is the one the owner would
+     * plausibly make: the guard doing the least good goes first, and a pool post is worth less
+     * than a post on a specific system because it only ever intercepts a raid with probability
+     * guards/boxes (D7.8374).
+     */
+    @Test
+    public void d7_21_takesAPoolGuardBeforeAWeaponGuard() {
+        assertNull(fed.getGuardPosts().assign(weaponTarget(0), BoardingPartyQuality.NORMAL));
+        assertNull(fed.getGuardPosts().assign(transporters(), BoardingPartyQuality.NORMAL));
+        assertEquals("fixture: two guards posted", 2, fed.getGuardPosts().totalPosted());
+
+        String log = fed.getGuardPosts().killOneGuardAsCasualty();
+
+        assertNotNull("a guard is a valid casualty (D7.21)", log);
+        assertTrue(log, log.contains("TRANSPORTERS"));
+        assertFalse("the pool post is the cheapest party on the ship to lose",
+                fed.getGuardPosts().isGuarded(SystemTarget.Type.TRANSPORTERS));
+        assertTrue("so the weapon keeps its guard",
+                fed.getGuardPosts().isGuarded(fed.getWeapons().fetchAllWeapons().get(0)));
+        assertEquals("and the casualty is DESTROYED, not released to the roster", 1,
+                fed.getGuardPosts().totalPosted());
+    }
+
+    /** (D7.8374) Among pool posts, the one spread over the most boxes is doing the least good. */
+    @Test
+    public void d7_21_amongPoolGuardsTheWorstOddsGoFirst() {
+        GuardPosts posts = fed.getGuardPosts();
+        assertNull(posts.assign(transporters(), BoardingPartyQuality.NORMAL));
+        assertNull(posts.assign(new SystemTarget(SystemTarget.Type.FHULL, "F Hull"),
+                BoardingPartyQuality.NORMAL));
+
+        int transporterBoxes = posts.poolBoxCount(SystemTarget.Type.TRANSPORTERS);
+        int hullBoxes = posts.poolBoxCount(SystemTarget.Type.FHULL);
+        assertTrue("fixture: the hull must be the wider pool or this compares nothing - "
+                + hullBoxes + " hull vs " + transporterBoxes + " transporters",
+                hullBoxes > transporterBoxes);
+
+        String log = posts.killOneGuardAsCasualty();
+
+        assertTrue(log, log.contains("FHULL"));
+        assertTrue("the narrower pool, where one guard covers more of the target space, keeps"
+                + " its guard", posts.isGuarded(SystemTarget.Type.TRANSPORTERS));
+    }
+
+    /**
+     * (D7.833) "no more than one boarding party ... to guard one object, area, or group of
+     * people" - and the object is usually the scenario. Giving that guard up to save a marine
+     * is the one trade nobody would make, so an objective post is taken LAST.
+     */
+    @Test
+    public void d7_21_takesAnObjectiveGuardLastOfAll() {
+        GuardPosts posts = fed.getGuardPosts();
+        assertNull(posts.assign(SystemTarget.forObjective("Prototype Core", null),
+                BoardingPartyQuality.NORMAL));
+        assertNull(posts.assign(weaponTarget(0), BoardingPartyQuality.NORMAL));
+
+        String first = posts.killOneGuardAsCasualty();
+        assertNotNull(first);
+        assertFalse("the weapon guard goes before the objective guard: " + first,
+                first.contains("Prototype Core"));
+        assertEquals("the objective is still guarded",
+                java.util.Set.of("Prototype Core"), posts.postedObjectives());
+
+        // Only when there is nothing else left does the object lose its guard.
+        String last = posts.killOneGuardAsCasualty();
+        assertNotNull(last);
+        assertTrue(last, last.contains("Prototype Core"));
+        assertTrue(posts.postedObjectives().isEmpty());
+        assertEquals(0, posts.totalPosted());
+    }
+
     private Energy makeAllocation(Ship ship) {
         Energy e = new Energy();
         e.setLifeSupport(ship.getLifeSupportCost());
