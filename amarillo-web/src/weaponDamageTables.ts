@@ -354,6 +354,8 @@ export interface ModeLine {
   cells: readonly (number | null)[];
   /** Hit lines print "1-4"; damage lines print the number alone. */
   kind: 'hit' | 'damage';
+  /** Hit lines only: rolled on 2d6, so the cell reads "2-8" and earns the footnote. */
+  twoDice?: boolean;
 }
 
 export interface ModeTable {
@@ -388,12 +390,107 @@ function bandSeries(
   return { labels, bands };
 }
 
-/** Pad a mode's chart out to the full range, with NA past the range it reaches. */
-function reach(chart: readonly number[], cols: number, naBelow = 1): (number | null)[] {
+/**
+ * A hit line, padded to the full range, NA wherever the mode cannot fire.
+ *
+ * A zero in a hit chart IS "cannot fire": it is how every chart in this file already encodes a
+ * minimum range -- a standard photon is 0 at ranges 0-1 because E4 gives it a minimum of 2, and
+ * a proximity photon is 0 out to 8 for the same reason. Past the end of the chart the mode has
+ * run out of reach. Both print NA, which is what the sheet prints.
+ */
+function hitCells(chart: readonly number[], cols: number): (number | null)[] {
   const out: (number | null)[] = [];
   for (let r = 0; r < cols; r++)
-    out.push(r < naBelow || r >= chart.length ? null : chart[r]);
+    out.push(r >= chart.length || chart[r] <= 0 ? null : chart[r]);
   return out;
+}
+
+/** A damage line. Zero is a REAL value here -- the sheet prints 0, not NA -- so it is kept. */
+function damageCells(chart: readonly number[], cols: number): (number | null)[] {
+  const out: (number | null)[] = [];
+  for (let r = 0; r < cols; r++)
+    out.push(r >= chart.length ? 0 : chart[r]);
+  return out;
+}
+
+/**
+ * A damage line for a weapon whose damage does not vary with range, only with mode.
+ *
+ * A photon does 8, or 16 overloaded, or 4 on proximity, at every range it can reach at all --
+ * so the line is the flat figure wherever the mode can fire and 0 where it cannot. Which makes
+ * the row worth printing despite being constant: 16 sitting directly above 8 is the comparison
+ * the player came for.
+ */
+function flatDamageCells(hit: readonly number[], damage: number,
+                         cols: number): (number | null)[] {
+  const out: (number | null)[] = [];
+  for (let r = 0; r < cols; r++)
+    out.push(r >= hit.length || hit[r] <= 0 ? 0 : damage);
+  return out;
+}
+
+/**
+ * The hellbore's table: one to-hit line, four damage lines.
+ *
+ * Two independent choices cross here, which is why it needs four damage rows rather than two.
+ * ENVELOPING vs DIRECT is how the shot is aimed, and STANDARD vs OVERLOAD is what was paid for
+ * it, and the old table showed exactly one of the four -- the overload rows only if the weapon
+ * was already armed that way, and the direct-fire rows only if the caller passed a flag the SSD
+ * panel never passes. So the panel could only ever show enveloping standard.
+ *
+ * Accuracy is NOT one of the choices: overloading a hellbore buys damage and nothing else, so a
+ * single hit line serves every row. It is stated here because a reader who knows the disruptor
+ * table would reasonably expect a HIT (OVLD) line and should know its absence is deliberate.
+ */
+function hellboreModeTable(): ModeTable {
+  const COLS = 41;                                   // ranges 0-40
+  const byBand = (values: readonly number[]) =>
+    Array.from({ length: COLS }, (_, r) => values[hellboreBand(r)]);
+  const lines: ModeLine[] = [
+    { label: 'Hit (2d6)', kind: 'hit', twoDice: true,
+      cells: hitCells(byBand(HELLBORE_HIT_NUMS), COLS) },
+    { label: 'Dmg, env',       kind: 'damage', cells: damageCells(byBand(HELLBORE_ENV_DMG), COLS) },
+    { label: 'Dmg, direct',    kind: 'damage', cells: damageCells(byBand(HELLBORE_DF_DMG), COLS) },
+    // Overload stops at range 8 (setOverload caps it), so these fall to 0 beyond that.
+    { label: 'Dmg, env ovld',  kind: 'damage', cells: damageCells(HELLBORE_OVLD_ENV, COLS) },
+    { label: 'Dmg, dir ovld',  kind: 'damage', cells: damageCells(HELLBORE_OVLD_DF, COLS) },
+  ];
+  const { labels, bands } = bandSeries(lines.map(l => l.cells), COLS);
+  return { labels, lines: lines.map((l, i) => ({ ...l, cells: bands.map(b => b[i]) })) };
+}
+
+/**
+ * The photon's printed table: standard, overloaded and proximity, side by side.
+ *
+ * This replaces a branch on how the weapon happened to be armed, and that branch was WRONG --
+ * it tested {@code mode === 'PROXIMITY'} while {@code WeaponArmingType} has no such value, only
+ * SPECIAL, so a proximity photon silently showed the standard chart and 8 damage instead of 4.
+ * Showing every mode at once does not fix that bug so much as delete the shape of it: there is
+ * no mode string left to get wrong.
+ *
+ * It is also the table where overload matters most. A standard photon CANNOT FIRE inside range
+ * 2 (E4 gives it a minimum), while an overloaded one hits automatically there for 16 -- double
+ * damage at point blank, from a weapon that otherwise has nothing to say. Reserve warp and
+ * batteries make that a live choice right up to the moment of firing, and the old table never
+ * showed it.
+ */
+function photonModeTable(): ModeTable {
+  const COLS = PHOTON_HIT_CHART.length;        // 31: ranges 0-30
+  const lines: ModeLine[] = [
+    { label: 'Hit (std)',  kind: 'hit', cells: hitCells(PHOTON_HIT_CHART, COLS) },
+    { label: 'Hit (ovld)', kind: 'hit', cells: hitCells(PHOTON_OVLD_HIT_CHART, COLS) },
+    { label: 'Hit (prox)', kind: 'hit', cells: hitCells(PHOTON_PROX_HIT_CHART, COLS) },
+    // Flat per mode, so these rows repeat one number -- which is the point. Seeing 16 above 8
+    // above 4 is the whole comparison, and it costs a line each.
+    { label: 'Damage, std',  kind: 'damage',
+      cells: flatDamageCells(PHOTON_HIT_CHART, 8, COLS) },
+    { label: 'Damage, ovld', kind: 'damage',
+      cells: flatDamageCells(PHOTON_OVLD_HIT_CHART, 16, COLS) },
+    { label: 'Damage, prox', kind: 'damage',
+      cells: flatDamageCells(PHOTON_PROX_HIT_CHART, 4, COLS) },
+  ];
+  const { labels, bands } = bandSeries(lines.map(l => l.cells), COLS);
+  return { labels, lines: lines.map((l, i) => ({ ...l, cells: bands.map(b => b[i]) })) };
 }
 
 /**
@@ -407,25 +504,27 @@ function reach(chart: readonly number[], cols: number, naBelow = 1): (number | n
 function disruptorModeTable(uim: boolean, derfacs: boolean): ModeTable {
   const COLS = DISRUPTOR_HIT_CHART.length;      // 41: ranges 0-40
   const lines: ModeLine[] = [
-    { label: 'Hit (std)', kind: 'hit', cells: reach(DISRUPTOR_HIT_CHART, COLS) },
+    { label: 'Hit (std)', kind: 'hit', cells: hitCells(DISRUPTOR_HIT_CHART, COLS) },
   ];
   if (uim)
-    lines.push({ label: 'Hit (UIM)', kind: 'hit', cells: reach(DISRUPTOR_UIM_HIT_CHART, COLS) });
+    lines.push({ label: 'Hit (UIM)', kind: 'hit',
+                 cells: hitCells(DISRUPTOR_UIM_HIT_CHART, COLS) });
   if (derfacs)
     lines.push({ label: 'Hit (DERFACS)', kind: 'hit',
-                 cells: reach(DISRUPTOR_DERFACS_HIT_CHART, COLS) });
+                 cells: hitCells(DISRUPTOR_DERFACS_HIT_CHART, COLS) });
   // Overload reaches range 0 (setOverload drops the minimum) and stops at 8.
   lines.push({ label: 'Hit (ovld)', kind: 'hit',
-               cells: reach(DISRUPTOR_OVLD_HIT_CHART, COLS, 0) });
+               cells: hitCells(DISRUPTOR_OVLD_HIT_CHART, COLS) });
   if (uim)
     lines.push({ label: 'Hit (ovld/UIM)', kind: 'hit',
-                 cells: reach(DISRUPTOR_UIM_OVLD_HIT_CHART, COLS, 0) });
+                 cells: hitCells(DISRUPTOR_UIM_OVLD_HIT_CHART, COLS) });
   // DERFACS is deliberately absent from the overload lines: fireDerfacs uses the STANDARD
   // overload chart, so a DERFACS line there would duplicate the one above it. The paper sheet
   // prints it the same way, with no HIT (OL/DERFACS) row.
-  lines.push({ label: 'Damage, std', kind: 'damage', cells: reach(DISRUPTOR_DMG_CHART, COLS, 0) });
+  lines.push({ label: 'Damage, std', kind: 'damage',
+               cells: damageCells(DISRUPTOR_DMG_CHART, COLS) });
   lines.push({ label: 'Damage, ovld', kind: 'damage',
-               cells: reach(DISRUPTOR_OVLD_DMG_CHART, COLS, 0).map(v => v ?? 0) });
+               cells: damageCells(DISRUPTOR_OVLD_DMG_CHART, COLS) });
 
   const { labels, bands } = bandSeries(lines.map(l => l.cells), COLS);
   return {
@@ -525,14 +624,13 @@ export function getWeaponFullTable(
     return { kind: 'hit',
              bands: hitChartBands(PHOTON_HIT_CHART, PHOTON_HIT_CHART.map(() => 8)) };
 
-  if (n.includes('photon')) {
-    const hit    = mode === 'OVERLOAD'  ? PHOTON_OVLD_HIT_CHART
-                 : mode === 'PROXIMITY' ? PHOTON_PROX_HIT_CHART
-                 :                        PHOTON_HIT_CHART;
-    const damage = mode === 'OVERLOAD' ? 16 : mode === 'PROXIMITY' ? 4 : 8;
-    return { kind: 'hit', bands: hitChartBands(hit, hit.map(() => damage)),
-             note: mode === 'STANDARD' ? undefined : mode.toLowerCase() };
-  }
+  if (n.includes('photon'))
+    // No mode branch: every mode is on the table. The `bands` below stay as a fallback for a
+    // caller that has not been taught the multi-mode shape, and use the STANDARD chart, which
+    // is the one the old branch reached for anything it did not recognise anyway.
+    return { kind: 'hit',
+             bands: hitChartBands(PHOTON_HIT_CHART, PHOTON_HIT_CHART.map(() => 8)),
+             modes: photonModeTable() };
 
   if (n.includes('fighterdisruptor'))
     return { kind: 'hit', bands: hitChartBands(DISRUPTOR_HIT_CHART.slice(0, 11),
@@ -546,18 +644,13 @@ export function getWeaponFullTable(
                                   ovld ? DISRUPTOR_OVLD_DMG_CHART : DISRUPTOR_DMG_CHART),
              modes: disruptorModeTable(fit.uim === true, fit.derfacs === true) };
 
-  if (n.includes('hellbore')) {
-    // Already banded in the data, so these are read across rather than collapsed. Overload is
-    // indexed by hex instead, which is why it takes the other path.
-    if (ovld)
-      return { kind: 'hit',
-               bands: hitChartBands(
-                   HELLBORE_OVLD_ENV.map((_, i) => HELLBORE_HIT_NUMS[hellboreBand(i)]),
-                   directFire ? HELLBORE_OVLD_DF : HELLBORE_OVLD_ENV, true),
-               note: directFire ? 'overload, direct fire' : 'overload' };
+  if (n.includes('hellbore'))
+    // Every mode at once, so neither the arming type nor the directFire flag selects any more.
+    // The single-mode `bands` stay as a fallback for a caller that has not been taught the
+    // multi-mode shape, and still honour directFire for it.
     return {
       kind: 'hit',
-      note: directFire ? 'direct fire' : undefined,
+      modes: hellboreModeTable(),
       bands: HELLBORE_BANDS.map(([lo, hi], i) => ({
         label:   bandLabel(lo, hi),
         damage:  [directFire ? HELLBORE_DF_DMG[i] : HELLBORE_ENV_DMG[i]],
@@ -565,7 +658,6 @@ export function getWeaponFullTable(
         twoDice: true,
       })),
     };
-  }
 
   if (plasmaType) {
     // The BOLT, which is what a launcher can be asked for at any range (FP8.4) and the only part

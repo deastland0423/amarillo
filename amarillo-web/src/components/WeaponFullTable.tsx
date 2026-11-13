@@ -1,4 +1,4 @@
-import { getWeaponFullTable } from '../weaponDamageTables';
+import { getWeaponFullTable, type ModeLine } from '../weaponDamageTables';
 
 /**
  * A weapon's whole damage table, every range band — the thing the SSD prints beside the ship.
@@ -12,6 +12,17 @@ import { getWeaponFullTable } from '../weaponDamageTables';
  * the paper tables reads this one without being taught. A hit-chart weapon has one row instead
  * of six and says what it needs to hit.
  */
+/**
+ * A to-hit cell, written as the winning range of the roll: "1-4" on one die, "2-8" on two.
+ *
+ * The sheet's own convention, and it beats a bare number because it shows the SIZE of the
+ * chance rather than its edge -- 1-4 is visibly twice 1-2. The asterisk marks two dice, where
+ * the span is not the probability: 2-8 on 2d6 is far better than 8 of 12 would suggest.
+ */
+function hitCell(line: ModeLine, v: number): string {
+  return `${line.twoDice ? 2 : 1}\u2013${v}${line.twoDice ? '*' : ''}`;
+}
+
 export default function WeaponFullTable({
   weaponName, armingType, directFire = false, plasmaType = null, anchored = true,
   uim = false, derfacs = false,
@@ -54,14 +65,17 @@ export default function WeaponFullTable({
                 <td className="dmg-full-head">{line.label}</td>
                 {line.cells.map((v, i) => (
                   <td key={table.modes!.labels[i]}
-                      className={v === null ? 'dmg-nil' : v === 0 ? 'dmg-nil' : undefined}>
-                    {v === null ? 'NA' : line.kind === 'hit' ? `1\u2013${v}` : v}
+                      className={v === null || v === 0 ? 'dmg-nil' : undefined}>
+                    {v === null ? 'NA' : line.kind === 'hit' ? hitCell(line, v) : v}
                   </td>
                 ))}
               </tr>
             ))}
           </tbody>
         </table>
+        {table.modes.lines.some(l => l.twoDice) && (
+          <div className="dmg-full-foot">* two dice</div>
+        )}
       </div>
     );
 
