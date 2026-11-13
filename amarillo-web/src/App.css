@@ -3040,13 +3040,14 @@ h3 {
 }
 
 /* ---- Hangar sections: each collapses, and says what is behind it ---- */
-.hangar-section {
+/* ---- Collapsible panel sections: shared by HangarDrawer and SsdPanel ---- */
+.panel-section {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
 
-.hangar-section-head {
+.panel-section-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -3064,12 +3065,12 @@ h3 {
   text-align: left;
 }
 
-.hangar-section-head:hover {
+.panel-section-head:hover {
   filter: brightness(1.25);
 }
 
 /* The summary is the reason a closed section is still useful. */
-.hangar-section-summary {
+.panel-section-summary {
   color: #8b949e;
   font-weight: 400;
   text-transform: none;
@@ -3078,7 +3079,7 @@ h3 {
   white-space: nowrap;
 }
 
-.hangar-section-body {
+.panel-section-body {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;

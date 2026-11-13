@@ -5,7 +5,9 @@ import { facingLabel, facingToAngle, factionColor, parseLocation,
 import { bearsOn, hexGetBearingBetween, hexesInArc, hexRangeBetween, ringShieldNumber,
          turnFacing, type Hex } from '../hex/geometry';
 import { useDraggable } from '../hooks/useDraggable';
-import { gaugeColour, gauges, type Gauge } from './systemGauge';
+import Section from './Section';
+import { systemsSummary, weaponsSummary } from './ssdSummaries';
+import { gaugeColour, hullGauges, powerGauges, type Gauge } from './systemGauge';
 import { weaponTitle } from './weaponTitle';
 import WeaponFullTable from './WeaponFullTable';
 
@@ -50,6 +52,15 @@ import WeaponFullTable from './WeaponFullTable';
  * Those two were separate numbers once and drifted apart — the panel grew to 450 and the offset
  * stayed at 330, which opened it a sixth off the right edge of the window.
  */
+/**
+ * Where each section's open/closed choice is remembered, one key apiece so shutting the weapons
+ * does not shut the systems. The strings are stable on purpose: changing one silently reopens a
+ * section the player had closed, which reads as the panel forgetting rather than as a release.
+ */
+const ARCS_KEY = 'amarillo-ssd-arcs-collapsed';
+const WEAPONS_KEY = 'amarillo-ssd-weapons-collapsed';
+const SYSTEMS_KEY = 'amarillo-ssd-systems-collapsed';
+
 const PANEL_WIDTH = 450;
 
 /** Breathing room between the panel and the edge of the window, when it opens and when capped. */
@@ -319,6 +330,12 @@ export default function SsdPanel(
           close button and the drag grip are never scrolled away — which is the same reasoning
           useDraggable uses to keep the handle on screen. */}
       <div style={bodyStyle}>
+      {/* The diagram is the other tall block, so it collapses too: when you are reading the
+          systems it is in the way exactly as much as nineteen weapon rows are. */}
+      <Section title="Arcs" colour="#8b949e" storageKey={ARCS_KEY} startOpen
+               summary={previewFacing == null
+                 ? `facing ${facingLabel(ship.facing)}`
+                 : `trying ${facingLabel(facing)}`}>
       <div style={{ fontSize: '0.72rem', marginBottom: 6,
                     color: previewFacing == null ? '#888' : '#d29922' }}>
         {previewFacing == null
@@ -540,7 +557,14 @@ export default function SsdPanel(
         )}
       </div>
 
-      {/* ---- weapons ----------------------------------------------------- */}
+      </Section>
+
+      {/* ---- weapons -----------------------------------------------------
+          The summary names the SELECTED weapon, not just the count. Selecting one lights its
+          arc on the diagram above, and the diagram does not collapse with the list, so without
+          the name a collapsed list would leave an arc burning with nothing saying whose it is. */}
+      <Section title="Weapons" colour="#8b949e" storageKey={WEAPONS_KEY} startOpen
+               summary={weaponsSummary(weapons, selectedWeapon)}>
       <div style={{ fontSize: '0.72rem', color: '#8b949e', margin: '8px 0 4px' }}>
         {weapons.length === 0 ? 'No weapons with a firing arc.'
           : 'Select a weapon to light its arc.'}
@@ -593,8 +617,13 @@ export default function SsdPanel(
         />
       )}
 
+      </Section>
+
       {/* ---- systems ----------------------------------------------------- */}
+      <Section title="Systems" colour="#8b949e" storageKey={SYSTEMS_KEY} startOpen
+               summary={systemsSummary(ship)}>
       <SystemsBlock ship={ship} />
+      </Section>
       </div>{/* end scrolling body */}
     </div>
   );
@@ -674,26 +703,8 @@ function SystemsBlock({ ship }: { ship: ShipObject }) {
   const join = (...parts: (string | null | undefined)[]) =>
     parts.filter(p => p != null && p !== '').join(' · ');
 
-  // Power and hull are damage-only, so a bar can say everything true about them. The support
-  // row below is still text because its systems cannot be said this way — see ./systemGauge.
-  const powerGauges = gauges(
-    ['L warp', ship.availableLWarp, ship.maxLWarp],
-    ['C warp', ship.availableCWarp, ship.maxCWarp],
-    ['R warp', ship.availableRWarp, ship.maxRWarp],
-    ['impulse', ship.availableImpulse, ship.maxImpulse],
-    ['APR', ship.availableApr, ship.maxApr],
-    ['AWR', ship.availableAwr, ship.maxAwr],
-    // Boxes, not charge: an enemy sees how many battery boxes survive and never what is in them.
-    ['battery', ship.availableBattery, ship.maxBattery],
-  );
-  const hullGauges = gauges(
-    ['fore', ship.availableFhull, ship.maxFhull],
-    ['aft', ship.availableAhull, ship.maxAhull],
-    ['centre', ship.availableChull, ship.maxChull],
-  );
-
   const rows: Array<[string, string | null, Gauge[]?]> = [
-    ['Power', ship.totalPower ? `${ship.totalPower} total` : null, powerGauges],
+    ['Power', ship.totalPower ? `${ship.totalPower} total` : null, powerGauges(ship)],
     // The two standing charges every turn starts with, so "total power" is not read as spendable.
     ['Upkeep', join(
       ship.lifeSupportCost ? `life support ${ship.lifeSupportCost}` : null,
@@ -705,7 +716,7 @@ function SystemsBlock({ ship }: { ship: ShipObject }) {
       ship.turnHexes ? `${ship.turnHexes} hex${ship.turnHexes === 1 ? '' : 'es'}` : null,
       ship.hetCost ? `HET ${ship.hetCost}` : null,
     )],
-    ['Hull', null, hullGauges],
+    ['Hull', null, hullGauges(ship)],
     ['Crew', join(
       ship.availableCrewUnits ? `${ship.availableCrewUnits} units` : null,
       ship.minimumCrew ? `min ${ship.minimumCrew}` : null,

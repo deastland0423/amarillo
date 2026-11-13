@@ -3,6 +3,7 @@ import type React from 'react';
 import type { ShipObject, ShuttleBayState, ShuttleSpaceState } from '../types/gameState';
 import { useStickyCollapse } from '../hooks/useStickyCollapse';
 import { armingOf, ARMING_TITLE, droneSummary, railDetail } from './armingStatus';
+import Section from './Section';
 
 /**
  * Hangar operations: everything done to the craft in a ship's bays at allocation time.
@@ -117,28 +118,6 @@ function Stepper({ value, onChange, min, max, label }: {
       <button className="ea-step-btn" disabled={value >= max}
         onClick={() => onChange(value + 1)}>+</button>
     </span>
-  );
-}
-
-/** One section of the panel, remembered open or closed, saying what is behind it when shut. */
-function Section({ title, colour, summary, storageKey, startOpen = false, children }: {
-  title: string;
-  colour: string;
-  summary?: string;
-  storageKey: string;
-  startOpen?: boolean;
-  children: React.ReactNode;
-}) {
-  const [collapsed, setCollapsed] = useStickyCollapse(storageKey, !startOpen);
-  return (
-    <div className="hangar-section">
-      <button className="hangar-section-head" style={{ color: colour }}
-        onClick={() => setCollapsed(!collapsed)}>
-        <span>{collapsed ? '▶' : '▼'} {title}</span>
-        {summary && <span className="hangar-section-summary">{summary}</span>}
-      </button>
-      {!collapsed && <div className="hangar-section-body">{children}</div>}
-    </div>
   );
 }
 

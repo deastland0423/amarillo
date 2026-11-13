@@ -1,3 +1,4 @@
+import type { ShipObject } from '../types/gameState';
 import { shieldStrengthColor } from '../types/gameState';
 
 /**
@@ -29,6 +30,53 @@ export function gauges(
     if (max != null && max > 0)
       out.push({ caption, now: now ?? 0, max });
   return out;
+}
+
+/**
+ * The power row's gauges, in SSD order.
+ *
+ * These specs live here rather than in the panel because two things now read them: the rows
+ * themselves and the collapsed section header that summarises them. A header that counted a
+ * different set of systems from the rows it hides is the kind of drift nobody notices, since
+ * both halves look right on their own.
+ */
+export function powerGauges(ship: ShipObject): Gauge[] {
+  return gauges(
+    ['L warp', ship.availableLWarp, ship.maxLWarp],
+    ['C warp', ship.availableCWarp, ship.maxCWarp],
+    ['R warp', ship.availableRWarp, ship.maxRWarp],
+    ['impulse', ship.availableImpulse, ship.maxImpulse],
+    ['APR', ship.availableApr, ship.maxApr],
+    ['AWR', ship.availableAwr, ship.maxAwr],
+    // Boxes, not charge: an enemy sees how many battery boxes survive and never what is in them.
+    ['battery', ship.availableBattery, ship.maxBattery],
+  );
+}
+
+/** The hull row's gauges, in SSD order. */
+export function hullGauges(ship: ShipObject): Gauge[] {
+  return gauges(
+    ['fore', ship.availableFhull, ship.maxFhull],
+    ['aft', ship.availableAhull, ship.maxAhull],
+    ['centre', ship.availableChull, ship.maxChull],
+  );
+}
+
+/**
+ * The worst-hit gauge, or null when every one of them is untouched.
+ *
+ * "Worst" is the smallest surviving FRACTION, not the smallest count: two boxes left of three
+ * is a healthier ship than two left of twelve, and a summary that named the first would send
+ * the reader to the wrong system. Ties keep SSD order, so the answer is stable.
+ */
+export function worstGauge(list: Gauge[]): Gauge | null {
+  let worst: Gauge | null = null;
+  for (const g of list) {
+    if (g.now >= g.max) continue;
+    if (worst === null || g.now / g.max < worst.now / worst.max)
+      worst = g;
+  }
+  return worst;
 }
 
 /** A destroyed system box. Not in the shield ramp, because no shield is ever in this state. */
