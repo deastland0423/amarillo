@@ -802,6 +802,12 @@ public class GameStateDto {
         public int maxApr;
         public int maxAwr;
         public int availableBattery;
+        /**
+         * Battery boxes printed on the SSD, so the client can draw a damage gauge rather
+         * than a bare count. Public for the same reason availableBattery is: a box on the
+         * SSD is public, while the charge held in it (batteryCharge) is not.
+         */
+        public int maxBattery;
         public int batteryPower;
         // Control space damage state (current / max)
         public int availableBridge;
@@ -1945,6 +1951,7 @@ public class GameStateDto {
         dto.maxApr = ps.getMaxApr();
         dto.maxAwr = ps.getMaxAwr();
         dto.availableBattery = ps.getAvailableBattery();
+        dto.maxBattery = ps.getMaxBattery();
         dto.batteryPower = ps.getBatteryPower();
         dto.reserveWarp = ps.getReserveWarp();
 

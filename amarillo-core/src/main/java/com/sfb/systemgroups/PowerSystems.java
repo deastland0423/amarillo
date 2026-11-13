@@ -136,6 +136,8 @@ public class PowerSystems implements Systems {
 	public int getMaxImpulse()     { return impulse; }
 	public int getMaxApr()         { return apr; }
 	public int getMaxAwr()         { return awr; }
+	/** Battery BOXES printed on the SSD. The charge held in them is getBatteryPower(). */
+	public int getMaxBattery()     { return battery; }
 
 	// Setters for client-side sync from server state
 	public void setAvailableLWarp(int v)   { availableLwarp   = Math.max(0, Math.min(v, lwarp)); }

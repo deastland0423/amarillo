@@ -326,6 +326,7 @@ export interface ShipObject extends MapObjectBase {
   maxApr:           number;
   maxAwr:           number;
   availableBattery: number;
+  maxBattery?:      number;   // battery boxes printed on the SSD; the CHARGE is batteryCharge
   batteryPower:     number;
   skeleton:         boolean;
   reserveWarp:      number;

@@ -5,6 +5,7 @@ import { facingLabel, facingToAngle, factionColor, parseLocation,
 import { bearsOn, hexGetBearingBetween, hexesInArc, hexRangeBetween, ringShieldNumber,
          turnFacing, type Hex } from '../hex/geometry';
 import { useDraggable } from '../hooks/useDraggable';
+import { gaugeColour, gauges, type Gauge } from './systemGauge';
 import { weaponTitle } from './weaponTitle';
 import WeaponFullTable from './WeaponFullTable';
 
@@ -639,6 +640,31 @@ function droneRackSummary(ship: ShipObject): string | null {
   return `${parts.join(', ')} drone rack${total === 1 ? '' : 's'}`;
 }
 
+/**
+ * caption | bar | count.
+ *
+ * The count stays. A bar shows the SHAPE of a loss at a glance, which is what the text rows
+ * could not do, but SFB is a counted game — "how many warp boxes are left" has to be readable
+ * exactly, not estimated off a bar. An undamaged count is muted so the eye lands on damage.
+ */
+function GaugeLine({ caption, now, max }: Gauge) {
+  const pct = Math.max(0, Math.min(1, now / max));
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ flex: '0 0 3.6rem', color: '#8b949e' }}>{caption}</span>
+      <span style={{ flex: 1, minWidth: 40, height: 6, background: '#21262d',
+                     borderRadius: 3, overflow: 'hidden' }}>
+        <span style={{ display: 'block', width: `${pct * 100}%`, height: '100%',
+                       background: gaugeColour(now, max) }} />
+      </span>
+      <span style={{ flex: '0 0 2.8rem', textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+                     color: now === max ? '#6e7681' : gaugeColour(now, max) }}>
+        {now}/{max}
+      </span>
+    </div>
+  );
+}
+
 function SystemsBlock({ ship }: { ship: ShipObject }) {
   /** "n" when nothing can be lost, "n/m" once they differ — damage should be visible, not implied. */
   const pair = (now: number | undefined, max: number | undefined): string | null => {
@@ -648,20 +674,26 @@ function SystemsBlock({ ship }: { ship: ShipObject }) {
   const join = (...parts: (string | null | undefined)[]) =>
     parts.filter(p => p != null && p !== '').join(' · ');
 
-  const warp = join(
-    pair(ship.availableLWarp, ship.maxLWarp) && `L ${pair(ship.availableLWarp, ship.maxLWarp)}`,
-    pair(ship.availableCWarp, ship.maxCWarp) && `C ${pair(ship.availableCWarp, ship.maxCWarp)}`,
-    pair(ship.availableRWarp, ship.maxRWarp) && `R ${pair(ship.availableRWarp, ship.maxRWarp)}`,
+  // Power and hull are damage-only, so a bar can say everything true about them. The support
+  // row below is still text because its systems cannot be said this way — see ./systemGauge.
+  const powerGauges = gauges(
+    ['L warp', ship.availableLWarp, ship.maxLWarp],
+    ['C warp', ship.availableCWarp, ship.maxCWarp],
+    ['R warp', ship.availableRWarp, ship.maxRWarp],
+    ['impulse', ship.availableImpulse, ship.maxImpulse],
+    ['APR', ship.availableApr, ship.maxApr],
+    ['AWR', ship.availableAwr, ship.maxAwr],
+    // Boxes, not charge: an enemy sees how many battery boxes survive and never what is in them.
+    ['battery', ship.availableBattery, ship.maxBattery],
   );
-  const other = join(
-    pair(ship.availableImpulse, ship.maxImpulse) && `imp ${pair(ship.availableImpulse, ship.maxImpulse)}`,
-    pair(ship.availableApr, ship.maxApr) && `APR ${pair(ship.availableApr, ship.maxApr)}`,
-    pair(ship.availableAwr, ship.maxAwr) && `AWR ${pair(ship.availableAwr, ship.maxAwr)}`,
-    ship.availableBattery ? `batt ${ship.availableBattery}` : null,
+  const hullGauges = gauges(
+    ['fore', ship.availableFhull, ship.maxFhull],
+    ['aft', ship.availableAhull, ship.maxAhull],
+    ['centre', ship.availableChull, ship.maxChull],
   );
 
-  const rows: Array<[string, string | null]> = [
-    ['Power', join(ship.totalPower ? `${ship.totalPower} total` : null, warp, other)],
+  const rows: Array<[string, string | null, Gauge[]?]> = [
+    ['Power', ship.totalPower ? `${ship.totalPower} total` : null, powerGauges],
     // The two standing charges every turn starts with, so "total power" is not read as spendable.
     ['Upkeep', join(
       ship.lifeSupportCost ? `life support ${ship.lifeSupportCost}` : null,
@@ -673,11 +705,7 @@ function SystemsBlock({ ship }: { ship: ShipObject }) {
       ship.turnHexes ? `${ship.turnHexes} hex${ship.turnHexes === 1 ? '' : 'es'}` : null,
       ship.hetCost ? `HET ${ship.hetCost}` : null,
     )],
-    ['Hull', join(
-      pair(ship.availableFhull, ship.maxFhull) && `fore ${pair(ship.availableFhull, ship.maxFhull)}`,
-      pair(ship.availableAhull, ship.maxAhull) && `aft ${pair(ship.availableAhull, ship.maxAhull)}`,
-      pair(ship.availableChull, ship.maxChull) && `centre ${pair(ship.availableChull, ship.maxChull)}`,
-    )],
+    ['Hull', null, hullGauges],
     ['Crew', join(
       ship.availableCrewUnits ? `${ship.availableCrewUnits} units` : null,
       ship.minimumCrew ? `min ${ship.minimumCrew}` : null,
@@ -735,10 +763,15 @@ function SystemsBlock({ ship }: { ship: ShipObject }) {
 
   return (
     <div style={{ marginTop: 8, borderTop: '1px solid #30363d', paddingTop: 6 }}>
-      {rows.filter(([, value]) => value).map(([label, value]) => (
+      {rows.filter(([, value, g]) => value || (g && g.length > 0)).map(([label, value, g]) => (
         <div key={label} style={{ display: 'flex', gap: 6, fontSize: '0.72rem', lineHeight: 1.6 }}>
           <span style={{ flex: '0 0 4.4rem', color: '#6e7681' }}>{label}</span>
-          <span style={{ flex: 1, color: '#c9d1d9' }}>{value}</span>
+          {/* Gauges sit INSIDE the value column so they line up under the row's own text --
+              a power row keeps "40 total" on the label line and stacks its boxes beneath. */}
+          <span style={{ flex: 1, minWidth: 0, color: '#c9d1d9' }}>
+            {value}
+            {g?.map(one => <GaugeLine key={one.caption} {...one} />)}
+          </span>
         </div>
       ))}
       {bayLines.map((line, i) => (

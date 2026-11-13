@@ -184,6 +184,7 @@ public class ShipDtoPrivacyTest {
         "maxEmer", "availableSecurity", "maxSecurity", "availableLab", "functioningLab",
         "availableTractors", "totalTractors", "availableTransporters", "totalTransporters",
         "availableBattery",   // boxes surviving damage; the charge in them is not public
+        "maxBattery",         // and the number printed on the SSD, like every other box count
         "availableDeckCrews", "availableCrewUnits", "capturedCrew", "minimumCrew",
         "boardingParties", "commandos", "crewQuality", "totalPower", "phaserCapacitorMax",
         "uimFunctional", "sensorRating", "scannerBonus", "canDoubleEngines",
