@@ -188,8 +188,13 @@ public class ShipDtoPrivacyTest {
         "availableDeckCrews", "availableCrewUnits", "capturedCrew", "minimumCrew",
         "boardingParties", "commandos", "crewQuality", "totalPower", "phaserCapacitorMax",
         "uimFunctional",
-        // Same ruling as uimFunctional, and the printed sheet settles it: the disruptor table
-        // on a Klingon SSD prints its HIT (DERFACS) line for anyone holding the book.
+        // Same ruling as uimFunctional, and the owner gave the reason that generalises
+        // (2026-11-13): a DERFACS is a valid hit-and-run target (D7.835), so an opponent has to
+        // be able to SEE it to name it. That makes the raid target list in BoardingResolver a
+        // lower bound on this list -- anything a raid can pick must be public, or the picker is
+        // offering a choice its owner was never told about. Every other system that list can
+        // name is already here; DERFACS was the one gap. The printed sheet agrees on its own
+        // account, carrying a HIT (DERFACS) line on every Klingon SSD.
         "derfacsFunctional",
         "sensorRating", "scannerBonus", "canDoubleEngines",
         // Electronic warfare: generated and lent are both public by ruling
