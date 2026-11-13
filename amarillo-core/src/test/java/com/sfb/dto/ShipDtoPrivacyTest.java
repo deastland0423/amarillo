@@ -123,7 +123,11 @@ public class ShipDtoPrivacyTest {
         "mineRacks"
     ));
 
-    private static final Set<String> SHIP_PUBLIC = new HashSet<>(Arrays.asList(
+    /**
+     * Package-visible for {@link RaidTargetVisibilityTest}, which checks this list against the
+     * hit-and-run target picker: a raid can only name a system its owner can see.
+     */
+    static final Set<String> SHIP_PUBLIC = new HashSet<>(Arrays.asList(
         // Identity and position
         // typeName sits beside shipType and is ruled the same way: a counter on the map
         // announces its class, and "Commando Cruiser" says no more than "CMC" already does.
