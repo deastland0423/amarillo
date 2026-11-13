@@ -670,6 +670,71 @@ behind package-private hooks, and leave one-line public delegates so the server 
 move. The SH47.5 victory work above is the obvious moment — it touches securing and scoring,
 which are two of the pieces that would move.
 
+## SSD panel damage gauges — BUILT 2026-11-13; the cycle rows are what is left
+
+Hull and power draw as caption + bar + count (`systemGauge.ts`, `GaugeLine` in `SsdPanel`).
+Prompted by a screenshot of another developer's build, which drew SSD boxes you could count.
+Boxes are still the better idea for small banks and are NOT built; bars went first because they
+needed no core work and are reversible if the panel reads worse for them.
+
+**The split is by MODEL, not by size, and that was the useful finding.** Damage-only systems
+have two states and both numbers were already on the wire. The `BoxCycle` systems —
+transporters, tractors, laboratories — have three, the third being a surviving box cooling off
+for the longer of the next turn or eight impulses (G4.22, G4.451). A bar drawn over two of
+three numbers shows a bank as undamaged while half of it is unusable, so those rows stay as
+TEXT on purpose. Do not "finish the job" by giving them bars.
+
+Measured across all 388 hull files while deciding this, and the counts invert the way that
+makes the split easy: the monsters are all damage-only (aft hull 36 on the B10, impulse 46 on
+the Romulan NHK, cargo 50 on the Faldr, repair 30 on a base, fore hull 22 on the Fed DN+),
+while the cycle systems top out at 12 across every hull in the game (transporters 12, labs 10,
+tractors 8; medians of 2–3). So bars landed where counting by eye was hopeless anyway, and
+boxes — when they come — fit every hull in two rows of six and never need a fallback.
+
+**What is NOT built, in the order it should be done:**
+
+1. **One read vocabulary for the `BoxCycle` systems.** `BoxCycle` itself needs nothing: it
+   already has `total()`, `functioning()`, `available(imp)`, `numbers()` and `stateOf(number,
+   imp)` returning `{UNUSED, USED_THIS_TURN, COOLING_DOWN}` — whose own javadoc says it is
+   "for a raid's target list **or a readout**". The divergence is in the wrappers and in what
+   each sends:
+   - Labs sends `functioningLab` + `availableLab` — cycle-aware, missing only the printed
+     total. The best served of the three.
+   - Transporters sends functioning + total but not free-now; the client reconstructs it by
+     subtraction at `GameStateDto:2687`.
+   - Tractors sends `fetchRemainingTotalBoxes()` + total, blind to cycling entirely.
+
+   And `Transporters` has THREE methods that read as "available": `getAvailableTrans()` is
+   `functioning()`, `freeBoxes(imp)` is free-now, and `availableUses(imp)` is
+   `min(free, energy affordable)` — which is OWNER-ONLY, because publishing it leaks battery
+   state. That is the trap the comment at `GameStateDto:2683` spends a paragraph on, and it
+   exists because the name does not carry it. Unify the QUESTION, not the storage: a tractor
+   beam can be IN USE holding something across impulses, which no lab or transporter box can,
+   so forcing it into the bank would recreate the exact "three things one counter cannot hold"
+   mistake `BoxCycle`'s header exists to prevent.
+
+   51 call sites in core + server main, and the dangerous ones are rules code, not UI:
+   `BoardingResolver` (`getAvailableTrans` x3, `availableUses` x5), `MineResolver`, `Game`
+   (`freeBoxes` x3), `GuardPosts`. Since the two mean different things, a blind rename is a
+   silent rules bug rather than a compile error — read every site.
+
+   Found en route and not yet fixed: `Transporters.freeBoxes` carries a copy-pasted javadoc
+   from `usesMadeThisTurn`, saying "how many boxes have been used this turn" while returning
+   the boxes FREE to work.
+
+2. **Countable boxes for those rows once (1) lands**, three states: filled, hollow (cooling),
+   struck through (destroyed). `Transporters.describeBoxes(imp)` already renders exactly those
+   three as prose, so the readout is proven and only needs structure. Worth it beyond looks:
+   `BoxCycle` identifies a box by its printed NUMBER rather than list position, specifically so
+   a hit-and-run raid (D7.835) and a scout channel (G24.251) can hold one — drawn
+   individually, the panel becomes the natural place to eventually CLICK one.
+
+**Privacy reads better here than expected.** `GameStateDto:2683` classifies box state as
+public ("every use is seen"; "the BOXES are public and so is what they are doing", precisely so
+D7.835 can name one) while the energy behind them is not. So a cycle overlay adds no exposure.
+`maxBattery` was added for the battery gauge and classified PUBLIC on the same principle the
+file already states: a box on the SSD is public, the charge in it is not.
+
 ## Ready to start
 
 Each of these was named by an earlier session as the next sensible slice in its area, with the
