@@ -848,6 +848,13 @@ const bodyStyle: React.CSSProperties = {
   flex: 1,
   minHeight: 0,
   overflowY: 'auto',
+  // The scrollbar sits INSIDE this box, on top of the content, so without a gutter it clipped
+  // the right-hand end of every line that reached the edge: a section summary (nowrap, so it
+  // cannot fold) and the in-arc count both lost their last characters. scrollbarGutter reserves
+  // the track whether or not it is scrolling, which also stops the whole panel shifting
+  // sideways as sections are collapsed and the content stops overflowing.
+  scrollbarGutter: 'stable',
+  paddingRight: 6,
 };
 
 const headerStyle: React.CSSProperties = {
