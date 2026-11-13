@@ -14,6 +14,7 @@ import { getWeaponFullTable } from '../weaponDamageTables';
  */
 export default function WeaponFullTable({
   weaponName, armingType, directFire = false, plasmaType = null, anchored = true,
+  uim = false, derfacs = false,
 }: {
   weaponName:  string;
   armingType:  string | null;
@@ -21,13 +22,48 @@ export default function WeaponFullTable({
   plasmaType?: string | null;
   /** Absolutely positioned under its parent (hover). False to sit in the flow (a panel). */
   anchored?:   boolean;
+  /** The FIRING SHIP's targeting kit. A disruptor prints an extra hit line for each. */
+  uim?:        boolean;
+  derfacs?:    boolean;
 }) {
-  const table = getWeaponFullTable(weaponName, armingType, directFire, plasmaType);
+  const table = getWeaponFullTable(weaponName, armingType, directFire, plasmaType,
+                                   { uim, derfacs });
   // Null rather than an empty box: a drone rack and a scout channel have no damage table, and
   // saying nothing is the honest answer. See getWeaponFullTable.
   if (!table) return null;
 
   const dieFaces = [1, 2, 3, 4, 5, 6];
+
+  // The printed multi-mode layout: range across, one labelled line per mode of fire down. Used
+  // where a weapon has modes worth comparing side by side -- a disruptor's UIM gains sit in
+  // bands its standard line never reaches, so showing one at a time hid the whole point.
+  if (table.modes)
+    return (
+      <div className={anchored ? 'dmg-tooltip dmg-full' : 'dmg-full dmg-full-inline'}>
+        <div className="dmg-tooltip-header">Range</div>
+        <table className="dmg-tooltip-table dmg-full-table">
+          <thead>
+            <tr>
+              <th>Mode</th>
+              {table.modes.labels.map(l => <th key={l}>{l}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {table.modes.lines.map(line => (
+              <tr key={line.label}>
+                <td className="dmg-full-head">{line.label}</td>
+                {line.cells.map((v, i) => (
+                  <td key={table.modes!.labels[i]}
+                      className={v === null ? 'dmg-nil' : v === 0 ? 'dmg-nil' : undefined}>
+                    {v === null ? 'NA' : line.kind === 'hit' ? `1\u2013${v}` : v}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
 
   return (
     <div className={anchored ? 'dmg-tooltip dmg-full' : 'dmg-full dmg-full-inline'}>

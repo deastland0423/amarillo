@@ -831,6 +831,13 @@ public class GameStateDto {
         // Weapon damaged flags — stored alongside existing WeaponDto.destroyed field
         // Energy Allocation helper fields
         public boolean uimFunctional; // true if ship has a functional UIM this impulse
+        /**
+         * True if the ship has an undamaged DERFACS. Unlike the UIM, which the firing player
+         * ELECTS per volley, DERFACS is applied automatically to every disruptor shot in
+         * DamageResolver, so nothing else in the UI could ever have mentioned it. Sent so the
+         * SSD can print the HIT (DERFACS) line the paper sheet prints.
+         */
+        public boolean derfacsFunctional;
         public boolean canDoubleEngines; // Orion engine doubling available (G15.2)
         public int totalPower; // total power available for allocation
         public double moveCost; // warp energy per speed point
@@ -1980,6 +1987,7 @@ public class GameStateDto {
         dto.maxSpeedNextTurn = ship.getMaxAccelerationSpeed();
         dto.commandRating = ship.getCommandRating();
         dto.uimFunctional = ship.getActiveUim(game.getAbsoluteImpulse()) != null;
+        dto.derfacsFunctional = ship.getDerfacs() != null && ship.getDerfacs().isFunctional();
         dto.canDoubleEngines = ship.canDoubleEngines();
         dto.tokenArt = ship.getTokenArt();
         dto.turnMode = ship.getTurnMode() != null ? ship.getTurnMode().name() : null;

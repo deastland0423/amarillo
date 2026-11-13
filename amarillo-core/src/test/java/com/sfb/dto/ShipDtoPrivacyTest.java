@@ -187,7 +187,11 @@ public class ShipDtoPrivacyTest {
         "maxBattery",         // and the number printed on the SSD, like every other box count
         "availableDeckCrews", "availableCrewUnits", "capturedCrew", "minimumCrew",
         "boardingParties", "commandos", "crewQuality", "totalPower", "phaserCapacitorMax",
-        "uimFunctional", "sensorRating", "scannerBonus", "canDoubleEngines",
+        "uimFunctional",
+        // Same ruling as uimFunctional, and the printed sheet settles it: the disruptor table
+        // on a Klingon SSD prints its HIT (DERFACS) line for anyone holding the book.
+        "derfacsFunctional",
+        "sensorRating", "scannerBonus", "canDoubleEngines",
         // Electronic warfare: generated and lent are both public by ruling
         "ecmAllocated", "eccmAllocated", "ecmTotal", "eccmTotal", "ecmSources",
         "lentEcm", "lentEccm", "scoutEwLent", "offensiveEw", "wildWeaselActive",

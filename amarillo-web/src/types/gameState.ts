@@ -389,6 +389,7 @@ export interface ShipObject extends MapObjectBase {
   transporterEnergyCost?:   number;
   totalTractors?:           number;
   uimFunctional:            boolean;  // true if ship has a functional UIM this impulse
+  derfacsFunctional?:       boolean;  // undamaged DERFACS; applied automatically, never elected
   cloakState?:              string;   // "NONE" | "INACTIVE" | "FADING_OUT" | "FULLY_CLOAKED" | "FADING_IN"
   cloakFadeStep?:           number;   // 1–5 during fade transitions
   cloakTransitionImpulse?:  number;

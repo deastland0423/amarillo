@@ -82,6 +82,14 @@ export const DISRUPTOR_HIT_CHART:      readonly number[] = [0,5,5,4,4,4,4,4,4,4,
 export const DISRUPTOR_OVLD_HIT_CHART: readonly number[] = [6,5,5,4,4,4,4,4,4];
 export const DISRUPTOR_DMG_CHART:      readonly number[] = [0,5,4,4,4,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1];
 export const DISRUPTOR_OVLD_DMG_CHART: readonly number[] = [10,10,8,8,8,6,6,6,6];
+// Special fire modes, mirroring the four charts in Disruptor.java. Verified cell by cell against
+// the DISRUPTOR TABLE printed on the paper SSD, which prints all five HIT lines on every sheet.
+// UIM (D6.5) buys the 16-22 band on standard fire, and ranges 3-8 on overload -- where it halves
+// the miss rate on the heaviest shots a disruptor fires. DERFACS buys 23-30, and explicitly does
+// NOT improve overload: fireDerfacs falls back to the standard overload chart.
+export const DISRUPTOR_UIM_HIT_CHART:      readonly number[] = [0,5,5,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2];
+export const DISRUPTOR_UIM_OVLD_HIT_CHART: readonly number[] = [6,5,5,5,5,5,5,5,5];
+export const DISRUPTOR_DERFACS_HIT_CHART:  readonly number[] = [0,5,5,4,4,4,4,4,4,4,4,4,4,4,4,4,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2];
 
 // ── Hellbore (2d6 roll; range-band lookup) ────────────────────────────────────
 // Band edges: [0]=range 0–1, [1]=2, [2]=3–4, [3]=5–8, [4]=9–15, [5]=16–22, [6]=23–40
@@ -332,6 +340,98 @@ export interface FullTable {
   bands: RangeBand[];
   /** Appended to the heading — "overload", "type-S bolt". */
   note?: string;
+  /**
+   * The printed multi-mode layout: one labelled line per mode of fire, as the paper SSD prints
+   * a disruptor. Present only for weapons that have more than one mode worth comparing; when it
+   * is set the renderer draws these lines instead of the single hit/damage pair above.
+   */
+  modes?: ModeTable;
+}
+
+/** One labelled line of a printed table: "HIT (UIM)", "DAMAGE, OVLD". A null cell prints NA. */
+export interface ModeLine {
+  label: string;
+  cells: readonly (number | null)[];
+  /** Hit lines print "1-4"; damage lines print the number alone. */
+  kind: 'hit' | 'damage';
+}
+
+export interface ModeTable {
+  labels: string[];        // band headings, left to right
+  lines:  ModeLine[];
+}
+
+/**
+ * Collapse several per-hex series into shared bands.
+ *
+ * The band edges are the union of every line's change points, which is exactly why the paper
+ * SSD's disruptor table bands at 0 | 1 | 2 | 3-4 | 5-8 | 9-15 | 16-22 | 23-30 | 31-40: 3-4 ends
+ * at 4 because overload DAMAGE drops there, 5-8 ends because overload stops reaching, 23-30 ends
+ * because DERFACS falls off and standard damage does too. Computing it beats hard-coding it --
+ * drop the DERFACS line for a ship without one and the bands still come out right, because the
+ * damage line changes in the same place.
+ */
+function bandSeries(
+  series: readonly (readonly (number | null)[])[],
+  cols: number,
+): { labels: string[]; bands: number[][] } {
+  const labels: string[] = [];
+  const bands: number[][] = [];
+  let start = 0;
+  for (let i = 1; i <= cols; i++) {
+    const changed = i === cols || series.some(s => s[i] !== s[i - 1]);
+    if (!changed) continue;
+    labels.push(bandLabel(start, i - 1));
+    bands.push(series.map(s => s[start] as number));
+    start = i;
+  }
+  return { labels, bands };
+}
+
+/** Pad a mode's chart out to the full range, with NA past the range it reaches. */
+function reach(chart: readonly number[], cols: number, naBelow = 1): (number | null)[] {
+  const out: (number | null)[] = [];
+  for (let r = 0; r < cols; r++)
+    out.push(r < naBelow || r >= chart.length ? null : chart[r]);
+  return out;
+}
+
+/**
+ * The disruptor's table exactly as the SSD prints it, with a HIT line per mode this ship can
+ * actually use.
+ *
+ * Both arming modes appear at once, which the single-mode table could not do: it switched on how
+ * the weapon happened to be armed, so a standard-loaded disruptor never showed what overloading
+ * would buy -- and that is the decision being made, at allocation, before the weapon is armed.
+ */
+function disruptorModeTable(uim: boolean, derfacs: boolean): ModeTable {
+  const COLS = DISRUPTOR_HIT_CHART.length;      // 41: ranges 0-40
+  const lines: ModeLine[] = [
+    { label: 'Hit (std)', kind: 'hit', cells: reach(DISRUPTOR_HIT_CHART, COLS) },
+  ];
+  if (uim)
+    lines.push({ label: 'Hit (UIM)', kind: 'hit', cells: reach(DISRUPTOR_UIM_HIT_CHART, COLS) });
+  if (derfacs)
+    lines.push({ label: 'Hit (DERFACS)', kind: 'hit',
+                 cells: reach(DISRUPTOR_DERFACS_HIT_CHART, COLS) });
+  // Overload reaches range 0 (setOverload drops the minimum) and stops at 8.
+  lines.push({ label: 'Hit (ovld)', kind: 'hit',
+               cells: reach(DISRUPTOR_OVLD_HIT_CHART, COLS, 0) });
+  if (uim)
+    lines.push({ label: 'Hit (ovld/UIM)', kind: 'hit',
+                 cells: reach(DISRUPTOR_UIM_OVLD_HIT_CHART, COLS, 0) });
+  // DERFACS is deliberately absent from the overload lines: fireDerfacs uses the STANDARD
+  // overload chart, so a DERFACS line there would duplicate the one above it. The paper sheet
+  // prints it the same way, with no HIT (OL/DERFACS) row.
+  lines.push({ label: 'Damage, std', kind: 'damage', cells: reach(DISRUPTOR_DMG_CHART, COLS, 0) });
+  lines.push({ label: 'Damage, ovld', kind: 'damage',
+               cells: reach(DISRUPTOR_OVLD_DMG_CHART, COLS, 0).map(v => v ?? 0) });
+
+  const { labels, bands } = bandSeries(lines.map(l => l.cells), COLS);
+  return {
+    labels,
+    lines: lines.map((l, i) => ({ ...l, cells: bands.map(b => b[i]) })),
+  };
 }
 
 function bandLabel(lo: number, hi: number): string {
@@ -398,6 +498,8 @@ export function getWeaponFullTable(
   armingType:  string | null,
   directFire = false,
   plasmaType: string | null = null,
+  /** The firing SHIP's targeting kit, which adds printed lines to a disruptor's table. */
+  fit: { uim?: boolean; derfacs?: boolean } = {},
 ): FullTable | null {
   const n    = weaponName.toLowerCase();
   const mode = armingType ?? 'STANDARD';
@@ -437,10 +539,12 @@ export function getWeaponFullTable(
                                                DISRUPTOR_DMG_CHART.slice(0, 11)) };
 
   if (n.includes('disruptor'))
+    // Every mode on one table, the way the sheet prints it, so the single-mode `bands` are only
+    // a fallback for a caller that has not been taught the new shape.
     return { kind: 'hit',
              bands: hitChartBands(ovld ? DISRUPTOR_OVLD_HIT_CHART : DISRUPTOR_HIT_CHART,
                                   ovld ? DISRUPTOR_OVLD_DMG_CHART : DISRUPTOR_DMG_CHART),
-             note: ovld ? 'overload' : undefined };
+             modes: disruptorModeTable(fit.uim === true, fit.derfacs === true) };
 
   if (n.includes('hellbore')) {
     // Already banded in the data, so these are read across rather than collapsed. Overload is

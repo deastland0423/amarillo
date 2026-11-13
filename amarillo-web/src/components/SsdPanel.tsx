@@ -614,6 +614,10 @@ export default function SsdPanel(
           plasmaType={selectedWeapon.launcherType
             ? (selectedWeapon.plasmaType ?? selectedWeapon.launcherType) : null}
           anchored={false}
+          // The SHIP's targeting kit, not the weapon's: a UIM and a DERFACS are ship-level
+          // systems that add printed lines to every disruptor's table (D6.5).
+          uim={ship.uimFunctional === true}
+          derfacs={ship.derfacsFunctional === true}
         />
       )}
 
