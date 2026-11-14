@@ -232,11 +232,11 @@ class TractorResolver {
         ActionResult emBlock = game.emActionBlock(holder, "operate a tractor beam", "C10.521");
         if (emBlock != null)
             return emBlock;
-        if (holder.getTractors().getTractors() == 0)
+        if (holder.getTractors().printedBoxes() == 0)
             return ActionResult.fail(holder.getName() + " has no tractor beams");
-        if (holder.getTractors().getAvailableTractors() == 0)
+        if (holder.getTractors().intactBoxes() == 0)
             return ActionResult.fail(holder.getName() + " has no undamaged tractor beams");
-        if (holder.getTractors().getBeamsAvailable(game.getAbsoluteImpulse()) <= 0)
+        if (holder.getTractors().readyBoxes(game.getAbsoluteImpulse()) <= 0)
             return ActionResult.fail(holder.getName()
                     + " has no unused tractor beams remaining this turn (G7.13)");
         if (bid < 1)

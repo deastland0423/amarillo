@@ -38,7 +38,7 @@ public class LabQuarterTurnCycleTest {
 
     @Test
     public void aFreshLabIsAvailable() {
-        assertEquals(2, labs(2).availableLabs(1));
+        assertEquals(2, labs(2).readyBoxes(1));
     }
 
     @Test
@@ -46,8 +46,8 @@ public class LabQuarterTurnCycleTest {
         Labs l = labs(1);
         assertTrue("a box was there to use", l.useLab(1) >= 0);
 
-        assertEquals("one attempt a turn (G4.22)", 0, l.availableLabs(2));
-        assertEquals("and still not by the end of it", 0, l.availableLabs(32));
+        assertEquals("one attempt a turn (G4.22)", 0, l.readyBoxes(2));
+        assertEquals("and still not by the end of it", 0, l.readyBoxes(32));
     }
 
     @Test
@@ -55,7 +55,7 @@ public class LabQuarterTurnCycleTest {
         Labs l = labs(3);
         l.useLab(1);
 
-        assertEquals(2, l.availableLabs(1));
+        assertEquals(2, l.readyBoxes(1));
     }
 
     @Test
@@ -78,11 +78,11 @@ public class LabQuarterTurnCycleTest {
         l.useLab(30);                      // turn 1, impulse 30
 
         assertEquals("impulse 1 of the next turn is two impulses later, not a quarter turn",
-                0, l.availableLabs(33));
+                0, l.readyBoxes(33));
         assertEquals("still inside the delay at 37 (seven impulses on)",
-                0, l.availableLabs(37));
+                0, l.readyBoxes(37));
         assertEquals("free at 38, a full eight impulses after use (G4.451)",
-                1, l.availableLabs(38));
+                1, l.readyBoxes(38));
     }
 
     /** Eight impulses is the whole of it: at exactly eight, the box is free. */
@@ -91,8 +91,8 @@ public class LabQuarterTurnCycleTest {
         Labs l = labs(1);
         l.useLab(32);                      // the last impulse of turn 1
 
-        assertEquals(0, l.availableLabs(39));   // seven later
-        assertEquals(1, l.availableLabs(40));   // eight later
+        assertEquals(0, l.readyBoxes(39));   // seven later
+        assertEquals(1, l.readyBoxes(40));   // eight later
     }
 
     /**
@@ -105,7 +105,7 @@ public class LabQuarterTurnCycleTest {
         Labs l = labs(1);
         l.useLab(3);                       // turn 1, impulse 3
 
-        assertEquals("thirty impulses later, well past the delay", 1, l.availableLabs(33));
+        assertEquals("thirty impulses later, well past the delay", 1, l.readyBoxes(33));
     }
 
     /**
@@ -117,9 +117,9 @@ public class LabQuarterTurnCycleTest {
         Labs l = labs(1);
         l.useLab(1);
 
-        assertEquals("used this turn, whatever the gap (G4.22)", 0, l.availableLabs(9));
-        assertEquals(0, l.availableLabs(32));
-        assertEquals("but the next turn, eight impulses on, it is free", 1, l.availableLabs(33));
+        assertEquals("used this turn, whatever the gap (G4.22)", 0, l.readyBoxes(9));
+        assertEquals(0, l.readyBoxes(32));
+        assertEquals("but the next turn, eight impulses on, it is free", 1, l.readyBoxes(33));
     }
 
     // ---------------------------------------------------------------- a held box
@@ -132,8 +132,8 @@ public class LabQuarterTurnCycleTest {
         int box = l.useLab(20);
         l.markUsed(box, 31);
 
-        assertEquals("eight impulses after 31, not after 20", 0, l.availableLabs(38));
-        assertEquals(1, l.availableLabs(39));
+        assertEquals("eight impulses after 31, not after 20", 0, l.readyBoxes(38));
+        assertEquals(1, l.readyBoxes(39));
     }
 
     // ---------------------------------------------------------------- damage vs. use
@@ -150,8 +150,8 @@ public class LabQuarterTurnCycleTest {
         l.useLab(1);
 
         assertEquals("all three boxes still exist", 3, l.fetchRemainingTotalBoxes());
-        assertEquals(3, l.getFunctioningLabs());
-        assertEquals("they are merely busy", 1, l.availableLabs(1));
+        assertEquals(3, l.intactBoxes());
+        assertEquals("they are merely busy", 1, l.readyBoxes(1));
     }
 
     @Test
@@ -160,8 +160,8 @@ public class LabQuarterTurnCycleTest {
         assertTrue(l.damage());
 
         assertEquals(1, l.fetchRemainingTotalBoxes());
-        assertEquals("a new turn does not rebuild it", 1, l.availableLabs(33));
-        assertEquals("nor any turn after that", 1, l.availableLabs(65));
+        assertEquals("a new turn does not rebuild it", 1, l.readyBoxes(33));
+        assertEquals("nor any turn after that", 1, l.readyBoxes(65));
     }
 
     @Test
@@ -170,12 +170,12 @@ public class LabQuarterTurnCycleTest {
         // marks off one already used this turn.
         Labs l = labs(2);
         l.useLab(1);
-        assertEquals(1, l.availableLabs(1));
+        assertEquals(1, l.readyBoxes(1));
 
         assertTrue(l.damage());
 
-        assertEquals("the fresh box survived", 1, l.availableLabs(1));
-        assertEquals(1, l.getFunctioningLabs());
+        assertEquals("the fresh box survived", 1, l.readyBoxes(1));
+        assertEquals(1, l.intactBoxes());
     }
 
     @Test
@@ -191,7 +191,7 @@ public class LabQuarterTurnCycleTest {
         l.damage();
 
         assertTrue(l.repair(1));
-        assertEquals(2, l.getFunctioningLabs());
+        assertEquals(2, l.intactBoxes());
         assertFalse("and cannot exceed the SSD count", l.repair(1));
     }
 
@@ -260,7 +260,7 @@ public class LabQuarterTurnCycleTest {
         busy.useLab(1);
         busy.useLab(1);
 
-        assertEquals("every box researches, busy or not", 0, busy.availableLabs(1));
+        assertEquals("every box researches, busy or not", 0, busy.readyBoxes(1));
         assertEquals("four boxes at the worst roll, point blank: 4 x 5 (G4.11)",
                 20, busy.calculateResearchPoints(0, 6));
     }

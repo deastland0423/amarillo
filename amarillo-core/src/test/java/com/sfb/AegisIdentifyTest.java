@@ -307,11 +307,11 @@ public class AegisIdentifyTest {
     /** D13.33: aegis spends no lab, and the lab budget is untouched by it. */
     @Test
     public void identifyingWithAegisSpendsNoLab() {
-        int labsBefore = escort.getLabs().availableLabs(game.getAbsoluteImpulse());
+        int labsBefore = escort.getLabs().readyBoxes(game.getAbsoluteImpulse());
 
         assertTrue(attempt("Incoming-1", 6).isSuccess());
 
         assertEquals("labs are not used by the aegis system (D13.33)",
-                labsBefore, escort.getLabs().availableLabs(game.getAbsoluteImpulse()));
+                labsBefore, escort.getLabs().readyBoxes(game.getAbsoluteImpulse()));
     }
 }

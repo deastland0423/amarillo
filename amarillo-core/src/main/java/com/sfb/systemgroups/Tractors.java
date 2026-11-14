@@ -14,7 +14,7 @@ import com.sfb.objects.Unit;
  * beam (D7.835). Energy stays pooled at group level (G7.15), as does
  * accumulated negative tractor (G7.35).
  */
-public class Tractors implements Systems {
+public class Tractors implements Systems, CyclingBoxes {
 
 	int totalTractorEnergy; // The total energy allocated to tractors for the turn.
 	int remainingTractorEnergy; // Unspent tractor energy
@@ -113,11 +113,34 @@ public class Tractors implements Systems {
 		return true;
 	}
 
-	/** Beams that can still initiate a NEW link this turn (G7.13). */
-	public int getBeamsAvailable(int absoluteImpulse) {
+	/**
+	 * Beams that can still initiate a NEW link this turn (G7.13): undamaged, not already
+	 * holding something, and past the quarter-turn delay since their last use.
+	 * <p>
+	 * Note the extra condition against the other two systems. A tractor beam is subtracted
+	 * from this count for THREE reasons where a lab box has two, because a beam that is
+	 * holding a unit is unavailable without having been spent this impulse at all.
+	 */
+	@Override
+	public int readyBoxes(int absoluteImpulse) {
 		int count = 0;
 		for (TractorBeam b : beams)
 			if (b.isAvailableForNewLink(absoluteImpulse))
+				count++;
+		return count;
+	}
+
+	/**
+	 * Beams holding a unit right now — the state only a tractor has (G7.0). A link persists
+	 * across impulses and across the turn boundary (G7.42) until it is released or the beam
+	 * is shot off, so this is neither "spent this turn" nor "free": it is its own thing, and
+	 * a readout that folded it into either would be lying about half the beams on a tug.
+	 */
+	@Override
+	public int holdingBoxes() {
+		int count = 0;
+		for (TractorBeam b : beams)
+			if (b.isFunctional() && b.isInUse())
 				count++;
 		return count;
 	}
@@ -155,11 +178,18 @@ public class Tractors implements Systems {
 		return held;
 	}
 
-	public int getTractors() {
+	/**
+	 * Beams printed on the SSD, damaged or not. A destroyed beam is kept in the list with
+	 * {@code functional} false rather than removed, so the list length IS the printed count.
+	 */
+	@Override
+	public int printedBoxes() {
 		return beams.size();
 	}
 
-	public int getAvailableTractors() {
+	/** Beams that survived damage, whether idle, spent or holding something. */
+	@Override
+	public int intactBoxes() {
 		int count = 0;
 		for (TractorBeam b : beams)
 			if (b.isFunctional())
@@ -190,12 +220,12 @@ public class Tractors implements Systems {
 
 	@Override
 	public int fetchOriginalTotalBoxes() {
-		return beams.size();
+		return printedBoxes();
 	}
 
 	@Override
 	public int fetchRemainingTotalBoxes() {
-		return getAvailableTractors();
+		return intactBoxes();
 	}
 
 	@Override
@@ -310,7 +340,7 @@ public class Tractors implements Systems {
 	 * @return True if there are damage boxes, false otherwise.
 	 */
 	public boolean repair(int value) {
-		if (getAvailableTractors() + value > beams.size()) {
+		if (intactBoxes() + value > beams.size()) {
 			return false;
 		}
 		int toRepair = value;

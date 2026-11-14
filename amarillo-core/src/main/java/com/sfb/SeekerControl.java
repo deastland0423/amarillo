@@ -434,7 +434,7 @@ class SeekerControl {
      * which worked only as long as the two tallies agreed.
      */
     private int freeLabs(Ship ship) {
-        return ship.getLabs().availableLabs(game.getAbsoluteImpulse());
+        return ship.getLabs().readyBoxes(game.getAbsoluteImpulse());
     }
 
     /**

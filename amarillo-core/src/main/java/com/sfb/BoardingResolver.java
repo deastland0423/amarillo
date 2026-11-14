@@ -272,11 +272,11 @@ class BoardingResolver {
         if (numParties > availableParties)
             return ActionResult.fail("Not enough boarding parties (have " + availableParties
                     + ", need " + numParties + ")");
-        int availableTrans = actingShip.getTransporters().getAvailableTrans();
+        int availableTrans = actingShip.getTransporters().intactBoxes();
         if (numParties > availableTrans)
             return ActionResult.fail("Not enough transporters (have " + availableTrans
                     + ", need " + numParties + ")");
-        int availableUses = actingShip.getTransporters().availableUses(game.getAbsoluteImpulse());
+        int availableUses = actingShip.getTransporters().poweredUses(game.getAbsoluteImpulse());
         if (numParties > availableUses)
             return ActionResult.fail("Not enough transporter energy (have " + availableUses
                     + " use(s), need " + numParties + ")");
@@ -369,9 +369,9 @@ class BoardingResolver {
         if (!actingShip.isActiveFireControl())
             return ActionResult.fail(actingShip.getName() + " needs active fire control to beam "
                     + objective.getName() + " aboard (D6.124)");
-        if (actingShip.getTransporters().getAvailableTrans() < 1)
+        if (actingShip.getTransporters().intactBoxes() < 1)
             return ActionResult.fail(actingShip.getName() + " has no working transporters");
-        if (actingShip.getTransporters().availableUses(game.getAbsoluteImpulse()) < 1)
+        if (actingShip.getTransporters().poweredUses(game.getAbsoluteImpulse()) < 1)
             return ActionResult.fail(actingShip.getName()
                     + " has no transporter energy allocated this turn");
 
@@ -453,10 +453,10 @@ class BoardingResolver {
 
         // Non-combat rate: 2 crew per transporter use (G8.32)
         int usesNeeded = (int) Math.ceil(amount / 2.0);
-        int availTrans = source.getTransporters().getAvailableTrans();
+        int availTrans = source.getTransporters().intactBoxes();
         if (usesNeeded > availTrans)
             return ActionResult.fail("Not enough transporters (have " + availTrans + ", need " + usesNeeded + ")");
-        int availUses = source.getTransporters().availableUses(game.getAbsoluteImpulse());
+        int availUses = source.getTransporters().poweredUses(game.getAbsoluteImpulse());
         if (usesNeeded > availUses)
             return ActionResult
                     .fail("Not enough transporter energy (have " + availUses + " use(s), need " + usesNeeded + ")");

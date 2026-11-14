@@ -23,7 +23,7 @@ import com.sfb.utilities.MapUtils;
  * take a job right now (usage). Merging them meant a destroyed box came back at the start of
  * the next turn, and a lab merely USED counted as a missing box for cripple calculations.
  */
-public class Labs implements Systems {
+public class Labs implements Systems, CyclingBoxes {
 
 	/** Impulses in a quarter turn (G4.451). */
 	public static final int QUARTER_TURN = BoxCycle.QUARTER_TURN;
@@ -50,8 +50,15 @@ public class Labs implements Systems {
 
 	/// FETCH ///
 
+	/** Boxes printed on the SSD, damaged or not. */
+	@Override
+	public int printedBoxes() {
+		return boxes.total();
+	}
+
 	/** Boxes that still exist — undamaged, whether or not they are busy. */
-	public int getFunctioningLabs() {
+	@Override
+	public int intactBoxes() {
 		return boxes.functioning();
 	}
 
@@ -59,7 +66,8 @@ public class Labs implements Systems {
 	 * Boxes free to take a job at this impulse: undamaged, unused this turn (G4.22), and
 	 * past the quarter-turn delay since their last use (G4.451).
 	 */
-	public int availableLabs(int absoluteImpulse) {
+	@Override
+	public int readyBoxes(int absoluteImpulse) {
 		return boxes.available(absoluteImpulse);
 	}
 
@@ -88,7 +96,7 @@ public class Labs implements Systems {
 	// Total operations boxes on the SSD (cripple calculations).
 	@Override
 	public int fetchOriginalTotalBoxes() {
-		return boxes.total();
+		return printedBoxes();
 	}
 
 	/**
@@ -98,7 +106,7 @@ public class Labs implements Systems {
 	 */
 	@Override
 	public int fetchRemainingTotalBoxes() {
-		return boxes.functioning();
+		return intactBoxes();
 	}
 
 	/// DAMAGE ///

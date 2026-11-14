@@ -64,7 +64,7 @@ public class GuardPostsTest {
 
     @Test
     public void poolGuards_fullCoverage_alwaysIntercepts() {
-        int boxes = fed.getTransporters().getAvailableTrans();
+        int boxes = fed.getTransporters().intactBoxes();
         for (int i = 0; i < boxes; i++)
             assertNull(fed.getGuardPosts().assign(transporters(), BoardingPartyQuality.NORMAL));
 

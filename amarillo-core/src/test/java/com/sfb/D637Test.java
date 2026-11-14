@@ -114,7 +114,7 @@ public class D637Test {
             fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
             fed.addLockOn(klingon);
             fed.setActiveFireControl(true);
-            int beamsBefore = fed.getTractors().getBeamsAvailable(game.getAbsoluteImpulse());
+            int beamsBefore = fed.getTractors().readyBoxes(game.getAbsoluteImpulse());
 
             Game.ActionResult r = game.establishTractor(fed, "IKV Saber", 2);
             assertTrue(r.getMessage(), r.isSuccess());
@@ -125,7 +125,7 @@ public class D637Test {
                 assertEquals("bid energy burned (range 1 → ×1)",
                         3, fed.getTractors().getRemainingTractorEnergy());
                 assertEquals("beam expended for the turn",
-                        beamsBefore - 1, fed.getTractors().getBeamsAvailable(game.getAbsoluteImpulse()));
+                        beamsBefore - 1, fed.getTractors().readyBoxes(game.getAbsoluteImpulse()));
                 assertNull("defender is never asked", game.getPendingTractorAuction());
             } else {
                 sawGrab = true;

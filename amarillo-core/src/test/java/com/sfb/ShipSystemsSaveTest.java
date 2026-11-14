@@ -81,25 +81,25 @@ public class ShipSystemsSaveTest {
     public void aLabUsedRecentlyIsStillBusyAfterAReload() {
         int atImpulse = 20;
         ship.getLabs().useLab(atImpulse);
-        int freeNow = ship.getLabs().availableLabs(atImpulse + 1);
+        int freeNow = ship.getLabs().readyBoxes(atImpulse + 1);
 
         Ship after = roundTrip();
 
         assertEquals("the quarter-turn delay must survive the save",
-                freeNow, after.getLabs().availableLabs(atImpulse + 1));
+                freeNow, after.getLabs().readyBoxes(atImpulse + 1));
         assertEquals("and expire at the same moment",
-                ship.getLabs().availableLabs(atImpulse + 40),
-                after.getLabs().availableLabs(atImpulse + 40));
+                ship.getLabs().readyBoxes(atImpulse + 40),
+                after.getLabs().readyBoxes(atImpulse + 40));
     }
 
     @Test
     public void aDestroyedLabBoxStaysDestroyed() {
-        int before = ship.getLabs().availableLabs(1);
+        int before = ship.getLabs().readyBoxes(1);
         ship.getLabs().damage();
         assertTrue("fixture: damaging a lab should remove a box",
-                ship.getLabs().availableLabs(1) < before);
+                ship.getLabs().readyBoxes(1) < before);
 
-        assertEquals(ship.getLabs().availableLabs(1), roundTrip().getLabs().availableLabs(1));
+        assertEquals(ship.getLabs().readyBoxes(1), roundTrip().getLabs().readyBoxes(1));
     }
 
     // ---------------------------------------------------------------- UIM
@@ -161,13 +161,13 @@ public class ShipSystemsSaveTest {
     @Test
     public void aStateMapMissingTheseGroupsLeavesTheBuiltValuesAlone() {
         int bridge = ship.getControlSpaces().getAvailableBridge();
-        int labs = ship.getLabs().availableLabs(1);
+        int labs = ship.getLabs().readyBoxes(1);
 
         ship.applyState(Map.of("facing", 5));
 
         assertEquals("an older save must not blank out the control spaces",
                 bridge, ship.getControlSpaces().getAvailableBridge());
-        assertEquals(labs, ship.getLabs().availableLabs(1));
+        assertEquals(labs, ship.getLabs().readyBoxes(1));
     }
 
     // ---------------------------------------------------------------- special functions

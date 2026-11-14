@@ -928,7 +928,7 @@ public class Game {
      */
     boolean spendTransporterEnergy(Ship ship, int uses) {
         com.sfb.systemgroups.Transporters t = ship.getTransporters();
-        if (t.getAvailableTrans() == 0 || uses <= 0)
+        if (t.intactBoxes() == 0 || uses <= 0)
             return uses <= 0;
         if (transporterUsesAvailable(ship) < uses)
             return false;
@@ -963,7 +963,7 @@ public class Game {
         com.sfb.systemgroups.Transporters t = ship.getTransporters();
         // Boxes free to work THIS impulse, not merely undamaged: a box used earlier is
         // still cooling off (next turn or eight impulses, whichever is longer).
-        int freeBoxes = t.freeBoxes(getAbsoluteImpulse());
+        int freeBoxes = t.readyBoxes(getAbsoluteImpulse());
         if (freeBoxes == 0)
             return 0;
         double energy = t.getBankedEnergy() + ship.getPowerSystems().getBatteryPower();
@@ -2199,9 +2199,9 @@ public class Game {
         // claiming it here would spend a box on an attempt that never happened.
         boolean alreadyIdentifying = channel.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.IDENTIFY
                 && channel.getLabBoxIndex() >= 0;
-        if (!alreadyIdentifying && scout.getLabs().availableLabs(impulse) <= 0)
+        if (!alreadyIdentifying && scout.getLabs().readyBoxes(impulse) <= 0)
             return ActionResult.fail("No lab available for this channel (G24.251, G4.451): "
-                    + scout.getLabs().getFunctioningLabs() + " lab(s), none free this impulse");
+                    + scout.getLabs().intactBoxes() + " lab(s), none free this impulse");
 
         // Identification works on any seeker OR any shuttle (G24.25) — an unidentified enemy
         // shuttle looks just like a lurking seeker, so the attempt must be allowed either way

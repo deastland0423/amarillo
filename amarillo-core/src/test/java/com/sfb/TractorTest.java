@@ -59,28 +59,28 @@ public class TractorTest {
     @Test
     public void damage_reducesAvailableTractors() {
         Tractors t = fed.getTractors();
-        int before = t.getAvailableTractors();
+        int before = t.intactBoxes();
         assertNotNull(t.damageAutoPick());
-        assertEquals(before - 1, t.getAvailableTractors());
+        assertEquals(before - 1, t.intactBoxes());
     }
 
     @Test
     public void damage_onZeroReturnsNull() {
         Tractors t = fed.getTractors();
         // Damage all beams down to zero
-        int total = t.getAvailableTractors();
+        int total = t.intactBoxes();
         for (int i = 0; i < total; i++) t.damageAutoPick();
         assertNull(t.damageAutoPick());
-        assertEquals(0, t.getAvailableTractors());
+        assertEquals(0, t.intactBoxes());
     }
 
     @Test
     public void repair_increasesAvailableTractors() {
         Tractors t = fed.getTractors();
         t.damageAutoPick(); // knock one out so there is something to repair
-        int before = t.getAvailableTractors();
+        int before = t.intactBoxes();
         assertTrue(t.repair());
-        assertEquals(before + 1, t.getAvailableTractors());
+        assertEquals(before + 1, t.intactBoxes());
     }
 
     @Test
@@ -88,7 +88,7 @@ public class TractorTest {
         Tractors t = fed.getTractors();
         // No damage → nothing to repair
         assertFalse(t.repair());
-        assertEquals(t.getTractors(), t.getAvailableTractors());
+        assertEquals(t.printedBoxes(), t.intactBoxes());
     }
 
     @Test
@@ -129,7 +129,7 @@ public class TractorTest {
     public void linkUnit_returnsFalseWhenNoBeamsFree() {
         Tractors t = fed.getTractors();
         // Exhaust all beams (FedCA has 3)
-        int max = t.getAvailableTractors();
+        int max = t.intactBoxes();
         // Use temporary ships as dummy targets to fill the slots
         for (int i = 0; i < max; i++) {
             Ship dummy = new Ship();

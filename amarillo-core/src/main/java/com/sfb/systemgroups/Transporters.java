@@ -6,7 +6,7 @@ import java.util.Map;
 
 import com.sfb.objects.Unit;
 
-public class Transporters implements Systems {
+public class Transporters implements Systems, CyclingBoxes {
 
 	private static final double ENERGY_PER_USE = 0.2;
 	/** Slack for binary floating point: 0.2 and 1.0 do not divide exactly. */
@@ -64,8 +64,15 @@ public class Transporters implements Systems {
 		return boxes.damageBox(number);
 	}
 
+	/** Boxes printed on the SSD, damaged or not. */
+	@Override
+	public int printedBoxes() {
+		return boxes.total();
+	}
+
 	/** Boxes surviving damage, busy or not. Public knowledge, like every box on the SSD. */
-	public int getAvailableTrans() {
+	@Override
+	public int intactBoxes() {
 		return boxes.functioning();
 	}
 
@@ -83,8 +90,16 @@ public class Transporters implements Systems {
 	 * How many uses remain: boxes free to work at this impulse, capped by the energy there
 	 * is to power them. Both limits are real, and they are not the same — a ship can
 	 * have energy and no free box, or a free box and nothing to power it with.
+	 * <p>
+	 * <b>OWNER-ONLY. Never send this to an opponent.</b> It is the one transporter figure that
+	 * depends on energy, so publishing it would let an enemy read the ship's battery state back
+	 * out of its transporter count. That is why it is NOT on {@link CyclingBoxes}, every
+	 * question on which is public, and why the name says "powered" rather than "available":
+	 * the word that used to be here meant three different things across the three systems.
+	 * What an opponent may be told is {@code intactBoxes() - usesMadeThisTurn()}, which
+	 * {@code GameStateDto.redactForEnemy} computes instead.
 	 */
-	public int availableUses(int absoluteImpulse) {
+	public int poweredUses(int absoluteImpulse) {
 		int affordable = (int) ((bankedEnergy - energyUsed) / ENERGY_PER_USE + EPSILON);
 		return Math.min(boxes.available(absoluteImpulse), affordable);
 	}
@@ -104,10 +119,15 @@ public class Transporters implements Systems {
 	}
 
 	/**
-	 * How many boxes have been used this turn. Every use is watched at the table, so this
-	 * is public knowledge even though the energy behind it is not.
+	 * Boxes free to take a new job at this impulse — intact, unspent this turn, and past the
+	 * quarter-turn delay. Public knowledge, like every box count: it is the ENERGY that is
+	 * secret, and this figure does not consider it ({@link #poweredUses} does).
+	 * <p>
+	 * The javadoc here used to be a copy of {@link #usesMadeThisTurn}'s, describing the
+	 * opposite quantity, which is how the name came to be trusted over the comment.
 	 */
-	public int freeBoxes(int absoluteImpulse) {
+	@Override
+	public int readyBoxes(int absoluteImpulse) {
 		return boxes.available(absoluteImpulse);
 	}
 
@@ -126,12 +146,12 @@ public class Transporters implements Systems {
 	
 	@Override
 	public int fetchOriginalTotalBoxes() {
-		return boxes.total();
+		return printedBoxes();
 	}
 
 	@Override
 	public int fetchRemainingTotalBoxes() {
-		return boxes.functioning();
+		return intactBoxes();
 	}
 
 	/**

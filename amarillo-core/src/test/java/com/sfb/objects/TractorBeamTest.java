@@ -80,7 +80,7 @@ public class TractorBeamTest {
         assertNull(t.getBeams().get(0).getHeldUnit());
         assertTrue("G7.13: release does not free the beam this turn",
                 t.getBeams().get(0).isUsedThisTurn(T1));
-        assertEquals(2, t.getBeamsAvailable(T1));
+        assertEquals(2, t.readyBoxes(T1));
         assertFalse(d.isTractored());
     }
 
@@ -97,7 +97,7 @@ public class TractorBeamTest {
         t.initForTurn(3, T2);
 
         assertEquals("Released beam is fresh; holding beam still in use (G7.42)",
-                2, t.getBeamsAvailable(T2));
+                2, t.readyBoxes(T2));
         assertSame(held, t.getBeams().get(1).getHeldUnit());
     }
 
@@ -119,7 +119,7 @@ public class TractorBeamTest {
 
         assertTrue("Used-idle beam sacrificed first: " + label, label.contains("Tractor #1"));
         assertFalse(t.getBeams().get(0).isFunctional());
-        assertEquals(2, t.getAvailableTractors());
+        assertEquals(2, t.intactBoxes());
         assertSame("Link untouched", held, t.getBeams().get(1).getHeldUnit());
         assertTrue(t.getBeams().get(2).isFunctional());
     }
@@ -137,7 +137,7 @@ public class TractorBeamTest {
         String label = t.damageAutoPick();
 
         assertTrue("Link break must be logged: " + label, label.contains("link to Drone-1 broken"));
-        assertEquals(0, t.getAvailableTractors());
+        assertEquals(0, t.intactBoxes());
         assertFalse("Held unit released on beam destruction", held.isTractored());
     }
 

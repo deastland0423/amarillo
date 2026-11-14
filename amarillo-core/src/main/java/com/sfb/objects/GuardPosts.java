@@ -564,7 +564,7 @@ public class GuardPosts {
     /** Current box count of a pool target (the denominator of guards/boxes). */
     public int poolBoxCount(SystemTarget.Type type) {
         switch (type) {
-            case TRANSPORTERS: return ship.getTransporters().getAvailableTrans();
+            case TRANSPORTERS: return ship.getTransporters().intactBoxes();
             case BATTERY:      return ship.getPowerSystems().getAvailableBattery();
             case FHULL:        return ship.getHullBoxes().getAvailableFhull();
             case AHULL:        return ship.getHullBoxes().getAvailableAhull();

@@ -475,7 +475,7 @@ public class ObjectiveFogTest {
 
         endTurn(game);
 
-        int labs = shipNamed(game, "USS Enterprise").getLabs().getFunctioningLabs();
+        int labs = shipNamed(game, "USS Enterprise").getLabs().intactBoxes();
         int gained = box.studyProgressFor("USS Enterprise");
         assertTrue("G4.11 pays 5-10 a lab at range 0, so " + labs + " labs give "
                         + (5 * labs) + "-" + (10 * labs) + ", got " + gained,

@@ -27,9 +27,9 @@ public class DacDeadResultsTest {
 
     @Test
     public void transHit_destroysATransporter() {
-        int before = fed.getTransporters().getAvailableTrans();
+        int before = fed.getTransporters().intactBoxes();
         assertEquals("trans HIT", fed.applySystemHitForTest("trans"));
-        assertEquals(before - 1, fed.getTransporters().getAvailableTrans());
+        assertEquals(before - 1, fed.getTransporters().intactBoxes());
     }
 
     @Test
@@ -41,9 +41,9 @@ public class DacDeadResultsTest {
 
     @Test
     public void labHit_destroysALab() {
-        int before = fed.getLabs().getFunctioningLabs();
+        int before = fed.getLabs().intactBoxes();
         assertEquals("lab HIT", fed.applySystemHitForTest("lab"));
-        assertEquals(before - 1, fed.getLabs().getFunctioningLabs());
+        assertEquals(before - 1, fed.getLabs().intactBoxes());
     }
 
     @Test

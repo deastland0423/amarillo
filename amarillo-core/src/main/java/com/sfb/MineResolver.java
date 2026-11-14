@@ -85,7 +85,7 @@ class MineResolver {
         }
 
         // Transporter energy
-        if (actingShip.getTransporters().availableUses(game.getAbsoluteImpulse()) < 1) {
+        if (actingShip.getTransporters().poweredUses(game.getAbsoluteImpulse()) < 1) {
             return ActionResult.fail("No transporter energy available");
         }
 

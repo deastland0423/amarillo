@@ -97,7 +97,7 @@ public class TBombGameTest {
     @Test
     public void placeTBomb_failsWithNoTransporterEnergy() {
         // Drain all banked energy by exhausting available uses
-        while (ship.getTransporters().availableUses(game.getAbsoluteImpulse()) > 0) {
+        while (ship.getTransporters().poweredUses(game.getAbsoluteImpulse()) > 0) {
             ship.getTransporters().useTransporter(game.getAbsoluteImpulse());
         }
 
@@ -165,11 +165,11 @@ public class TBombGameTest {
 
     @Test
     public void placeTBomb_real_consumesTransporterEnergy() {
-        int usesBefore = ship.getTransporters().availableUses(game.getAbsoluteImpulse());
+        int usesBefore = ship.getTransporters().poweredUses(game.getAbsoluteImpulse());
 
         game.placeTBomb(ship, new Location(10, 11), true);
 
-        assertEquals(usesBefore - 1, ship.getTransporters().availableUses(game.getAbsoluteImpulse()));
+        assertEquals(usesBefore - 1, ship.getTransporters().poweredUses(game.getAbsoluteImpulse()));
     }
 
     // -------------------------------------------------------------------------

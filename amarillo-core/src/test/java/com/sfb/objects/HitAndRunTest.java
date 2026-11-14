@@ -225,7 +225,7 @@ public class HitAndRunTest {
     public void ship_poolGuards_cappedAtBoxCount() {
         // D7 transporters: post one guard per box, then one more must fail
         SystemTarget pool = new SystemTarget(SystemTarget.Type.TRANSPORTERS, "Transporters");
-        int boxes = klingon.getTransporters().getAvailableTrans();
+        int boxes = klingon.getTransporters().intactBoxes();
         for (int i = 0; i < boxes; i++)
             assertNull("guard " + (i + 1), klingon.getGuardPosts().assign(pool, BoardingPartyQuality.NORMAL));
         assertNotNull("One guard per box (D7.833)",

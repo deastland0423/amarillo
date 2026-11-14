@@ -138,7 +138,7 @@ public class TransporterEnergyTest {
         fed.getTransporters().bankEnergy(0.4);          // two uses
         fed.getPowerSystems().setBatteryPower(1);       // five more
 
-        int transporters = fed.getTransporters().getAvailableTrans();
+        int transporters = fed.getTransporters().intactBoxes();
         assertTrue("fixture needs working transporters", transporters > 0);
 
         assertEquals("0.4 banked + 1 battery = 7 uses, capped by the transporters aboard",
@@ -148,7 +148,7 @@ public class TransporterEnergyTest {
     @Test
     public void withNoWorkingTransportersNothingIsAffordable() {
         fed.getPowerSystems().setBatteryPower(6);
-        while (fed.getTransporters().getAvailableTrans() > 0)
+        while (fed.getTransporters().intactBoxes() > 0)
             fed.getTransporters().damage();
 
         assertEquals(0, game.transporterUsesAvailable(fed));

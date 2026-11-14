@@ -2022,7 +2022,7 @@ public class GameSession {
                 // bids stack beyond that, so there is no per-beam energy cap.
                 int tractorReq = Math.max(0, request.getTractorEnergy());
                 if (tractorReq > 0) {
-                    int beams = ship.getTractors().getAvailableTractors();
+                    int beams = ship.getTractors().intactBoxes();
                     if (beams == 0)
                         return ActionResult.fail(ship.getName() + " has no functional tractor beams");
                 }

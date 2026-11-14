@@ -1906,16 +1906,16 @@ public class GameStateDto {
         dto.commandos = ship.getCrew().getFriendlyTroops().commandos;
         // What the player can actually commit this impulse, not the box count: a lab used
         // late last turn is still cooling off (G4.451).
-        dto.availableLab = ship.getLabs().availableLabs(game.getAbsoluteImpulse());
+        dto.availableLab = ship.getLabs().readyBoxes(game.getAbsoluteImpulse());
         // Sent so the client can tell "no labs left" from "labs still cooling off", which
         // otherwise look identical and read as a bug.
-        dto.functioningLab = ship.getLabs().getFunctioningLabs();
+        dto.functioningLab = ship.getLabs().intactBoxes();
         dto.availableCrewUnits = ship.getCrew().getAvailableCrewUnits();
         dto.capturedCrew = ship.getCrew().getCapturedCrew();
         dto.minimumCrew = ship.getCrew().getMinimumCrew();
         dto.availableDeckCrews = ship.getCrew().getAvailableDeckCrews();
         dto.crewQuality = ship.getCrew().getCrewQuality().name();
-        dto.availableTransporters = ship.getTransporters().getAvailableTrans();
+        dto.availableTransporters = ship.getTransporters().intactBoxes();
         dto.totalTransporters = ship.getTransporters().fetchOriginalTotalBoxes();
         dto.transporterEnergyCost = com.sfb.constants.Constants.TRANS_ENERGY;
         dto.controlUsed = ship.getControlUsed();

@@ -305,7 +305,7 @@ public class TowingTest {
         assertTrue("Stale link must be dropped",
                 fed.getTractors().getTractoredUnits().isEmpty());
         assertEquals("The beam stays spent for the turn (G7.13)",
-                2, fed.getTractors().getBeamsAvailable(game.getAbsoluteImpulse()));
+                2, fed.getTractors().readyBoxes(game.getAbsoluteImpulse()));
     }
 
     @Test
@@ -333,7 +333,7 @@ public class TowingTest {
         assertFalse("Lock-on cleared", fed.getLockOns().contains(drone));
         assertNull("Position emptied", drone.getLocation());
         assertEquals("Beam stays spent for the turn (G7.13)",
-                2, fed.getTractors().getBeamsAvailable(game.getAbsoluteImpulse()));
+                2, fed.getTractors().readyBoxes(game.getAbsoluteImpulse()));
     }
 
     @Test

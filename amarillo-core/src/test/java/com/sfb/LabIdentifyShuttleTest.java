@@ -276,14 +276,14 @@ public class LabIdentifyShuttleTest {
     public void aFriendlyShuttleCannotBeIdentified() {
         Shuttle mine = enemyShuttleAt(10, 10);
         mine.setOwner(federation);          // now it is one of ours
-        int labsBefore = fed.getLabs().availableLabs(game.getAbsoluteImpulse());
+        int labsBefore = fed.getLabs().readyBoxes(game.getAbsoluteImpulse());
 
         ActionResult r = identify(mine);
 
         assertFalse("nothing to learn about our own shuttle", mine.isIdentified());
         assertTrue(r.getMessage(), r.getMessage().contains("friendly"));
         assertEquals("and no lab should have been spent on it",
-                labsBefore, fed.getLabs().availableLabs(game.getAbsoluteImpulse()));
+                labsBefore, fed.getLabs().readyBoxes(game.getAbsoluteImpulse()));
     }
 
     /**
@@ -333,14 +333,14 @@ public class LabIdentifyShuttleTest {
         fed.announceEm(true, game.getAbsoluteImpulse());
         fed.applyEmAnnouncement(game.getAbsoluteImpulse());   // stage 6E brings it into force
         assertTrue("fixture needs EM in force", fed.isUsingEm());
-        int labsBefore = fed.getLabs().availableLabs(game.getAbsoluteImpulse());
+        int labsBefore = fed.getLabs().readyBoxes(game.getAbsoluteImpulse());
 
         ActionResult r = identify(s);
 
         assertFalse("G4.21 bars it: " + r.getMessage(), r.isSuccess());
         assertFalse(s.isIdentified());
         assertEquals("and no lab is spent on a refused attempt",
-                labsBefore, fed.getLabs().availableLabs(game.getAbsoluteImpulse()));
+                labsBefore, fed.getLabs().readyBoxes(game.getAbsoluteImpulse()));
     }
 
     /**
@@ -406,7 +406,7 @@ public class LabIdentifyShuttleTest {
             assertTrue(game.identifySeeker(fed, "1", s.getName(), 5).isSuccess());
 
         assertEquals("three attempts, one box (G24.251)",
-                1, fed.getLabs().availableLabs(game.getAbsoluteImpulse()));
+                1, fed.getLabs().readyBoxes(game.getAbsoluteImpulse()));
     }
 
     // ---------------------------------------------------------------- G4.22, several labs
@@ -451,7 +451,7 @@ public class LabIdentifyShuttleTest {
     @Test
     public void everyLabCommittedIsSpent() {
         Shuttle s = enemyShuttleAt(10, 10);
-        int before = fed.getLabs().availableLabs(game.getAbsoluteImpulse());
+        int before = fed.getLabs().readyBoxes(game.getAbsoluteImpulse());
         assertTrue("fixture needs at least three labs", before >= 3);
 
         game.identifySeekers(fed,
@@ -459,7 +459,7 @@ public class LabIdentifyShuttleTest {
                 new int[] { 6, 6, 6 });   // succeeds on the first, and still spends three
 
         assertEquals("three labs were committed, so three are gone",
-                before - 3, fed.getLabs().availableLabs(game.getAbsoluteImpulse()));
+                before - 3, fed.getLabs().readyBoxes(game.getAbsoluteImpulse()));
     }
 
     /**
@@ -494,7 +494,7 @@ public class LabIdentifyShuttleTest {
     @Test
     public void committingMoreLabsThanTheShipHasIsRefused() {
         Shuttle s = enemyShuttleAt(10, 10);
-        int labs = fed.getLabs().availableLabs(game.getAbsoluteImpulse());
+        int labs = fed.getLabs().readyBoxes(game.getAbsoluteImpulse());
         java.util.List<String> tooMany = new java.util.ArrayList<>();
         for (int i = 0; i < labs + 1; i++)
             tooMany.add(s.getName());
@@ -504,7 +504,7 @@ public class LabIdentifyShuttleTest {
         assertFalse("cannot commit more labs than the ship has: " + r.getMessage(),
                 r.isSuccess());
         assertEquals("and a refused attempt spends none",
-                labs, fed.getLabs().availableLabs(game.getAbsoluteImpulse()));
+                labs, fed.getLabs().readyBoxes(game.getAbsoluteImpulse()));
     }
 
     /** Labs can still be spread across different contacts, one attempt each. */

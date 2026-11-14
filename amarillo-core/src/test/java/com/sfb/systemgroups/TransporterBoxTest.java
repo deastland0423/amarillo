@@ -36,9 +36,9 @@ public class TransporterBoxTest {
 
     @Test
     public void eachUseConsumesOneBox() {
-        assertEquals(4, trans.availableUses(T1));
+        assertEquals(4, trans.poweredUses(T1));
         assertTrue(trans.useTransporter(T1));
-        assertEquals("one box spent", 3, trans.availableUses(T1));
+        assertEquals("one box spent", 3, trans.poweredUses(T1));
     }
 
     @Test
@@ -55,8 +55,8 @@ public class TransporterBoxTest {
         trans.useTransporter(T1_LATE);
 
         assertEquals("three of four free, the fourth still cooling",
-                3, trans.availableUses(33));      // turn 2, impulse 1
-        assertEquals("free again eight impulses on", 4, trans.availableUses(T1_LATE + 8));
+                3, trans.poweredUses(33));      // turn 2, impulse 1
+        assertEquals("free again eight impulses on", 4, trans.poweredUses(T1_LATE + 8));
     }
 
     @Test
@@ -106,7 +106,7 @@ public class TransporterBoxTest {
 
         assertTrue("the raider names an untouched box", trans.destroyBox(2));
 
-        assertEquals("one box gone", 3, trans.getAvailableTrans());
+        assertEquals("one box gone", 3, trans.intactBoxes());
         assertFalse("and box 2 is the one that went", trans.boxNumbers().contains(2));
         assertTrue("the spent box survives, which is the attacker's whole point",
                 trans.boxNumbers().contains(1));
@@ -120,7 +120,7 @@ public class TransporterBoxTest {
 
         assertFalse("the defender loses the box that had already done its work",
                 trans.boxNumbers().contains(1));
-        assertEquals(3, trans.getAvailableTrans());
+        assertEquals(3, trans.intactBoxes());
     }
 
     /**
@@ -141,7 +141,7 @@ public class TransporterBoxTest {
         assertTrue(trans.destroyBox(2));
         assertFalse("already gone", trans.destroyBox(2));
         assertFalse("never existed", trans.destroyBox(99));
-        assertEquals(3, trans.getAvailableTrans());
+        assertEquals(3, trans.intactBoxes());
     }
 
     // A tiny local enum so the assertion above reads in terms of the rule, not an index.
