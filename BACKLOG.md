@@ -682,19 +682,20 @@ had three failures where only two were explained by the changes in flight), so i
 suspected of being new. An unseeded die is the first place to look — the project has been
 caught that way before, and a dice-driven assertion passes by coin flip.
 
-## SSD panel damage gauges — BUILT 2026-11-13; the cycle rows are what is left
+## SSD panel damage gauges and countable boxes — BOTH BUILT (bars 2026-11-13, boxes 2026-11-14)
 
 Hull and power draw as caption + bar + count (`systemGauge.ts`, `GaugeLine` in `SsdPanel`).
 Prompted by a screenshot of another developer's build, which drew SSD boxes you could count.
-Boxes are still the better idea for small banks and are NOT built; bars went first because they
-needed no core work and are reversible if the panel reads worse for them.
+Boxes are the better idea for small banks and are now built too (see below); bars went first
+because they needed no core work and are reversible if the panel reads worse for them.
 
 **The split is by MODEL, not by size, and that was the useful finding.** Damage-only systems
 have two states and both numbers were already on the wire. The `BoxCycle` systems —
 transporters, tractors, laboratories — have three, the third being a surviving box cooling off
 for the longer of the next turn or eight impulses (G4.22, G4.451). A bar drawn over two of
-three numbers shows a bank as undamaged while half of it is unusable, so those rows stay as
-TEXT on purpose. Do not "finish the job" by giving them bars.
+three numbers shows a bank as undamaged while half of it is unusable, so those rows never got
+bars and never should. They got COUNTABLE BOXES instead, which is the readout with room for
+all three. Do not "finish the job" by giving them bars.
 
 Measured across all 388 hull files while deciding this, and the counts invert the way that
 makes the split easy: the monsters are all damage-only (aft hull 36 on the B10, impulse 46 on
@@ -703,7 +704,7 @@ while the cycle systems top out at 12 across every hull in the game (transporter
 tractors 8; medians of 2–3). So bars landed where counting by eye was hopeless anyway, and
 boxes — when they come — fit every hull in two rows of six and never need a fallback.
 
-**What is NOT built, in the order it should be done:**
+**What was left, in the order it was done — both items are now BUILT:**
 
 1. ~~**One read vocabulary for the `BoxCycle` systems.**~~ — **BUILT 2026-11-14** as the
    `CyclingBoxes` interface, which names the QUESTIONS rather than unifying the storage:
@@ -738,12 +739,25 @@ boxes — when they come — fit every hull in two rows of six and never need a 
    four gates, but it is a RULES change (it permits beaming that is refused today), so it is
    left for the owner to rule on rather than folded into a naming commit.
 
-2. **Countable boxes for those rows once (1) lands**, three states: filled, hollow (cooling),
-   struck through (destroyed). `Transporters.describeBoxes(imp)` already renders exactly those
-   three as prose, so the readout is proven and only needs structure. Worth it beyond looks:
-   `BoxCycle` identifies a box by its printed NUMBER rather than list position, specifically so
-   a hit-and-run raid (D7.835) and a scout channel (G24.251) can hold one — drawn
-   individually, the panel becomes the natural place to eventually CLICK one.
+2. ~~**Countable boxes for those rows once (1) lands.**~~ — **BUILT 2026-11-14.** The
+   `Laboratories`, `Transporters` and `Tractor Beams` rows draw one mark per printed box in
+   five states: solid green free, hollow grey spent this turn, hollow yellow still cooling
+   from last turn, solid cyan holding a unit, struck through destroyed. `boxBank.ts` holds
+   the decisions and the tests; `SsdPanel`'s `BoxRow` draws them.
+
+   The three fractions that used to sit on the Support line are gone, because they were the
+   thing being fixed: `availableTransporters` is the INTACT count, so a bank with every box
+   spent printed "transporters 3/3".
+
+   `CyclingBoxes.boxReadout(impulse)` carries it, with five states against `BoxCycle.State`'s
+   three — a destroyed box is gone from that list entirely and a holding one is a tractor's
+   business. `BoxCycle.readout` fills the numbered gaps, being the only code that knows which
+   numbers are missing. On the wire as `ShipDto.boxBanks`, ruled PUBLIC.
+
+   **Still open, and the reason the numbers are drawn at all:** nothing is CLICKABLE yet. A
+   box is identified by its printed number precisely so a hit-and-run raid (D7.835) and a
+   scout channel (G24.251) can hold one, and the panel is now the natural place to pick it —
+   the raid UI still offers "TRANSPORTERS" as a pool rather than a box.
 
 **Privacy reads better here than expected.** `GameStateDto:2683` classifies box state as
 public ("every use is seen"; "the BOXES are public and so is what they are doing", precisely so
