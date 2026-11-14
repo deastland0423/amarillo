@@ -522,6 +522,12 @@ export interface ShipObject extends MapObjectBase {
   // Energy allocation helpers
   totalPower:        number;
   moveCost:          number;
+  /**
+   * The same cost as whole TWELFTHS — divide by THIS, never by moveCost. Every movement cost
+   * in the game is a whole twelfth and none of the thirds survives as a decimal, so
+   * `floor(20 / moveCost)` is 29 where the answer is 30. See game/moveCost.ts.
+   */
+  moveCostTwelfths?: number;
   lifeSupportCost:   number;
   fireControlCost:   number;
   activeShieldCost:  number;

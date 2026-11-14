@@ -608,10 +608,7 @@ public class Ship extends Unit implements DroneController {
 	 * hex anyone can buy, so a ship short of a full hex still rounds down.
 	 */
 	private int hexesBought(double warpEnergy) {
-		double cost = performanceData.getMovementCost();
-		if (cost <= 0)
-			return 0;
-		return (int) (warpEnergy / cost + 1e-6);
+		return performanceData.speedAffordable(warpEnergy);
 	}
 
 	@Override
@@ -4173,9 +4170,8 @@ public class Ship extends Unit implements DroneController {
 		Energy e = new Energy();
 
 		// Movement: warp up to speed 30, then 1 impulse point for speed 31
-		double moveCost = performanceData.getMovementCost();
 		double warpAvailable = powerSystems.getAvailableWarpPower();
-		e.setWarpMovement(Math.min(warpAvailable, 30.0 * moveCost));
+		e.setWarpMovement(Math.min(warpAvailable, performanceData.movementEnergyFor(30)));
 		// Use 1 impulse point for the extra hex only if impulse power is available
 		e.setImpulseMovement(powerSystems.getAvailableImpulse() >= 1 ? 1 : 0);
 

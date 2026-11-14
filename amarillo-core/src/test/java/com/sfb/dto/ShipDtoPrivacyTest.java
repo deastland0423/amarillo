@@ -147,7 +147,10 @@ public class ShipDtoPrivacyTest {
         // count for themselves, and would stop the move grid saying why a button is greyed.
         "facing", "speed", "tractorTrueSpeed", "turnMode", "turnHexes", "hexesUntilTurn",
         "canSideslip",
-        "moveCost", "maxSpeedNextTurn", "decelerating", "decelerationEndsAtImpulse",
+        // Printed on the SSD, like every performance figure. moveCostTwelfths is the same
+        // number in the only form a client can divide by without losing a hex.
+        "moveCost", "moveCostTwelfths",
+        "maxSpeedNextTurn", "decelerating", "decelerationEndsAtImpulse",
         "immobileUntilImpulse", "canDisengageBySeparation", "destructionDirections",
         "hetsThisTurn", "lastHetImpulse", "hetCost", "usingEm", "emPending",
         // C5.31's marker, ruled exactly as lastHetImpulse beside it: a ship turning in place is

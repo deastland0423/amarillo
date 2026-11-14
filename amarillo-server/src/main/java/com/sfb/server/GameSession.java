@@ -1441,7 +1441,8 @@ public class GameSession {
                         + (request.isDoubleLwarp() ? ship.getPowerSystems().getAvailableLWarp() : 0)
                         + (request.isDoubleRwarp() ? ship.getPowerSystems().getAvailableRWarp() : 0)
                         + (request.isDoubleCwarp() ? ship.getPowerSystems().getAvailableCWarp() : 0);
-                double movementEnergyNeeded = warpSpeed * moveCost;
+                double movementEnergyNeeded =
+                        ship.getPerformanceData().movementEnergyFor(warpSpeed);
                 if (movementEnergyNeeded > warpEngineCapacity + 0.001) {
                     return ActionResult.fail("Insufficient warp engine power for speed " + requestedSpeed
                             + " — need " + movementEnergyNeeded + ", have " + warpEngineCapacity);
@@ -1730,7 +1731,7 @@ public class GameSession {
                     if (warpSpeed > 0)
                         return ActionResult
                                 .fail("Cannot allocate warp Tactical Maneuvers when moving (speed must be 0)");
-                    double tacEnergy = warpTacs * moveCost;
+                    double tacEnergy = ship.getPerformanceData().movementEnergyFor(warpTacs);
                     if (movementEnergyNeeded + hetEnergy + tacEnergy > warpEngineCapacity + 0.001)
                         return ActionResult.fail("Insufficient warp power for " + warpTacs
                                 + " Tactical Maneuver(s) — need " + tacEnergy + ", have "

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { energyForSpeed, speedForEnergy } from '../game/moveCost';
 import type { ShipObject, ShuttleObject, WeaponState } from '../types/gameState';
 import { ANTI_DRONE_KEY, claimedByOtherRacks, reloadEntriesFor } from './reloadPool';
 import { budgetState } from '../game/energyBudget';
@@ -227,7 +228,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
 function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const ls   = ship.lifeSupportCost  ?? 0;
   const fc   = ship.fireControlCost  ?? 1;
-  const mv   = Math.min(alloc.speed, 30) * (ship.moveCost ?? 1);
+  const mv   = energyForSpeed(ship, Math.min(alloc.speed, 30));
   const imp  = alloc.impulse ? 1 : 0;
   const sh   = alloc.shieldMode === 'ACTIVE'  ? (ship.activeShieldCost  ?? 0)
              : alloc.shieldMode === 'MINIMUM' ? (ship.minimumShieldCost ?? 0)
@@ -270,7 +271,7 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const cloak     = alloc.cloakPaid ? (ship.cloakCost ?? 0) : 0;
   const recharge  = alloc.batteryRecharge;
   const het       = alloc.hetEnergy;
-  const tac       = alloc.warpTacs * (ship.moveCost ?? 1);
+  const tac       = energyForSpeed(ship, alloc.warpTacs);
   const sublTac   = alloc.sublightTac ? 1 : 0;
 
   const ew        = alloc.ecm + alloc.eccm;
@@ -667,7 +668,9 @@ export default function EnergyAllocationDialog({
   }
 
   const warpEnginePower  = (ship.availableLWarp ?? 0) + (ship.availableRWarp ?? 0) + (ship.availableCWarp ?? 0);
-  const maxWarpSpeed     = Math.min(30, Math.floor(warpEnginePower / (ship.moveCost ?? 1)));
+  // Integer arithmetic, not floor(power / 0.6666666666666666), which is 29 at 20 warp and
+  // cost twelve hulls their top speed. See game/moveCost.ts.
+  const maxWarpSpeed     = Math.min(30, speedForEnergy(ship, warpEnginePower));
   const accelCap         = ship.maxSpeedNextTurn ?? 31;
   const effectiveMaxWarp = Math.min(maxWarpSpeed, accelCap);
 
@@ -777,7 +780,7 @@ export default function EnergyAllocationDialog({
               onChange={v => setAlloc(a => ({ ...a, speed: v, impulse: false }))}
             />
             <span className="ea-speed-cost">
-              {(Math.min(alloc.speed, 30) * (ship.moveCost ?? 1)).toFixed(1)} energy
+              {energyForSpeed(ship, Math.min(alloc.speed, 30)).toFixed(1)} energy
             </span>
           </div>
           {(() => {
@@ -823,8 +826,8 @@ export default function EnergyAllocationDialog({
           {/* Warp Tactical Maneuvers — only when speed 0 and warp power available (C5.22) */}
           {alloc.speed === 0 && !alloc.impulse && warpEnginePower > 0 && (() => {
             const moveCost  = ship.moveCost ?? 1;
-            const tacBudget = total - (spent - alloc.warpTacs * moveCost);
-            const maxTacs   = Math.min(4, Math.floor(tacBudget / moveCost));
+            const tacBudget = total - (spent - energyForSpeed(ship, alloc.warpTacs));
+            const maxTacs   = Math.min(4, speedForEnergy(ship, tacBudget));
             return (
               <div className="ea-het-row">
                 <Stepper
@@ -832,7 +835,7 @@ export default function EnergyAllocationDialog({
                   min={0}
                   max={Math.max(alloc.warpTacs, maxTacs)}
                   onChange={v => setAlloc(a => ({ ...a, warpTacs: v }))}
-                  label={`Warp TAC${alloc.warpTacs > 0 ? ` (${(alloc.warpTacs * moveCost).toFixed(1)} energy)` : ` (${moveCost.toFixed(1)}/turn, C5.22)`}`}
+                  label={`Warp TAC${alloc.warpTacs > 0 ? ` (${energyForSpeed(ship, alloc.warpTacs).toFixed(1)} energy)` : ` (${moveCost.toFixed(1)}/turn, C5.22)`}`}
                 />
               </div>
             );

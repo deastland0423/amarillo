@@ -956,6 +956,19 @@ public class GameStateDto {
         public boolean canDoubleEngines; // Orion engine doubling available (G15.2)
         public int totalPower; // total power available for allocation
         public double moveCost; // warp energy per speed point
+        /**
+         * The same cost as a whole number of TWELFTHS, which is the one a client may divide by.
+         *
+         * Every movement cost in the game is a whole twelfth, and none of the thirds survives
+         * as a double: moveCost arrives as 0.6666666666666666, so {@code floor(20 / moveCost)}
+         * is 29 where the answer is 30. That bug was live in the energy dialog's speed slider
+         * on twelve hulls. With twelfths the client does {@code floor(energy * 12 / twelfths)}
+         * in integers and cannot be a hex out.
+         *
+         * <p>moveCost stays beside it because it is what a player reads ("0.67 per hex"), and
+         * because a dozen places only ever display it.
+         */
+        public int moveCostTwelfths;
         public double lifeSupportCost; // housekeeping cost
         public int fireControlCost; // always 1
         public int activeShieldCost; // energy to keep shields fully active
@@ -2090,6 +2103,7 @@ public class GameStateDto {
         // Energy Allocation helper fields
         dto.totalPower = ps.getTotalAvailablePower();
         dto.moveCost = ship.getPerformanceData().getMovementCost();
+        dto.moveCostTwelfths = ship.getPerformanceData().getMovementTwelfths();
         dto.lifeSupportCost = ship.getLifeSupportCost();
         dto.fireControlCost = ship.getFireControlCost();
         dto.activeShieldCost = ship.getActiveShieldCost();
