@@ -494,6 +494,113 @@ public class GameStateDto {
         public int damage;
     }
 
+    /**
+     * Every cycling bank this hull actually has, in SSD order.
+     *
+     * Built from {@link com.sfb.systemgroups.CyclingBoxes} rather than from each system's own
+     * getters, which is the point of that interface existing: the three used to answer these
+     * questions under names that meant different things, so a loop like this one could not
+     * have been written without picking the wrong method at least once.
+     *
+     * <p>A bank with nothing printed is left out entirely, so the panel shows a row only for
+     * a system the ship has. That is a decision about the UI made here rather than there,
+     * because an empty bank and an absent one are the same thing to a player and the client
+     * should not have to know it.
+     */
+    private static List<BoxBankDto> boxBanks(Ship ship, int absoluteImpulse) {
+        List<BoxBankDto> out = new ArrayList<>();
+        addBank(out, "Laboratories", ship.getLabs(), absoluteImpulse, false);
+        addBank(out, "Transporters", ship.getTransporters(), absoluteImpulse, false);
+        addBank(out, "Tractor Beams", ship.getTractors(), absoluteImpulse, true);
+        return out;
+    }
+
+    /** @param canHold whether this system is able to hold a unit at all — tractors only. */
+    private static void addBank(List<BoxBankDto> out, String name,
+            com.sfb.systemgroups.CyclingBoxes system, int absoluteImpulse, boolean canHold) {
+        if (system == null || system.printedBoxes() == 0)
+            return;
+        BoxBankDto bank = new BoxBankDto();
+        bank.system  = name;
+        bank.printed = system.printedBoxes();
+        bank.intact  = system.intactBoxes();
+        bank.ready   = system.readyBoxes(absoluteImpulse);
+        bank.holding = canHold ? system.holdingBoxes() : null;
+        bank.boxes   = new ArrayList<>();
+        for (com.sfb.systemgroups.CyclingBoxes.BoxReadout r : system.boxReadout(absoluteImpulse)) {
+            BoxDto box = new BoxDto();
+            box.number  = r.number();
+            box.state   = r.state().name();
+            box.holding = r.holding();
+            bank.boxes.add(box);
+        }
+        out.add(bank);
+    }
+
+    /**
+     * One bank of SSD boxes that cycle — laboratories, transporters or tractor beams — with
+     * its three counts and every box itemised.
+     *
+     * Sent so the panel can DRAW the boxes rather than print a fraction. A bar or an "N/M"
+     * can show two numbers, and these systems have three: a bank with every box intact but
+     * cooling off looks undamaged to a gauge while being useless to its owner. Drawing one
+     * box per printed box is the only readout that carries all of it.
+     *
+     * <p>All of it is public. A box on the SSD is public and so is what it is doing — which
+     * is the whole reason box IDENTITY is modelled, since a hit-and-run raid picks one out
+     * (D7.835). What is NOT here is energy: {@code Transporters.poweredUses} is owner-only,
+     * because an opponent could read the battery state back out of it.
+     */
+    public static class BoxBankDto {
+        /** "Laboratories", "Transporters", "Tractor Beams" — the SSD's own wording. */
+        public String system;
+        public int printed;
+        public int intact;
+        public int ready;
+        /**
+         * Beams holding a unit across impulses, or NULL for a system that cannot hold one.
+         * An Integer rather than an int precisely so "not applicable" can be said: a zero
+         * here would claim a lab bank had tractor-like state and simply none of it in use.
+         */
+        public Integer holding;
+        public List<BoxDto> boxes;
+
+        /**
+         * Readable, and not merely for logs: {@code ShipDtoPrivacyTest} compares every public
+         * field between the owner's view and an enemy's with {@code String.valueOf}, so a DTO
+         * without this one is compared by identity hash and can never match itself. A new
+         * nested DTO that forgets it fails that test with an error about privacy, which is a
+         * long way from the cause — hence this note rather than a terser method.
+         */
+        @Override
+        public String toString() {
+            return system + " " + ready + " ready / " + intact + " intact / " + printed
+                 + " printed" + (holding == null ? "" : ", " + holding + " holding") + " " + boxes;
+        }
+    }
+
+    /**
+     * One box: its printed number, what it is doing, and what it holds if anything.
+     *
+     * The NUMBER is the identity rather than the position in the list, so a destroyed box
+     * leaves a numbered gap instead of shuffling its neighbours along. That matters beyond
+     * neatness — a raid names a box and a scout channel holds one across four attempts
+     * (G24.251), so the number a player sees has to be the number the server acts on.
+     */
+    public static class BoxDto {
+        public int number;
+        /** UNUSED | USED_THIS_TURN | COOLING_DOWN | HOLDING | DESTROYED. */
+        public String state;
+        /** The unit a tractor beam holds; null otherwise. Already public — a link is seen. */
+        public String holding;
+
+        /** See {@link BoxBankDto#toString()} — the privacy test compares on this. */
+        @Override
+        public String toString() {
+            return number + ":" + state + (holding == null ? "" : "(" + holding + ")");
+        }
+    }
+
     public static class ShuttleBayDto {
         public int bayIndex;
         public boolean canLaunch;
@@ -747,6 +854,14 @@ public class GameStateDto {
         public double transporterEnergyCost;
         public int availableTractors;
         public int totalTractors;
+        /**
+         * The cycling banks, itemised box by box, for the systems this hull actually has.
+         *
+         * The flat counts above stay because half the UI reads them, but they cannot carry
+         * the third state: availableTransporters is the INTACT count, so a ship whose boxes
+         * are all cooling off reports them all available. This list is the honest view.
+         */
+        public List<BoxBankDto> boxBanks;
         /**
          * Seeker control channels: how many this ship is holding, and how many it has. A
          * launch past the limit does not fail — something already flying stops being tracked
@@ -1922,6 +2037,7 @@ public class GameStateDto {
         dto.controlLimit = ship.getControlLimit();
         dto.availableTractors = ship.getTractors().fetchRemainingTotalBoxes();
         dto.totalTractors = ship.getTractors().fetchOriginalTotalBoxes();
+        dto.boxBanks = boxBanks(ship, game.getAbsoluteImpulse());
 
         // Hull box damage state
         com.sfb.systemgroups.HullBoxes hb = ship.getHullBoxes();

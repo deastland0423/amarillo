@@ -145,6 +145,39 @@ public class Tractors implements Systems, CyclingBoxes {
 		return count;
 	}
 
+	/**
+	 * Every beam, in printed order, and what it is doing — the only implementation that can
+	 * return all five states.
+	 *
+	 * <p>HOLDING is reported ahead of the cycle, because it is the more useful truth: a beam
+	 * holding a unit was also spent this turn, and saying "used" of a beam that is visibly
+	 * towing something describes the past instead of the present. The name of what it holds
+	 * goes with it, which is no disclosure — a tractor link is seen from the map, and the DTO
+	 * already names the held units.
+	 */
+	@Override
+	public java.util.List<BoxReadout> boxReadout(int absoluteImpulse) {
+		java.util.List<BoxReadout> out = new ArrayList<>();
+		for (TractorBeam b : beams) {
+			BoxState state;
+			String holding = null;
+			if (!b.isFunctional()) {
+				state = BoxState.DESTROYED;
+			} else if (b.isInUse()) {
+				state = BoxState.HOLDING;
+				holding = b.getHeldUnit().getName();
+			} else if (b.isUsedThisTurn(absoluteImpulse)) {
+				state = BoxState.USED_THIS_TURN;
+			} else if (!b.isAvailableForNewLink(absoluteImpulse)) {
+				state = BoxState.COOLING_DOWN;
+			} else {
+				state = BoxState.UNUSED;
+			}
+			out.add(new BoxReadout(b.getNumber(), state, holding));
+		}
+		return out;
+	}
+
 	public void initForTurn(int energy, int absoluteImpulse) {
 		totalTractorEnergy = remainingTractorEnergy = energy;
 		// Nothing to clear: a beam's availability is worked out from the impulse it was

@@ -1,5 +1,7 @@
 package com.sfb.systemgroups;
 
+import java.util.List;
+
 /**
  * The questions you may ask a bank of SSD boxes that are used one at a time and then cool off.
  *
@@ -58,4 +60,47 @@ public interface CyclingBoxes {
 	default int holdingBoxes() {
 		return 0;
 	}
+
+	/**
+	 * What each box on the SSD is doing, in printed order — the counts above, itemised.
+	 *
+	 * <p>Five states rather than {@link BoxCycle.State}'s three, because a readout has to
+	 * describe boxes that {@code BoxCycle} cannot: a DESTROYED one is gone from its list
+	 * entirely (that is how {@code intactBoxes} falls), and a HOLDING one is a tractor's
+	 * business and not the bank's. The two enums are kept apart deliberately — the inner one
+	 * is the cycle rule and belongs to whoever enforces it; this one is the picture.
+	 */
+	enum BoxState {
+		/** Undamaged and free to take a job right now. */
+		UNUSED,
+		/** Spent during this turn, and so unavailable for the rest of it (G4.22). */
+		USED_THIS_TURN,
+		/** Spent late last turn and still inside the quarter-turn delay (G4.451). */
+		COOLING_DOWN,
+		/** Holding a unit across impulses. Tractor beams only (G7.0). */
+		HOLDING,
+		/** Shot off the SSD. Still printed, and still numbered, but gone. */
+		DESTROYED
+	}
+
+	/**
+	 * One box: its printed NUMBER, what it is doing, and what it holds if anything.
+	 *
+	 * <p>The number is the identity and not the position. A hit-and-run raid names a box
+	 * (D7.835) and a scout channel holds one across four attempts (G24.251), so a readout
+	 * that numbered boxes by where they sit in a list would point at the wrong one the
+	 * moment a neighbour was shot off.
+	 *
+	 * @param holding the name of the unit held, or null — only ever set on HOLDING
+	 */
+	record BoxReadout(int number, BoxState state, String holding) {
+	}
+
+	/**
+	 * Every box printed on the SSD, destroyed ones included, in printed order.
+	 * <p>
+	 * Public, like the counts: the whole reason box identity is modelled is that an attacker
+	 * can pick one out (D7.835), which he can only do because he can see what each is doing.
+	 */
+	List<BoxReadout> boxReadout(int absoluteImpulse);
 }

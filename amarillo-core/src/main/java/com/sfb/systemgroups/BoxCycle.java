@@ -147,6 +147,31 @@ public class BoxCycle {
     }
 
     /**
+     * Every box the SSD prints, in order, including the ones damage has taken away.
+     *
+     * This is the one view that cannot be assembled from outside, because a destroyed box is
+     * REMOVED from the list here — so {@link #numbers()} cannot tell a caller which numbers
+     * are missing, only which survive. A readout has to show the gaps, since a struck-through
+     * box is the difference between a bank that is spent and a bank that is wrecked.
+     */
+    public List<CyclingBoxes.BoxReadout> readout(int absoluteImpulse) {
+        List<CyclingBoxes.BoxReadout> out = new ArrayList<>();
+        for (int n = 1; n <= total; n++) {
+            Box b = find(n);
+            CyclingBoxes.BoxState state = b == null
+                ? CyclingBoxes.BoxState.DESTROYED
+                : switch (stateOf(n, absoluteImpulse)) {
+                    case USED_THIS_TURN -> CyclingBoxes.BoxState.USED_THIS_TURN;
+                    case COOLING_DOWN   -> CyclingBoxes.BoxState.COOLING_DOWN;
+                    case UNUSED         -> CyclingBoxes.BoxState.UNUSED;
+                };
+            // No HOLDING: a lab or transporter box finishes inside the impulse it was used in.
+            out.add(new CyclingBoxes.BoxReadout(n, state, null));
+        }
+        return out;
+    }
+
+    /**
      * Put a box to work at this impulse and return its NUMBER, or -1 if none is free. The
      * number matters to a caller that holds its box across several attempts — a scout
      * channel gets four out of one lab (G24.251) — and must keep stamping the same one.

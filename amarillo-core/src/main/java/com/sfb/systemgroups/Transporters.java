@@ -131,6 +131,11 @@ public class Transporters implements Systems, CyclingBoxes {
 		return boxes.available(absoluteImpulse);
 	}
 
+	@Override
+	public List<BoxReadout> boxReadout(int absoluteImpulse) {
+		return boxes.readout(absoluteImpulse);
+	}
+
 	/**
 	 * How many boxes have been used this turn. Every use is watched at the table, so this
 	 * is public knowledge even though the energy behind it is not.

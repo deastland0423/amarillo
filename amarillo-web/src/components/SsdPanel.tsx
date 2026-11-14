@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import type { MapObject, ShieldState, ShipObject, WeaponState } from '../types/gameState';
+import type { BoxBank, MapObject, ShieldState, ShipObject, WeaponState } from '../types/gameState';
 import { facingLabel, facingToAngle, factionColor, parseLocation,
          shieldStrengthColor } from '../types/gameState';
 import { bearsOn, hexGetBearingBetween, hexesInArc, hexRangeBetween, ringShieldNumber,
          turnFacing, type Hex } from '../hex/geometry';
 import { useDraggable } from '../hooks/useDraggable';
+import { bankLabel, bankSummary, banksToDraw, boxLook } from './boxBank';
 import Section from './Section';
 import { systemsSummary, weaponsSummary } from './ssdSummaries';
 import { gaugeColour, hullGauges, powerGauges, type Gauge } from './systemGauge';
@@ -676,6 +677,52 @@ function GaugeLine({ caption, now, max }: Gauge) {
   );
 }
 
+/**
+ * One bank's boxes, drawn the way the paper sheet draws them.
+ *
+ * Twelve is the most any hull in the game prints of these (transporters on a starbase), so
+ * they wrap to a second line and never need a fallback — unlike hull or impulse, which run to
+ * forty-six and are why those rows got bars instead.
+ *
+ * The number is the title rather than a label inside the square: at 0.72rem a legible digit
+ * would make the box twice the size, and the number only matters when a player is about to
+ * NAME one, at which point he is hovering it anyway.
+ */
+function BoxRow({ bank }: { bank: BoxBank }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 3 }}>
+      {bank.boxes.map(box => {
+        const look = boxLook(box);
+        return (
+          <span
+            key={box.number}
+            title={`#${box.number} — ${look.title}`}
+            style={{
+              position: 'relative',
+              width: 10, height: 10,
+              boxSizing: 'border-box',
+              border: `1px solid ${look.border}`,
+              background: look.fill,
+              borderRadius: 1,
+            }}
+          >
+            {look.struck && (
+              // A diagonal through the box: the SSD convention for a system shot away, and
+              // the one mark that reads as "gone" rather than "busy" at this size.
+              <span style={{
+                position: 'absolute', inset: -1,
+                backgroundImage:
+                  `linear-gradient(to bottom right, transparent 44%, ${look.border} 44%,` +
+                  ` ${look.border} 56%, transparent 56%)`,
+              }} />
+            )}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function SystemsBlock({ ship }: { ship: ShipObject }) {
   /** "n" when nothing can be lost, "n/m" once they differ — damage should be visible, not implied. */
   const pair = (now: number | undefined, max: number | undefined): string | null => {
@@ -717,12 +764,10 @@ function SystemsBlock({ ship }: { ship: ShipObject }) {
       pair(ship.availableEmer, ship.maxEmer) && `emer ${pair(ship.availableEmer, ship.maxEmer)}`,
       ship.controlLimit ? `control ${ship.controlUsed ?? 0}/${ship.controlLimit}` : null,
     )],
+    // Transporters, tractors and labs used to be three fractions on this line. They are drawn
+    // as boxes below instead -- those three are the systems whose boxes COOL OFF, and a
+    // fraction cannot say so: "3/3" was printed for a bank with every box spent.
     ['Support', join(
-      pair(ship.availableTransporters, ship.totalTransporters)
-        && `transporters ${pair(ship.availableTransporters, ship.totalTransporters)}`,
-      pair(ship.availableTractors, ship.totalTractors)
-        && `tractors ${pair(ship.availableTractors, ship.totalTractors)}`,
-      ship.availableLab ? `labs ${ship.availableLab}` : null,
       ship.sensorRating ? `sensor ${ship.sensorRating}` : null,
       ship.scannerBonus ? `scanner ${ship.scannerBonus}` : null,
     )],
@@ -763,6 +808,15 @@ function SystemsBlock({ ship }: { ship: ShipObject }) {
           <span style={{ flex: 1, minWidth: 0, color: '#c9d1d9' }}>
             {value}
             {g?.map(one => <GaugeLine key={one.caption} {...one} />)}
+          </span>
+        </div>
+      ))}
+      {banksToDraw(ship.boxBanks).map(bank => (
+        <div key={bank.system} style={{ display: 'flex', gap: 6, fontSize: '0.72rem', lineHeight: 1.6 }}>
+          <span style={{ flex: '0 0 4.4rem', color: '#6e7681' }}>{bankLabel(bank.system)}</span>
+          <span style={{ flex: 1, minWidth: 0, color: '#c9d1d9' }}>
+            {bankSummary(bank)}
+            <BoxRow bank={bank} />
           </span>
         </div>
       ))}

@@ -71,6 +71,11 @@ public class Labs implements Systems, CyclingBoxes {
 		return boxes.available(absoluteImpulse);
 	}
 
+	@Override
+	public java.util.List<BoxReadout> boxReadout(int absoluteImpulse) {
+		return boxes.readout(absoluteImpulse);
+	}
+
 	/** True if box {@code index} may be put to work at this impulse. */
 	public boolean isFree(int index, int absoluteImpulse) {
 		return boxes.isFree(index, absoluteImpulse);

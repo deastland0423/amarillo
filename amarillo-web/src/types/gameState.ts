@@ -268,6 +268,52 @@ interface MapObjectBase {
   location: string | null;
 }
 
+/**
+ * What one SSD box in a cycling bank is doing.
+ *
+ * Five states because the systems have five. A box is spent and then unavailable for the
+ * longer of the next turn or eight impulses (G4.451), so USED_THIS_TURN and COOLING_DOWN are
+ * different things to a player even though they look the same in a count: the first clears at
+ * the turn boundary and the second does not. HOLDING is a tractor beam towing something, which
+ * no lab or transporter box can do.
+ */
+export type BoxState =
+  | 'UNUSED'
+  | 'USED_THIS_TURN'
+  | 'COOLING_DOWN'
+  | 'HOLDING'
+  | 'DESTROYED';
+
+export interface SsdBox {
+  /** The PRINTED number, not the position — a destroyed box leaves a numbered gap. */
+  number:   number;
+  state:    BoxState;
+  /** The unit a tractor beam holds; absent otherwise. */
+  holding?: string | null;
+}
+
+/**
+ * One bank of boxes that cycle: laboratories, transporters or tractor beams.
+ *
+ * Drawn as boxes rather than a bar because these systems keep THREE numbers and a bar can
+ * show two. A bank with every box undamaged but cooling off reads as full health to a gauge
+ * while being useless to its owner — which is exactly what `availableTransporters` reports,
+ * since that field is the intact count.
+ */
+export interface BoxBank {
+  system:   string;   // "Laboratories" | "Transporters" | "Tractor Beams"
+  printed:  number;
+  intact:   number;
+  ready:    number;
+  /**
+   * Beams holding a unit, or null for a system that cannot hold one. Null rather than 0 on
+   * purpose, and the guard must be `!= null`: Jackson writes an absent value as `null`, and
+   * `null !== undefined` is true.
+   */
+  holding?: number | null;
+  boxes:    SsdBox[];
+}
+
 export interface ShipObject extends MapObjectBase {
   type:     'SHIP';    // map-object discriminator, not the ship's SSD type
   shipType: string;    // the SSD Type line, e.g. "CA+"
@@ -388,6 +434,12 @@ export interface ShipObject extends MapObjectBase {
   totalTransporters?:       number;
   transporterEnergyCost?:   number;
   totalTractors?:           number;
+  /**
+   * Laboratories, transporters and tractor beams, box by box. Only the systems this hull
+   * actually prints appear, so the panel draws a row per entry and never a heading over
+   * nothing. See `BoxBank` for why the flat counts above cannot replace it.
+   */
+  boxBanks?:                BoxBank[];
   uimFunctional:            boolean;  // true if ship has a functional UIM this impulse
   derfacsFunctional?:       boolean;  // undamaged DERFACS; applied automatically, never elected
   cloakState?:              string;   // "NONE" | "INACTIVE" | "FADING_OUT" | "FULLY_CLOAKED" | "FADING_IN"

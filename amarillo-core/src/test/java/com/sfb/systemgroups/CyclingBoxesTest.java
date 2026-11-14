@@ -192,6 +192,109 @@ public class CyclingBoxesTest {
 		assertEquals(0, t.holdingBoxes());
 	}
 
+	// ------------------------------------------------- the itemised readout
+
+	private List<CyclingBoxes.BoxState> states(CyclingBoxes c, int impulse) {
+		List<CyclingBoxes.BoxState> out = new ArrayList<>();
+		for (CyclingBoxes.BoxReadout r : c.boxReadout(impulse))
+			out.add(r.state());
+		return out;
+	}
+
+	@Test
+	public void theReadoutHasOneEntryPerPrintedBoxAndAgreesWithTheCounts() {
+		for (CyclingBoxes c : allThree()) {
+			String who = c.getClass().getSimpleName();
+			List<CyclingBoxes.BoxReadout> r = c.boxReadout(T1);
+
+			assertEquals(who + " itemises every printed box", c.printedBoxes(), r.size());
+			assertEquals(who + " readout must agree with intactBoxes", c.intactBoxes(),
+					r.stream().filter(b -> b.state() != CyclingBoxes.BoxState.DESTROYED).count());
+			assertEquals(who + " readout must agree with readyBoxes", c.readyBoxes(T1),
+					r.stream().filter(b -> b.state() == CyclingBoxes.BoxState.UNUSED).count());
+		}
+	}
+
+	@Test
+	public void aDestroyedBoxLeavesANUMBEREDGapRatherThanShufflingItsNeighbours() {
+		// The reason BoxCycle keeps the number as the identity: a raid names a box (D7.835)
+		// and a scout channel holds one across four attempts (G24.251). If the readout
+		// renumbered after a loss, the box a player pointed at would not be the box hit.
+		Transporters t = transporters(4);
+		t.useTransporter(T1);             // box 1 is now the least valuable...
+		assertTrue(t.damage());           // ...so damage() takes it
+
+		List<CyclingBoxes.BoxReadout> r = t.boxReadout(T1);
+		assertEquals("all four still printed", 4, r.size());
+		assertEquals(1, r.get(0).number());
+		assertEquals(CyclingBoxes.BoxState.DESTROYED, r.get(0).state());
+		assertEquals("box 2 is still called box 2", 2, r.get(1).number());
+		assertEquals(CyclingBoxes.BoxState.UNUSED, r.get(1).state());
+	}
+
+	@Test
+	public void theReadoutTellsUsedThisTurnApartFromCoolingDown() {
+		// Three visual states need three names. Spent-this-turn and still-cooling-from-last
+		// look the same to a count and are different to a player: one clears at the turn
+		// boundary, the other does not.
+		Labs l = labs(2);
+		l.useLab(T1_LATE);
+
+		assertEquals(List.of(CyclingBoxes.BoxState.USED_THIS_TURN, CyclingBoxes.BoxState.UNUSED),
+				states(l, T1_LATE));
+		assertEquals("same box, next turn, still inside the quarter-turn delay",
+				List.of(CyclingBoxes.BoxState.COOLING_DOWN, CyclingBoxes.BoxState.UNUSED),
+				states(l, T2_EARLY));
+		assertEquals("and free once the delay runs out",
+				List.of(CyclingBoxes.BoxState.UNUSED, CyclingBoxes.BoxState.UNUSED),
+				states(l, T1_LATE + 8));
+	}
+
+	@Test
+	public void aHoldingBeamReportsHoldingAndNamesWhatItHolds() {
+		Tractors t = tractors(3);
+		Ship prey = new Ship();
+		prey.setName("IKV Saber");
+		assertTrue(t.linkUnit(prey, T1));
+
+		CyclingBoxes.BoxReadout first = t.boxReadout(T1).get(0);
+		assertEquals(CyclingBoxes.BoxState.HOLDING, first.state());
+		assertEquals("IKV Saber", first.holding());
+		assertNull("an idle beam holds nothing", t.boxReadout(T1).get(1).holding());
+	}
+
+	@Test
+	public void holdingIsReportedAheadOfTheCycleBecauseItIsThePresentTense() {
+		// A holding beam was also spent this turn, so both are true of it. Saying "used" of a
+		// beam that is visibly towing something describes the past; the readout says HOLDING.
+		Tractors t = tractors(2);
+		Ship prey = new Ship();
+		prey.setName("IKV Saber");
+		assertTrue(t.linkUnit(prey, T1));
+
+		assertEquals(CyclingBoxes.BoxState.HOLDING, states(t, T1).get(0));
+		assertTrue("...even though the beam is indeed spent for the turn",
+				t.getBeams().get(0).isUsedThisTurn(T1));
+	}
+
+	@Test
+	public void onlyATractorEverReportsHolding() {
+		// The counterpart to holdingBoxes() == 0: nothing in a lab or transporter readout may
+		// claim a state its system cannot be in, or the panel will draw a legend nobody can
+		// reach.
+		Labs l = labs(3);
+		l.useLab(T1);
+		Transporters t = transporters(3);
+		t.useTransporter(T1);
+
+		for (CyclingBoxes c : List.of(l, t))
+			for (CyclingBoxes.BoxReadout r : c.boxReadout(T1)) {
+				assertNotEquals(c.getClass().getSimpleName() + " cannot hold anything",
+						CyclingBoxes.BoxState.HOLDING, r.state());
+				assertNull(r.holding());
+			}
+	}
+
 	// ------------------------------------------------- the guards against drift
 
 	@Test
@@ -242,7 +345,8 @@ public class CyclingBoxesTest {
 			declared.add(m.getName());
 
 		assertEquals("adding a question here publishes it to every client — think first",
-				new TreeSet<>(List.of("printedBoxes", "intactBoxes", "readyBoxes", "holdingBoxes")),
+				new TreeSet<>(List.of("printedBoxes", "intactBoxes", "readyBoxes", "holdingBoxes",
+						"boxReadout")),
 				declared);
 		assertNotNull("the energy-capped figure still exists, just not here",
 				Transporters.class.getMethod("poweredUses", int.class));
