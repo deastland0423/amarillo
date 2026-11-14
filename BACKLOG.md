@@ -3085,8 +3085,14 @@ damage control does not know.
   exactly these, so adding them should be mostly a JSON edit. MRS (J8.0) is separately deferred
   by the owner, and the J8.11 spec table is unreadable in the PDF — it needs a hard copy.
 - **Photon arming (E4.0) slices 2–5.** Slice 1 is built.
-- **Fractional batteries.** Batteries hold whole points, but transporters (0.2/use) and movement
-  costs are fractional.
+- **Fractional batteries.** Batteries hold whole points, but transporters (0.2/use) are
+  fractional. **Movement is no longer part of this** — it went to exact twelfths 2026-11-14
+  (`PerformanceData.movementEnergyFor` / `speedAffordable`, `moveCostTwelfths` on the wire,
+  `game/moveCost.ts` on the client), which fixed a live bug where the energy dialog's speed
+  slider refused the top speed on twelve hulls. Sixtieths for ALL energy would cover the
+  transporter's fifth as well and let every scattered epsilon go; considered 2026-11-14 and
+  declined as far more work than the bug justified. See the memory for the trap: the tolerance
+  in the divide had to get WIDER, because dividing by an exact cost stops the error cancelling.
 - **E1.7 small target modifiers.**
 - ~~**The type-G rack's third reload set never materialises.**~~ **NOT A BUG — checked against a
   running ship 2026-11-06, and the report was a misreading of the COUNT.** An AD6 at Y176 holds
