@@ -204,6 +204,14 @@ function hellboreBand(range: number): number {
   return HELLBORE_BANDS.length - 1;
 }
 
+function ppdBand(range: number): number {
+  for (let i = 0; i < PPD_BANDS.length; i++) {
+    const [lo, hi] = PPD_BANDS[i];
+    if (range >= lo && range <= hi) return i;
+  }
+  return PPD_BANDS.length - 1;
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
@@ -460,6 +468,53 @@ function hellboreModeTable(): ModeTable {
 }
 
 /**
+ * The PPD's printed table (E11.3), mirroring PpdSplash.java.
+ *
+ * <b>It runs BACKWARDS compared with every other chart in this file.</b> The PPD does nothing
+ * at all inside range 4, peaks at 4-10, and still reaches 40 — the "echelon tactics" E11.0
+ * opens with. A player who reads it with a disruptor's assumptions has it exactly inverted,
+ * which is the strongest argument for printing it rather than leaving the weapon blank: it was
+ * the only heavy weapon in the game whose SSD entry showed no table whatsoever.
+ *
+ * <h2>Why the splash rows are not optional detail</h2>
+ * E11.35: "This is not an optional use of the weapon. It is the way that the weapon always
+ * operates." The Damage row is a statistical TOTAL and is never what lands on one shield, so a
+ * table showing only that row would mislead on every shot. The three elements below it are
+ * what actually arrives: the centre on the facing shield, the rest on its neighbours (E11.352).
+ *
+ * The asymmetric rows key on which NEIGHBOUR is stronger, not on a fixed side — at two points
+ * "ignore the weaker adjacent shield", at one ignore both. So the trailing zero in 1+1+0 moves
+ * with the target's damage and is not a position on the diagram.
+ *
+ * The last two lines are E11.351: a line of fire along a hex side hits no single shield, and
+ * splits between the two with the odd point to the stronger.
+ *
+ * <h2>One hit line, deliberately</h2>
+ * Overloading a PPD buys PULSES, not accuracy or damage per pulse — six over six impulses
+ * instead of four over four (E11.61). So there is nothing for a second hit row to say, and the
+ * pulse count goes in the note where it cannot be mistaken for a per-shot figure.
+ */
+function ppdModeTable(): ModeTable {
+  const COLS = 41;                                   // ranges 0-40; it does not reach further
+  const byBand = (pick: (b: number) => number) =>
+    Array.from({ length: COLS }, (_, r) => pick(ppdBand(r)));
+
+  const lines: ModeLine[] = [
+    { label: 'Hit (2d6)', kind: 'hit', twoDice: true,
+      cells: hitCells(byBand(b => PPD_HIT_NUMS[b]), COLS) },
+    { label: 'Damage',        kind: 'damage', cells: damageCells(byBand(b => PPD_TOTAL_DMG[b]), COLS) },
+    { label: '· facing',     kind: 'damage', cells: damageCells(byBand(b => PPD_SPLASH[b][0]), COLS) },
+    { label: '· adj (strong)', kind: 'damage', cells: damageCells(byBand(b => PPD_SPLASH[b][1]), COLS) },
+    { label: '· adj (weak)', kind: 'damage', cells: damageCells(byBand(b => PPD_SPLASH[b][2]), COLS) },
+    { label: 'Side-on, strong', kind: 'damage', cells: damageCells(byBand(b => PPD_ALT[b][0]), COLS) },
+    { label: 'Side-on, weak', kind: 'damage', cells: damageCells(byBand(b => PPD_ALT[b][1]), COLS) },
+  ];
+
+  const { labels, bands } = bandSeries(lines.map(l => l.cells), COLS);
+  return { labels, lines: lines.map((l, i) => ({ ...l, cells: bands.map(b => b[i]) })) };
+}
+
+/**
  * The photon's printed table: standard, overloaded and proximity, side by side.
  *
  * This replaces a branch on how the weapon happened to be armed, and that branch was WRONG --
@@ -655,6 +710,21 @@ export function getWeaponFullTable(
         label:   bandLabel(lo, hi),
         damage:  [directFire ? HELLBORE_DF_DMG[i] : HELLBORE_ENV_DMG[i]],
         hitOn:   HELLBORE_HIT_NUMS[i],
+        twoDice: true,
+      })),
+    };
+
+  if (n.includes('ppd'))
+    // Was the only heavy weapon that produced NO table at all: there was never a branch here,
+    // although the chart data has sat in this file, commented and correct, the whole time.
+    return {
+      kind: 'hit',
+      note: 'per pulse · 4 pulses, 6 overloaded (E11.61)',
+      modes: ppdModeTable(),
+      bands: PPD_BANDS.map(([lo, hi], i) => ({
+        label:   bandLabel(lo, hi),
+        damage:  [PPD_TOTAL_DMG[i]],
+        hitOn:   PPD_HIT_NUMS[i],
         twoDice: true,
       })),
     };
