@@ -272,13 +272,21 @@ class BoardingResolver {
         if (numParties > availableParties)
             return ActionResult.fail("Not enough boarding parties (have " + availableParties
                     + ", need " + numParties + ")");
-        int availableTrans = actingShip.getTransporters().intactBoxes();
-        if (numParties > availableTrans)
-            return ActionResult.fail("Not enough transporters (have " + availableTrans
+        // Three questions, not two, and they fail for three different reasons. Asking only
+        // "undamaged?" and "can I pay?" blamed the energy for a box that was merely cooling
+        // off, which is a bill the player cannot settle and an instruction he cannot act on.
+        int intact = actingShip.getTransporters().intactBoxes();
+        if (numParties > intact)
+            return ActionResult.fail("Not enough transporters (have " + intact
                     + ", need " + numParties + ")");
-        int availableUses = actingShip.getTransporters().poweredUses(game.getAbsoluteImpulse());
-        if (numParties > availableUses)
-            return ActionResult.fail("Not enough transporter energy (have " + availableUses
+        int ready = actingShip.getTransporters().readyBoxes(game.getAbsoluteImpulse());
+        if (numParties > ready)
+            return ActionResult.fail("Not enough transporters free this impulse (have " + ready
+                    + " of " + intact + ", need " + numParties
+                    + ") — the rest are cooling off (G4.451)");
+        int poweredUses = actingShip.getTransporters().poweredUses(game.getAbsoluteImpulse());
+        if (numParties > poweredUses)
+            return ActionResult.fail("Not enough transporter energy (have " + poweredUses
                     + " use(s), need " + numParties + ")");
 
         // Shield checks — acting ship's shield facing target must be passable
@@ -371,6 +379,10 @@ class BoardingResolver {
                     + objective.getName() + " aboard (D6.124)");
         if (actingShip.getTransporters().intactBoxes() < 1)
             return ActionResult.fail(actingShip.getName() + " has no working transporters");
+        if (actingShip.getTransporters().readyBoxes(game.getAbsoluteImpulse()) < 1)
+            return ActionResult.fail(actingShip.getName()
+                    + " has no transporter free this impulse — every box is cooling off"
+                    + " (G4.451)");
         if (actingShip.getTransporters().poweredUses(game.getAbsoluteImpulse()) < 1)
             return ActionResult.fail(actingShip.getName()
                     + " has no transporter energy allocated this turn");
@@ -453,13 +465,18 @@ class BoardingResolver {
 
         // Non-combat rate: 2 crew per transporter use (G8.32)
         int usesNeeded = (int) Math.ceil(amount / 2.0);
-        int availTrans = source.getTransporters().intactBoxes();
-        if (usesNeeded > availTrans)
-            return ActionResult.fail("Not enough transporters (have " + availTrans + ", need " + usesNeeded + ")");
-        int availUses = source.getTransporters().poweredUses(game.getAbsoluteImpulse());
-        if (usesNeeded > availUses)
+        int intact = source.getTransporters().intactBoxes();
+        if (usesNeeded > intact)
+            return ActionResult.fail("Not enough transporters (have " + intact + ", need " + usesNeeded + ")");
+        int ready = source.getTransporters().readyBoxes(game.getAbsoluteImpulse());
+        if (usesNeeded > ready)
+            return ActionResult.fail("Not enough transporters free this impulse (have " + ready
+                    + " of " + intact + ", need " + usesNeeded
+                    + ") — the rest are cooling off (G4.451)");
+        int poweredUses = source.getTransporters().poweredUses(game.getAbsoluteImpulse());
+        if (usesNeeded > poweredUses)
             return ActionResult
-                    .fail("Not enough transporter energy (have " + availUses + " use(s), need " + usesNeeded + ")");
+                    .fail("Not enough transporter energy (have " + poweredUses + " use(s), need " + usesNeeded + ")");
 
         // Source shield facing dest must be passable (auto-lower if possible)
         int srcShieldNum = game.getShieldNumber(dest, source);

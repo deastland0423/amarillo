@@ -84,7 +84,16 @@ class MineResolver {
             return ActionResult.fail("Target hex is out of transporter range (" + range + " hexes, max 5)");
         }
 
-        // Transporter energy
+        // Transporters: undamaged, free right now, and paid for. The middle question used to
+        // be folded into the last one, so a ship whose boxes were all cooling off was told it
+        // had no energy — with a full battery and nothing to spend it on.
+        if (actingShip.getTransporters().intactBoxes() < 1) {
+            return ActionResult.fail("No working transporters");
+        }
+        if (actingShip.getTransporters().readyBoxes(game.getAbsoluteImpulse()) < 1) {
+            return ActionResult.fail("No transporter free this impulse — every box is cooling"
+                    + " off (G4.451)");
+        }
         if (actingShip.getTransporters().poweredUses(game.getAbsoluteImpulse()) < 1) {
             return ActionResult.fail("No transporter energy available");
         }

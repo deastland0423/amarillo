@@ -96,10 +96,14 @@ public class TBombGameTest {
 
     @Test
     public void placeTBomb_failsWithNoTransporterEnergy() {
-        // Drain all banked energy by exhausting available uses
-        while (ship.getTransporters().poweredUses(game.getAbsoluteImpulse()) > 0) {
-            ship.getTransporters().useTransporter(game.getAbsoluteImpulse());
-        }
+        // Zero the energy and leave every box FREE. This used to drain by consuming boxes,
+        // which exhausted both at once — so the test passed on a message about energy while
+        // the state it had built was boxes cooling off (G4.451). The two are separate
+        // refusals now, and this one has to isolate the energy to still mean what it says.
+        ship.getTransporters().cleanUp();              // banked energy back to zero
+        ship.getPowerSystems().setBatteryPower(0);     // and nothing in reserve (H7.x)
+        assertTrue("boxes must be free, or this tests the wrong refusal",
+                ship.getTransporters().readyBoxes(game.getAbsoluteImpulse()) > 0);
 
         Location target = new Location(10, 11);
         ActionResult result = game.placeTBomb(ship, target, true);

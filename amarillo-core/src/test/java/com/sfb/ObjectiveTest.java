@@ -102,9 +102,13 @@ public class ObjectiveTest {
         addObjective("Box", 12, 10, RetrievalMethod.TRANSPORTER);
         toActivityPhase();
         fed.setActiveFireControl(true);
-        // Drain the banked transporter energy so no operation is available
-        while (fed.getTransporters().poweredUses(game.getAbsoluteImpulse()) > 0)
-            fed.getTransporters().useTransporter(game.getAbsoluteImpulse());
+        // Zero the energy and leave every box FREE. Draining by USE emptied both at once,
+        // so this asserted an energy message over a state that was really boxes cooling off
+        // (G4.451); the two refusals are distinct now and this one must isolate the energy.
+        fed.getTransporters().cleanUp();               // banked energy back to zero
+        fed.getPowerSystems().setBatteryPower(0);      // and nothing in reserve (H7.x)
+        assertTrue("boxes must be free, or this tests the wrong refusal",
+                fed.getTransporters().readyBoxes(game.getAbsoluteImpulse()) > 0);
 
         Game.ActionResult r = game.pickUpObjective(fed, "Box", RetrievalMethod.TRANSPORTER);
         assertFalse(r.isSuccess());
