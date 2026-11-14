@@ -65,8 +65,12 @@ export default function WeaponFullTable({
                 <td className="dmg-full-head">{line.label}</td>
                 {line.cells.map((v, i) => (
                   <td key={table.modes!.labels[i]}
-                      className={v === null || v === 0 ? 'dmg-nil' : undefined}>
-                    {v === null ? 'NA' : line.kind === 'hit' ? hitCell(line, v) : v}
+                      // '0' as well as 0: a composite cell that scored nothing prints the
+                      // string "0", and it should grey out exactly as the numeric row does.
+                      className={v === null || v === 0 || v === '0' ? 'dmg-nil' : undefined}>
+                    {v === null ? 'NA'
+                      : line.kind === 'hit' && typeof v === 'number' ? hitCell(line, v)
+                      : v}
                   </td>
                 ))}
               </tr>

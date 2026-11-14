@@ -2,38 +2,37 @@ import { describe, expect, it } from 'vitest';
 import { getWeaponFullTable } from './weaponDamageTables';
 
 /**
- * The PPD's table (E11.3), transcribed from PpdSplash.java's own chart.
+ * The PPD's table, transcribed from the PLASMATIC PULSAR DEVICE COMBAT TABLE printed on an ISC
+ * SSD (owner's clip, 2026-11-14).
  *
  * <pre>
- * RANGE              0-3   4-10  11-15  16-20  21-25  26-30  31-40
- * HIT (2d6)           -      9      8      7      6      5      4
- * DAMAGE              0      6      5      4      3      2      1
- *   facing            0      4      3      2      1      1      1
- *   adj (strong)      0      1      1      1      1      1      0
- *   adj (weak)        0      1      1      1      1      0      0
- * SIDE-ON strong      0      3      3      2      2      1      1
- * SIDE-ON weak        0      3      2      2      1      1      0
+ * RANGE    0-3   4-10   11-15  16-20  21-25  26-30  31-40
+ * HIT*      -      9       8      7      6      5      4
+ * DAMAGE    0      6       5      4      3      2      1
+ * SPLASH    0   1+4+1   1+3+1  1+2+1  1+1+1  1+1+0  0+1+0
+ * ALT       0    3+3     3+2    2+2    2+1    1+1    1+0
  * </pre>
  *
- * The PPD was the only heavy weapon whose SSD entry produced NO table at all — there was never
- * a branch for it, although this chart's data has sat in weaponDamageTables.ts, commented and
- * correct, the whole time.
+ * FOUR rows, which is the point. The first draft of this expanded SPLASH and ALT into a row per
+ * shield — facing, stronger adjacent, weaker adjacent, then two more for the hex-side split —
+ * and said the same thing in seven rows instead of four. The sheet writes the spread as one
+ * composite cell, adjacent + facing + adjacent, so its SHAPE reads at a glance with the big
+ * number in the middle where the facing shield is.
+ *
+ * The PPD was the only heavy weapon whose SSD entry produced NO table at all, although this
+ * data has sat in weaponDamageTables.ts the whole time, commented and mirroring PpdSplash.java.
  *
  * It is also the chart that most needs printing, because it runs BACKWARDS against every other
- * weapon in the game: nothing inside range 4, a peak at 4-10, and it still reaches 40. A player
- * reading it with a disruptor's assumptions has it exactly inverted.
+ * weapon in the game: nothing inside range 4, a peak at 4-10, and it still reaches 40.
  */
 
 const PAPER_BANDS = ['0–3', '4–10', '11–15', '16–20', '21–25', '26–30', '31–40'];
 
-const PAPER_ROWS: Record<string, (number | null)[]> = {
-  'Hit (2d6)':       [null, 9, 8, 7, 6, 5, 4],
-  'Damage':          [0, 6, 5, 4, 3, 2, 1],
-  '· facing':        [0, 4, 3, 2, 1, 1, 1],
-  '· adj (strong)':  [0, 1, 1, 1, 1, 1, 0],
-  '· adj (weak)':    [0, 1, 1, 1, 1, 0, 0],
-  'Side-on, strong': [0, 3, 3, 2, 2, 1, 1],
-  'Side-on, weak':   [0, 3, 2, 2, 1, 1, 0],
+const PAPER_ROWS: Record<string, (number | string | null)[]> = {
+  'Hit (2d6)': [null, 9, 8, 7, 6, 5, 4],
+  'Damage':    [0, 6, 5, 4, 3, 2, 1],
+  'Splash':    ['0', '1+4+1', '1+3+1', '1+2+1', '1+1+1', '1+1+0', '0+1+0'],
+  'Alt':       ['0', '3+3', '3+2', '2+2', '2+1', '1+1', '1+0'],
 };
 
 function modes(arming: string | null = null) {
@@ -94,45 +93,67 @@ describe('the direction, which is the thing a player gets wrong', () => {
 });
 
 describe('the splash, which is not optional (E11.35)', () => {
-  it('splits into three elements that sum to the Damage row', () => {
+  /** "1+4+1" -> [1, 4, 1]; a bare "0" -> [0]. */
+  const parts = (cell: string) => cell.split('+').map(Number);
+  const row   = (l: string) => modes().lines.find(x => x.label === l)!.cells as string[];
+  const total = () => modes().lines.find(x => x.label === 'Damage')!.cells as number[];
+
+  it('writes the spread as one cell, adjacent + facing + adjacent', () => {
+    // The facing shield is the MIDDLE number, which is why the composite is worth keeping: the
+    // shape of 1+4+1 against 1+1+1 is the whole difference between the two ranges.
+    expect(row('Splash')[1]).toBe('1+4+1');
+    expect(parts(row('Splash')[1])[1]).toBe(4);     // 4 on the facing shield at 4-10
+    expect(parts(row('Splash')[4])[1]).toBe(1);     // 1 by 21-25, spread evenly
+  });
+
+  it('sums to the Damage row in every band', () => {
     // "The Damage row is a statistical total and is never what lands on a single shield." If
-    // these ever stop summing, one of the two is wrong and the table is lying about a shot.
-    const row = (l: string) => modes().lines.find(x => x.label === l)!.cells as number[];
-    const total = row('Damage');
-    const parts = [row('· facing'), row('· adj (strong)'), row('· adj (weak)')];
-    for (let i = 0; i < total.length; i++)
-      expect(parts[0][i] + parts[1][i] + parts[2][i], `band ${i}`).toBe(total[i]);
+    // the two ever stop agreeing, one of them is lying about a shot.
+    const t = total();
+    row('Splash').forEach((cell, i) => {
+      expect(parts(cell).reduce((a, b) => a + b, 0), `band ${i}`).toBe(t[i]);
+    });
   });
 
-  it('drops the weaker neighbour before the stronger one', () => {
-    // E11.352: at two points ignore the weaker adjacent shield, at one ignore both. So the
-    // weak row must reach zero no later than the strong row does.
-    const weak   = modes().lines.find(l => l.label === '· adj (weak)')!.cells as number[];
-    const strong = modes().lines.find(l => l.label === '· adj (strong)')!.cells as number[];
-    const firstZero = (a: number[]) => a.findIndex((v, i) => i > 0 && v === 0);
-    expect(firstZero(weak)).toBeLessThan(firstZero(strong));
-  });
-
-  it('keeps the facing shield scoring at every range the weapon reaches', () => {
-    const facing = modes().lines.find(l => l.label === '· facing')!.cells as number[];
-    for (let i = 1; i < facing.length; i++)
-      expect(facing[i], `band ${i}`).toBeGreaterThan(0);
+  it('drops the weaker neighbour before the stronger, and keeps the facing shield longest', () => {
+    // E11.352: at two points ignore the weaker adjacent shield, at one ignore both. The sheet
+    // shows that as 1+1+0 and then 0+1+0 — so the facing shield is the last to stop scoring.
+    expect(row('Splash')[5]).toBe('1+1+0');
+    expect(row('Splash')[6]).toBe('0+1+0');
+    for (let i = 1; i < row('Splash').length; i++)
+      expect(parts(row('Splash')[i])[1], `band ${i} facing`).toBeGreaterThan(0);
   });
 
   it('splits side-on fire between two shields, summing to the same total', () => {
     // E11.351: a line of fire along a hex side hits no single shield.
-    const row = (l: string) => modes().lines.find(x => x.label === l)!.cells as number[];
-    const total = row('Damage');
-    const alt   = [row('Side-on, strong'), row('Side-on, weak')];
-    for (let i = 0; i < total.length; i++)
-      expect(alt[0][i] + alt[1][i], `band ${i}`).toBe(total[i]);
+    const t = total();
+    row('Alt').forEach((cell, i) => {
+      expect(parts(cell).reduce((a, b) => a + b, 0), `band ${i}`).toBe(t[i]);
+    });
   });
 
   it('gives the odd point to the stronger shield', () => {
-    const strong = modes().lines.find(l => l.label === 'Side-on, strong')!.cells as number[];
-    const weak   = modes().lines.find(l => l.label === 'Side-on, weak')!.cells as number[];
-    for (let i = 0; i < strong.length; i++)
-      expect(strong[i], `band ${i}`).toBeGreaterThanOrEqual(weak[i]);
+    for (const cell of row('Alt').slice(1)) {
+      const [strong, weak] = parts(cell);
+      expect(strong, cell).toBeGreaterThanOrEqual(weak);
+    }
+  });
+
+  it('declares the composite rows as TEXT, not as damage', () => {
+    // The renderer prints both the same way today, so this is a contract rather than a visible
+    // behaviour — which is exactly why it needs stating. A damage cell is a number something
+    // may total; "1+4+1" is not, and a future preview that sums the damage rows must be able
+    // to tell them apart without parsing. Found by mutation: nothing else noticed the swap.
+    const kind = (l: string) => modes().lines.find(x => x.label === l)!.kind;
+    expect(kind('Splash')).toBe('text');
+    expect(kind('Alt')).toBe('text');
+    expect(kind('Damage')).toBe('damage');
+    expect(kind('Hit (2d6)')).toBe('hit');
+  });
+
+  it('prints a bare 0 where the weapon scores nothing, not "0+0+0"', () => {
+    expect(row('Splash')[0]).toBe('0');
+    expect(row('Alt')[0]).toBe('0');
   });
 });
 

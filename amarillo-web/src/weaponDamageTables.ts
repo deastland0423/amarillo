@@ -359,9 +359,14 @@ export interface FullTable {
 /** One labelled line of a printed table: "HIT (UIM)", "DAMAGE, OVLD". A null cell prints NA. */
 export interface ModeLine {
   label: string;
-  cells: readonly (number | null)[];
-  /** Hit lines print "1-4"; damage lines print the number alone. */
-  kind: 'hit' | 'damage';
+  cells: readonly (number | string | null)[];
+  /**
+   * Hit lines print "1-4"; damage lines print the number alone; TEXT lines print the cell
+   * verbatim, for a sheet row whose cell is not a single number — the PPD's SPLASH is "1+4+1",
+   * three shields' worth in one cell, and splitting it into a row each said the same thing in
+   * five rows instead of two.
+   */
+  kind: 'hit' | 'damage' | 'text';
   /** Hit lines only: rolled on 2d6, so the cell reads "2-8" and earns the footnote. */
   twoDice?: boolean;
 }
@@ -381,18 +386,22 @@ export interface ModeTable {
  * drop the DERFACS line for a ship without one and the bands still come out right, because the
  * damage line changes in the same place.
  */
+type Cell = number | string | null;
+
 function bandSeries(
-  series: readonly (readonly (number | null)[])[],
+  series: readonly (readonly Cell[])[],
   cols: number,
-): { labels: string[]; bands: number[][] } {
+): { labels: string[]; bands: Cell[][] } {
   const labels: string[] = [];
-  const bands: number[][] = [];
+  const bands: Cell[][] = [];
   let start = 0;
   for (let i = 1; i <= cols; i++) {
+    // Strings compare by value, so a composite cell bands exactly as a number does: the PPD's
+    // SPLASH row changes at the same hexes whether it is read as "1+4+1" or as three series.
     const changed = i === cols || series.some(s => s[i] !== s[i - 1]);
     if (!changed) continue;
     labels.push(bandLabel(start, i - 1));
-    bands.push(series.map(s => s[start] as number));
+    bands.push(series.map(s => s[start]));
     start = i;
   }
   return { labels, bands };
@@ -482,12 +491,15 @@ function hellboreModeTable(): ModeTable {
  * table showing only that row would mislead on every shot. The three elements below it are
  * what actually arrives: the centre on the facing shield, the rest on its neighbours (E11.352).
  *
- * The asymmetric rows key on which NEIGHBOUR is stronger, not on a fixed side — at two points
- * "ignore the weaker adjacent shield", at one ignore both. So the trailing zero in 1+1+0 moves
- * with the target's damage and is not a position on the diagram.
+ * <b>Two rows, not five, because that is how the sheet prints it.</b> SPLASH is one cell per
+ * band — "1+4+1" — written adjacent + facing + adjacent so the shape of the spread reads at a
+ * glance with the big number in the middle. ALT is the same idea for E11.351, a line of fire
+ * along a hex side that hits no single shield and splits between two with the odd point to the
+ * stronger. Expanding them into a row each said the same thing in five rows and lost the shape.
  *
- * The last two lines are E11.351: a line of fire along a hex side hits no single shield, and
- * splits between the two with the odd point to the stronger.
+ * The composite is NOT positional on the diagram: the row keys on which NEIGHBOUR is stronger,
+ * and E11.352 drops the weaker one first — at two points "ignore the weaker adjacent shield",
+ * at one ignore both. So the trailing zero in 1+1+0 moves with the target's damage.
  *
  * <h2>One hit line, deliberately</h2>
  * Overloading a PPD buys PULSES, not accuracy or damage per pulse — six over six impulses
@@ -496,18 +508,34 @@ function hellboreModeTable(): ModeTable {
  */
 function ppdModeTable(): ModeTable {
   const COLS = 41;                                   // ranges 0-40; it does not reach further
-  const byBand = (pick: (b: number) => number) =>
+  const byBand = <T,>(pick: (b: number) => T) =>
     Array.from({ length: COLS }, (_, r) => pick(ppdBand(r)));
+
+  /**
+   * One SPLASH cell, written the way the sheet writes it: adjacent + facing + adjacent, so the
+   * shape of the spread is visible at a glance and the big number sits in the middle where the
+   * facing shield is. A band that scores nothing prints a single 0 rather than "0+0+0".
+   *
+   * The stored row is {facing, stronger adjacent, weaker adjacent}, which is the order the RULE
+   * needs (E11.352 drops the weaker neighbour first) but not the order a player looks at.
+   */
+  const splash = (b: number): string => {
+    const [facing, strong, weak] = PPD_SPLASH[b];
+    return facing + strong + weak === 0 ? '0' : `${strong}+${facing}+${weak}`;
+  };
+
+  /** E11.351, along a hex side: two shields, odd point to the stronger. */
+  const alt = (b: number): string => {
+    const [strong, weak] = PPD_ALT[b];
+    return strong + weak === 0 ? '0' : `${strong}+${weak}`;
+  };
 
   const lines: ModeLine[] = [
     { label: 'Hit (2d6)', kind: 'hit', twoDice: true,
       cells: hitCells(byBand(b => PPD_HIT_NUMS[b]), COLS) },
-    { label: 'Damage',        kind: 'damage', cells: damageCells(byBand(b => PPD_TOTAL_DMG[b]), COLS) },
-    { label: '· facing',     kind: 'damage', cells: damageCells(byBand(b => PPD_SPLASH[b][0]), COLS) },
-    { label: '· adj (strong)', kind: 'damage', cells: damageCells(byBand(b => PPD_SPLASH[b][1]), COLS) },
-    { label: '· adj (weak)', kind: 'damage', cells: damageCells(byBand(b => PPD_SPLASH[b][2]), COLS) },
-    { label: 'Side-on, strong', kind: 'damage', cells: damageCells(byBand(b => PPD_ALT[b][0]), COLS) },
-    { label: 'Side-on, weak', kind: 'damage', cells: damageCells(byBand(b => PPD_ALT[b][1]), COLS) },
+    { label: 'Damage', kind: 'damage', cells: damageCells(byBand(b => PPD_TOTAL_DMG[b]), COLS) },
+    { label: 'Splash',  kind: 'text', cells: byBand(splash) },
+    { label: 'Alt',     kind: 'text', cells: byBand(alt) },
   ];
 
   const { labels, bands } = bandSeries(lines.map(l => l.cells), COLS);
