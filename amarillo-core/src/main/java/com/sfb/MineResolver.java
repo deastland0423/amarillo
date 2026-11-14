@@ -94,8 +94,9 @@ class MineResolver {
             return ActionResult.fail("No transporter free this impulse — every box is cooling"
                     + " off (G4.451)");
         }
-        if (actingShip.getTransporters().poweredUses(game.getAbsoluteImpulse()) < 1) {
-            return ActionResult.fail("No transporter energy available");
+        if (game.transporterUsesAvailable(actingShip) < 1) {
+            return ActionResult.fail("No transporter energy available — none allocated and no"
+                    + " reserve power to draw on (H7.x)");
         }
 
         // Acting ship's facing shield toward target hex must be passable.

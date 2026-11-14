@@ -548,7 +548,7 @@ public class GameStateDto {
      *
      * <p>All of it is public. A box on the SSD is public and so is what it is doing — which
      * is the whole reason box IDENTITY is modelled, since a hit-and-run raid picks one out
-     * (D7.835). What is NOT here is energy: {@code Transporters.poweredUses} is owner-only,
+     * (D7.835). What is NOT here is energy: the uses a ship can afford are owner-only,
      * because an opponent could read the battery state back out of it.
      */
     public static class BoxBankDto {

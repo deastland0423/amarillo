@@ -91,15 +91,22 @@ public class Transporters implements Systems, CyclingBoxes {
 	 * is to power them. Both limits are real, and they are not the same — a ship can
 	 * have energy and no free box, or a free box and nothing to power it with.
 	 * <p>
-	 * <b>OWNER-ONLY. Never send this to an opponent.</b> It is the one transporter figure that
+	 * <b>OWNER-ONLY. Never send this to an opponent.</b> It is a transporter figure that
 	 * depends on energy, so publishing it would let an enemy read the ship's battery state back
 	 * out of its transporter count. That is why it is NOT on {@link CyclingBoxes}, every
-	 * question on which is public, and why the name says "powered" rather than "available":
-	 * the word that used to be here meant three different things across the three systems.
-	 * What an opponent may be told is {@code intactBoxes() - usesMadeThisTurn()}, which
-	 * {@code GameStateDto.redactForEnemy} computes instead.
+	 * question on which is public. What an opponent may be told is
+	 * {@code intactBoxes() - usesMadeThisTurn()}, which {@code GameStateDto.redactForEnemy}
+	 * computes instead.
+	 * <p>
+	 * <b>NOT the figure an action gate should ask.</b> It counts only what was BANKED at
+	 * allocation, and reserve power may pay for a use as well (H7.x) — the owner's ruling,
+	 * 2026-11-14: "if there is remaining battery/reserve power, it may be used to immediately
+	 * power an available transporter". {@code Game.transporterUsesAvailable} is the one that
+	 * knows about batteries, and is what {@code Game.spendTransporterEnergy} will charge
+	 * against. Four gates asked this one instead and refused ships that could have paid.
+	 * The name says BANKED so the next gate does not make the same mistake.
 	 */
-	public int poweredUses(int absoluteImpulse) {
+	public int usesFromBankedEnergy(int absoluteImpulse) {
 		int affordable = (int) ((bankedEnergy - energyUsed) / ENERGY_PER_USE + EPSILON);
 		return Math.min(boxes.available(absoluteImpulse), affordable);
 	}
@@ -121,7 +128,7 @@ public class Transporters implements Systems, CyclingBoxes {
 	/**
 	 * Boxes free to take a new job at this impulse — intact, unspent this turn, and past the
 	 * quarter-turn delay. Public knowledge, like every box count: it is the ENERGY that is
-	 * secret, and this figure does not consider it ({@link #poweredUses} does).
+	 * secret, and this figure does not consider it ({@link #usesFromBankedEnergy} does).
 	 * <p>
 	 * The javadoc here used to be a copy of {@link #usesMadeThisTurn}'s, describing the
 	 * opposite quantity, which is how the name came to be trusted over the comment.

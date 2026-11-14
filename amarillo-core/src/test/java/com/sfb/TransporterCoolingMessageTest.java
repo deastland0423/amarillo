@@ -110,6 +110,69 @@ public class TransporterCoolingMessageTest {
 
 	// ---------------------------------------------------------------- the controls
 
+	// ---------------------------------------------------------------- reserve power pays
+
+	/**
+	 * Owner's ruling, 2026-11-14: "A powered transporter may be used, of course. If there is
+	 * remaining battery/reserve power, it may be used to immediately power an available
+	 * transporter."
+	 * <p>
+	 * {@code Game.spendTransporterEnergy} has always done this — it buys a point of battery
+	 * when the bank runs short (H7.x). The GATES in front of it asked a figure that counted
+	 * only what was banked at allocation, so every one of them refused a ship the layer behind
+	 * them would have charged without complaint. The capability existed and nothing could
+	 * reach it.
+	 */
+	private void nothingBankedButBatteriesAboard() {
+		assertEquals("fixture assumes an empty bank", 0.0,
+				fed.getTransporters().getBankedEnergy(), 0.0001);
+		fed.getPowerSystems().setBatteryPower(3);
+		assertTrue("boxes are free; only the energy is in question",
+				fed.getTransporters().readyBoxes(game.getAbsoluteImpulse()) > 0);
+	}
+
+	@Test
+	public void aShipThatAllocatedNothingMayBeamOnReservePower() {
+		nothingBankedButBatteriesAboard();
+
+		ActionResult r = game.performBoardingAction(fed, klingon, 1, 0);
+
+		assertTrue("reserve power may power an available transporter: " + r.getMessage(),
+				r.isSuccess());
+	}
+
+	@Test
+	public void aShipThatAllocatedNothingMayLayATBombOnReservePower() {
+		nothingBankedButBatteriesAboard();
+
+		ActionResult r = game.placeTBomb(fed, new Location(10, 11), true);
+
+		assertTrue("the T-bomb gate refused this outright: " + r.getMessage(), r.isSuccess());
+	}
+
+	@Test
+	public void aShipThatAllocatedNothingMayTransferCrewOnReservePower() {
+		nothingBankedButBatteriesAboard();
+
+		ActionResult r = game.transportCrew(fed, klingon, 2);
+
+		assertTrue("the crew-transfer gate refused this outright: " + r.getMessage(),
+				r.isSuccess());
+	}
+
+	@Test
+	public void theGateAgreesWithWhatTheSpendWillActuallyCharge() {
+		// The invariant underneath all three: a gate that asks a different question from the
+		// payment either refuses a ship that can pay, or waves through one that cannot. Both
+		// are wrong and only the first was visible.
+		nothingBankedButBatteriesAboard();
+		int affordable = game.transporterUsesAvailable(fed);
+		assertTrue("fixture should afford several uses", affordable >= 2);
+
+		assertTrue("the spend charges what the gate promised",
+				game.spendTransporterEnergy(fed, affordable));
+	}
+
 	@Test
 	public void aGenuineEnergyShortfallStillBlamesTheEnergy() {
 		// The control that stops this being one wrong message swapped for another. Boxes free,

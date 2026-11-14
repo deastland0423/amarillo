@@ -116,7 +116,12 @@ public class HitAndRunTest {
         freshFed.setLocation(new Location(10, 10));
         freshFed.setFacing(1);
         freshFed.addLockOn(klingon);
-        // no bankEnergy call → zero uses available
+        // No bankEnergy call AND no reserve power. The batteries matter: a ship starts with
+        // them charged, and since the owner's 2026-11-14 ruling a point of reserve power may
+        // be spent to power an available transporter on the spot (H7.x). So allocating
+        // nothing is no longer the same as being unable to beam, and this test has to say
+        // which of the two it means.
+        freshFed.getPowerSystems().setBatteryPower(0);
         game.getShips().add(freshFed);
 
         List<SystemTarget> targets = oneTarget(SystemTarget.Type.SENSORS);

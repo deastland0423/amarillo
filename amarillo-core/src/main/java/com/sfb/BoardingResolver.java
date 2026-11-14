@@ -284,10 +284,14 @@ class BoardingResolver {
             return ActionResult.fail("Not enough transporters free this impulse (have " + ready
                     + " of " + intact + ", need " + numParties
                     + ") — the rest are cooling off (G4.451)");
-        int poweredUses = actingShip.getTransporters().poweredUses(game.getAbsoluteImpulse());
-        if (numParties > poweredUses)
-            return ActionResult.fail("Not enough transporter energy (have " + poweredUses
-                    + " use(s), need " + numParties + ")");
+        // Counting reserve power, not just what was banked at allocation: a point of
+        // battery may be spent to power an available transporter on the spot (H7.x). This is
+        // the same figure spendTransporterEnergy will charge against, which is the point —
+        // a gate that asks a different question than the payment refuses ships that can pay.
+        int affordable = game.transporterUsesAvailable(actingShip);
+        if (numParties > affordable)
+            return ActionResult.fail("Not enough transporter energy (have " + affordable
+                    + " use(s) counting reserve power, need " + numParties + ")");
 
         // Shield checks — acting ship's shield facing target must be passable
         int actingShieldNum = game.getShieldNumber(target, actingShip);
@@ -383,9 +387,10 @@ class BoardingResolver {
             return ActionResult.fail(actingShip.getName()
                     + " has no transporter free this impulse — every box is cooling off"
                     + " (G4.451)");
-        if (actingShip.getTransporters().poweredUses(game.getAbsoluteImpulse()) < 1)
+        if (game.transporterUsesAvailable(actingShip) < 1)
             return ActionResult.fail(actingShip.getName()
-                    + " has no transporter energy allocated this turn");
+                    + " has no transporter energy — none allocated this turn and no reserve"
+                    + " power to draw on (H7.x)");
 
         // Acting ship's shield facing the objective must be passable (auto-lower, G8)
         int shieldNum = game.getShieldNumber(objective, actingShip);
@@ -473,10 +478,10 @@ class BoardingResolver {
             return ActionResult.fail("Not enough transporters free this impulse (have " + ready
                     + " of " + intact + ", need " + usesNeeded
                     + ") — the rest are cooling off (G4.451)");
-        int poweredUses = source.getTransporters().poweredUses(game.getAbsoluteImpulse());
-        if (usesNeeded > poweredUses)
-            return ActionResult
-                    .fail("Not enough transporter energy (have " + poweredUses + " use(s), need " + usesNeeded + ")");
+        int affordable = game.transporterUsesAvailable(source);
+        if (usesNeeded > affordable)
+            return ActionResult.fail("Not enough transporter energy (have " + affordable
+                    + " use(s) counting reserve power, need " + usesNeeded + ")");
 
         // Source shield facing dest must be passable (auto-lower if possible)
         int srcShieldNum = game.getShieldNumber(dest, source);

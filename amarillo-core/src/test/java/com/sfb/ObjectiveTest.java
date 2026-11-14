@@ -120,11 +120,11 @@ public class ObjectiveTest {
         addObjective("Box", 12, 10, RetrievalMethod.TRANSPORTER);
         toActivityPhase();
         fed.setActiveFireControl(true);
-        int before = fed.getTransporters().poweredUses(game.getAbsoluteImpulse());
+        int before = fed.getTransporters().usesFromBankedEnergy(game.getAbsoluteImpulse());
 
         assertTrue(game.pickUpObjective(fed, "Box", RetrievalMethod.TRANSPORTER).isSuccess());
         assertEquals("one transporter operation spent", before - 1,
-                fed.getTransporters().poweredUses(game.getAbsoluteImpulse()));
+                fed.getTransporters().usesFromBankedEnergy(game.getAbsoluteImpulse()));
     }
 
     @Test

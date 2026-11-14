@@ -36,9 +36,9 @@ public class TransporterBoxTest {
 
     @Test
     public void eachUseConsumesOneBox() {
-        assertEquals(4, trans.poweredUses(T1));
+        assertEquals(4, trans.usesFromBankedEnergy(T1));
         assertTrue(trans.useTransporter(T1));
-        assertEquals("one box spent", 3, trans.poweredUses(T1));
+        assertEquals("one box spent", 3, trans.usesFromBankedEnergy(T1));
     }
 
     @Test
@@ -55,8 +55,8 @@ public class TransporterBoxTest {
         trans.useTransporter(T1_LATE);
 
         assertEquals("three of four free, the fourth still cooling",
-                3, trans.poweredUses(33));      // turn 2, impulse 1
-        assertEquals("free again eight impulses on", 4, trans.poweredUses(T1_LATE + 8));
+                3, trans.usesFromBankedEnergy(33));      // turn 2, impulse 1
+        assertEquals("free again eight impulses on", 4, trans.usesFromBankedEnergy(T1_LATE + 8));
     }
 
     @Test

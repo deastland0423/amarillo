@@ -349,6 +349,6 @@ public class CyclingBoxesTest {
 						"boxReadout")),
 				declared);
 		assertNotNull("the energy-capped figure still exists, just not here",
-				Transporters.class.getMethod("poweredUses", int.class));
+				Transporters.class.getMethod("usesFromBankedEnergy", int.class));
 	}
 }

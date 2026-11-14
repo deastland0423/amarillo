@@ -198,7 +198,7 @@ public class ShipDtoPrivacyTest {
         // doing. The flat counts cannot say it — availableTransporters is the INTACT count, so
         // a ship whose boxes are all cooling off reports them all available to its own player
         // as well as to an enemy. What is withheld is unchanged: the ENERGY behind the boxes,
-        // which is why Transporters.poweredUses has no field here and never should.
+        // which is why the uses a ship can afford have no field here and never should.
         // Held-unit names ride along inside it and are already public — a tractor link is seen
         // from the map, and tractoredTargetNames has published them since the feature landed.
         "boxBanks",

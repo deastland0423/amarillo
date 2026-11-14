@@ -169,11 +169,11 @@ public class TBombGameTest {
 
     @Test
     public void placeTBomb_real_consumesTransporterEnergy() {
-        int usesBefore = ship.getTransporters().poweredUses(game.getAbsoluteImpulse());
+        int usesBefore = ship.getTransporters().usesFromBankedEnergy(game.getAbsoluteImpulse());
 
         game.placeTBomb(ship, new Location(10, 11), true);
 
-        assertEquals(usesBefore - 1, ship.getTransporters().poweredUses(game.getAbsoluteImpulse()));
+        assertEquals(usesBefore - 1, ship.getTransporters().usesFromBankedEnergy(game.getAbsoluteImpulse()));
     }
 
     // -------------------------------------------------------------------------
