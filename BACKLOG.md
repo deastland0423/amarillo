@@ -728,16 +728,22 @@ boxes — when they come — fit every hull in two rows of six and never need a 
    the interface, and the interface's method set is asserted whole, so an energy-aware
    question cannot join it without a test objecting first.
 
-   **FOUND EN ROUTE, NOT FIXED — the gates and the spend disagree about batteries.** Every
-   transporter gate asks `Transporters.poweredUses`, which counts only BANKED energy, while
-   the spend underneath it is `Game.spendTransporterEnergy` → `transporterUsesAvailable`,
-   which counts banked energy AND whole points of battery (H7.x). So a ship that allocated
-   nothing to transporters but is holding reserve power is refused at the door although the
-   layer behind the door would have paid. `TransporterEnergyTest.aShipThatAllocatedNothing-
-   CanStillBeamOnBatteries` proves the capability exists; no action path can reach it. The
-   same shape as the chaff entry: correct core, unreachable. Fixing it is a one-line swap at
-   four gates, but it is a RULES change (it permits beaming that is refused today), so it is
-   left for the owner to rule on rather than folded into a naming commit.
+   ~~**FOUND EN ROUTE — the gates and the spend disagree about batteries.**~~ — **RULED AND
+   FIXED 2026-11-14.** Owner: "A powered transporter may be used, of course. If there is
+   remaining battery/reserve power, it may be used to immediately power an available
+   transporter." So the gates were simply wrong, and `Game.spendTransporterEnergy` was
+   already right — it buys a point of reserve power when the bank runs short (H7.x). All
+   four gates now ask `Game.transporterUsesAvailable`, the same figure the payment is made
+   against, and `Transporters.poweredUses` became `usesFromBankedEnergy` because its old
+   name was indistinguishable from the full one.
+
+   **The invariant worth keeping:** a gate must ask the question the PAYMENT will ask. One
+   that asks a narrower question refuses ships that can pay; a wider one waves through ships
+   that cannot. Only the first is visible in play, which is why this sat unnoticed.
+
+   Note for anyone writing a fixture: **a ship starts with charged batteries**, so
+   "allocated nothing to transporters" is no longer the same as "cannot beam".
+   `HitAndRunTest` had to zero them to keep meaning what its name says.
 
 2. ~~**Countable boxes for those rows once (1) lands.**~~ — **BUILT 2026-11-14.** The
    `Laboratories`, `Transporters` and `Tractor Beams` rows draw one mark per printed box in
