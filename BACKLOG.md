@@ -670,6 +670,18 @@ behind package-private hooks, and leave one-line public delegates so the server 
 move. The SH47.5 victory work above is the obvious moment — it touches securing and scoring,
 which are two of the pieces that would move.
 
+## An unreproduced flake in the core suite (seen 2026-11-14)
+
+Two runs out of roughly a dozen of the full `amarillo-core` suite failed one test that six
+consecutive clean runs afterwards did not reproduce, and the name was not captured before
+surefire overwrote the report. Recorded because a one-off red that nobody writes down is a
+one-off red that the next person assumes is their own change.
+
+If it reappears: it was present BEFORE the transporter work of that day (the first sighting
+had three failures where only two were explained by the changes in flight), so it is not
+suspected of being new. An unseeded die is the first place to look — the project has been
+caught that way before, and a dice-driven assertion passes by coin flip.
+
 ## SSD panel damage gauges — BUILT 2026-11-13; the cycle rows are what is left
 
 Hull and power draw as caption + bar + count (`systemGauge.ts`, `GaugeLine` in `SsdPanel`).
@@ -693,34 +705,38 @@ boxes — when they come — fit every hull in two rows of six and never need a 
 
 **What is NOT built, in the order it should be done:**
 
-1. **One read vocabulary for the `BoxCycle` systems.** `BoxCycle` itself needs nothing: it
-   already has `total()`, `functioning()`, `available(imp)`, `numbers()` and `stateOf(number,
-   imp)` returning `{UNUSED, USED_THIS_TURN, COOLING_DOWN}` — whose own javadoc says it is
-   "for a raid's target list **or a readout**". The divergence is in the wrappers and in what
-   each sends:
-   - Labs sends `functioningLab` + `availableLab` — cycle-aware, missing only the printed
-     total. The best served of the three.
-   - Transporters sends functioning + total but not free-now; the client reconstructs it by
-     subtraction at `GameStateDto:2687`.
-   - Tractors sends `fetchRemainingTotalBoxes()` + total, blind to cycling entirely.
+1. ~~**One read vocabulary for the `BoxCycle` systems.**~~ — **BUILT 2026-11-14** as the
+   `CyclingBoxes` interface, which names the QUESTIONS rather than unifying the storage:
+   `printedBoxes()` (the SSD), `intactBoxes()` (survived damage), `readyBoxes(impulse)` (free
+   to take a job now) and `holdingBoxes()`, which only a tractor answers with anything but
+   zero. Labs, Transporters and Tractors implement it; `Transporters.availableUses` became
+   `poweredUses` and is deliberately NOT on the interface, because every count on it is
+   public and that one is energy-derived.
 
-   And `Transporters` has THREE methods that read as "available": `getAvailableTrans()` is
-   `functioning()`, `freeBoxes(imp)` is free-now, and `availableUses(imp)` is
-   `min(free, energy affordable)` — which is OWNER-ONLY, because publishing it leaks battery
-   state. That is the trap the comment at `GameStateDto:2683` spends a paragraph on, and it
-   exists because the name does not carry it. Unify the QUESTION, not the storage: a tractor
-   beam can be IN USE holding something across impulses, which no lab or transporter box can,
-   so forcing it into the bank would recreate the exact "three things one counter cannot hold"
-   mistake `BoxCycle`'s header exists to prevent.
+   The audit of all 51 call sites found every one already asking the right question — the
+   problem was purely that three of them were spelled the same. Two things fell out of it:
 
-   51 call sites in core + server main, and the dangerous ones are rules code, not UI:
-   `BoardingResolver` (`getAvailableTrans` x3, `availableUses` x5), `MineResolver`, `Game`
-   (`freeBoxes` x3), `GuardPosts`. Since the two mean different things, a blind rename is a
-   silent rules bug rather than a compile error — read every site.
+   - **A copy-pasted javadoc** on `Transporters.freeBoxes`, describing `usesMadeThisTurn`'s
+     quantity instead of its own. Fixed.
+   - **Four gates blamed the ENERGY for a box that was cooling off** — fixed the same day in
+     its own commit. Worth remembering as the argument FOR this kind of work: nobody spotted
+     it in two years of reading those gates, and it was obvious within a minute of the three
+     questions having three names.
 
-   Found en route and not yet fixed: `Transporters.freeBoxes` carries a copy-pasted javadoc
-   from `usesMadeThisTurn`, saying "how many boxes have been used this turn" while returning
-   the boxes FREE to work.
+   `CyclingBoxesTest` guards the drift two ways: any class owning a `BoxCycle` must implement
+   the interface, and the interface's method set is asserted whole, so an energy-aware
+   question cannot join it without a test objecting first.
+
+   **FOUND EN ROUTE, NOT FIXED — the gates and the spend disagree about batteries.** Every
+   transporter gate asks `Transporters.poweredUses`, which counts only BANKED energy, while
+   the spend underneath it is `Game.spendTransporterEnergy` → `transporterUsesAvailable`,
+   which counts banked energy AND whole points of battery (H7.x). So a ship that allocated
+   nothing to transporters but is holding reserve power is refused at the door although the
+   layer behind the door would have paid. `TransporterEnergyTest.aShipThatAllocatedNothing-
+   CanStillBeamOnBatteries` proves the capability exists; no action path can reach it. The
+   same shape as the chaff entry: correct core, unreachable. Fixing it is a one-line swap at
+   four gates, but it is a RULES change (it permits beaming that is refused today), so it is
+   left for the owner to rule on rather than folded into a naming commit.
 
 2. **Countable boxes for those rows once (1) lands**, three states: filled, hollow (cooling),
    struck through (destroyed). `Transporters.describeBoxes(imp)` already renders exactly those
