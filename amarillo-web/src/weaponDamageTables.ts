@@ -119,7 +119,7 @@ export const PPD_ALT        = [[0,0],[3,3],[3,2],[2,2],[2,1],[1,1],[1,0]] as con
 // Strength-by-range tables, mirroring PlasmaTorpedo.java PLASMA_X_DAMAGE_BY_RANGE
 // Index = range (hexes). Bolt damage = table[range] / 2.
 
-export const PLASMA_R_BY_RANGE: readonly number[] = [50,50,50,50,50,50,50,50,50,50,50,35,35,35,35,35,25,25,25,25,25,20,20,20,20,25,10,10,10,5,1,0];
+export const PLASMA_R_BY_RANGE: readonly number[] = [50,50,50,50,50,50,50,50,50,50,50,35,35,35,35,35,25,25,25,25,25,20,20,20,20,20,10,10,10,5,1,0];
 export const PLASMA_S_BY_RANGE: readonly number[] = [30,30,30,30,30,30,30,30,30,30,30,22,22,22,22,22,15,15,15,15,15,10,10,10,5,1,0];
 export const PLASMA_G_BY_RANGE: readonly number[] = [20,20,20,20,20,20,20,20,20,20,20,15,15,15,15,15,10,10,10,5,1,0];
 export const PLASMA_F_BY_RANGE: readonly number[] = [20,20,20,20,20,20,15,15,15,15,15,10,10,5,5,1,0];

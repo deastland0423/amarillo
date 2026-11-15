@@ -38,7 +38,7 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     // Damage tables by range for each plasma type. Index = distance traveled in
     // impulses.
     private static final int[] PLASMA_R_DAMAGE_BY_RANGE = { 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 35, 35, 35, 35,
-            35, 25, 25, 25, 25, 25, 20, 20, 20, 20, 25, 10, 10, 10, 5, 1, 0 };
+            35, 25, 25, 25, 25, 25, 20, 20, 20, 20, 20, 10, 10, 10, 5, 1, 0 };
     private static final int[] PLASMA_S_DAMAGE_BY_RANGE = { 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 22, 22, 22, 22,
             22, 15, 15, 15, 15, 15, 10, 10, 10, 5, 1, 0 };
     private static final int[] PLASMA_G_DAMAGE_BY_RANGE = { 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 15, 15, 15, 15,
