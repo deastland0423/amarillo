@@ -354,6 +354,17 @@ export interface FullTable {
    * is set the renderer draws these lines instead of the single hit/damage pair above.
    */
   modes?: ModeTable;
+  /**
+   * SEPARATE tables, stacked, each with its own title and its own range bands.
+   *
+   * The fusion beam is why this exists and is the only thing using it. Its modes cannot share
+   * a table the way a disruptor's can: every mode is a full six-die-face grid, and the bands
+   * do not line up — standard runs 0 | 1 | 2 | 3-10 | 11-15 | 16-24 while an overload stops at
+   * 8 and bands 0 | 1 | 2 | 3-8. There is no set of columns that fits both, which is exactly
+   * why the paper SSD prints FUSION BEAM TABLE and FUSION OVERLOAD as two boxes side by side
+   * rather than as more rows of one.
+   */
+  rollTables?: { title: string; bands: RangeBand[] }[];
 }
 
 /** One labelled line of a printed table: "HIT (UIM)", "DAMAGE, OVLD". A null cell prints NA. */
@@ -714,12 +725,26 @@ export function getWeaponFullTable(
     return { kind: 'roll', bands: rollTableBands(FIGHTER_FUSION_TABLE, 10) };
 
   if (n.includes('fusion')) {
-    const table = mode === 'SUICIDE' ? FUSION_SUICIDE_TABLE
-                : ovld               ? FUSION_OVERLOAD_TABLE
-                :                      FUSION_TABLE;
-    const maxR  = mode === 'STANDARD' ? 24 : 12;
-    return { kind: 'roll', bands: rollTableBands(table, maxR),
-             note: mode === 'STANDARD' ? undefined : mode.toLowerCase() };
+    // All three at once. The branch used to pick ONE by how the weapon happened to be armed,
+    // so a player could never compare what overloading would buy him without first paying for
+    // it -- the same fault the photon's proximity chart had. Maximum ranges differ and are the
+    // rules, not presentation: 24 standard (E7.31), 8 overloaded (E7.411) and 8 suicide
+    // (E7.422), which is why each table carries its own bands.
+    return {
+      kind: 'roll',
+      rollTables: [
+        { title: 'Fusion beam',      bands: rollTableBands(FUSION_TABLE, 24) },
+        { title: 'Overload',         bands: rollTableBands(FUSION_OVERLOAD_TABLE, 8) },
+        { title: 'Suicide overload', bands: rollTableBands(FUSION_SUICIDE_TABLE, 8) },
+      ],
+      // The fallback for a caller that has not been taught the stacked shape keeps the old
+      // mode selection, so GameBoard's hover still answers for the mode in hand.
+      bands: rollTableBands(mode === 'SUICIDE' ? FUSION_SUICIDE_TABLE
+                          : ovld               ? FUSION_OVERLOAD_TABLE
+                          :                      FUSION_TABLE,
+                            mode === 'STANDARD' ? 24 : 8),
+      note: mode === 'STANDARD' ? undefined : mode.toLowerCase(),
+    };
   }
 
   if (n.includes('fighterphoton'))

@@ -45,6 +45,42 @@ export default function WeaponFullTable({
 
   const dieFaces = [1, 2, 3, 4, 5, 6];
 
+  // SEPARATE stacked tables, each with its own title and its own range bands. The fusion beam
+  // is the case: every mode is a full six-die-face grid and the bands do not line up, so there
+  // is no set of columns that fits them all -- which is why the paper SSD prints FUSION BEAM
+  // TABLE and FUSION OVERLOAD as two boxes rather than as more rows of one.
+  if (table.rollTables)
+    return (
+      <div className={anchored ? 'dmg-tooltip dmg-full' : 'dmg-full dmg-full-inline'}>
+        {table.rollTables.map(sub => (
+          <div key={sub.title}>
+            <div className="dmg-tooltip-header">{sub.title}</div>
+            <table className="dmg-tooltip-table dmg-full-table">
+              <thead>
+                <tr>
+                  <th>Die</th>
+                  {sub.bands.map(b => <th key={b.label}>{b.label}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {dieFaces.map((face, i) => (
+                  <tr key={face}>
+                    <td className="dmg-full-head">{face}</td>
+                    {sub.bands.map(b => (
+                      <td key={b.label}
+                          className={b.damage[i] === 0 ? 'dmg-nil' : undefined}>
+                        {b.damage[i]}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
+    );
+
   // The printed multi-mode layout: range across, one labelled line per mode of fire down. Used
   // where a weapon has modes worth comparing side by side -- a disruptor's UIM gains sit in
   // bands its standard line never reaches, so showing one at a time hid the whole point.
