@@ -179,8 +179,18 @@ public class ExcessDamageRowTest {
             log.addAll(ship.applyInternalDamage(1));
 
         assertTrue("the ship did die", ship.isDestroyed());
-        assertTrue("and the killing line cites D4.40: " + lastLine(log),
-                lastLine(log).contains("SHIP DESTROYED") && lastLine(log).contains("D4.40"));
+        // Find the death announcement rather than assuming it is the last line.
+        //
+        // It usually is, which is why this read as a passing test for months while failing
+        // about one run in nine: the damage point that kills the ship can also cost a crew
+        // unit or a boarding party, and that bookkeeping logs AFTER the announcement. Measured
+        // at 316 of 3000 runs, "boarding party casualty (D7.21)" 272 times and "crew casualty
+        // (G9.21)" 44. Nothing about D4.40 cares which line is last, so neither does this.
+        String killLine = log.stream().filter(l -> l.contains("SHIP DESTROYED"))
+                .reduce((a, b) -> b).orElse("");
+        assertFalse("the log announces the destruction, last line was: " + lastLine(log),
+                killLine.isEmpty());
+        assertTrue("and the killing line cites D4.40: " + killLine, killLine.contains("D4.40"));
         assertTrue("with nothing left on the row",
                 ship.dacChoiceOptionsForTest("excess").isEmpty());
     }
