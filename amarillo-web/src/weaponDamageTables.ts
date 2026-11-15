@@ -447,31 +447,50 @@ function flatDamageCells(hit: readonly number[], damage: number,
 }
 
 /**
- * The hellbore's table: one to-hit line, four damage lines.
+ * The HELLBORE COMBAT RESOLUTION TABLE, as the paper SSD prints it (owner's clip, 2026-11-14).
  *
- * Two independent choices cross here, which is why it needs four damage rows rather than two.
- * ENVELOPING vs DIRECT is how the shot is aimed, and STANDARD vs OVERLOAD is what was paid for
- * it, and the old table showed exactly one of the four -- the overload rows only if the weapon
- * was already armed that way, and the direct-fire rows only if the caller passed a flag the SSD
- * panel never passes. So the panel could only ever show enveloping standard.
+ * <pre>
+ * RANGE         0-1   2   3-4   5-8  9-15  16-22  23-40
+ * HIT#           11  10     9     8     7      6      5
+ * BASE DAMAGE    20  17    15    13    10      8      4
+ * O/L DAMAGE     30  25    22    19
+ * </pre>
  *
- * Accuracy is NOT one of the choices: overloading a hellbore buys damage and nothing else, so a
- * single hit line serves every row. It is stated here because a reader who knows the disruptor
- * table would reasonably expect a HIT (OVLD) line and should know its absence is deliberate.
+ * <h2>Why direct fire is NOT a row</h2>
+ * The first version printed four damage rows: enveloping and direct, each standard and
+ * overloaded. Owner's call, 2026-11-14 — "the rule about direct fire being 1/2 damage doesn't
+ * need to be part of the displayed table explicitly" — and the data proves the point harder
+ * than the preference does. Direct fire (E10.7) is EXACTLY floor(base / 2) in every band,
+ * standard and overloaded alike: 17 to 8, 15 to 7, 13 to 6, 19 to 9. Those rows therefore held
+ * nothing the rule does not already give, and cost a reader four extra numbers to scan before
+ * learning it. The test pins the halving, because the day the data stops halving is the day
+ * this table starts hiding something real.
+ *
+ * <h2>One hit line, deliberately</h2>
+ * The sheet has one HIT# row and so does this. Overloading a hellbore buys damage and nothing
+ * else — worth stating, because a reader who knows the disruptor table would expect a second
+ * row and its absence should read as a decision rather than an omission.
+ *
+ * <h2>The overload row simply stops</h2>
+ * setOverload caps the weapon at range 8 and the sheet leaves those cells empty. They print NA
+ * here, which is this panel's word for "this mode cannot fire at that range" — the same thing
+ * a standard photon's 0-1 cells say. A zero would claim it fires and achieves nothing.
  */
 function hellboreModeTable(): ModeTable {
   const COLS = 41;                                   // ranges 0-40
   const byBand = (values: readonly number[]) =>
     Array.from({ length: COLS }, (_, r) => values[hellboreBand(r)]);
+  // Indexed by HEX rather than by band, and it runs out at 8 rather than falling to zero.
+  const reaches = (values: readonly number[]) =>
+    Array.from({ length: COLS }, (_, r) => (r < values.length ? values[r] : null));
+
   const lines: ModeLine[] = [
     { label: 'Hit (2d6)', kind: 'hit', twoDice: true,
       cells: hitCells(byBand(HELLBORE_HIT_NUMS), COLS) },
-    { label: 'Dmg, env',       kind: 'damage', cells: damageCells(byBand(HELLBORE_ENV_DMG), COLS) },
-    { label: 'Dmg, direct',    kind: 'damage', cells: damageCells(byBand(HELLBORE_DF_DMG), COLS) },
-    // Overload stops at range 8 (setOverload caps it), so these fall to 0 beyond that.
-    { label: 'Dmg, env ovld',  kind: 'damage', cells: damageCells(HELLBORE_OVLD_ENV, COLS) },
-    { label: 'Dmg, dir ovld',  kind: 'damage', cells: damageCells(HELLBORE_OVLD_DF, COLS) },
+    { label: 'Base damage', kind: 'damage', cells: damageCells(byBand(HELLBORE_ENV_DMG), COLS) },
+    { label: 'O/L damage',  kind: 'damage', cells: reaches(HELLBORE_OVLD_ENV) },
   ];
+
   const { labels, bands } = bandSeries(lines.map(l => l.cells), COLS);
   return { labels, lines: lines.map((l, i) => ({ ...l, cells: bands.map(b => b[i]) })) };
 }

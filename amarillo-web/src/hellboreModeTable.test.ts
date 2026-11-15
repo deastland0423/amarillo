@@ -1,33 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { getWeaponFullTable } from './weaponDamageTables';
+import {
+  getWeaponFullTable,
+  HELLBORE_DF_DMG, HELLBORE_ENV_DMG, HELLBORE_OVLD_DF, HELLBORE_OVLD_ENV,
+} from './weaponDamageTables';
 
 /**
- * The hellbore's table: one to-hit line, four damage lines.
+ * The HELLBORE COMBAT RESOLUTION TABLE, transcribed from the paper SSD (owner's clip,
+ * 2026-11-14).
  *
  * <pre>
- * RANGE          0-1    2    3-4   5-8  9-15 16-22 23-40
- * HIT (2d6)       11    10     9     8     7     6     5
- * DMG, ENV        20    17    15    13    10     8     4
- * DMG, DIRECT     10     8     7     6     5     4     2
- * DMG, ENV OVLD   30    25    22    19     0     0     0
- * DMG, DIR OVLD   15    12    11     9     0     0     0
+ * RANGE         0-1   2   3-4   5-8  9-15  16-22  23-40
+ * HIT#           11  10     9     8     7      6      5
+ * BASE DAMAGE    20  17    15    13    10      8      4
+ * O/L DAMAGE     30  25    22    19
  * </pre>
  *
- * Two independent choices cross here: ENVELOPING vs DIRECT is how the shot is aimed, STANDARD
- * vs OVERLOAD is what was paid for it. The old table showed one of the four -- overload only if
- * the weapon was already armed that way, direct fire only if the caller passed a flag the SSD
- * panel never passes -- so the panel could only ever show enveloping standard.
+ * THREE rows. The first version of this had five, printing enveloping and direct fire each in
+ * standard and overloaded form, on the reasoning that two independent choices cross here. The
+ * sheet does not, and the data says why: direct fire is exactly half, so those rows repeated a
+ * rule instead of adding a number.
  */
 
-const PAPER_BANDS = ['0–1', '2', '3–4', '5–8',
-                     '9–15', '16–22', '23–40'];
+const PAPER_BANDS = ['0–1', '2', '3–4', '5–8', '9–15', '16–22', '23–40'];
 
-const PAPER_ROWS: Record<string, number[]> = {
-  'Hit (2d6)':     [11, 10, 9, 8, 7, 6, 5],
-  'Dmg, env':      [20, 17, 15, 13, 10, 8, 4],
-  'Dmg, direct':   [10, 8, 7, 6, 5, 4, 2],
-  'Dmg, env ovld': [30, 25, 22, 19, 0, 0, 0],
-  'Dmg, dir ovld': [15, 12, 11, 9, 0, 0, 0],
+const PAPER_ROWS: Record<string, (number | null)[]> = {
+  'Hit (2d6)':    [11, 10, 9, 8, 7, 6, 5],
+  'Base damage':  [20, 17, 15, 13, 10, 8, 4],
+  'O/L damage':   [30, 25, 22, 19, null, null, null],
 };
 
 function modes(arming: string | null = null, directFire = false) {
@@ -37,7 +36,7 @@ function modes(arming: string | null = null, directFire = false) {
 }
 
 describe('the printed hellbore table', () => {
-  it('reproduces the data’s own bands', () => {
+  it('reproduces the sheet’s bands', () => {
     expect(modes().labels).toEqual(PAPER_BANDS);
   });
 
@@ -45,6 +44,10 @@ describe('the printed hellbore table', () => {
     const line = modes().lines.find(l => l.label === label);
     expect(line, `${label} is missing`).toBeDefined();
     expect(line!.cells).toEqual(PAPER_ROWS[label]);
+  });
+
+  it('has exactly the sheet’s three rows and no more', () => {
+    expect(modes().lines.map(l => l.label)).toEqual(Object.keys(PAPER_ROWS));
   });
 
   it('marks the hit line as two dice, which changes how a span reads', () => {
@@ -61,30 +64,58 @@ describe('the printed hellbore table', () => {
     // row would be the same numbers twice and imply an accuracy gain that is not there.
     expect(modes().lines.filter(l => l.kind === 'hit')).toHaveLength(1);
   });
+});
 
-  it('stops the overload rows at range 8, where the weapon stops reaching', () => {
-    // setOverload caps it at 8. The 9-15 band is the first past that, and both overload rows
-    // have to fall to 0 there or the table promises a shot that throws out of range.
+describe('where the overload stops', () => {
+  it('prints NA past range 8, not a zero', () => {
+    // setOverload caps the weapon at 8. NA says "this mode cannot fire at that range"; a 0
+    // would claim it fires and achieves nothing, which is a different and wrong statement.
+    const ovld = modes().lines.find(l => l.label === 'O/L damage')!;
     const i = modes().labels.indexOf('9–15');
-    expect(modes().lines.find(l => l.label === 'Dmg, env ovld')!.cells[i]).toBe(0);
-    expect(modes().lines.find(l => l.label === 'Dmg, dir ovld')!.cells[i]).toBe(0);
-    // ...while the standard rows carry on to 40.
-    expect(modes().lines.find(l => l.label === 'Dmg, env')!.cells[i]).toBe(10);
+    expect(ovld.cells[i]).toBeNull();
+    expect(ovld.cells.slice(i).every(c => c === null)).toBe(true);
   });
 
+  it('leaves the base row running all the way to 40', () => {
+    const base = modes().lines.find(l => l.label === 'Base damage')!;
+    expect(base.cells[base.cells.length - 1]).toBe(4);
+  });
+});
+
+describe('why direct fire is not a row', () => {
+  it('is exactly half the base damage, rounded down, in every band', () => {
+    // The licence for leaving it off the table (E10.7, owner's call 2026-11-14). It holds for
+    // the overload row too. If this ever fails, the omission has started hiding a real number
+    // and the row has to come back.
+    HELLBORE_ENV_DMG.forEach((base, i) => {
+      expect(HELLBORE_DF_DMG[i], `band ${i}: ${base}`).toBe(Math.floor(base / 2));
+    });
+    HELLBORE_OVLD_ENV.forEach((base, i) => {
+      expect(HELLBORE_OVLD_DF[i], `ovld hex ${i}: ${base}`).toBe(Math.floor(base / 2));
+    });
+  });
+
+  it('is still honoured by the single-mode shape the hover readout reads', () => {
+    // GameBoard's hover table has not been taught `modes` and reads `bands`, which must keep
+    // honouring directFire — dropping the ROW from the panel must not drop the CAPABILITY.
+    const env = getWeaponFullTable('Hellbore-A', null, false)!;
+    const df  = getWeaponFullTable('Hellbore-A', null, true)!;
+    expect(env.bands[0].damage[0]).toBe(20);
+    expect(df.bands[0].damage[0]).toBe(10);
+  });
+
+  it('does not mention direct fire anywhere in the printed rows', () => {
+    const labels = modes().lines.map(l => l.label.toLowerCase()).join(' ');
+    expect(labels).not.toContain('direct');
+    expect(labels).not.toContain('env');
+  });
+});
+
+describe('what the table does not depend on', () => {
   it('is the same table however it is armed and whatever directFire says', () => {
     const base = JSON.stringify(modes());
     for (const arming of ['STANDARD', 'OVERLOAD', null])
       for (const df of [true, false])
         expect(JSON.stringify(modes(arming, df)), `${arming}/${df}`).toBe(base);
-  });
-
-  it('still answers the old single-mode shape for callers that want it', () => {
-    // GameBoard's hover table has not been taught `modes` and reads `bands`, which must keep
-    // honouring directFire or that readout silently switches to enveloping numbers.
-    const env = getWeaponFullTable('Hellbore-A', null, false)!;
-    const df  = getWeaponFullTable('Hellbore-A', null, true)!;
-    expect(env.bands[0].damage[0]).toBe(20);
-    expect(df.bands[0].damage[0]).toBe(10);
   });
 });
