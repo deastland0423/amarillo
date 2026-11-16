@@ -24,6 +24,17 @@ public class Phaser3 extends VariableDamageWeapon implements DirectFire, PhaserW
 			{ 3, 3, 1, 0, 0, 0 } // Roll6
 	};
 
+	/** E2.251: the reach of a ph-3, and so of any phaser fired as one. */
+	static final int LOW_POWER_MAX_RANGE = 15;
+
+	/**
+	 * The ph-3 table, for a larger phaser fired at low power (E2.251). Exposed as a method so
+	 * the chart itself stays private — a caller needs to resolve ON it, not to read it.
+	 */
+	static int[][] chart() {
+		return bandHitChart;
+	}
+
 	public Phaser3() {
 		setDacHitLocaiton("phaser");
 		setType("Phaser3");

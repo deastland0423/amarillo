@@ -5,7 +5,7 @@ import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.objects.Ship;
 
-public class Phaser4 extends VariableDamageWeapon implements DirectFire, PhaserWeapon {
+public class Phaser4 extends LowPowerPhaser implements DirectFire, PhaserWeapon {
 
 	// Range bands: [0] 0-3, [1] 4-5, [2] 6, [3] 7, [4] 8, [5] 9, [6] 10, [7] 11-13,
 	// [8] 14-17, [9] 18-25, [10] 26-40, [11] 41-70, [12] 71-100
@@ -44,11 +44,19 @@ public class Phaser4 extends VariableDamageWeapon implements DirectFire, PhaserW
 		}
 
 		// If this phaser is mounted on a ship, drain the capacitor
-		// the amount needed to fire this phaser.
+		// the amount needed to fire this phaser. energyToFire() is half a point when a
+		// low-power shot is declared (E2.251), so the capacitor is charged before the
+		// declaration is spent below.
 		if (fetchOwningShip() instanceof Ship) {
 			Ship firingShip = (Ship) fetchOwningShip();
 			firingShip.drainCapacitor(energyToFire());
 		}
+
+		// E2.25: fired as a ph-3, on the ph-3 table and at the ph-3's reach. Returns -1 when
+		// no low-power shot was declared, and the full-power resolution below applies.
+		int lowPower = fireAsPhaser3(range);
+		if (lowPower >= 0)
+			return lowPower;
 
 		// Can not damage targets beyond maximum range (100 for ph-4)
 		if (range > getMaxRange()) {
@@ -65,7 +73,8 @@ public class Phaser4 extends VariableDamageWeapon implements DirectFire, PhaserW
 	 * 
 	 * @return The energy needed to fire the weapon.
 	 */
-	public double energyToFire() {
+	@Override
+	protected double fullPowerEnergy() {
 		return 2;
 	}
 
