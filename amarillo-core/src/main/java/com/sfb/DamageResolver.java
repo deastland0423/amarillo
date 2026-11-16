@@ -959,7 +959,17 @@ class DamageResolver {
         // G24.13: each blinding weapon the scout fires blinds one of its powered channels. The
         // firing player chooses which (G24.131) — queue the blinds; they resolve once the shot
         // settles. With 0–1 powered channels queueScoutBlinds resolves it silently.
-        if (attackerShip != null && !attackerShip.getScoutChannels().isEmpty()) {
+        //
+        // G24.135 exempts BASES outright: "Bases do not have exhaust ports for propulsive gases
+        // and can mount their sensors in areas where they are shielded from their own weapons
+        // fire. No base will blind any of its sensor channels as a result of firing its own
+        // weapons." queueScoutBlinds has always honoured that, but this block counted and
+        // ANNOUNCED the blinds regardless, so every one of the nine Base Stations — each of
+        // which carries two channels — logged "2 scout channel(s) to be blinded" on every shot
+        // while nothing blinded. The rule was right and the combat log contradicted it, which
+        // is the worse half of the two to get wrong: a player believes what he is told.
+        if (attackerShip != null && !attackerShip.isBase()
+                && !attackerShip.getScoutChannels().isEmpty()) {
             int blinders = 0;
             for (Weapon w : selected)
                 if (w.isFunctional() && w.blindsScoutChannels())
