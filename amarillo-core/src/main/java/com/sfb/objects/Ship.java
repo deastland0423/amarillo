@@ -1060,6 +1060,55 @@ public class Ship extends Unit implements DroneController {
 		return used < rackFiringLimit;
 	}
 
+	/**
+	 * Every plasma type this ship can put into space, strongest first — the rows the paper SSD
+	 * prints in its PLASMA TORPEDO WARHEAD STRENGTH TABLE.
+	 *
+	 * <p>Two different rules decide the list, which is why it is not simply "the launchers we
+	 * have". FP1.13: a launcher "may be used to load a less powerful, but not a more powerful,
+	 * torpedo than that for which it is rated", so a type-S launcher brings S, G and F with it
+	 * — the download ladder, and why a War Eagle's sheet prints four rows for one launcher.
+	 *
+	 * <p>FP1.133 then cuts the ladder short: "Type-F and larger launchers cannot download a
+	 * type-D torpedo." So type-D is never reached by downloading. It appears on the sheet only
+	 * when the ship CARRIES it, in a plasma rack (FP10.0) — a different reason for a row that
+	 * sits in the same table, which is exactly the sort of thing a derived list gets wrong.
+	 *
+	 * <p>Fighters add nothing here today: {@code FighterPlasmaF} is a type-F launcher, already
+	 * the bottom of every ladder. A plasma-D fighter would need its own clause.
+	 *
+	 * <p>Public knowledge: every part of this is printed on the SSD. What is loaded RIGHT NOW
+	 * is a different question and stays private.
+	 */
+	public java.util.List<com.sfb.properties.PlasmaType> plasmaTypesAvailable() {
+		// Strongest first, and explicit: PlasmaType's declaration order is alphabetical-ish
+		// (D, F, G, K, S, R) and means nothing, so ordinal would quietly invert the ladder.
+		final com.sfb.properties.PlasmaType[] ladder = {
+			com.sfb.properties.PlasmaType.R, com.sfb.properties.PlasmaType.S,
+			com.sfb.properties.PlasmaType.G, com.sfb.properties.PlasmaType.F,
+		};
+
+		int best = -1;
+		boolean rack = false;
+		for (com.sfb.weapons.Weapon w : getWeapons().fetchAllWeapons()) {
+			if (w instanceof com.sfb.weapons.PlasmaRack) {
+				rack = true;
+			} else if (w instanceof com.sfb.weapons.PlasmaLauncher pl) {
+				for (int i = 0; i < ladder.length; i++)
+					if (ladder[i] == pl.getLauncherType() && (best < 0 || i < best))
+						best = i;
+			}
+		}
+
+		java.util.List<com.sfb.properties.PlasmaType> out = new java.util.ArrayList<>();
+		if (best >= 0)
+			for (int i = best; i < ladder.length; i++)
+				out.add(ladder[i]);
+		if (rack)
+			out.add(com.sfb.properties.PlasmaType.D);
+		return out;
+	}
+
 	/** FD4.4's list: drone racks and plasma-D racks, and nothing else. */
 	private static boolean countsAgainstRackLimit(com.sfb.weapons.Weapon w) {
 		return w instanceof com.sfb.weapons.DroneRack

@@ -969,6 +969,19 @@ public class GameStateDto {
          * because a dozen places only ever display it.
          */
         public int moveCostTwelfths;
+        /**
+         * Every plasma type this ship can launch, strongest first — the ROWS its SSD prints in
+         * the PLASMA TORPEDO WARHEAD STRENGTH TABLE.
+         *
+         * Computed in core because two rules decide it and neither is obvious from the weapon
+         * list: FP1.13's download ladder means one type-S launcher prints S, G and F, while
+         * FP1.133 bars type-D from that ladder entirely, so a D row means the ship carries a
+         * plasma RACK. A client deriving this from the launchers it can see would get the
+         * first rule half right and the second one backwards.
+         *
+         * Public: the table is printed on the sheet. What is loaded right now is not.
+         */
+        public List<String> plasmaTypes;
         public double lifeSupportCost; // housekeeping cost
         public int fireControlCost; // always 1
         public int activeShieldCost; // energy to keep shields fully active
@@ -2104,6 +2117,8 @@ public class GameStateDto {
         dto.totalPower = ps.getTotalAvailablePower();
         dto.moveCost = ship.getPerformanceData().getMovementCost();
         dto.moveCostTwelfths = ship.getPerformanceData().getMovementTwelfths();
+        dto.plasmaTypes = ship.plasmaTypesAvailable().stream()
+                .map(Enum::name).collect(java.util.stream.Collectors.toList());
         dto.lifeSupportCost = ship.getLifeSupportCost();
         dto.fireControlCost = ship.getFireControlCost();
         dto.activeShieldCost = ship.getActiveShieldCost();

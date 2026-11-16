@@ -619,6 +619,9 @@ export default function SsdPanel(
           // systems that add printed lines to every disruptor's table (D6.5).
           uim={ship.uimFunctional === true}
           derfacs={ship.derfacsFunctional === true}
+          // Also the ship's, not the weapon's: a plasma-D row means this hull carries a rack
+          // (FP10.0), which the launcher itself knows nothing about.
+          plasmaTypes={ship.plasmaTypes}
         />
       )}
 

@@ -25,7 +25,7 @@ function hitCell(line: ModeLine, v: number): string {
 
 export default function WeaponFullTable({
   weaponName, armingType, directFire = false, plasmaType = null, anchored = true,
-  uim = false, derfacs = false,
+  uim = false, derfacs = false, plasmaTypes,
 }: {
   weaponName:  string;
   armingType:  string | null;
@@ -36,9 +36,11 @@ export default function WeaponFullTable({
   /** The FIRING SHIP's targeting kit. A disruptor prints an extra hit line for each. */
   uim?:        boolean;
   derfacs?:    boolean;
+  /** The SHIP's plasma ladder (FP1.13/FP1.133) — the rows of the warhead strength table. */
+  plasmaTypes?: readonly string[];
 }) {
   const table = getWeaponFullTable(weaponName, armingType, directFire, plasmaType,
-                                   { uim, derfacs });
+                                   { uim, derfacs, plasmaTypes });
   // Null rather than an empty box: a drone rack and a scout channel have no damage table, and
   // saying nothing is the honest answer. See getWeaponFullTable.
   if (!table) return null;

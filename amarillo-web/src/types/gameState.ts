@@ -528,6 +528,12 @@ export interface ShipObject extends MapObjectBase {
    * `floor(20 / moveCost)` is 29 where the answer is 30. See game/moveCost.ts.
    */
   moveCostTwelfths?: number;
+  /**
+   * Every plasma type this ship can launch, strongest first — the ROWS of its warhead strength
+   * table. Server-computed: FP1.13's download ladder adds the weaker types, while FP1.133 bars
+   * type-D from it, so a D row means a plasma RACK rather than a bigger launcher.
+   */
+  plasmaTypes?:      string[];
   lifeSupportCost:   number;
   fireControlCost:   number;
   activeShieldCost:  number;

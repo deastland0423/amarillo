@@ -150,6 +150,9 @@ public class ShipDtoPrivacyTest {
         // Printed on the SSD, like every performance figure. moveCostTwelfths is the same
         // number in the only form a client can divide by without losing a hex.
         "moveCost", "moveCostTwelfths",
+        // The rows of the warhead strength table, which is printed on the sheet. A capability
+        // of the hull, not a statement about what is loaded — that stays private.
+        "plasmaTypes",
         "maxSpeedNextTurn", "decelerating", "decelerationEndsAtImpulse",
         "immobileUntilImpulse", "canDisengageBySeparation", "destructionDirections",
         "hetsThisTurn", "lastHetImpulse", "hetCost", "usingEm", "emPending",

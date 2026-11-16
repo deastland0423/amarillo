@@ -458,6 +458,87 @@ function flatDamageCells(hit: readonly number[], damage: number,
 }
 
 /**
+ * The single-mode bolt bands, kept for GameBoard's hover readout, which has not been taught
+ * the multi-row shape. A bolt scores half the warhead's strength (FP8.4), rounded down.
+ */
+function plasmaBoltBands(plasmaType: string): RangeBand[] {
+  const strength = plasmaType === 'R' ? PLASMA_R_BY_RANGE
+                 : plasmaType === 'S' ? PLASMA_S_BY_RANGE
+                 : plasmaType === 'G' ? PLASMA_G_BY_RANGE
+                 : plasmaType === 'D' ? PLASMA_D_BY_RANGE
+                 :                      PLASMA_F_BY_RANGE;
+  const cols = Math.min(strength.length, PLASMA_BOLT_HIT_CHART.length);
+  return hitChartBands(PLASMA_BOLT_HIT_CHART.slice(0, cols),
+                       strength.slice(0, cols).map(v => Math.floor(v / 2)));
+}
+
+/**
+ * The PLASMA TORPEDO WARHEAD STRENGTH TABLE, as the paper SSD prints it (owner's captures,
+ * 2026-11-15/16: a War Eagle with a plasma-R, a Romulan KR with a plasma-S, and a third hull
+ * carrying a plasma rack).
+ *
+ * <pre>
+ * RANGE  0-5 6-10 11-12 13-14 15 16-18 19 20 21-23 24 25 26-28 29 30
+ * TYPE R  50   50    35    35 35    25 25 25    20 20 20    10  5  1
+ * TYPE S  30   30    22    22 22    15 15 15    10  5  1     0  0  0
+ * TYPE G  20   20    15    15 15    10  5  1     0  0  0     0  0  0
+ * TYPE F  20   15    10     5  1     0  0  0     0  0  0     0  0  0
+ * TYPE D  10    8     5     2  1     0  0  0     0  0  0     0  0  0
+ * BOLT   1-4  1-3          1-2                            1
+ * </pre>
+ *
+ * <h2>Why the rows differ from ship to ship</h2>
+ * The sheet prints the launcher's own type and every weaker one, because FP1.13 lets a
+ * launcher "load a less powerful, but not a more powerful, torpedo than that for which it is
+ * rated" — so a War Eagle's single plasma-R launcher earns four rows. A KR with a plasma-S
+ * gets three.
+ *
+ * Type-D is the exception and arrives by a different route: FP1.133 says "type-F and larger
+ * launchers cannot download a type-D torpedo", so it is never on the ladder. It appears only
+ * when the ship CARRIES type-D, in a plasma rack (FP10.0). Which is why the row list comes
+ * from the server — two rules, pulling opposite ways, and a client deriving it from the
+ * launchers it can see would get the second one backwards.
+ *
+ * <h2>The BOLT row belongs here, not in its own table</h2>
+ * A launcher can fire its torpedo as a bolt at any range (FP8.4), and the sheet prints the
+ * odds as a fourth row sharing the same range columns — because the decision a player is
+ * making is exactly that comparison: what the warhead would do against the chance of a bolt
+ * landing. Separating them would hide the trade.
+ *
+ * <h2>Where the columns stop</h2>
+ * At the last hex the strongest type still scores, which is how the sheet does it: a plasma-R
+ * chart runs to 30 and a plasma-S chart stops at 25. A trailing all-zero band would be a
+ * column that says nothing.
+ */
+function plasmaModeTable(types: readonly string[]): ModeTable | null {
+  const byType: Record<string, readonly number[]> = {
+    R: PLASMA_R_BY_RANGE, S: PLASMA_S_BY_RANGE, G: PLASMA_G_BY_RANGE,
+    F: PLASMA_F_BY_RANGE, D: PLASMA_D_BY_RANGE,
+  };
+  const rows = types.filter(t => byType[t]);
+  if (rows.length === 0) return null;
+
+  // The strongest type is first, and its reach sets the width of the whole table.
+  const strongest = byType[rows[0]];
+  let cols = 0;
+  for (let r = 0; r < strongest.length; r++)
+    if (strongest[r] > 0) cols = r + 1;
+  if (cols === 0) return null;
+
+  const lines: ModeLine[] = rows.map(t => ({
+    label: `Type-${t}`,
+    kind: 'damage' as const,
+    cells: damageCells(byType[t], cols),
+  }));
+  // A hit line, so it renders as the sheet's "1-4" span rather than a bare number. One die.
+  lines.push({ label: 'Bolt', kind: 'hit',
+               cells: hitCells(PLASMA_BOLT_HIT_CHART, cols) });
+
+  const { labels, bands } = bandSeries(lines.map(l => l.cells), cols);
+  return { labels, lines: lines.map((l, i) => ({ ...l, cells: bands.map(b => b[i]) })) };
+}
+
+/**
  * The HELLBORE COMBAT RESOLUTION TABLE, as the paper SSD prints it (owner's clip, 2026-11-14).
  *
  * <pre>
@@ -710,8 +791,12 @@ export function getWeaponFullTable(
   armingType:  string | null,
   directFire = false,
   plasmaType: string | null = null,
-  /** The firing SHIP's targeting kit, which adds printed lines to a disruptor's table. */
-  fit: { uim?: boolean; derfacs?: boolean } = {},
+  /**
+   * What the firing SHIP brings to the table, as opposed to the weapon. A UIM and a DERFACS
+   * add printed lines to a disruptor's; `plasmaTypes` is the row list of the warhead strength
+   * table, which depends on the hull's rack as much as on the launcher (FP1.133).
+   */
+  fit: { uim?: boolean; derfacs?: boolean; plasmaTypes?: readonly string[] } = {},
 ): FullTable | null {
   const n    = weaponName.toLowerCase();
   const mode = armingType ?? 'STANDARD';
@@ -802,9 +887,30 @@ export function getWeaponFullTable(
     };
 
   if (plasmaType) {
-    // The BOLT, which is what a launcher can be asked for at any range (FP8.4) and the only part
-    // of a plasma weapon that answers to a damage table at all. The torpedo's strength by range
-    // belongs to the seeker in flight, not to the launcher sitting on the ship.
+    // The full warhead strength table when the server told us which rows to print, which is
+    // what the sheet does. The old comment here claimed the torpedo's strength by range
+    // "belongs to the seeker in flight, not to the launcher sitting on the ship" -- and the
+    // SSD disproves it: the table is printed on the LAUNCHING ship's sheet, because the
+    // decision it supports (bolt now, or let the torpedo fly) is made at the launcher.
+    const ladder = fit.plasmaTypes && fit.plasmaTypes.length > 0
+      ? fit.plasmaTypes
+      // No ladder from the server: fall back to the launcher's own type alone, which is the
+      // one row we can be certain of without knowing the hull.
+      : [plasmaType];
+    const full = plasmaModeTable(ladder);
+    if (full)
+      return {
+        kind: 'hit',
+        modes: full,
+        // `bands` and `note` stay the BOLT-only readout they always were. The modes renderer
+        // ignores both, so nothing is labelled wrongly; they are what a caller that has not
+        // been taught the multi-row shape still reads, and leaving them untouched is why the
+        // older test on this branch passes unchanged.
+        note: 'type-' + plasmaType + ' bolt',
+        bands: plasmaBoltBands(plasmaType),
+      };
+
+    // The BOLT alone, for a type with no strength table of its own.
     const strength = plasmaType === 'R' ? PLASMA_R_BY_RANGE
                    : plasmaType === 'S' ? PLASMA_S_BY_RANGE
                    : plasmaType === 'G' ? PLASMA_G_BY_RANGE
