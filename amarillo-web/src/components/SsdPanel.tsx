@@ -693,7 +693,9 @@ function GaugeLine({ caption, now, max }: Gauge) {
  */
 function BoxRow({ bank }: { bank: BoxBank }) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 3 }}>
+    // inline-flex, so the squares sit beside their count rather than under it, and align
+    // with the text baseline band rather than starting a new line of their own.
+    <div style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 3, alignItems: 'center' }}>
       {bank.boxes.map(box => {
         const look = boxLook(box);
         return (
@@ -817,8 +819,12 @@ function SystemsBlock({ ship }: { ship: ShipObject }) {
       {banksToDraw(ship.boxBanks).map(bank => (
         <div key={bank.system} style={{ display: 'flex', gap: 6, fontSize: '0.72rem', lineHeight: 1.6 }}>
           <span style={{ flex: '0 0 4.4rem', color: '#6e7681' }}>{bankLabel(bank.system)}</span>
-          <span style={{ flex: 1, minWidth: 0, color: '#c9d1d9' }}>
-            {bankSummary(bank)}
+          {/* Count and boxes on ONE line. Stacked, the boxes sat directly above the NEXT
+              row's label -- the tractor squares read as the shuttle bay's, because the only
+              thing tying a mark to its name was vertical distance. */}
+          <span style={{ flex: 1, minWidth: 0, color: '#c9d1d9',
+                         display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span>{bankSummary(bank)}</span>
             <BoxRow bank={bank} />
           </span>
         </div>
