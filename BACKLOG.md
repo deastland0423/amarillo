@@ -670,6 +670,34 @@ behind package-private hooks, and leave one-line public delegates so the server 
 move. The SH47.5 victory work above is the obvious moment — it touches securing and scoring,
 which are two of the pieces that would move.
 
+## Weapon damage tables — ALL SIX heavy weapons print one (2026-11-14/16)
+
+Disruptor, photon, hellbore, PPD, fusion and the plasma launcher. The last four were rebuilt
+from SSD captures the owner supplied, and the lesson is worth keeping: **the printed layout
+beat the one derived from the data every single time.** The sheet is not a terser rendering of
+the same table, it is a better-chosen one.
+
+- The PPD's splash is ONE cell, "1+4+1", not three rows — the facing shield is the middle
+  number, so the shape of the spread reads at a glance.
+- The hellbore prints three rows, not five: direct fire is exactly floor(base/2), so the rows
+  repeated a rule instead of adding a number.
+- Fusion is the one that CANNOT share a table — every mode is a six-die-face grid and the
+  bands do not line up — so it stacks three.
+- The plasma table is the SHIP's, not the weapon's, and its rows come from core because
+  FP1.13 and FP1.133 pull opposite ways.
+
+**OPEN, awaiting playtest (owner, 2026-11-16): is the plasma table per SHIP or per WEAPON?**
+It is per ship today, following the sheet: selecting a plasma-G on a hull that also has a rack
+shows the type-D row, and selecting the rack shows the identical table. The alternative is
+per-weapon — a G showing only G and F, the rack only D. The owner's instinct was the
+per-weapon reading, and he agreed to leave it as it stands until it has been in front of other
+players. **If a complaint arrives, this is what it is about**, and the change is small: the
+row list is one DTO field and one call to `plasmaModeTable`.
+
+Fusion's suicide-overload table is a smaller version of the same question. The two SSD
+captures show only normal and overload; we print all three, on the grounds that a player who
+has armed a suicide overload needs its numbers and used to see nothing else.
+
 ## An unreproduced flake in the core suite (seen 2026-11-14)
 
 Two runs out of roughly a dozen of the full `amarillo-core` suite failed one test that six
