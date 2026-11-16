@@ -886,7 +886,17 @@ export function getWeaponFullTable(
       })),
     };
 
-  if (plasmaType) {
+  // A plasma rack launches a type-D and may fire it as a bolt (FP10.0, FP10.21), so it answers
+  // to this same table — but PlasmaRack is not a PlasmaLauncher, so no launcherType reaches the
+  // client and `plasmaType` arrives null. Selecting a rack therefore produced NO table at all.
+  //
+  // Dispatching on the weapon's own name is how every other branch in this function works, and
+  // it is the right lever here: setting launcherType on a rack would have fixed the table and
+  // broken four other places that read that field as "this weapon is a launcher" — arming, the
+  // hold buttons, the fire pad and GameBoard's weapon filter.
+  const plasmaTable = plasmaType ?? (n.includes('plasmadrack') ? 'D' : null);
+
+  if (plasmaTable) {
     // The full warhead strength table when the server told us which rows to print, which is
     // what the sheet does. The old comment here claimed the torpedo's strength by range
     // "belongs to the seeker in flight, not to the launcher sitting on the ship" -- and the
@@ -894,9 +904,9 @@ export function getWeaponFullTable(
     // decision it supports (bolt now, or let the torpedo fly) is made at the launcher.
     const ladder = fit.plasmaTypes && fit.plasmaTypes.length > 0
       ? fit.plasmaTypes
-      // No ladder from the server: fall back to the launcher's own type alone, which is the
+      // No ladder from the server: fall back to this weapon's own type alone, which is the
       // one row we can be certain of without knowing the hull.
-      : [plasmaType];
+      : [plasmaTable];
     const full = plasmaModeTable(ladder);
     if (full)
       return {
@@ -906,20 +916,20 @@ export function getWeaponFullTable(
         // ignores both, so nothing is labelled wrongly; they are what a caller that has not
         // been taught the multi-row shape still reads, and leaving them untouched is why the
         // older test on this branch passes unchanged.
-        note: 'type-' + plasmaType + ' bolt',
-        bands: plasmaBoltBands(plasmaType),
+        note: 'type-' + plasmaTable + ' bolt',
+        bands: plasmaBoltBands(plasmaTable),
       };
 
     // The BOLT alone, for a type with no strength table of its own.
-    const strength = plasmaType === 'R' ? PLASMA_R_BY_RANGE
-                   : plasmaType === 'S' ? PLASMA_S_BY_RANGE
-                   : plasmaType === 'G' ? PLASMA_G_BY_RANGE
-                   : plasmaType === 'D' ? PLASMA_D_BY_RANGE
+    const strength = plasmaTable === 'R' ? PLASMA_R_BY_RANGE
+                   : plasmaTable === 'S' ? PLASMA_S_BY_RANGE
+                   : plasmaTable === 'G' ? PLASMA_G_BY_RANGE
+                   : plasmaTable === 'D' ? PLASMA_D_BY_RANGE
                    :                      PLASMA_F_BY_RANGE;
     const cols = Math.min(strength.length, PLASMA_BOLT_HIT_CHART.length);
     return {
       kind: 'hit',
-      note: 'type-' + plasmaType + ' bolt',
+      note: 'type-' + plasmaTable + ' bolt',
       bands: hitChartBands(PLASMA_BOLT_HIT_CHART.slice(0, cols),
                            strength.slice(0, cols).map(s => Math.floor(s / 2))),
     };

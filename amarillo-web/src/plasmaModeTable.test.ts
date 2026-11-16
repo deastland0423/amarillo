@@ -142,3 +142,41 @@ describe('what happens without a ladder from the server', () => {
     expect(t.bands[0].hitOn).toBe(4);
   });
 });
+
+describe('selecting the plasma RACK itself', () => {
+  /** A rack is not a PlasmaLauncher, so no launcherType reaches the client: plasmaType is null. */
+  const rack = (ladder?: string[]) =>
+    getWeaponFullTable('PlasmaDRack-A', null, false, null,
+                       ladder ? { plasmaTypes: ladder } : {});
+
+  it('produces a table, where it used to produce nothing at all', () => {
+    // The gap this closes. The branch keyed on plasmaType, which a rack never sets, so a
+    // player clicking his plasma rack got a blank panel.
+    expect(rack(['G', 'F', 'D'])).not.toBeNull();
+    expect(rack(['G', 'F', 'D'])!.modes).toBeDefined();
+  });
+
+  it('shows the SHIP’s whole table, the same one its launcher shows', () => {
+    // The sheet prints one table per ship, not one per weapon, so a rack and a plasma-G on
+    // the same hull must agree down to the cell. If they ever diverge, one of them is lying.
+    const fromRack     = JSON.stringify(rack(['G', 'F', 'D'])!.modes);
+    const fromLauncher = JSON.stringify(
+      getWeaponFullTable('Plasma-A', null, false, 'G', { plasmaTypes: ['G', 'F', 'D'] })!.modes);
+    expect(fromRack).toBe(fromLauncher);
+  });
+
+  it('falls back to its own type-D row when no ladder arrives', () => {
+    expect(rack()!.modes!.lines.map(l => l.label)).toEqual(['Type-D', 'Bolt']);
+  });
+
+  it('keeps a bolt row, because a rack may bolt its torpedo (FP10.21)', () => {
+    const bolt = rack(['G', 'F', 'D'])!.modes!.lines.find(l => l.label === 'Bolt')!;
+    expect(bolt.kind).toBe('hit');
+    expect(bolt.cells[0]).toBe(4);
+  });
+
+  it('does not catch a plasma LAUNCHER by name', () => {
+    // 'Plasma-A' must not match the rack branch, or every launcher would claim type-D.
+    expect(getWeaponFullTable('Plasma-A', null, false, null, {})).toBeNull();
+  });
+});
