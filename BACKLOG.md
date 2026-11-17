@@ -1528,12 +1528,31 @@ groundwork already in place.
   SAL only — **the other Orion hulls still need it**, and until they have it they fire every
   rack.
 
-- **G24.1343, phaser downfire to avoid blinding** — unbuilt, and the next scout slice.
-  **G24.23, attracting drones, is BUILT** and was still listed here as the thing to do next:
-  G24.231's draw, G24.234's range band and G24.235's ask-the-owner round all exist, with
-  `channelAttractedDrone` on the DTO and a pending-answer flow in Game. See also
-  `project_phaser_downfire`: the rule is E2.25's LOW-POWER clause, not E1.x, and `shotModes`
-  already exist, so it is cheaper than it looks.
+- **G24.1343, phaser downfire — CORE BUILT 2026-11-16. The DECLARATION PATH is what is left.**
+  `LowPowerPhaser` carries E2.25: Phaser1, Phaser2 and Phaser4 extend it, a low-power shot
+  resolves on the ph-3 table at the ph-3's half point and the ph-3's reach of 15, it still
+  spends the phaser's one firing for the turn, and `blindsScoutChannels()` returns false for
+  it (G24.1343). **Nothing can ASK for a low-power shot yet** — that is a per-shot flag
+  through `ActionRequest` and a toggle in the Fire Orders pad, built around the ph-1/ph-2
+  case.
+
+  **Owner's scoping (2026-11-16): ph-1 and ph-2 are the real case; nobody downfires a ph-4.**
+  G24.34 agrees in a bracket, and G24.135 is the reason — ph-4s are base-only (E2.14) and a
+  base never blinds itself, so a downfiring base saves half a point of power and nothing
+  else. The ph-4 stays supported because it is built and correct, but it should not shape the
+  UI. **E2.252** (a ph-4 as a ph-1/ph-2) and **E2.253** (a ph-1 as a ph-2, deception only)
+  are DECIDED non-goals on the same reasoning; E2.253 also needs D17, which is unmodelled.
+
+  **The claim that used to sit here — "`shotModes` already exist, so it is cheaper than it
+  looks" — was WRONG**, and cost nothing only because it was checked. `ShotMode` belongs to
+  `FighterFusion`; phasers had no fire mode at all and `PhaserWeapon` is a bare marker
+  interface. The scout half, by contrast, was free: `DamageResolver` already tallied
+  `blindsScoutChannels()` and `PhaserG` was already the precedent for answering it from state
+  recorded at firing time.
+
+  **G24.23, attracting drones, is BUILT** and was listed here for months as the next thing to
+  do: G24.231's draw, G24.234's range band and G24.235's ask-the-owner round all exist, with
+  `channelAttractedDrone` on the DTO and a pending-answer flow in Game.
 - **G21.1/G21.2 crew quality adjustments.** The declaration is built and `crewQuality` is on
   `ShipSpec`; the adjustment lists are not. The ±3 natural EW is the first slice.
 
