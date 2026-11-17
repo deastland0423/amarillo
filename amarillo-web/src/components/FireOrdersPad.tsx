@@ -161,11 +161,12 @@ interface Sel {
   /**
    * Weapon name -> the mode it fires in, for the two weapons that have one.
    *
-   * SINGLE/DOUBLE is a fighter's fusion; OFFENSIVE/DEFENSIVE is a plasma rack (FP10.21). One
-   * record because they share one wire field, `shotModes`, which the server already dispatches
-   * by weapon type - a second map would have to be merged back into it anyway.
+   * SINGLE/DOUBLE is a fighter's fusion; OFFENSIVE/DEFENSIVE is a plasma rack (FP10.21);
+   * LOW_POWER is a phaser fired as a ph-3 (E2.25). One record because they share one wire
+   * field, `shotModes`, which the server already dispatches by weapon type - a second map
+   * would have to be merged back into it anyway.
    */
-  modes:    Record<string, 'SINGLE' | 'DOUBLE' | 'OFFENSIVE' | 'DEFENSIVE'>;
+  modes:    Record<string, 'SINGLE' | 'DOUBLE' | 'OFFENSIVE' | 'DEFENSIVE' | 'LOW_POWER'>;
   useUim:   boolean;
   /** A Hellbore firing in direct-fire mode: half damage, the facing shield (E10.7). */
   hellbore: boolean;
@@ -173,7 +174,7 @@ interface Sel {
 
 const EMPTY_PICK:  Set<string> = new Set();
 const EMPTY_SHOTS: Record<string, number> = {};
-const EMPTY_MODES: Record<string, 'SINGLE' | 'DOUBLE' | 'OFFENSIVE' | 'DEFENSIVE'> = {};
+const EMPTY_MODES: Record<string, 'SINGLE' | 'DOUBLE' | 'OFFENSIVE' | 'DEFENSIVE' | 'LOW_POWER'> = {};
 const EMPTY_SEL: Sel = {
   attacker: null, target: null, picked: EMPTY_PICK,
   shots: EMPTY_SHOTS, modes: EMPTY_MODES, useUim: false, hellbore: false,
@@ -532,6 +533,10 @@ export default function FireOrdersPad({
       // disabled before that can happen, so the refusal is a backstop rather than the path.
       if (w?.plasmaRack && modes[name])
         shotModes[name] = modes[name];
+      // E2.25: sent only when the player asked for it. An absent key means full power, which
+      // is how the server reads it, so an ordinary shot carries nothing extra.
+      if (w?.canLowPower && modes[name] === 'LOW_POWER')
+        shotModes[name] = 'LOW_POWER';
     }
 
     onAddOrder({
@@ -881,6 +886,39 @@ export default function FireOrdersPad({
                             {m === 'SINGLE' ? '1×' : '2×'}
                           </button>
                         ))}
+                      </span>
+                    )}
+
+                    {/* E2.25 LOW POWER: fire this phaser as a ph-3. Half a point instead of a
+                        full one, the ph-3 damage table, and a reach of 15 rather than the
+                        ph-1's 75 — and it does not blind a scout channel (G24.1343), which is
+                        the whole reason a scout would choose it (G24.34).
+
+                        A toggle rather than a pair of buttons because full power is the
+                        obvious default and the overwhelming majority of shots take it; the
+                        plasma rack has no default on purpose, which is a different situation.
+
+                        Shown only when the server says this phaser qualifies: E2.251 names
+                        ph-1, ph-2 and ph-4, and the list is not guessable from the name — a
+                        ph-3 is already the floor and a ph-G is not on it. */}
+                    {w && picked.has(name) && w.canLowPower && (
+                      <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}
+                            onClick={e => e.preventDefault()}>
+                        <button
+                          className={modes[name] === 'LOW_POWER' ? '' : 'secondary'}
+                          style={{ padding: '0 5px', fontSize: '0.72rem' }}
+                          title={'Fire as a phaser-3 (E2.25): half a point, the ph-3 table, '
+                               + 'range 15 — and no scout channel blinded (G24.1343)'}
+                          onClick={e => {
+                            e.preventDefault();
+                            const next = { ...modes };
+                            if (modes[name] === 'LOW_POWER') delete next[name];
+                            else next[name] = 'LOW_POWER';
+                            amend({ modes: next });
+                          }}
+                        >
+                          ph-3
+                        </button>
                       </span>
                     )}
 

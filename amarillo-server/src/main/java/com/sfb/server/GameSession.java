@@ -3701,9 +3701,30 @@ public class GameSession {
                 ? ((Ship) attacker).getWeapons()
                 : ((Shuttle) attacker).getWeapons();
 
-        // Apply FighterFusion shot modes before resolving weapon list
+        // Apply per-weapon shot modes before resolving the weapon list. Every weapon that
+        // offers a choice at the moment of firing reads it from the same map, keyed by weapon
+        // name: the fighter fusion's single/double, the plasma rack's bolt mode, and a
+        // phaser's low-power election.
+        // Every phaser starts each volley at full power, BEFORE any election is read and
+        // whether or not this order carries shot modes at all.
+        //
+        // An election belongs to the shot it was made for, and a shot can be refused long
+        // before it reaches fire() — out of arc, no lock-on, an empty phaser capacitor — in
+        // which case nothing spends the declaration. Clearing only inside the shotModes block
+        // left that stale "true" to be picked up by the next volley, which would then quietly
+        // fire at half strength on the ph-3 table. Found by mutation: the version that only
+        // ever set the flag to true passed every test written for it.
+        for (Weapon w : attackerWeapons.fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.LowPowerPhaser phaser)
+                phaser.setFiringLowPower(false);
+
         if (shotModes != null && !shotModes.isEmpty()) {
             for (Weapon w : attackerWeapons.fetchAllWeapons()) {
+                // E2.25: fire this phaser as a ph-3 — half a point, the ph-3 table, the ph-3's
+                // reach, and no scout channel blinded (G24.1343).
+                if (w instanceof com.sfb.weapons.LowPowerPhaser phaser
+                        && "LOW_POWER".equalsIgnoreCase(shotModes.get(w.getName())))
+                    phaser.setFiringLowPower(true);
                 if (w instanceof com.sfb.weapons.FighterFusion) {
                     String mode = shotModes.get(w.getName());
                     if ("DOUBLE".equalsIgnoreCase(mode))

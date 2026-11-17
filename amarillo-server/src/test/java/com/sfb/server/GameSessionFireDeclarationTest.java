@@ -187,6 +187,103 @@ class GameSessionFireDeclarationTest {
     }
 
     // -------------------------------------------------------------------------
+    // E2.25 low power, declared per weapon through shotModes
+    // -------------------------------------------------------------------------
+
+    private com.sfb.weapons.LowPowerPhaser firstDownfirablePhaser() {
+        for (com.sfb.weapons.Weapon w : fed.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.LowPowerPhaser p)
+                return p;
+        throw new AssertionError("a Fed CA should carry a phaser that can downfire");
+    }
+
+    /** The same round the reveal test drives, with one weapon and an optional shot mode. */
+    private void fireOnce(String weaponName, String mode) {
+        // D6.124: no lock-on, no shot. Without this the volley is created but every
+        // weapon in it is skipped, and assertions about how a weapon fired pass
+        // vacuously because the weapon never fired.
+        fed.addLockOn(klingon);
+        // ...and energy in the capacitor, or fire() throws and the weapon is skipped.
+        try {
+            fed.chargeCapacitor(fed.getWeapons().getAvailablePhaserCapacitor());
+        } catch (Exception e) {
+            throw new AssertionError("could not charge the capacitor", e);
+        }
+        session.executeAction(request("CALL_FIRE_DECLARATION", HOST));
+        ActionRequest commit = request("COMMIT_FIRE_DECLARATION", HOST);
+        ActionRequest.FireOrder order = new ActionRequest.FireOrder();
+        order.setShipName("USS Enterprise");
+        order.setTargetName("IKV Saber");
+        order.setWeaponNames(List.of(weaponName));
+        order.setRange(1);
+        order.setAdjustedRange(1);
+        order.setShieldNumber(1);
+        if (mode != null)
+            order.setShotModes(java.util.Map.of(weaponName, mode));
+        commit.setFireOrders(List.of(order));
+        commit.setEwAdjustments(List.of(ewAdjustment("USS Enterprise", 0, 2)));
+        assertTrue(session.executeAction(commit).isSuccess());
+        assertTrue(session.executeAction(request("PASS_FIRE_DECLARATION", P2)).isSuccess());
+        assertFalse(game.getPendingVolleys().isEmpty(), "the declared shot must resolve");
+        assertTrue(fed.getWeapons().fetchAllWeapons().stream()
+                .anyMatch(w -> w.getName().equals(weaponName) && w.getShotsThisTurn() > 0),
+                "the weapon must actually have fired, or every assertion below is vacuous");
+    }
+
+    @Test
+    void lowPowerElection_reachesTheWeapon_andSparesAScoutChannel() {
+        com.sfb.weapons.LowPowerPhaser phaser = firstDownfirablePhaser();
+
+        fireOnce(phaser.getName(), "LOW_POWER");
+
+        assertTrue(phaser.firedLowPowerThisImpulse(),
+                "the shotModes election should have reached the phaser");
+        assertFalse(phaser.blindsScoutChannels(),
+                "a phaser fired as a ph-3 blinds nothing (G24.1343)");
+    }
+
+    @Test
+    void withoutTheElection_thePhaserFiresAtFullPowerAndWouldBlind() {
+        com.sfb.weapons.LowPowerPhaser phaser = firstDownfirablePhaser();
+
+        fireOnce(phaser.getName(), null);
+
+        assertFalse(phaser.firedLowPowerThisImpulse());
+        assertTrue(phaser.blindsScoutChannels(), "G24.1342: an ordinary phaser blinds");
+    }
+
+    @Test
+    void anUnrelatedModeStringLeavesThePhaserAtFullPower() {
+        // shotModes is shared with the fighter fusion and the plasma rack, so a phaser must
+        // ignore words meant for them rather than treat any mode at all as low power.
+        com.sfb.weapons.LowPowerPhaser phaser = firstDownfirablePhaser();
+
+        fireOnce(phaser.getName(), "OFFENSIVE");
+
+        assertFalse(phaser.firedLowPowerThisImpulse(), "only LOW_POWER means low power");
+    }
+    @Test
+    void aStaleElectionIsClearedByTheNextVolley() {
+        // An election belongs to the shot it was made for. A shot can be refused before it
+        // ever reaches fire() -- out of arc, no lock-on, an empty capacitor -- and nothing
+        // spends the declaration when that happens. If it survived, the NEXT volley would
+        // quietly fire at half strength on the ph-3 table without anyone asking.
+        //
+        // Found by mutation: a version that only ever set the flag to true, never to false,
+        // passed every other test here.
+        com.sfb.weapons.LowPowerPhaser stale = firstDownfirablePhaser();
+        stale.setFiringLowPower(true);
+
+        // A volley that says nothing about shot modes at all -- the common case, and the one
+        // that used to skip the clearing entirely.
+        fireOnce(stale.getName(), null);
+
+        assertFalse(stale.isFiringLowPower(),
+                "a stale declaration must not survive into a volley that did not ask for it");
+        assertFalse(stale.firedLowPowerThisImpulse(),
+                "so the shot resolves at full power");
+    }
+    // -------------------------------------------------------------------------
     // The reveal
     // -------------------------------------------------------------------------
 

@@ -112,6 +112,11 @@ export interface WeaponState {
   // default on weapons that are not racks AND on a rack an enemy is looking at — so the guard
   // is always `!= null`, never a falsy check: a rack holding 0 torpedoes is a real state and
   // tells you it is empty, while undefined means you are not allowed to know.
+  /**
+   * E2.251: this phaser may be fired as a ph-3 at low power. Server-sent, because which
+   * phasers qualify is a rule — a ph-3 is already the floor and a ph-G is not on the list.
+   */
+  canLowPower?:          boolean;
   plasmaRack?:           boolean; // true if this weapon is a PL-D rack
   plasmaRackCapacity?:   number;  // FP10.1/FP10.14: always 4 on a non-base
   plasmaRackTorpedoes?:  number;  // owner only: how many are left

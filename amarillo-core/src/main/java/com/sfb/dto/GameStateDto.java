@@ -218,6 +218,15 @@ public class GameStateDto {
          * public - the same split {@code addCapacity} already makes against {@code addShots}.
          * Everything else is the rack's current state and is owner-only.
          */
+        /**
+          * E2.251: this phaser may be fired as a ph-3 at low power — a ph-1, ph-2 or ph-4.
+          *
+          * Sent rather than derived, because which phasers qualify is a RULE and the list is
+          * not guessable from the type name: a ph-3 is excluded for being the floor already,
+          * and a ph-G for not being on E2.251's list at all. Public, like the weapon type it
+          * follows from.
+          */
+         public Boolean canLowPower;
         public Boolean plasmaRack;             // true if this weapon is a PL-D rack
         public Integer plasmaRackCapacity;     // FP10.1/FP10.14: always 4 on a non-base
         public Integer plasmaRackTorpedoes;    // how many are left in it
@@ -2300,6 +2309,8 @@ public class GameStateDto {
                 wd.plasmaRackMode = rack.getModeThisTurn().name();
                 wd.plasmaRackBoltUsed = rack.getBoltsThisTurn() > 0;
             }
+            if (w instanceof com.sfb.weapons.LowPowerPhaser)
+                wd.canLowPower = true;
             if (w instanceof com.sfb.weapons.PlasmaLauncher) {
                 com.sfb.weapons.PlasmaLauncher pl = (com.sfb.weapons.PlasmaLauncher) w;
                 wd.plasmaType = pl.getPlasmaType() != null ? pl.getPlasmaType().name() : null;

@@ -314,6 +314,10 @@ public class ShipDtoPrivacyTest {
         "rackType",
         // The same split for a plasma rack: the SSD prints the PL-D box and its four spaces
         "plasmaRack", "plasmaRackCapacity",
+        // E2.251: whether this phaser may be fired as a ph-3. A property of the weapon TYPE,
+        // which is already public, so it discloses nothing the sheet does not. Whether the
+        // owner has ELECTED low power for a given shot is not sent at all.
+        "canLowPower",
         // Scout channels: what a channel is doing and lending is public by ruling
         "scoutChannel", "channelPowered", "channelBlinded", "channelFunction",
         "channelLendTarget", "channelLentEcm", "channelLentEccm", "channelBreakAttempts",
