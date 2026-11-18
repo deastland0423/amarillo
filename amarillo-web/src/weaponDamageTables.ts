@@ -214,6 +214,29 @@ function ppdBand(range: number): number {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
+/** E2.251's reach for a phaser fired as a ph-3, and the ph-3's own. */
+export const PHASER3_MAX_RANGE = 15;
+
+/**
+ * E2.251: which phasers may be fired as a ph-3 — "any ph-1, ph-2, or ph-4".
+ *
+ * The client mirrors this rather than owning it: the server sends `canLowPower` per weapon
+ * (from `instanceof LowPowerPhaser`) and the Fire Orders pad offers the toggle off that. This
+ * exists only so the PREVIEW can resolve a name it is handed, and it must agree with the
+ * server exactly — it excludes the ph-3 (already the floor) and the ph-G (not on E2.251's
+ * list), and nothing else.
+ *
+ * <p>It briefly excluded a FIGHTER's phaser too, on the vague feeling that a fighter's weapon
+ * is its own thing. Wrong twice over: four fighters in the data mount a ph-2, the server's
+ * rule admits them, and nothing in E2.25 excludes a fighter. A second gate that disagrees
+ * with the first does not add safety, it silently drops a legitimate election — so this one
+ * is kept deliberately identical rather than defensively stricter.
+ */
+export function canFireLowPower(weaponName: string): boolean {
+  const n = weaponName.toLowerCase();
+  return n.includes('phaser1') || n.includes('phaser2') || n.includes('phaser4');
+}
+
 /**
  * Returns per-die damage preview rows for the given weapon at the given range.
  * `adjustedRange` is used for the hit-roll chart in hit-or-miss weapons (photon/disruptor).
@@ -226,9 +249,24 @@ export function getWeaponDamagePreview(
   range:         number,
   adjustedRange: number,
   directFire   = false,
+  /**
+   * E2.25: this phaser was elected to fire as a ph-3. The preview has to follow, or the pad
+   * promises the full-power numbers for a shot that will not deliver them.
+   */
+  lowPower     = false,
 ): DmgRow[] | null {
   const n    = weaponName.toLowerCase();
   const mode = armingType ?? 'STANDARD';
+
+  // A phaser fired at low power IS a ph-3: its table, and its reach.
+  //
+  // Null past 15 rather than the clamped range-15 column that every other weapon shows when
+  // it is out of reach. The difference is categorical, not a matter of degree — core REFUSES
+  // a low-power shot beyond the ph-3's range (E2.251) rather than scoring badly at it, so a
+  // figure here would be a promise about a volley that is going to be rejected. A ph-1 shown
+  // at range 100 is merely optimistic; this would be wrong.
+  if (lowPower && canFireLowPower(weaponName))
+    return range > PHASER3_MAX_RANGE ? null : rollTablePreview(PHASER3_TABLE, range, PHASER3_MAX_RANGE);
 
   if (n.includes('phaser1'))
     return rollTablePreview(PHASER1_TABLE, range, 75);

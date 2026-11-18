@@ -281,12 +281,12 @@ const ROW: React.CSSProperties = {
  * tooltip makes. Without this a launcher showed no figure at all and was quietly missing
  * from the volley estimate.
  */
-function previewFor(w: WeaponState, range: number, adjustedRange: number) {
+function previewFor(w: WeaponState, range: number, adjustedRange: number, lowPower = false) {
   return w.plasmaRack
     ? getPlasmaBoltPreview('D', range, adjustedRange)
     : w.launcherType
     ? getPlasmaBoltPreview(w.plasmaType, range, adjustedRange)
-    : getWeaponDamagePreview(w.name, w.armingType, range, adjustedRange, true);
+    : getWeaponDamagePreview(w.name, w.armingType, range, adjustedRange, true, lowPower);
 }
 
 /**
@@ -298,13 +298,21 @@ function previewFor(w: WeaponState, range: number, adjustedRange: number) {
  * one; the server rolls the real dice.
  */
 function volleyEstimate(weapons: WeaponState[], names: string[],
-                        range: number, adjustedRange: number): number | null {
+                        range: number, adjustedRange: number,
+                        /**
+                         * The elected shot modes. A phaser set to fire as a ph-3 (E2.25) is
+                         * worth roughly half what its own table says at point blank, and
+                         * nothing at all past range 15 where core refuses the shot outright —
+                         * so an estimate that ignored the election would overstate the volley
+                         * and, worse, promise damage for a shot about to be rejected.
+                         */
+                        modes: Record<string, string> = {}): number | null {
   let total = 0;
   let known = false;
   for (const name of names) {
     const w = weapons.find(x => x.name === name);
     if (!w) continue;
-    const rows = previewFor(w, range, adjustedRange);
+    const rows = previewFor(w, range, adjustedRange, modes[name] === 'LOW_POWER');
     if (!rows || rows.length === 0) continue;
     known = true;
     total += rows.reduce((sum, r) => sum + r.damage, 0) / rows.length;
@@ -651,7 +659,8 @@ export default function FireOrdersPad({
               {group.rows.map(c => {
             const isSel = c.name === targetName;
             const already = orders.some(o => o.shipName === attacker.name && o.targetName === c.name);
-            const worth = volleyEstimate(attacker.weapons, c.weaponsInArc, c.range, c.adjustedRange);
+            const worth = volleyEstimate(attacker.weapons, c.weaponsInArc,
+                                         c.range, c.adjustedRange, modes);
             const aimed = aimedAt.get(c.name);
             const lit = hoveredOnMap.includes(c.name);
             return (

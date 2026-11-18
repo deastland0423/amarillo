@@ -1528,13 +1528,27 @@ groundwork already in place.
   SAL only — **the other Orion hulls still need it**, and until they have it they fire every
   rack.
 
-- **G24.1343, phaser downfire — CORE BUILT 2026-11-16. The DECLARATION PATH is what is left.**
+- **G24.1343, phaser downfire — COMPLETE ALL TIERS 2026-11-16/18.**
   `LowPowerPhaser` carries E2.25: Phaser1, Phaser2 and Phaser4 extend it, a low-power shot
   resolves on the ph-3 table at the ph-3's half point and the ph-3's reach of 15, it still
   spends the phaser's one firing for the turn, and `blindsScoutChannels()` returns false for
-  it (G24.1343). **Nothing can ASK for a low-power shot yet** — that is a per-shot flag
-  through `ActionRequest` and a toggle in the Fire Orders pad, built around the ph-1/ph-2
-  case.
+  it (G24.1343). The election rides the existing per-weapon `shotModes` map; the Fire Orders
+  pad offers a "ph-3" toggle wherever `canLowPower` says the weapon qualifies; and the damage
+  preview resolves on the ph-3 table, reporting NOTHING past range 15 because core refuses
+  the shot there rather than scoring badly at it.
+
+  **Three traps, all found by tests rather than by reading, and worth not relearning:**
+  - **A weapon that never fires satisfies every assertion about an ordinary shot**, because
+    `blindsScoutChannels()` defaults to true. Three server tests passed vacuously until a
+    guard asserting the weapon actually fired was added. A phaser needs capacitor ENERGY and
+    the fire-declaration fixture allocates none. That fixture's own older reveal test still
+    asserts only that a volley exists and a log line appears — both true with nothing firing.
+  - **An election must be cleared at the top of every volley**, not only when shot modes are
+    present. A shot can be refused before `fire()` spends the declaration (out of arc, no
+    lock-on, empty capacitor), and the stale flag would fire the NEXT volley at half strength.
+  - **A second gate that disagrees with the first is worse than no second gate.** The client's
+    `canFireLowPower` briefly excluded a fighter's phaser; four fighters mount a ph-2, the
+    server admits them, and the mismatch would have silently dropped a legal election.
 
   **Owner's scoping (2026-11-16): ph-1 and ph-2 are the real case; nobody downfires a ph-4.**
   G24.34 agrees in a bracket, and G24.135 is the reason — ph-4s are base-only (E2.14) and a
